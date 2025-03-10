@@ -1,0 +1,67 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                  String        @id @default(cuid())
+  email               String        @unique
+  name                String
+  password            String
+  role                String        @default("user")
+  branchId            String?
+  isActive            Boolean       @default(true)
+  lastLogin           DateTime?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  failedLoginAttempts Int           @default(0)
+  lockedUntil         DateTime?
+  username            String        @unique
+  activityLogs        ActivityLog[]
+  branch              Branch?       @relation(fields: [branchId], references: [id])
+}
+
+model Branch {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  parentId  String?
+  parent    Branch?  @relation("BranchHierarchy", fields: [parentId], references: [id])
+  children  Branch[] @relation("BranchHierarchy")
+  reports   Report[]
+  users     User[]
+}
+
+model Report {
+  id          String    @id @default(cuid())
+  date        DateTime
+  branchId    String
+  writeOffs   Float
+  ninetyPlus  Float
+  status      String    @default("pending")
+  submittedBy String
+  submittedAt DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  comments    String?
+  reviewedAt  DateTime?
+  reviewedBy  String?
+  branch      Branch    @relation(fields: [branchId], references: [id])
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  userId    String
+  action    String
+  details   String?
+  ipAddress String?
+  userAgent String?
+  timestamp DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
