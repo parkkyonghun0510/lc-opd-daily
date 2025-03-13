@@ -18,6 +18,11 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
+    const authUser = await getUserFromToken(request);
+    if (!authUser) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const report = await prisma.report.findUnique({
       where: {
         id: params.id,
@@ -36,6 +41,16 @@ export async function GET(
     if (!report) {
       return NextResponse.json({ error: "Report not found" }, { status: 404 });
     }
+
+    await prisma.activityLog.create({
+      data: {
+        action: "VIEW_REPORT",
+        userId: authUser.userId,
+        details: `Viewed report for branch: ${report.branch.code} on ${
+          new Date(report.date).toISOString().split("T")[0]
+        }`,
+      },
+    });
 
     return NextResponse.json(report);
   } catch (error) {

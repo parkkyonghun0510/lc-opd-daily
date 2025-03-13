@@ -29,6 +29,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/use-toast";
+import { CurrencyInput, KHCurrencyInput } from "@/components/ui/currency-input";
 
 type Branch = {
   id: string;
@@ -80,6 +81,16 @@ export default function CreateReport() {
       toast({
         title: "Validation Error",
         description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Add date validation check
+    if (date > new Date()) {
+      toast({
+        title: "Invalid Date",
+        description: "You cannot select a future date",
         variant: "destructive",
       });
       return;
@@ -167,6 +178,7 @@ export default function CreateReport() {
                   selected={date}
                   onSelect={setDate}
                   initialFocus
+                  disabled={(date) => date > new Date()}
                 />
               </PopoverContent>
             </Popover>
@@ -198,28 +210,12 @@ export default function CreateReport() {
 
           <div className="space-y-2">
             <Label htmlFor="writeOffs">Write-offs (Amount in KHR) *</Label>
-            <Input
-              id="writeOffs"
-              type="number"
-              step="0.01"
-              min="0"
-              placeholder="Enter write-offs amount in KHR"
-              value={writeOffs}
-              onChange={(e) => setWriteOffs(e.target.value)}
-            />
+            <KHCurrencyInput />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="ninetyPlus">90+ Days (Amount in KHR) *</Label>
-            <Input
-              id="ninetyPlus"
-              type="number"
-              step="0.01"
-              min="0"
-              placeholder="Enter 90+ days amount in KHR"
-              value={ninetyPlus}
-              onChange={(e) => setNinetyPlus(e.target.value)}
-            />
+            <KHCurrencyInput />
           </div>
 
           <div className="space-y-2">

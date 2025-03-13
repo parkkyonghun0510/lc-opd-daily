@@ -27,7 +27,8 @@ export async function GET(request: Request) {
     const skip = (page - 1) * limit;
 
     // Build the where clause
-    let where: any = {};
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const where: any = {};
 
     if (search) {
       where.OR = [
@@ -236,6 +237,7 @@ export async function PATCH(request: Request) {
     }
 
     // Prepare update data
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const updateData: any = {};
     if (username) updateData.username = username;
     if (email) updateData.email = email;

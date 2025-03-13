@@ -1,4 +1,4 @@
-import { PrismaClient, User } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 import { compare, hash } from "bcrypt";
 import {
   isAccountLocked,
@@ -6,11 +6,56 @@ import {
   resetFailedLoginAttempts,
   getRemainingLockoutTime,
 } from "./utils/account-security";
+import { NextAuthOptions } from "next-auth";
+import CredentialsProvider from "next-auth/providers/credentials";
+
+export interface CustomUser {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  branchId: string | null;
+  username: string;
+  password: string;
+  lastLogin?: Date;
+}
+
+declare module "next-auth" {
+  interface User {
+    id: string;
+    email: string;
+    name: string;
+    role: string;
+    branchId: string | null;
+    username: string;
+    password: string;
+    lastLogin?: Date;
+  }
+  interface Session {
+    user: SessionUser;
+  }
+}
+
+declare module "next-auth/jwt" {
+  interface JWT {
+    id: string;
+    role: string;
+    branchId: string | null;
+  }
+}
+
+export interface SessionUser {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  branchId: string | null;
+}
 
 const prisma = new PrismaClient();
 
 // Type for user without password
-export type SafeUser = Omit<User, "password">;
+export type SafeUser = Omit<CustomUser, "password">;
 
 // Function to hash passwords
 export async function hashPassword(password: string): Promise<string> {
@@ -199,3 +244,108 @@ export async function logUserActivity(
     console.error("Failed to log user activity:", error);
   }
 }
+
+export const authOptions: NextAuthOptions = {
+  secret: process.env.NEXTAUTH_SECRET,
+  session: {
+    strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30 days
+  },
+  pages: {
+    signIn: "/login",
+    error: "/login",
+  },
+  providers: [
+    CredentialsProvider({
+      name: "Credentials",
+      credentials: {
+        username: { label: "Username", type: "text" },
+        password: { label: "Password", type: "password" },
+      },
+      async authorize(credentials) {
+        if (!credentials?.username || !credentials?.password) {
+          throw new Error("Missing credentials");
+        }
+
+        // Check if account is locked
+        const isLocked = await isAccountLocked(credentials.username);
+        if (isLocked) {
+          const remainingTime = await getRemainingLockoutTime(
+            credentials.username
+          );
+          throw new Error(
+            `Account is locked. Try again in ${remainingTime} minutes.`
+          );
+        }
+
+        const user = await prisma.user.findFirst({
+          where: {
+            username: credentials.username,
+          },
+        });
+
+        if (!user) {
+          await recordFailedLoginAttempt(credentials.username);
+          throw new Error("Invalid credentials");
+        }
+
+        const isValid = await compare(credentials.password, user.password);
+
+        if (!isValid) {
+          const isNowLocked = await recordFailedLoginAttempt(
+            credentials.username
+          );
+          if (isNowLocked) {
+            const remainingTime = await getRemainingLockoutTime(
+              credentials.username
+            );
+            throw new Error(
+              `Account is now locked due to too many failed attempts. Try again in ${remainingTime} minutes.`
+            );
+          }
+          throw new Error("Invalid credentials");
+        }
+
+        // Reset failed login attempts
+        await resetFailedLoginAttempts(user.id);
+
+        // Update last login
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { lastLogin: new Date() },
+        });
+
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
+          branchId: user.branchId,
+          username: user.username,
+          password: user.password,
+          lastLogin: user.lastLogin || undefined,
+        };
+      },
+    }),
+  ],
+  callbacks: {
+    async jwt({ token, user }) {
+      if (user) {
+        token.id = user.id;
+        token.role = user.role;
+        token.branchId = user.branchId;
+      }
+      return token;
+    },
+    async session({ session, token }) {
+      if (session.user) {
+        (session.user as SessionUser).id = token.id as string;
+        (session.user as SessionUser).role = token.role as string;
+        (session.user as SessionUser).branchId = token.branchId as
+          | string
+          | null;
+      }
+      return session;
+    },
+  },
+};

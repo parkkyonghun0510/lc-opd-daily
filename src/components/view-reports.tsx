@@ -31,7 +31,6 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { PencilIcon } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { toast } from "@/components/ui/use-toast";
 import {
   Dialog,
@@ -45,6 +44,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2 } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { CreateReportModal } from "./reports/CreateReportModal";
+import { PlusIcon } from "lucide-react";
 
 type Report = {
   id: string;
@@ -56,6 +58,9 @@ type Report = {
   };
   writeOffs: number;
   ninetyPlus: number;
+  writeOffsPlan?: number;
+  ninetyPlusPlan?: number;
+  reportType: "plan" | "actual";
   status: string;
   submittedBy: string;
   submittedAt: string;
@@ -69,10 +74,17 @@ type PaginationInfo = {
   totalPages: number;
 };
 
+type Branch = {
+  id: string;
+  code: string;
+  name: string;
+};
+
 export default function ViewReports() {
   const [date, setDate] = useState<Date | undefined>(undefined);
   const [reports, setReports] = useState<Report[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [reportType, setReportType] = useState<"plan" | "actual">("actual");
   const [pagination, setPagination] = useState<PaginationInfo>({
     total: 0,
     page: 1,
@@ -85,36 +97,79 @@ export default function ViewReports() {
   const [editNinetyPlus, setEditNinetyPlus] = useState("");
   const [editComments, setEditComments] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { data: session } = useSession();
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [createReportType, setCreateReportType] = useState<"plan" | "actual">(
+    "plan"
+  );
+  const [userBranches, setUserBranches] = useState<Branch[]>([]);
 
   // Fetch reports on component mount and when filters change
   useEffect(() => {
     fetchReports();
-  }, [pagination.page, date]);
+  }, [pagination.page, date, reportType]);
+
+  // Fetch branches on component mount
+  useEffect(() => {
+    const fetchBranches = async () => {
+      if (!session?.user) return; // Don't fetch if no session
+
+      try {
+        if (session.user.role === "admin") {
+          const response = await fetch("/api/branches");
+          if (response.ok) {
+            const data = await response.json();
+            setUserBranches(data.branches || []);
+          }
+        } else if (session.user.branchId) {
+          const response = await fetch(
+            `/api/branches/${session.user.branchId}`
+          );
+          if (response.ok) {
+            const branch = await response.json();
+            setUserBranches([branch]);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching branches:", error);
+      }
+    };
+
+    fetchBranches();
+  }, [session]);
 
   const fetchReports = async () => {
     setIsLoading(true);
     try {
-      let url = `/api/reports?page=${pagination.page}&limit=${pagination.limit}`;
+      let url = `/api/reports?page=${pagination.page}&limit=${pagination.limit}&type=${reportType}`;
 
       if (date) {
-        url += `&date=${date.toISOString().split("T")[0]}`;
+        url += `&date=${format(date, "yyyy-MM-dd")}`;
       }
 
       const response = await fetch(url);
 
       if (!response.ok) {
-        throw new Error("Failed to fetch reports");
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to fetch reports");
       }
 
       const data = await response.json();
-      console.log(data);
-      setReports(data.reports || []);
-      setPagination(data.pagination || pagination);
+      setReports(data.reports ?? []);
+      setPagination(
+        data.pagination ?? {
+          total: 0,
+          page: 1,
+          limit: 10,
+          totalPages: 0,
+        }
+      );
     } catch (error) {
       console.error("Error fetching reports:", error);
       toast({
         title: "Error",
-        description: "Failed to load reports. Please try again.",
+        description:
+          error instanceof Error ? error.message : "Failed to load reports",
         variant: "destructive",
       });
     } finally {
@@ -134,7 +189,7 @@ export default function ViewReports() {
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString();
+    return format(date, "yyyy-MM-dd");
   };
 
   // const formatCurrency = (amount: number) => {
@@ -146,15 +201,15 @@ export default function ViewReports() {
   //   }).format(amount);
   // };
   const formatCurrency = (amount: number) => {
-    // First format with the standard formatter
-    const formatted = new Intl.NumberFormat("km-KH", {
+    return new Intl.NumberFormat("km-KH", {
       style: "currency",
       currency: "KHR",
-      minimumFractionDigits: 2,
-    }).format(amount);
-
-    // Replace "KHR" with the Riel symbol "៛"
-    return formatted.replace("KHR", "៛");
+      currencyDisplay: "symbol",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    })
+      .format(amount)
+      .replace("KHR", "៛");
   };
 
   const getStatusBadgeColor = (status: string) => {
@@ -224,6 +279,11 @@ export default function ViewReports() {
     }
   };
 
+  const handleCreateClick = (type: "plan" | "actual") => {
+    setCreateReportType(type);
+    setIsCreateModalOpen(true);
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -234,7 +294,58 @@ export default function ViewReports() {
         {/* Responsive filter controls */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4 space-y-4 md:space-y-0">
           <div className="flex flex-col md:flex-row md:items-center space-y-2 md:space-y-0 md:space-x-2">
-            <span className="text-sm font-medium">Filter By Date</span>
+            <div className="flex items-center space-x-4">
+              <div className="relative group">
+                <Button
+                  variant={reportType === "plan" ? "default" : "outline"}
+                  onClick={() => setReportType("plan")}
+                  className="w-full md:w-auto"
+                  title="Morning plan reports for write-offs and 90+ days"
+                >
+                  Morning Plan
+                </Button>
+                {reportType === "plan" && (
+                  <div className="absolute right-0 top-full mt-2 invisible group-hover:visible z-50">
+                    <Button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCreateClick("plan");
+                      }}
+                      className="bg-blue-600 hover:bg-blue-700 flex items-center shadow-lg"
+                      size="sm"
+                    >
+                      <PlusIcon className="h-4 w-4 mr-1" />
+                      Create Plan
+                    </Button>
+                  </div>
+                )}
+              </div>
+              <div className="relative group">
+                <Button
+                  variant={reportType === "actual" ? "default" : "outline"}
+                  onClick={() => setReportType("actual")}
+                  className="w-full md:w-auto"
+                  title="Evening actual reports for write-offs and 90+ days"
+                >
+                  Evening Actual
+                </Button>
+                {reportType === "actual" && (
+                  <div className="absolute right-0 top-full mt-2 invisible group-hover:visible z-50">
+                    <Button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCreateClick("actual");
+                      }}
+                      className="bg-green-600 hover:bg-green-700 flex items-center shadow-lg"
+                      size="sm"
+                    >
+                      <PlusIcon className="h-4 w-4 mr-1" />
+                      Create Actual
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
             <Popover>
               <PopoverTrigger asChild>
                 <Button
@@ -258,13 +369,29 @@ export default function ViewReports() {
               </PopoverContent>
             </Popover>
           </div>
-          <Button
-            onClick={handleFilter}
-            className="bg-green-600 hover:bg-green-700 w-full md:w-auto"
-            disabled={isLoading}
-          >
-            {isLoading ? "Loading..." : "Apply Filters"}
-          </Button>
+          <div className="flex items-center space-x-2">
+            <Button
+              onClick={() => handleCreateClick(reportType)}
+              className={cn(
+                "flex items-center shadow-lg",
+                reportType === "plan"
+                  ? "bg-blue-600 hover:bg-blue-700"
+                  : "bg-green-600 hover:bg-green-700"
+              )}
+              title={`Create a new ${reportType} report`}
+            >
+              <PlusIcon className="h-4 w-4 mr-2" />
+              Create {reportType === "plan" ? "Plan" : "Actual"}
+            </Button>
+            <Button
+              onClick={handleFilter}
+              variant="outline"
+              disabled={isLoading}
+              title="Apply date and type filters"
+            >
+              {isLoading ? "Loading..." : "Filter"}
+            </Button>
+          </div>
         </div>
 
         {/* Responsive table with horizontal scroll on small screens */}
@@ -274,8 +401,21 @@ export default function ViewReports() {
               <TableRow>
                 <TableHead className="whitespace-nowrap">Branch</TableHead>
                 <TableHead className="whitespace-nowrap">Date</TableHead>
-                <TableHead className="whitespace-nowrap">Write-offs</TableHead>
-                <TableHead className="whitespace-nowrap">90+ Days</TableHead>
+                <TableHead className="whitespace-nowrap">
+                  {reportType === "plan"
+                    ? "Write-offs Plan"
+                    : "Write-offs Actual"}
+                </TableHead>
+                <TableHead className="whitespace-nowrap">
+                  {reportType === "plan" ? "90+ Days Plan" : "90+ Days Actual"}
+                </TableHead>
+                {reportType === "actual" && (
+                  <>
+                    <TableHead className="whitespace-nowrap">
+                      Plan Achievement %
+                    </TableHead>
+                  </>
+                )}
                 <TableHead className="whitespace-nowrap">Status</TableHead>
                 <TableHead className="whitespace-nowrap">
                   Submitted By
@@ -286,13 +426,19 @@ export default function ViewReports() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-4">
+                  <TableCell
+                    colSpan={reportType === "actual" ? 8 : 7}
+                    className="text-center py-4"
+                  >
                     Loading reports...
                   </TableCell>
                 </TableRow>
               ) : reports.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-4">
+                  <TableCell
+                    colSpan={reportType === "actual" ? 8 : 7}
+                    className="text-center py-4"
+                  >
                     No reports found
                   </TableCell>
                 </TableRow>
@@ -311,6 +457,16 @@ export default function ViewReports() {
                     <TableCell className="whitespace-nowrap">
                       {formatCurrency(report.ninetyPlus)}
                     </TableCell>
+                    {reportType === "actual" && (
+                      <TableCell className="whitespace-nowrap">
+                        {report.writeOffsPlan && report.writeOffs
+                          ? `${(
+                              (report.writeOffs / report.writeOffsPlan) *
+                              100
+                            ).toFixed(1)}%`
+                          : "N/A"}
+                      </TableCell>
+                    )}
                     <TableCell className="whitespace-nowrap">
                       <Badge className={getStatusBadgeColor(report.status)}>
                         {report.status.charAt(0).toUpperCase() +
@@ -364,16 +520,22 @@ export default function ViewReports() {
         <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
-              <DialogTitle>Edit Report</DialogTitle>
+              <DialogTitle>
+                Edit {reportType === "plan" ? "Morning Plan" : "Evening Actual"}{" "}
+                Report
+              </DialogTitle>
               <DialogDescription>
-                Update the report details for {editingReport?.branch.name} (
-                {editingReport?.branch.code})
+                Update the {reportType} report details for{" "}
+                {editingReport?.branch.name} ({editingReport?.branch.code})
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="writeOffs" className="col-span-4">
-                  Write-offs (Amount in KHR)
+                  {reportType === "plan"
+                    ? "Write-offs Plan"
+                    : "Write-offs Actual"}{" "}
+                  (Amount in KHR)
                 </Label>
                 <Input
                   id="writeOffs"
@@ -387,7 +549,8 @@ export default function ViewReports() {
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="ninetyPlus" className="col-span-4">
-                  90+ Days (Amount in KHR)
+                  {reportType === "plan" ? "90+ Days Plan" : "90+ Days Actual"}{" "}
+                  (Amount in KHR)
                 </Label>
                 <Input
                   id="ninetyPlus"
@@ -431,6 +594,16 @@ export default function ViewReports() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        <CreateReportModal
+          isOpen={isCreateModalOpen}
+          onClose={() => setIsCreateModalOpen(false)}
+          reportType={createReportType}
+          onSuccess={fetchReports}
+          userBranches={userBranches}
+          isAdmin={session?.user?.role === "admin" || false}
+          defaultBranchId={session?.user?.branchId || undefined}
+        />
       </CardContent>
     </Card>
   );

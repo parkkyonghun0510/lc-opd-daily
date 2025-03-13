@@ -1,55 +1,99 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
-import { z } from "zod";
-import { getUserFromToken } from "@/lib/jwt";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import prisma from "@/lib/prisma";
 
-const prisma = new PrismaClient();
+type ReportType = "plan" | "actual";
 
-// Validation schema for report creation
-const reportSchema = z.object({
-  date: z.string().datetime(),
-  branchId: z.string(),
-  writeOffs: z.number().min(0),
-  ninetyPlus: z.number().min(0),
-  submittedBy: z.string(),
-  comments: z.string().optional(),
-});
+interface ReportData {
+  branchId: string;
+  date: string;
+  writeOffs: number;
+  ninetyPlus: number;
+  comments?: string;
+  reportType: ReportType;
+}
 
 // GET /api/reports - Get all reports or filter by date with pagination
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const date = searchParams.get("date");
-  const page = parseInt(searchParams.get("page") || "1");
-  const limit = parseInt(searchParams.get("limit") || "10");
-  const skip = (page - 1) * limit;
-
   try {
-    let where = {};
-
-    if (date) {
-      const dateObj = new Date(date);
-      where = {
-        date: {
-          gte: new Date(dateObj.setHours(0, 0, 0, 0)),
-          lt: new Date(dateObj.setHours(23, 59, 59, 999)),
-        },
-      };
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const [reports, total] = await Promise.all([
-      prisma.report.findMany({
-        where,
-        include: {
-          branch: true,
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = parseInt(searchParams.get("limit") || "10");
+    const date = searchParams.get("date");
+    const type = (searchParams.get("type") || "actual") as ReportType;
+
+    const skip = (page - 1) * limit;
+
+    const where = {
+      reportType: type,
+      ...(date && { date }),
+      ...(session.user.role !== "admin" &&
+        session.user.branchId && {
+          branchId: session.user.branchId,
+        }),
+    };
+
+    // Get total count for pagination
+    const total = await prisma.report.count({ where });
+
+    // Fetch reports with pagination
+    const reports = await prisma.report.findMany({
+      where,
+      include: {
+        branch: {
+          select: {
+            id: true,
+            code: true,
+            name: true,
+          },
         },
-        orderBy: {
-          submittedAt: "desc",
+      },
+      orderBy: {
+        date: "desc",
+      },
+      skip,
+      take: limit,
+    });
+
+    // For actual reports, fetch corresponding plan reports
+    if (type === "actual") {
+      const reportDates = reports.map((report) => report.date);
+      const planReports = await prisma.report.findMany({
+        where: {
+          date: { in: reportDates },
+          reportType: "plan",
+          branchId: { in: reports.map((r) => r.branchId) },
         },
-        skip,
-        take: limit,
-      }),
-      prisma.report.count({ where }),
-    ]);
+      });
+
+      // Merge plan data into actual reports
+      const reportsWithPlan = reports.map((report) => {
+        const planReport = planReports.find(
+          (pr) => pr.date === report.date && pr.branchId === report.branchId
+        );
+        return {
+          ...report,
+          writeOffsPlan: planReport?.writeOffs || null,
+          ninetyPlusPlan: planReport?.ninetyPlus || null,
+        };
+      });
+
+      return NextResponse.json({
+        reports: reportsWithPlan,
+        pagination: {
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit),
+        },
+      });
+    }
 
     return NextResponse.json({
       reports,
@@ -63,10 +107,7 @@ export async function GET(request: Request) {
   } catch (error) {
     console.error("Error fetching reports:", error);
     return NextResponse.json(
-      {
-        error: "Failed to fetch reports",
-        details: error instanceof Error ? error.message : "Unknown error",
-      },
+      { error: "Failed to fetch reports" },
       { status: 500 }
     );
   }
@@ -75,83 +116,96 @@ export async function GET(request: Request) {
 // POST /api/reports - Create a new report
 export async function POST(request: Request) {
   try {
-    // Get user from token
-    const authUser = await getUserFromToken();
-    if (!authUser) {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const data = (await request.json()) as ReportData;
+    const { branchId, date, writeOffs, ninetyPlus, comments, reportType } =
+      data;
+
+    // Validate report type
+    if (!["plan", "actual"].includes(reportType)) {
       return NextResponse.json(
-        { error: "Unauthorized access" },
-        { status: 401 }
+        { error: "Invalid report type" },
+        { status: 400 }
       );
     }
 
-    const body = await request.json();
+    // Check if user has permission to submit for this branch
+    if (session.user.role !== "admin" && session.user.branchId !== branchId) {
+      return NextResponse.json(
+        { error: "You can only submit reports for your own branch" },
+        { status: 403 }
+      );
+    }
 
-    // Validate input data
-    const validatedData = reportSchema.parse({
-      ...body,
-      submittedBy: authUser?.username, // Set submittedBy from the authenticated user
-    });
+    // For actual reports, check if plan exists
+    if (reportType === "actual") {
+      const planExists = await prisma.report.findFirst({
+        where: {
+          date,
+          branchId,
+          reportType: "plan",
+        },
+      });
 
-    // Check if report already exists for this date and branch
+      if (!planExists) {
+        return NextResponse.json(
+          {
+            error:
+              "Morning plan must be submitted before evening actual report",
+          },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Check for existing report
     const existingReport = await prisma.report.findFirst({
       where: {
-        date: new Date(validatedData.date),
-        branchId: validatedData.branchId,
+        date,
+        branchId,
+        reportType,
       },
     });
 
     if (existingReport) {
       return NextResponse.json(
-        { error: "A report already exists for this date and branch" },
-        { status: 409 }
-      );
-    }
-
-    // Create the report
-    const report = await prisma.report.create({
-      data: {
-        date: new Date(validatedData.date),
-        branchId: validatedData.branchId,
-        writeOffs: validatedData.writeOffs,
-        ninetyPlus: validatedData.ninetyPlus,
-        submittedBy: validatedData.submittedBy,
-        comments: validatedData.comments,
-        status: "pending",
-      },
-      include: {
-        branch: true,
-      },
-    });
-
-    // Log the activity
-    await prisma.activityLog.create({
-      data: {
-        userId: authUser.userId,
-        action: "CREATE_REPORT",
-        details: `Created report for branch ${report.branch.name} on ${
-          report.date.toISOString().split("T")[0]
-        }`,
-      },
-    });
-
-    // TODO: Send Telegram notification
-
-    return NextResponse.json(report, { status: 201 });
-  } catch (error: unknown) {
-    console.error("Error creating report:", error);
-
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: "Invalid input data", details: error.errors },
+        { error: "Report already exists for this date and type" },
         { status: 400 }
       );
     }
 
-    return NextResponse.json(
-      {
-        error: "Failed to create report",
-        details: error instanceof Error ? error.message : "Unknown error",
+    const report = await prisma.report.create({
+      data: {
+        date,
+        branchId,
+        writeOffs,
+        ninetyPlus,
+        comments,
+        reportType,
+        status: "pending",
+        submittedBy: session.user.email!,
+        submittedAt: new Date().toISOString(),
       },
+      include: {
+        branch: {
+          select: {
+            id: true,
+            code: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    return NextResponse.json(report);
+  } catch (error) {
+    console.error("Error creating report:", error);
+    return NextResponse.json(
+      { error: "Failed to create report" },
       { status: 500 }
     );
   }

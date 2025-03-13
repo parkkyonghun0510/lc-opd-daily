@@ -40,19 +40,21 @@ model Branch {
 }
 
 model Report {
-  id          String    @id @default(cuid())
-  date        DateTime
+  id          String   @id @default(cuid())
+  date        String   // Store as YYYY-MM-DD
+  branch      Branch   @relation(fields: [branchId], references: [id])
   branchId    String
   writeOffs   Float
   ninetyPlus  Float
-  status      String    @default("pending")
+  reportType  String   @default("actual") // 'plan' or 'actual'
+  status      String   @default("pending") // 'pending', 'approved', 'rejected'
   submittedBy String
-  submittedAt DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  submittedAt String
   comments    String?
-  reviewedAt  DateTime?
-  reviewedBy  String?
-  branch      Branch    @relation(fields: [branchId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([date, branchId, reportType])
 }
 
 model ActivityLog {

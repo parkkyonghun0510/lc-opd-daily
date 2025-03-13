@@ -24,7 +24,7 @@ const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute in milliseconds
 const rateLimitStore = new Map();
 
 // Verify JWT token
-async function verifyToken(token) {
+async function verifyToken(token: string | Uint8Array<ArrayBufferLike>) {
   try {
     // Use TextEncoder to convert the secret to Uint8Array
     const secretKey = new TextEncoder().encode(
@@ -40,7 +40,7 @@ async function verifyToken(token) {
 }
 
 // Rate limiting function
-function rateLimit(ip) {
+function rateLimit(ip: string) {
   const now = Date.now();
   const userLimit = rateLimitStore.get(ip);
 
@@ -112,15 +112,15 @@ export async function middleware(request: NextRequest) {
 
   // Check if the path requires a specific role
   const isRoleRestricted = Object.keys(roleBasedPaths).some((role) =>
-    roleBasedPaths[role].some(
-      (path) => pathname === path || pathname.startsWith(`${path}/`)
-    )
+    [role].some((path) => pathname === path || pathname.startsWith(`${path}/`))
   );
 
   if (isRoleRestricted) {
     // Check if user has permission for this path
-    const hasPermission = roleBasedPaths[userRole]?.some(
-      (path) => pathname === path || pathname.startsWith(`${path}/`)
+    const hasPermission = roleBasedPaths[
+      userRole as keyof typeof roleBasedPaths
+    ]?.some(
+      (path: string) => pathname === path || pathname.startsWith(`${path}/`)
     );
 
     if (!hasPermission) {
