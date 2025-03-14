@@ -67,17 +67,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import ExcelJS from "exceljs";
-import { saveAs } from "file-saver";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { Filter, X } from "lucide-react";
 
 // Define proper types for our data
 interface Branch {
@@ -88,8 +77,6 @@ interface Branch {
   ninetyPlus: number;
   reportsCount: number;
   hasReports: boolean;
-  region: string; // Added region
-  size: "small" | "medium" | "large"; // Added size
 }
 
 interface HistoricalDataPoint {
@@ -321,9 +308,7 @@ function MetricCardSkeleton() {
 
 export default function ConsolidatedView() {
   const [date, setDate] = useState<Date | undefined>(new Date());
-  const [period, setPeriod] = useState<"day" | "week" | "month" | "custom">(
-    "day"
-  );
+  const [period, setPeriod] = useState<"day" | "week" | "month">("day");
   const [reportType, setReportType] = useState<"plan" | "actual">("actual");
   const [isLoading, setIsLoading] = useState(false);
   const [consolidatedData, setConsolidatedData] =
@@ -344,26 +329,6 @@ export default function ConsolidatedView() {
   });
   const [showYearOverYear, setShowYearOverYear] = useState(false);
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
-  const [isCustomDateRange, setIsCustomDateRange] = useState(false);
-  const [dateRange, setDateRange] = useState<{
-    from: Date | undefined;
-    to: Date | undefined;
-  }>({
-    from: new Date(),
-    to: new Date(),
-  });
-  const [filters, setFilters] = useState({
-    region: "all",
-    size: "all",
-    search: "",
-  });
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [availableRegions, setAvailableRegions] = useState<string[]>([]);
-  const [availableSizes, setAvailableSizes] = useState<string[]>([
-    "small",
-    "medium",
-    "large",
-  ]);
 
   // Scroll references for animations
   const chartRefs = {
@@ -412,74 +377,56 @@ export default function ConsolidatedView() {
     return () => clearTimeout(timeout);
   }, [period]);
 
-  useEffect(() => {
-    if (period === "custom" && dateRange.from && dateRange.to) {
-      // When custom date range changes, fetch data for that range
-      fetchConsolidatedData();
-
-      if (reportType === "actual") {
-        fetchPlanDataForComparison();
-      } else {
-        setPlanData(null);
-      }
-    }
-  }, [dateRange, period === "custom"]);
-
-  useEffect(() => {
-    if (consolidatedData && consolidatedData.branchData) {
-      // Extract unique regions
-      const regions = Array.from(
-        new Set(consolidatedData.branchData.map((branch) => branch.region))
-      );
-      setAvailableRegions(regions);
-    }
-  }, [consolidatedData]);
-
   const fetchConsolidatedData = async () => {
+    if (!date) return;
+
+    // Check if date is valid before proceeding
+    if (!(date instanceof Date) || isNaN(date.getTime())) {
+      setError("Invalid date selected. Please select a valid date.");
+      return;
+    }
+
     setIsLoading(true);
-    setError(null);
+    setError("");
 
-    // Simulate API call with timeout
-    setTimeout(() => {
-      try {
-        // This is where you would make a real API call
-        // For demo purposes, we generate mock data
+    try {
+      const formattedDate = format(date, "yyyy-MM-dd");
+      const url = `/api/reports/consolidated?date=${formattedDate}&period=${period}&type=${reportType}`;
 
-        let startDate = new Date();
-        let endDate = new Date();
+      const response = await fetch(url);
 
-        if (period === "day") {
-          startDate = new Date(date || new Date());
-          endDate = new Date(date || new Date());
-        } else if (period === "week") {
-          // Calculate start of week from the current date
-          startDate = new Date(date || new Date());
-          startDate.setDate(startDate.getDate() - startDate.getDay());
-          endDate = new Date(startDate);
-          endDate.setDate(endDate.getDate() + 6);
-        } else if (period === "month") {
-          // Calculate start and end of month
-          startDate = new Date(date || new Date());
-          startDate.setDate(1);
-          endDate = new Date(
-            startDate.getFullYear(),
-            startDate.getMonth() + 1,
-            0
-          );
-        } else if (period === "custom" && dateRange.from && dateRange.to) {
-          // Use the custom date range
-          startDate = new Date(dateRange.from);
-          endDate = new Date(dateRange.to);
-        }
-
-        // Rest of the function remains the same...
-      } catch (err) {
-        console.error("Error fetching data:", err);
-        setError("Failed to fetch data. Please try again.");
-      } finally {
-        setIsLoading(false);
+      if (!response.ok) {
+        throw new Error(`Error fetching data: ${response.statusText}`);
       }
-    }, 1000);
+
+      const data = await response.json();
+
+      // Validate historical data to ensure dates are valid
+      if (data && data.historicalData) {
+        // Filter out any items with invalid dates
+        data.historicalData = data.historicalData.filter(
+          (item: HistoricalDataPoint) => {
+            try {
+              if (!item.date || typeof item.date !== "string") return false;
+              // Try to parse the date to validate it
+              parseISO(item.date);
+              return true;
+            } catch {
+              console.warn("Filtered out item with invalid date:", item);
+              return false;
+            }
+          }
+        );
+      }
+
+      setConsolidatedData(data);
+      setError("");
+    } catch {
+      console.error("Error fetching consolidated data");
+      setError("Failed to load consolidated data. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const fetchPlanDataForComparison = async () => {
@@ -596,7 +543,7 @@ export default function ConsolidatedView() {
     }
   };
 
-  const handleExportExcel = async () => {
+  const handleExportPDF = () => {
     if (!consolidatedData || !consolidatedData.branchData) {
       toast({
         title: "Error",
@@ -607,371 +554,107 @@ export default function ConsolidatedView() {
     }
 
     try {
-      const workbook = new ExcelJS.Workbook();
-      workbook.creator = "Daily Reports System";
-      workbook.lastModifiedBy = "Daily Reports System";
-      workbook.created = new Date();
-      workbook.modified = new Date();
+      // Create a new window for the PDF content
+      const printWindow = window.open("", "", "height=800,width=800");
+      if (!printWindow) {
+        throw new Error("Could not open print window");
+      }
 
-      // Format the current date for the filename
+      // Format the date
       const reportDate = new Date(consolidatedData.period.start);
       const formattedDate = reportDate.toISOString().split("T")[0];
-      const periodType = consolidatedData.period.type;
 
-      // Add metadata about the report
-      workbook.properties.date1904 = false;
-      workbook.properties.subject = `Consolidated Report - ${periodType} - ${formattedDate}`;
+      // Create the HTML content
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Consolidated Report ${
+              period.charAt(0).toUpperCase() + period.slice(1)
+            } - ${formattedDate}</title>
+            <style>
+              body { font-family: Arial, sans-serif; margin: 20px; }
+              h1 { color: #333; }
+              table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+              th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+              th { background-color: #f2f2f2; }
+              .summary { margin-top: 30px; font-weight: bold; }
+              .footer { margin-top: 50px; font-size: 12px; color: #666; }
+            </style>
+          </head>
+          <body>
+            <h1>Consolidated ${
+              period.charAt(0).toUpperCase() + period.slice(1)
+            } Report - ${formattedDate}</h1>
+            
+            <div>
+              <p><strong>Total Write-Offs:</strong> ${formatKHRCurrency(
+                consolidatedData?.metrics.totalWriteOffs || 0.0
+              )}</p>
+              <p><strong>Total 90+ Days:</strong> ${formatKHRCurrency(
+                consolidatedData?.metrics.totalNinetyPlus || 0.0
+              )}</p>
+              <p><strong>Branches Reported:</strong> ${
+                consolidatedData?.metrics.reportedBranches || 0.0
+              } of ${consolidatedData?.metrics.totalBranches || 0.0}</p>
+            </div>
+            
+            <table>
+              <thead>
+                <tr>
+                  <th>Branch</th>
+                  <th>Write-Offs (KHR)</th>
+                  <th>90+ Days (KHR)</th>
+                  <th>Reported</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${(consolidatedData?.branchData || [])
+                  .map(
+                    (branch) => `
+                  <tr>
+                    <td>${branch.branchCode}</td>
+                    <td>${formatKHRCurrency(branch.writeOffs)}</td>
+                    <td>${formatKHRCurrency(branch.ninetyPlus)}</td>
+                    <td>${branch.hasReports ? "Yes" : "No"}</td>
+                  </tr>
+                `
+                  )
+                  .join("")}
+              </tbody>
+            </table>
+            
+            <div class="footer">
+              <p>Generated on ${new Date().toLocaleString()}</p>
+            </div>
+          </body>
+        </html>
+      `);
 
-      // Worksheet 1: Summary
-      const summarySheet = workbook.addWorksheet("Summary");
+      printWindow.document.close();
+      printWindow.focus();
 
-      // Add title and metadata to summary sheet
-      summarySheet.mergeCells("A1:D1");
-      const titleCell = summarySheet.getCell("A1");
-      titleCell.value = `${
-        periodType.charAt(0).toUpperCase() + periodType.slice(1)
-      } Consolidated Report`;
-      titleCell.font = { bold: true, size: 16 };
-      titleCell.alignment = { horizontal: "center" };
-
-      // Add period information
-      summarySheet.mergeCells("A2:D2");
-      const periodCell = summarySheet.getCell("A2");
-      periodCell.value = `Period: ${format(
-        new Date(consolidatedData.period.start),
-        "MMMM d, yyyy"
-      )} to ${format(new Date(consolidatedData.period.end), "MMMM d, yyyy")}`;
-      periodCell.font = { size: 12 };
-      periodCell.alignment = { horizontal: "center" };
-
-      // Add summary metrics
-      summarySheet.addRow([]);
-      summarySheet.addRow(["Key Metrics", "Value"]);
-      summarySheet.addRow([
-        "Total Write-Offs",
-        formatKHRCurrency(consolidatedData.metrics.totalWriteOffs),
-      ]);
-      summarySheet.addRow([
-        "Total 90+ Days",
-        formatKHRCurrency(consolidatedData.metrics.totalNinetyPlus),
-      ]);
-      summarySheet.addRow([
-        "Reported Branches",
-        `${consolidatedData.metrics.reportedBranches}/${consolidatedData.metrics.totalBranches} (${consolidatedData.metrics.coveragePercentage}%)`,
-      ]);
-
-      // Format the metrics section
-      ["A4:B4", "A5:B5", "A6:B6", "A7:B7"].forEach((range) => {
-        const row = summarySheet.getRow(
-          parseInt(range.split(":")[0].substring(1))
-        );
-        row.eachCell((cell) => {
-          cell.border = {
-            top: { style: "thin" },
-            left: { style: "thin" },
-            bottom: { style: "thin" },
-            right: { style: "thin" },
-          };
+      // Delay printing to ensure content is loaded
+      setTimeout(() => {
+        printWindow.print();
+        toast({
+          title: "Success",
+          description: "PDF export initiated",
         });
-      });
-
-      // Add styling to the header row
-      const headerRow = summarySheet.getRow(4);
-      headerRow.eachCell((cell) => {
-        cell.font = { bold: true };
-        cell.fill = {
-          type: "pattern",
-          pattern: "solid",
-          fgColor: { argb: "FFE0E0E0" },
-        };
-      });
-
-      // Adjust column widths
-      summarySheet.getColumn("A").width = 30;
-      summarySheet.getColumn("B").width = 25;
-
-      // Worksheet 2: Branch Details
-      const branchSheet = workbook.addWorksheet("Branch Details");
-
-      // Add headers
-      branchSheet.addRow([
-        "Branch Code",
-        "Branch Name",
-        "Write-Offs (KHR)",
-        "90+ Days (KHR)",
-        "Reported",
-        "% of Total Write-Offs",
-        "% of Total 90+ Days",
-      ]);
-
-      // Add styling to the header row
-      const branchHeaderRow = branchSheet.getRow(1);
-      branchHeaderRow.eachCell((cell) => {
-        cell.font = { bold: true };
-        cell.fill = {
-          type: "pattern",
-          pattern: "solid",
-          fgColor: { argb: "FFE0E0E0" },
-        };
-        cell.border = {
-          top: { style: "thin" },
-          left: { style: "thin" },
-          bottom: { style: "thin" },
-          right: { style: "thin" },
-        };
-      });
-
-      // Add data rows
-      consolidatedData.branchData.forEach((branch) => {
-        branchSheet.addRow([
-          branch.branchCode,
-          branch.branchName,
-          branch.writeOffs,
-          branch.ninetyPlus,
-          branch.hasReports ? "Yes" : "No",
-          consolidatedData.metrics.totalWriteOffs > 0
-            ? (
-                (branch.writeOffs / consolidatedData.metrics.totalWriteOffs) *
-                100
-              ).toFixed(1) + "%"
-            : "0%",
-          consolidatedData.metrics.totalNinetyPlus > 0
-            ? (
-                (branch.ninetyPlus / consolidatedData.metrics.totalNinetyPlus) *
-                100
-              ).toFixed(1) + "%"
-            : "0%",
-        ]);
-      });
-
-      // Format all data cells
-      for (let i = 2; i <= consolidatedData.branchData.length + 1; i++) {
-        const row = branchSheet.getRow(i);
-        row.eachCell((cell) => {
-          cell.border = {
-            top: { style: "thin" },
-            left: { style: "thin" },
-            bottom: { style: "thin" },
-            right: { style: "thin" },
-          };
-        });
-      }
-
-      // Set column widths
-      branchSheet.getColumn("A").width = 15;
-      branchSheet.getColumn("B").width = 30;
-      branchSheet.getColumn("C").width = 20;
-      branchSheet.getColumn("D").width = 20;
-      branchSheet.getColumn("E").width = 15;
-      branchSheet.getColumn("F").width = 25;
-      branchSheet.getColumn("G").width = 25;
-
-      // Worksheet 3: Historical Data
-      if (
-        consolidatedData.historicalData &&
-        consolidatedData.historicalData.length > 0
-      ) {
-        const historySheet = workbook.addWorksheet("Historical Data");
-
-        // Add headers
-        historySheet.addRow([
-          "Date",
-          "Write-Offs (KHR)",
-          "90+ Days (KHR)",
-          "Reports Count",
-          "Write-Offs Change",
-          "90+ Days Change",
-        ]);
-
-        // Add styling to the header row
-        const historyHeaderRow = historySheet.getRow(1);
-        historyHeaderRow.eachCell((cell) => {
-          cell.font = { bold: true };
-          cell.fill = {
-            type: "pattern",
-            pattern: "solid",
-            fgColor: { argb: "FFE0E0E0" },
-          };
-          cell.border = {
-            top: { style: "thin" },
-            left: { style: "thin" },
-            bottom: { style: "thin" },
-            right: { style: "thin" },
-          };
-        });
-
-        // Sort data chronologically
-        const sortedData = [...consolidatedData.historicalData].sort((a, b) => {
-          return new Date(a.date).getTime() - new Date(b.date).getTime();
-        });
-
-        // Add data rows with calculated changes
-        sortedData.forEach((item, index) => {
-          let formattedDate = "Unknown Date";
-          try {
-            if (item.date && typeof item.date === "string") {
-              formattedDate = format(parseISO(item.date), "MMM dd, yyyy");
-            }
-          } catch (error) {
-            console.error("Error formatting date:", item.date, error);
-          }
-
-          // Calculate change from previous period
-          const prevItem = index > 0 ? sortedData[index - 1] : null;
-          const writeOffsChange =
-            prevItem && prevItem.writeOffs
-              ? (
-                  ((item.writeOffs - prevItem.writeOffs) / prevItem.writeOffs) *
-                  100
-                ).toFixed(1) + "%"
-              : "N/A";
-          const ninetyPlusChange =
-            prevItem && prevItem.ninetyPlus
-              ? (
-                  ((item.ninetyPlus - prevItem.ninetyPlus) /
-                    prevItem.ninetyPlus) *
-                  100
-                ).toFixed(1) + "%"
-              : "N/A";
-
-          historySheet.addRow([
-            formattedDate,
-            item.writeOffs,
-            item.ninetyPlus,
-            item.count,
-            writeOffsChange,
-            ninetyPlusChange,
-          ]);
-        });
-
-        // Format all data cells
-        for (let i = 2; i <= sortedData.length + 1; i++) {
-          const row = historySheet.getRow(i);
-          row.eachCell((cell) => {
-            cell.border = {
-              top: { style: "thin" },
-              left: { style: "thin" },
-              bottom: { style: "thin" },
-              right: { style: "thin" },
-            };
-          });
-        }
-
-        // Set column widths
-        historySheet.getColumn("A").width = 20;
-        historySheet.getColumn("B").width = 20;
-        historySheet.getColumn("C").width = 20;
-        historySheet.getColumn("D").width = 15;
-        historySheet.getColumn("E").width = 20;
-        historySheet.getColumn("F").width = 20;
-      }
-
-      // Worksheet 4: Missing Branches
-      if (
-        consolidatedData.missingBranches &&
-        consolidatedData.missingBranches.length > 0
-      ) {
-        const missingSheet = workbook.addWorksheet("Missing Branches");
-
-        // Add headers
-        missingSheet.addRow(["Branch Code", "Branch Name", "Status"]);
-
-        // Add styling to the header row
-        const missingHeaderRow = missingSheet.getRow(1);
-        missingHeaderRow.eachCell((cell) => {
-          cell.font = { bold: true };
-          cell.fill = {
-            type: "pattern",
-            pattern: "solid",
-            fgColor: { argb: "FFE0E0E0" },
-          };
-          cell.border = {
-            top: { style: "thin" },
-            left: { style: "thin" },
-            bottom: { style: "thin" },
-            right: { style: "thin" },
-          };
-        });
-
-        // Add data rows
-        consolidatedData.missingBranches.forEach((branch) => {
-          missingSheet.addRow([branch.code, branch.name, "Missing Reports"]);
-        });
-
-        // Format all data cells
-        for (let i = 2; i <= consolidatedData.missingBranches.length + 1; i++) {
-          const row = missingSheet.getRow(i);
-          row.eachCell((cell) => {
-            cell.border = {
-              top: { style: "thin" },
-              left: { style: "thin" },
-              bottom: { style: "thin" },
-              right: { style: "thin" },
-            };
-          });
-        }
-
-        // Set column widths
-        missingSheet.getColumn("A").width = 15;
-        missingSheet.getColumn("B").width = 30;
-        missingSheet.getColumn("C").width = 20;
-      }
-
-      // Generate the Excel file
-      const buffer = await workbook.xlsx.writeBuffer();
-      saveAs(
-        new Blob([buffer]),
-        `consolidated_report_${period}_${formattedDate}.xlsx`
-      );
-
-      toast({
-        title: "Success",
-        description:
-          "Excel file with multiple worksheets exported successfully",
-      });
+      }, 500);
     } catch (error) {
-      console.error("Error exporting Excel:", error);
+      console.error("Error exporting PDF:", error);
       toast({
         title: "Error",
-        description: "Failed to export Excel file. Please try again.",
+        description: "Failed to export PDF. Please try again.",
         variant: "destructive",
       });
     }
   };
 
-  const getFilteredBranchData = () => {
-    if (!consolidatedData || !consolidatedData.branchData) return [];
-
-    return consolidatedData.branchData.filter((branch) => {
-      // Apply region filter
-      if (filters.region !== "all" && branch.region !== filters.region) {
-        return false;
-      }
-
-      // Apply size filter
-      if (filters.size !== "all" && branch.size !== filters.size) {
-        return false;
-      }
-
-      // Apply search filter
-      if (
-        filters.search &&
-        !branch.branchName
-          .toLowerCase()
-          .includes(filters.search.toLowerCase()) &&
-        !branch.branchCode.toLowerCase().includes(filters.search.toLowerCase())
-      ) {
-        return false;
-      }
-
-      return true;
-    });
-  };
-
-  const getFilteredChartData = () => {
+  const getChartData = () => {
     if (!consolidatedData) return [];
 
-    const filteredData = getFilteredBranchData().map((branch) => ({
+    return consolidatedData.branchData.map((branch: Branch) => ({
       name: branch.branchCode,
       writeOffs: branch.writeOffs,
       ninetyPlus: branch.ninetyPlus,
@@ -979,8 +662,6 @@ export default function ConsolidatedView() {
       branchName: branch.branchName,
       hasReports: branch.hasReports,
       reportsCount: branch.reportsCount,
-      region: branch.region,
-      size: branch.size,
       writeOffsPercentage: consolidatedData.metrics.totalWriteOffs
         ? (
             (branch.writeOffs / consolidatedData.metrics.totalWriteOffs) *
@@ -994,11 +675,8 @@ export default function ConsolidatedView() {
           ).toFixed(1)
         : "0",
     }));
-
-    return filteredData;
   };
 
-  // Add the missing getTimeSeriesData function back
   const getTimeSeriesData = () => {
     if (!consolidatedData || !consolidatedData.historicalData) return [];
 
@@ -1065,12 +743,12 @@ export default function ConsolidatedView() {
         avgNinetyPlus: avgNinetyPlus,
         // Direction indicators for tooltips
         writeOffsTrend: writeOffsChange
-          ? parseFloat(writeOffsChange as string) > 0
+          ? parseFloat(writeOffsChange) > 0
             ? "increasing"
             : "decreasing"
           : "stable",
         ninetyPlusTrend: ninetyPlusChange
-          ? parseFloat(ninetyPlusChange as string) > 0
+          ? parseFloat(ninetyPlusChange) > 0
             ? "increasing"
             : "decreasing"
           : "stable",
@@ -1403,202 +1081,6 @@ export default function ConsolidatedView() {
     );
   };
 
-  // Add the handleExportPDF function
-  const handleExportPDF = () => {
-    if (!consolidatedData) {
-      toast({
-        title: "Error",
-        description: "No data to export. Please generate a report first.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // In a real application, you would implement PDF generation here
-    // For this demo, we'll just show a toast notification
-    toast({
-      title: "PDF Export",
-      description: "PDF export functionality is not implemented in this demo.",
-    });
-  };
-
-  // Add a DateRangePicker component
-  const DateRangePicker = () => {
-    return (
-      <div className="flex flex-col space-y-2">
-        <span className="text-sm font-medium">Custom Date Range</span>
-        <div className="grid gap-2">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                id="date-range"
-                variant={"outline"}
-                className={cn(
-                  "w-full justify-start text-left font-normal",
-                  !dateRange.from && "text-muted-foreground"
-                )}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {dateRange.from ? (
-                  dateRange.to ? (
-                    <>
-                      {format(dateRange.from, "LLL dd, y")} -{" "}
-                      {format(dateRange.to, "LLL dd, y")}
-                    </>
-                  ) : (
-                    format(dateRange.from, "LLL dd, y")
-                  )
-                ) : (
-                  <span>Pick a date range</span>
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                initialFocus
-                mode="range"
-                defaultMonth={dateRange.from}
-                selected={{
-                  from: dateRange.from,
-                  to: dateRange.to,
-                }}
-                onSelect={(range) => {
-                  setDateRange({
-                    from: range?.from,
-                    to: range?.to,
-                  });
-                  if (range?.from && range?.to) {
-                    // Set period to custom when a date range is selected
-                    setPeriod("custom");
-                  }
-                }}
-                numberOfMonths={2}
-              />
-            </PopoverContent>
-          </Popover>
-        </div>
-        <div className="flex justify-end">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              // Reset to default period
-              setPeriod("day");
-              setDateRange({
-                from: new Date(),
-                to: new Date(),
-              });
-            }}
-            className="text-xs"
-          >
-            Reset
-          </Button>
-        </div>
-      </div>
-    );
-  };
-
-  // Add a toggle for filters function
-  const toggleFilters = () => {
-    setIsFilterOpen(!isFilterOpen);
-  };
-
-  // Add a reset filters function
-  const resetFilters = () => {
-    setFilters({
-      region: "all",
-      size: "all",
-      search: "",
-    });
-  };
-
-  // Add filter component
-  const BranchFilters = () => {
-    return (
-      <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 mt-4">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
-          <h3 className="text-base font-medium">Branch Filters</h3>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={resetFilters}
-            className="mt-2 sm:mt-0"
-          >
-            <X className="h-4 w-4 mr-1" />
-            Reset Filters
-          </Button>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Region</label>
-            <Select
-              value={filters.region}
-              onValueChange={(value) =>
-                setFilters({ ...filters, region: value })
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="All Regions" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Regions</SelectItem>
-                {availableRegions.map((region) => (
-                  <SelectItem key={region} value={region}>
-                    {region}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Branch Size</label>
-            <Select
-              value={filters.size}
-              onValueChange={(value) => setFilters({ ...filters, size: value })}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="All Sizes" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Sizes</SelectItem>
-                {availableSizes.map((size) => (
-                  <SelectItem key={size} value={size}>
-                    {size.charAt(0).toUpperCase() + size.slice(1)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Search</label>
-            <div className="relative">
-              <Input
-                type="text"
-                placeholder="Search branch name or code"
-                value={filters.search}
-                onChange={(e) =>
-                  setFilters({ ...filters, search: e.target.value })
-                }
-                className="w-full pr-8 truncate" // Add truncate to keep text inside the box
-              />
-              {filters.search && (
-                <button
-                  onClick={() => setFilters({ ...filters, search: "" })}
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-500"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   return (
     <Card>
       <CardHeader>
@@ -1622,9 +1104,7 @@ export default function ConsolidatedView() {
                         ? "daily"
                         : period === "week"
                         ? "weekly"
-                        : period === "month"
-                        ? "monthly"
-                        : "custom"
+                        : "monthly"
                     } period ${format(date || new Date(), "MMMM d, yyyy")}`
                   : "Select a date and period to view data"}
               </p>
@@ -1637,8 +1117,7 @@ export default function ConsolidatedView() {
                   if (
                     value === "day" ||
                     value === "week" ||
-                    value === "month" ||
-                    value === "custom"
+                    value === "month"
                   ) {
                     // Add a transition effect when changing periods
                     const content = document.getElementById(
@@ -1647,9 +1126,7 @@ export default function ConsolidatedView() {
                     if (content) {
                       content.classList.add("opacity-0", "scale-95");
                       setTimeout(() => {
-                        setPeriod(value as "day" | "week" | "month" | "custom");
-                        // Show date range picker if custom is selected
-                        setIsCustomDateRange(value === "custom");
+                        setPeriod(value as "day" | "week" | "month");
                         setTimeout(() => {
                           content.classList.remove("opacity-0", "scale-95");
                         }, 50);
@@ -1661,11 +1138,25 @@ export default function ConsolidatedView() {
                 }}
                 className="w-full sm:w-auto"
               >
-                <TabsList className="grid w-full grid-cols-4">
-                  <TabsTrigger value="day">Day</TabsTrigger>
-                  <TabsTrigger value="week">Week</TabsTrigger>
-                  <TabsTrigger value="month">Month</TabsTrigger>
-                  <TabsTrigger value="custom">Custom</TabsTrigger>
+                <TabsList className="grid grid-cols-3 w-full">
+                  <TabsTrigger
+                    value="day"
+                    className="data-[state=active]:bg-blue-600 data-[state=active]:text-white"
+                  >
+                    Daily
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="week"
+                    className="data-[state=active]:bg-blue-600 data-[state=active]:text-white"
+                  >
+                    Weekly
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="month"
+                    className="data-[state=active]:bg-blue-600 data-[state=active]:text-white"
+                  >
+                    Monthly
+                  </TabsTrigger>
                 </TabsList>
               </Tabs>
 
@@ -1724,40 +1215,30 @@ export default function ConsolidatedView() {
               </Popover>
             </div>
 
-            <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 space-x-0 sm:space-x-2 mt-4">
+            <div className="flex space-x-2">
               <Button
-                variant="default"
-                className="flex items-center"
-                onClick={fetchConsolidatedData}
-                disabled={isLoading}
+                onClick={handleGenerateReport}
+                disabled={!date || isLoading}
+                className="w-32"
               >
                 {isLoading ? (
                   <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Generating...
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Loading...
                   </>
                 ) : (
-                  <>
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    Generate Report
-                  </>
+                  "Generate"
                 )}
               </Button>
               <Button
-                variant="outline"
-                className="flex items-center"
                 onClick={handleExportCSV}
-              >
-                <FileIcon className="h-4 w-4 mr-2" />
-                Export CSV
-              </Button>
-              <Button
                 variant="outline"
                 className="flex items-center"
-                onClick={handleExportExcel}
+                disabled={!consolidatedData}
               >
-                <FileSpreadsheetIcon className="h-4 w-4 mr-2" />
-                Export Excel
+                <FileSpreadsheetIcon className="mr-2 h-4 w-4" />
+                <span className="hidden md:inline">Export CSV</span>
+                <span className="md:hidden">CSV</span>
               </Button>
               <Button
                 onClick={handleExportPDF}
@@ -2033,7 +1514,7 @@ export default function ConsolidatedView() {
                     <div className="w-full h-[300px] sm:h-[400px] p-4">
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart
-                          data={getFilteredChartData()}
+                          data={getChartData()}
                           margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
                           onClick={handleChartClick}
                         >
@@ -2551,21 +2032,6 @@ export default function ConsolidatedView() {
         onClose={() => setDetailsModalOpen(false)}
         branchId={selectedBranchId}
       />
-      {isCustomDateRange && (
-        <div className="mt-4">
-          <DateRangePicker />
-        </div>
-      )}
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={toggleFilters}
-        className="flex items-center"
-      >
-        <Filter className="h-4 w-4 mr-1" />
-        {isFilterOpen ? "Hide Filters" : "Show Filters"}
-      </Button>
-      {isFilterOpen && <BranchFilters />}
     </Card>
   );
 }

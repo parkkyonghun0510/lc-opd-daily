@@ -1,4 +1,4 @@
-import ConsolidatedView from "@/components/consolidated-view/index";
+import ConsolidatedView from "@/components/consolidated-view";
 
 export const metadata = {
   title: "Consolidated Reports | LC Daily Reports",
