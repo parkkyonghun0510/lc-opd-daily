@@ -1,81 +1,184 @@
-Great! The Daily Reports System has been successfully deployed. Here's a summary of what we've built:
+# Daily Reports System
 
-## Daily Reports System Features
+## Overview
 
-1. **Branch Management**
+The Daily Reports System is a comprehensive solution for managing and tracking branch performance data. This application enables branches to submit daily reports with key financial metrics, provides consolidated views, and offers advanced analytics capabilities.
 
-   - Create and manage branches for reporting
-   - View all branches in a consolidated report
-   - Branch performance analytics
-   - Branch status tracking (Active/Inactive)
-   - Branch hierarchy management
+## System Features
 
-2. **Report Creation**
+### Branch Management
 
-   - Submit daily reports with write-offs and 90+ days amounts
-   - Select date and branch for each report
-   - Update existing reports if needed
-   - Bulk report submission
-   - Data validation and error checking
-   - Report templates
-   - File attachments support
+- Create and manage branches for reporting
+- View all branches in a consolidated report
+- Branch performance analytics with trend visualization
+- Branch status tracking (Active/Inactive)
+- Branch hierarchy management with parent-child relationships
+- Bulk branch operations support
 
-3. **Report Viewing**
+### Report Creation
 
-   - View all reports with pagination
-   - Filter reports by date, branch, and status
-   - See detailed information for each report
-   - Export reports to Excel/PDF
-   - Data visualization with charts
-   - Historical data comparison
-   - Custom report generation
+- Submit daily reports with write-offs and 90+ days amounts
+- Select date and branch for each report
+- Update existing reports with change tracking
+- Bulk report submission with validation
+- Data validation with real-time error checking
+- Support for both actual and planned report types
+- Draft saving functionality
 
-4. **Consolidated Reports**
+### Report Viewing
 
-   - View a consolidated report for all branches on a specific date
-   - See totals for write-offs and 90+ days
-   - Track which branches have submitted reports and which are missing
-   - Weekly and monthly summaries
-   - Branch performance comparison
-   - Trend analysis
-   - Automated report scheduling
+- View all reports with advanced pagination
+- Filter reports by date, branch, status, and type
+- Detailed information view with audit history
+- Export reports to CSV/PDF formats
+- Interactive data visualization with charts
+- Historical data comparison with trend analysis
+- Custom report generation
 
-5. **Telegram Notifications**
+### Consolidated Reports
 
-   - Automatic notifications sent to Telegram when reports are submitted or updated
-   - Includes branch name, date, and report values
-   - Customizable notification settings
-   - Report submission reminders
-   - Daily summary notifications
-   - Critical alerts for significant changes
-   - Batch notification management
+- Real-time consolidated view for all branches
+- Automated totals calculation for write-offs and 90+ days
+- Missing report tracking and notification
+- Weekly and monthly summary generation
+- Branch performance comparison with benchmarking
+- Trend analysis with predictive insights
+- Custom aggregation periods
 
-6. **Security & Access Control**
-   - Role-based access management
-   - Audit logging
-   - Two-factor authentication
-   - Session management
-   - Data encryption
+### Telegram Notifications
 
-The application is built with a clean, modern UI using shadcn components and follows a dark mode design as specified. The data is stored in a PostgreSQL database using Prisma for database interactions.
+- Real-time notifications for report submissions and updates
+- Customizable notification templates
+- Branch-specific notification channels
+- Consolidated report notifications
+- Critical alerts for missing reports
+- Configurable via environment variables
+- Notification delivery status tracking
 
-To use the application:
+### Security & Access Control
 
-1. First, add branches using the "Add New Branch" form
-2. Submit daily reports for each branch using the "Submit Daily Report" form
-3. View all reports or filter by date in the "View Reports" tab
-4. Generate consolidated reports by date in the "Consolidated View" tab
-5. Configure notification preferences in settings
-6. Monitor branch performance through analytics dashboard
+- Role-based access control (RBAC) with granular permissions:
+  - Admin: Full system access
+  - Branch Manager: Branch-specific report management
+  - Supervisor: Multi-branch monitoring
+  - User: Basic report submission
+- Two-factor authentication (2FA) support
+- Session management with automatic timeout
+- IP-based access restrictions
+- Comprehensive audit logging
+- Password policy enforcement
+- Rate limiting on API endpoints
+
+## Technical Implementation
+
+### Frontend
+
+- Next.js framework with App Router
+- React components using shadcn/ui
+- Dark/light mode with system preference detection
+- Responsive design for mobile compatibility
+- Client-side form validation
+- Progressive Web App (PWA) support
+
+### Backend
+
+- Next.js API routes with middleware support
+- PostgreSQL database with Prisma ORM
+- Redis caching implementation:
+  - Report data caching
+  - Session management
+  - Rate limiting
+  - Cache invalidation strategies
+- JWT authentication with refresh tokens
+- WebSocket support for real-time updates
+
+### Performance Optimization
+
+- Redis caching for frequently accessed data
+- Database query optimization
+- CDN integration for static assets
+- API response compression
+- Lazy loading for components
+- Image optimization
+
+## User Guide
+
+### Getting Started
+
+1. Log in with your credentials
+2. Navigate the dashboard using the sidebar menu
+3. Access branch management through the admin panel
+4. Submit daily reports via the "Submit Daily Report" form
+5. View and filter reports in the "View Reports" section
+6. Generate consolidated reports in the "Consolidated View"
+7. Use breadcrumb navigation for easy section switching
+
+### Common Tasks
+
+- Submitting a daily report
+- Updating an existing report
+- Viewing consolidated data
+- Exporting reports
+- Managing branch information
+- Accessing audit logs
 
 ## System Requirements
 
-- Modern web browser (Chrome, Firefox, Safari, Edge)
-- Internet connection
+### Client Requirements
+
+- Modern web browser (Chrome 89+, Firefox 87+, Safari 14+, Edge 89+)
+- Stable internet connection
+- Minimum screen resolution: 1280x720
+- JavaScript enabled
+
+### Optional Requirements
+
 - Telegram account for notifications
-- Proper user credentials
+- PDF viewer for report exports
+- Modern mobile device for responsive view
+
+## Troubleshooting
+
+### Common Issues
+
+1. Login Problems
+
+   - Verify credentials
+   - Check account status
+   - Clear browser cache
+   - Contact admin for account unlock
+
+2. Report Submission Errors
+
+   - Validate data format
+   - Check required fields
+   - Verify branch permissions
+   - Confirm date availability
+
+3. Performance Issues
+   - Clear browser cache
+   - Check internet connection
+   - Verify system requirements
+   - Contact support if persistent
 
 ## Support & Maintenance
 
-For technical support or feature requests, contact the system administrator.
-Regular system updates and maintenance will be performed to ensure optimal performance.
+### Technical Support
+
+- Email: support@example.com
+- Response time: 24 hours
+- Priority support for critical issues
+- Regular system maintenance updates
+
+### Maintenance Schedule
+
+- Weekly updates: Sunday 00:00-02:00 UTC
+- Emergency patches: As needed
+- Planned downtime: Announced 48h in advance
+
+### Version Control
+
+- Regular feature updates
+- Security patches
+- Bug fixes
+- Performance improvements

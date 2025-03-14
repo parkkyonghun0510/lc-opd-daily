@@ -40,7 +40,7 @@ export async function GET() {
   }
 }
 
-// POST /api/roles/assign - Assign role to user
+// POST /api/roles/assign - Assign role to user(s)
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -53,42 +53,101 @@ export async function POST(request: Request) {
       return new NextResponse(null, { status: 403 });
     }
 
-    const { userId, role, branchId } = await request.json();
+    const body = await request.json();
+    const isBulkUpdate = Array.isArray(body);
 
-    // Validate role
-    if (!Object.values(UserRole).includes(role)) {
-      return NextResponse.json({ error: "Invalid role" }, { status: 400 });
+    if (isBulkUpdate) {
+      const updates = body as {
+        userId: string;
+        role: string;
+        branchId?: string;
+      }[];
+      const results = [];
+
+      for (const update of updates) {
+        const { userId, role, branchId } = update;
+
+        // Validate role
+        if (!Object.values(UserRole).includes(role)) {
+          return NextResponse.json(
+            { error: `Invalid role: ${role}` },
+            { status: 400 }
+          );
+        }
+
+        // Get target user's current role for audit log
+        const targetUser = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { role: true, branchId: true },
+        });
+
+        if (!targetUser) {
+          return NextResponse.json(
+            { error: `User not found: ${userId}` },
+            { status: 404 }
+          );
+        }
+
+        // Update user's role
+        const updatedUser = await prisma.user.update({
+          where: { id: userId },
+          data: {
+            role,
+            branchId: branchId || undefined,
+          },
+        });
+
+        // Log the role change
+        await logUserActivity(user.id, "ROLE_CHANGE", {
+          targetUserId: userId,
+          oldRole: targetUser.role,
+          newRole: role,
+          oldBranchId: targetUser.branchId,
+          newBranchId: branchId,
+        });
+
+        results.push(updatedUser);
+      }
+
+      return NextResponse.json(results);
+    } else {
+      const { userId, role, branchId } = body;
+
+      // Validate role
+      if (!Object.values(UserRole).includes(role)) {
+        return NextResponse.json({ error: "Invalid role" }, { status: 400 });
+      }
+
+      // Get target user's current role for audit log
+      const targetUser = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { role: true, branchId: true },
+      });
+
+      if (!targetUser) {
+        return NextResponse.json({ error: "User not found" }, { status: 404 });
+      }
+
+      // Update user's role
+      const updatedUser = await prisma.user.update({
+        where: { id: userId },
+        data: {
+          role,
+          branchId: branchId || undefined,
+        },
+      });
+
+      // Log the role change
+      await logUserActivity(user.id, "ROLE_CHANGE", {
+        targetUserId: userId,
+        oldRole: targetUser.role,
+        newRole: role,
+        oldBranchId: targetUser.branchId,
+        newBranchId: branchId,
+      });
+
+      return NextResponse.json(updatedUser);
     }
-
-    // Get target user's current role for audit log
-    const targetUser = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { role: true, branchId: true },
-    });
-
-    if (!targetUser) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-
-    // Update user's role
-    const updatedUser = await prisma.user.update({
-      where: { id: userId },
-      data: {
-        role,
-        branchId: branchId || undefined,
-      },
-    });
-
-    // Log the role change
-    await logUserActivity(user.id, "ROLE_CHANGE", {
-      targetUserId: userId,
-      oldRole: targetUser.role,
-      newRole: role,
-      oldBranchId: targetUser.branchId,
-      newBranchId: branchId,
-    });
-
-    return NextResponse.json(updatedUser);
   } catch (error) {
     console.error("Error assigning role:", error);
     return NextResponse.json(

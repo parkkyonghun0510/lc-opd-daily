@@ -45,10 +45,11 @@ async function warmChartsCache() {
 
 // Helper functions for data fetching
 async function getRevenue() {
+  const thirtyDaysAgo = new Date(new Date().setDate(new Date().getDate() - 30));
   const reports = await prisma.report.findMany({
     where: {
       date: {
-        gte: new Date(new Date().setDate(new Date().getDate() - 30)),
+        gte: thirtyDaysAgo.toISOString(),
       },
     },
     select: {
@@ -64,20 +65,25 @@ async function getRevenue() {
 }
 
 async function getOrders() {
+  const thirtyDaysAgo = new Date(new Date().setDate(new Date().getDate() - 30));
   return await prisma.report.count({
     where: {
       date: {
-        gte: new Date(new Date().setDate(new Date().getDate() - 30)),
+        gte: thirtyDaysAgo.toISOString(),
       },
     },
   });
 }
 
 async function getGrowthRate() {
+  const currentMonthStart = new Date(new Date().setDate(1));
+  const lastMonthStart = new Date(
+    new Date().setMonth(new Date().getMonth() - 1, 1)
+  );
   const currentMonth = await prisma.report.aggregate({
     where: {
       date: {
-        gte: new Date(new Date().setDate(1)),
+        gte: currentMonthStart.toISOString(),
       },
     },
     _sum: {
@@ -89,8 +95,8 @@ async function getGrowthRate() {
   const lastMonth = await prisma.report.aggregate({
     where: {
       date: {
-        gte: new Date(new Date().setMonth(new Date().getMonth() - 1, 1)),
-        lt: new Date(new Date().setDate(1)),
+        gte: lastMonthStart.toISOString(),
+        lt: currentMonthStart.toISOString(),
       },
     },
     _sum: {
@@ -111,12 +117,13 @@ async function getGrowthRate() {
 async function getRevenueData() {
   const sixMonthsAgo = new Date();
   sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+  const formattedDate = sixMonthsAgo.toISOString().split("T")[0]; // Format as YYYY-MM-DD
 
   const reports = await prisma.report.groupBy({
     by: ["date"],
     where: {
       date: {
-        gte: sixMonthsAgo,
+        gte: formattedDate, // Use formatted string date
       },
     },
     _sum: {
@@ -126,7 +133,9 @@ async function getRevenueData() {
   });
 
   const monthlyData = reports.reduce((acc, report) => {
-    const month = report.date.toLocaleString("default", { month: "short" });
+    const month = new Date(report.date).toLocaleString("default", {
+      month: "short",
+    });
     const value = (report._sum.writeOffs || 0) + (report._sum.ninetyPlus || 0);
 
     if (!acc[month]) {
@@ -145,12 +154,13 @@ async function getRevenueData() {
 async function getUserGrowthData() {
   const sixMonthsAgo = new Date();
   sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+  const formattedDate = sixMonthsAgo.toISOString(); // Keep full ISO string for DateTime fields
 
   const userCounts = await prisma.user.groupBy({
     by: ["createdAt"],
     where: {
       createdAt: {
-        gte: sixMonthsAgo,
+        gte: formattedDate,
       },
     },
     _count: {

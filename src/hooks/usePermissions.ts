@@ -12,6 +12,8 @@ export function usePermissions() {
   const { data: session } = useSession();
   const userRole = session?.user?.role as UserRole;
   const userBranchId = session?.user?.branchId as string;
+  const assignedBranchIds =
+    (session?.user?.assignedBranchIds as string[]) || [];
 
   return {
     // Check if user has a specific permission
@@ -26,14 +28,32 @@ export function usePermissions() {
       hasAllPermissions(userRole, permissions),
 
     // Check if user can access a specific branch
-    canAccessBranch: (branchId: string) =>
-      canAccessBranch(userRole, userBranchId, branchId),
+    canAccessBranch: (branchId: string, branchHierarchy?: BranchHierarchy[]) =>
+      canAccessBranch(
+        userRole,
+        userBranchId,
+        branchId,
+        branchHierarchy,
+        assignedBranchIds
+      ),
 
     // Get user's role
     role: userRole,
 
-    // Get user's branch ID
+    // Get user's branch ID (default branch)
     branchId: userBranchId,
+
+    // Get user's assigned branch IDs
+    assignedBranchIds,
+
+    // Get all accessible branch IDs
+    getAccessibleBranches: (branchHierarchy: BranchHierarchy[]) =>
+      getAccessibleBranches(
+        userRole,
+        userBranchId,
+        branchHierarchy,
+        assignedBranchIds
+      ),
 
     // Check if user is admin
     isAdmin: userRole === UserRole.ADMIN,

@@ -9,6 +9,7 @@ import { Icons } from "@/components/ui/icons";
 import { DashboardLayout } from "@/components/dashboard/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Users, DollarSign, ShoppingCart, TrendingUp } from "lucide-react";
+import { formatKHRCurrency } from "@/lib/utils";
 
 interface DashboardData {
   totalUsers: number;
@@ -54,10 +55,7 @@ export default function DashboardPage() {
   }, [status, router]);
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(amount);
+    return formatKHRCurrency(amount);
   };
 
   const dashboardContent = loading ? (

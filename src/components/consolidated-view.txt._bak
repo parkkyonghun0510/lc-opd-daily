@@ -1,0 +1,2571 @@
+"use client";
+import { useState, useEffect, useRef } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { CalendarIcon } from "@radix-ui/react-icons";
+import { format, parseISO } from "date-fns";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { cn, formatKHRCurrency } from "@/lib/utils";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import {
+  FileIcon,
+  FileSpreadsheetIcon,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  Eye,
+  EyeOff,
+  ArrowRight,
+  BarChart2,
+} from "lucide-react";
+import { toast } from "@/components/ui/use-toast";
+import {
+  Loader2,
+  ChevronDown,
+  ChevronUp,
+  RefreshCw,
+  AlertCircle,
+  AlertTriangle,
+} from "lucide-react";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  BarChart,
+  Bar,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import ExcelJS from "exceljs";
+import { saveAs } from "file-saver";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Filter, X } from "lucide-react";
+
+// Define proper types for our data
+interface Branch {
+  branchId: string;
+  branchCode: string;
+  branchName: string;
+  writeOffs: number;
+  ninetyPlus: number;
+  reportsCount: number;
+  hasReports: boolean;
+  region: string; // Added region
+  size: "small" | "medium" | "large"; // Added size
+}
+
+interface HistoricalDataPoint {
+  date: string;
+  writeOffs: number;
+  ninetyPlus: number;
+  count: number;
+}
+
+interface ConsolidatedData {
+  period: {
+    start: string;
+    end: string;
+    type: "day" | "week" | "month";
+  };
+  metrics: {
+    totalWriteOffs: number;
+    totalNinetyPlus: number;
+    reportedBranches: number;
+    totalBranches: number;
+    coveragePercentage: number;
+  };
+  missingBranches: Array<{
+    id: string;
+    code: string;
+    name: string;
+  }>;
+  branchData: Branch[];
+  historicalData: HistoricalDataPoint[];
+}
+
+// Create a custom tooltip component for branch performance chart
+const CustomBranchTooltip = ({
+  active,
+  payload,
+}: {
+  active?: boolean;
+  payload?: Array<{ payload: Record<string, any> }>;
+}) => {
+  if (!active || !payload || !payload.length) return null;
+
+  const data = payload[0].payload;
+
+  return (
+    <div className="bg-white dark:bg-gray-800 p-3 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg">
+      <div className="flex items-center space-x-2 mb-2">
+        <div className="w-3 h-3 rounded-full bg-blue-500" />
+        <span className="font-medium">
+          {data.name} - {data.branchName}
+        </span>
+      </div>
+      <div className="border-t border-gray-200 dark:border-gray-700 my-2" />
+
+      {payload.map((entry: any, index: number) => (
+        <div key={`item-${index}`} className="py-1">
+          <div className="flex justify-between items-center">
+            <span className="flex items-center text-sm">
+              <div
+                className="w-2 h-2 rounded-full mr-1"
+                style={{ backgroundColor: entry.color }}
+              />
+              {entry.name}:
+            </span>
+            <span className="font-medium text-sm">
+              {formatKHRCurrency(entry.value)}
+            </span>
+          </div>
+
+          {entry.dataKey === "writeOffs" && (
+            <div className="text-xs text-gray-500 flex justify-between mt-1">
+              <span>% of Total:</span>
+              <Badge variant="outline" className="h-5 px-1 font-normal">
+                {data.writeOffsPercentage}%
+              </Badge>
+            </div>
+          )}
+
+          {entry.dataKey === "ninetyPlus" && (
+            <div className="text-xs text-gray-500 flex justify-between mt-1">
+              <span>% of Total:</span>
+              <Badge variant="outline" className="h-5 px-1 font-normal">
+                {data.ninetyPlusPercentage}%
+              </Badge>
+            </div>
+          )}
+        </div>
+      ))}
+
+      <div className="border-t border-gray-200 dark:border-gray-700 my-2" />
+      <div className="flex justify-between text-xs text-gray-500">
+        <span>Status:</span>
+        <span>{data.hasReports ? "Reported" : "Missing"}</span>
+      </div>
+      <div className="text-xs text-blue-600 dark:text-blue-400 mt-2 flex justify-center items-center cursor-pointer">
+        <ArrowRight className="h-3 w-3 mr-1" /> Click for details
+      </div>
+    </div>
+  );
+};
+
+// Create a custom tooltip component for time series chart
+const CustomTimeTooltip = ({
+  active,
+  payload,
+}: {
+  active?: boolean;
+  payload?: Array<{ payload: Record<string, any> }>;
+}) => {
+  if (!active || !payload || !payload.length) return null;
+
+  const data = payload[0].payload;
+
+  return (
+    <div className="bg-white dark:bg-gray-800 p-3 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg">
+      <div className="font-medium mb-2">{data.date}</div>
+      <div className="border-t border-gray-200 dark:border-gray-700 my-2" />
+
+      {payload.map((entry: any, index: number) => (
+        <div key={`item-${index}`} className="py-1">
+          <div className="flex justify-between items-center">
+            <span className="flex items-center text-sm">
+              <div
+                className="w-2 h-2 rounded-full mr-1"
+                style={{ backgroundColor: entry.color }}
+              />
+              {entry.name}:
+            </span>
+            <span className="font-medium text-sm">
+              {formatKHRCurrency(entry.value)}
+            </span>
+          </div>
+
+          {entry.dataKey === "writeOffs" && data.writeOffsChange && (
+            <div className="text-xs flex justify-between mt-1">
+              <span>Change:</span>
+              <span
+                className={cn(
+                  "flex items-center",
+                  parseFloat(data.writeOffsChange) > 0
+                    ? "text-red-600 dark:text-red-400"
+                    : parseFloat(data.writeOffsChange) < 0
+                    ? "text-green-600 dark:text-green-400"
+                    : "text-gray-500"
+                )}
+              >
+                {parseFloat(data.writeOffsChange) > 0 && (
+                  <TrendingUp className="h-3 w-3 mr-1" />
+                )}
+                {parseFloat(data.writeOffsChange) < 0 && (
+                  <TrendingDown className="h-3 w-3 mr-1" />
+                )}
+                {parseFloat(data.writeOffsChange) === 0 && (
+                  <Minus className="h-3 w-3 mr-1" />
+                )}
+                {parseFloat(data.writeOffsChange) > 0 ? "+" : ""}
+                {data.writeOffsChange}%
+              </span>
+            </div>
+          )}
+
+          {entry.dataKey === "ninetyPlus" && data.ninetyPlusChange && (
+            <div className="text-xs flex justify-between mt-1">
+              <span>Change:</span>
+              <span
+                className={cn(
+                  "flex items-center",
+                  parseFloat(data.ninetyPlusChange) > 0
+                    ? "text-red-600 dark:text-red-400"
+                    : parseFloat(data.ninetyPlusChange) < 0
+                    ? "text-green-600 dark:text-green-400"
+                    : "text-gray-500"
+                )}
+              >
+                {parseFloat(data.ninetyPlusChange) > 0 && (
+                  <TrendingUp className="h-3 w-3 mr-1" />
+                )}
+                {parseFloat(data.ninetyPlusChange) < 0 && (
+                  <TrendingDown className="h-3 w-3 mr-1" />
+                )}
+                {parseFloat(data.ninetyPlusChange) === 0 && (
+                  <Minus className="h-3 w-3 mr-1" />
+                )}
+                {parseFloat(data.ninetyPlusChange) > 0 ? "+" : ""}
+                {data.ninetyPlusChange}%
+              </span>
+            </div>
+          )}
+        </div>
+      ))}
+
+      <div className="border-t border-gray-200 dark:border-gray-700 my-2" />
+      <div className="flex justify-between text-xs text-gray-500">
+        <span>Reports:</span>
+        <span>{data.count} submitted</span>
+      </div>
+      <div className="text-xs text-blue-600 dark:text-blue-400 mt-2 flex justify-center items-center cursor-pointer">
+        <ArrowRight className="h-3 w-3 mr-1" /> View trend details
+      </div>
+    </div>
+  );
+};
+
+// After the custom tooltips but before the main component
+// Create a skeleton loader component for charts
+function ChartSkeleton({ className }: { className?: string }) {
+  return (
+    <div className={cn("animate-pulse space-y-3", className)}>
+      <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-1/3"></div>
+      <div className="h-[300px] bg-gray-100 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 flex items-center justify-center">
+        <BarChart2 className="h-16 w-16 text-gray-300 dark:text-gray-600" />
+      </div>
+    </div>
+  );
+}
+
+// Create a component for the metrics card skeleton
+function MetricCardSkeleton() {
+  return (
+    <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 overflow-hidden">
+      <CardContent className="p-4 md:p-6">
+        <div className="flex flex-col animate-pulse">
+          <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-2/3"></div>
+          <div className="h-8 bg-gray-100 dark:bg-gray-800 rounded mt-2 w-full"></div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+export default function ConsolidatedView() {
+  const [date, setDate] = useState<Date | undefined>(new Date());
+  const [period, setPeriod] = useState<"day" | "week" | "month" | "custom">(
+    "day"
+  );
+  const [reportType, setReportType] = useState<"plan" | "actual">("actual");
+  const [isLoading, setIsLoading] = useState(false);
+  const [consolidatedData, setConsolidatedData] =
+    useState<ConsolidatedData | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [planData, setPlanData] = useState<ConsolidatedData | null>(null);
+  const [collapsedSections, setCollapsedSections] = useState<
+    Record<string, boolean>
+  >({
+    branchPerformance: false,
+    timeSeries: false,
+    trendAnalysis: false,
+  });
+  const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
+  const [visibleMetrics, setVisibleMetrics] = useState({
+    writeOffs: true,
+    ninetyPlus: true,
+  });
+  const [showYearOverYear, setShowYearOverYear] = useState(false);
+  const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+  const [isCustomDateRange, setIsCustomDateRange] = useState(false);
+  const [dateRange, setDateRange] = useState<{
+    from: Date | undefined;
+    to: Date | undefined;
+  }>({
+    from: new Date(),
+    to: new Date(),
+  });
+  const [filters, setFilters] = useState({
+    region: "all",
+    size: "all",
+    search: "",
+  });
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [availableRegions, setAvailableRegions] = useState<string[]>([]);
+  const [availableSizes, setAvailableSizes] = useState<string[]>([
+    "small",
+    "medium",
+    "large",
+  ]);
+
+  // Scroll references for animations
+  const chartRefs = {
+    branchPerformance: useRef<HTMLDivElement>(null),
+    timeSeries: useRef<HTMLDivElement>(null),
+    trendAnalysis: useRef<HTMLDivElement>(null),
+  };
+
+  useEffect(() => {
+    // Initialize with current date if not set
+    if (!date || isNaN(date.getTime())) {
+      setDate(new Date());
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchConsolidatedData();
+
+    if (reportType === "actual") {
+      fetchPlanDataForComparison();
+    } else {
+      setPlanData(null);
+    }
+  }, [date, period, reportType]);
+
+  // Animation effect when period changes
+  useEffect(() => {
+    // Reset collapsed sections when period changes
+    setCollapsedSections({
+      branchPerformance: false,
+      timeSeries: false,
+      trendAnalysis: false,
+    });
+
+    // Add a slight delay to ensure DOM is updated
+    const timeout = setTimeout(() => {
+      // Scroll to each section with smooth behavior
+      if (chartRefs.branchPerformance.current) {
+        chartRefs.branchPerformance.current.scrollIntoView({
+          behavior: "smooth",
+          block: "nearest",
+        });
+      }
+    }, 100);
+
+    return () => clearTimeout(timeout);
+  }, [period]);
+
+  useEffect(() => {
+    if (period === "custom" && dateRange.from && dateRange.to) {
+      // When custom date range changes, fetch data for that range
+      fetchConsolidatedData();
+
+      if (reportType === "actual") {
+        fetchPlanDataForComparison();
+      } else {
+        setPlanData(null);
+      }
+    }
+  }, [dateRange, period === "custom"]);
+
+  useEffect(() => {
+    if (consolidatedData && consolidatedData.branchData) {
+      // Extract unique regions
+      const regions = Array.from(
+        new Set(consolidatedData.branchData.map((branch) => branch.region))
+      );
+      setAvailableRegions(regions);
+    }
+  }, [consolidatedData]);
+
+  const fetchConsolidatedData = async () => {
+    setIsLoading(true);
+    setError(null);
+
+    // Simulate API call with timeout
+    setTimeout(() => {
+      try {
+        // This is where you would make a real API call
+        // For demo purposes, we generate mock data
+
+        let startDate = new Date();
+        let endDate = new Date();
+
+        if (period === "day") {
+          startDate = new Date(date || new Date());
+          endDate = new Date(date || new Date());
+        } else if (period === "week") {
+          // Calculate start of week from the current date
+          startDate = new Date(date || new Date());
+          startDate.setDate(startDate.getDate() - startDate.getDay());
+          endDate = new Date(startDate);
+          endDate.setDate(endDate.getDate() + 6);
+        } else if (period === "month") {
+          // Calculate start and end of month
+          startDate = new Date(date || new Date());
+          startDate.setDate(1);
+          endDate = new Date(
+            startDate.getFullYear(),
+            startDate.getMonth() + 1,
+            0
+          );
+        } else if (period === "custom" && dateRange.from && dateRange.to) {
+          // Use the custom date range
+          startDate = new Date(dateRange.from);
+          endDate = new Date(dateRange.to);
+        }
+
+        // Rest of the function remains the same...
+      } catch (err) {
+        console.error("Error fetching data:", err);
+        setError("Failed to fetch data. Please try again.");
+      } finally {
+        setIsLoading(false);
+      }
+    }, 1000);
+  };
+
+  const fetchPlanDataForComparison = async () => {
+    if (!date) return;
+
+    // Validate date
+    if (!(date instanceof Date) || isNaN(date.getTime())) {
+      console.error("Invalid date for plan data comparison");
+      return;
+    }
+
+    try {
+      const formattedDate = format(date, "yyyy-MM-dd");
+      const url = `/api/reports/consolidated?date=${formattedDate}&period=${period}&type=plan`;
+
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        console.error("Failed to fetch plan data for comparison");
+        return;
+      }
+
+      const data = await response.json();
+
+      // Add validation for historicalData in plan data
+      if (data && data.historicalData) {
+        // Filter out any items with invalid dates
+        data.historicalData = data.historicalData.filter(
+          (item: HistoricalDataPoint) => {
+            try {
+              if (!item.date || typeof item.date !== "string") return false;
+              // Try to parse the date to validate it
+              parseISO(item.date);
+              return true;
+            } catch {
+              console.warn("Filtered out plan item with invalid date:", item);
+              return false;
+            }
+          }
+        );
+      }
+
+      setPlanData(data);
+    } catch (error) {
+      console.error("Error fetching plan data for comparison:", error);
+    }
+  };
+
+  const handleGenerateReport = async () => {
+    await fetchConsolidatedData();
+    toast({
+      title: "Report Generated",
+      description: `Consolidated report for ${
+        date ? format(date, "PPP") : "today"
+      } has been generated.`,
+    });
+  };
+
+  const handleExportCSV = () => {
+    if (!consolidatedData || !consolidatedData.branchData) {
+      toast({
+        title: "Error",
+        description: "No data to export. Please generate a report first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Create CSV header
+      let csvContent = "Branch,Write-Offs (KHR),90+ Days (KHR),Reported\n";
+
+      // Add data rows
+      consolidatedData.branchData.forEach((branch) => {
+        csvContent += `${branch.branchCode},${branch.writeOffs},${
+          branch.ninetyPlus
+        },${branch.hasReports ? "Yes" : "No"}\n`;
+      });
+
+      // Add summary row
+      csvContent += `\nTotal,${consolidatedData.metrics.totalWriteOffs},${consolidatedData.metrics.totalNinetyPlus},${consolidatedData.metrics.reportedBranches}/${consolidatedData.metrics.totalBranches}\n`;
+
+      // Create blob and download link
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+
+      // Format the current date for the filename
+      const reportDate = new Date(consolidatedData.period.start);
+      const formattedDate = reportDate.toISOString().split("T")[0];
+
+      // Set link properties and trigger download
+      link.setAttribute("href", url);
+      link.setAttribute(
+        "download",
+        `consolidated_report_${period}_${formattedDate}.csv`
+      );
+      link.style.visibility = "hidden";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast({
+        title: "Success",
+        description: "CSV exported successfully",
+      });
+    } catch (error) {
+      console.error("Error exporting CSV:", error);
+      toast({
+        title: "Error",
+        description: "Failed to export CSV. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleExportExcel = async () => {
+    if (!consolidatedData || !consolidatedData.branchData) {
+      toast({
+        title: "Error",
+        description: "No data to export. Please generate a report first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = "Daily Reports System";
+      workbook.lastModifiedBy = "Daily Reports System";
+      workbook.created = new Date();
+      workbook.modified = new Date();
+
+      // Format the current date for the filename
+      const reportDate = new Date(consolidatedData.period.start);
+      const formattedDate = reportDate.toISOString().split("T")[0];
+      const periodType = consolidatedData.period.type;
+
+      // Add metadata about the report
+      workbook.properties.date1904 = false;
+      workbook.properties.subject = `Consolidated Report - ${periodType} - ${formattedDate}`;
+
+      // Worksheet 1: Summary
+      const summarySheet = workbook.addWorksheet("Summary");
+
+      // Add title and metadata to summary sheet
+      summarySheet.mergeCells("A1:D1");
+      const titleCell = summarySheet.getCell("A1");
+      titleCell.value = `${
+        periodType.charAt(0).toUpperCase() + periodType.slice(1)
+      } Consolidated Report`;
+      titleCell.font = { bold: true, size: 16 };
+      titleCell.alignment = { horizontal: "center" };
+
+      // Add period information
+      summarySheet.mergeCells("A2:D2");
+      const periodCell = summarySheet.getCell("A2");
+      periodCell.value = `Period: ${format(
+        new Date(consolidatedData.period.start),
+        "MMMM d, yyyy"
+      )} to ${format(new Date(consolidatedData.period.end), "MMMM d, yyyy")}`;
+      periodCell.font = { size: 12 };
+      periodCell.alignment = { horizontal: "center" };
+
+      // Add summary metrics
+      summarySheet.addRow([]);
+      summarySheet.addRow(["Key Metrics", "Value"]);
+      summarySheet.addRow([
+        "Total Write-Offs",
+        formatKHRCurrency(consolidatedData.metrics.totalWriteOffs),
+      ]);
+      summarySheet.addRow([
+        "Total 90+ Days",
+        formatKHRCurrency(consolidatedData.metrics.totalNinetyPlus),
+      ]);
+      summarySheet.addRow([
+        "Reported Branches",
+        `${consolidatedData.metrics.reportedBranches}/${consolidatedData.metrics.totalBranches} (${consolidatedData.metrics.coveragePercentage}%)`,
+      ]);
+
+      // Format the metrics section
+      ["A4:B4", "A5:B5", "A6:B6", "A7:B7"].forEach((range) => {
+        const row = summarySheet.getRow(
+          parseInt(range.split(":")[0].substring(1))
+        );
+        row.eachCell((cell) => {
+          cell.border = {
+            top: { style: "thin" },
+            left: { style: "thin" },
+            bottom: { style: "thin" },
+            right: { style: "thin" },
+          };
+        });
+      });
+
+      // Add styling to the header row
+      const headerRow = summarySheet.getRow(4);
+      headerRow.eachCell((cell) => {
+        cell.font = { bold: true };
+        cell.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "FFE0E0E0" },
+        };
+      });
+
+      // Adjust column widths
+      summarySheet.getColumn("A").width = 30;
+      summarySheet.getColumn("B").width = 25;
+
+      // Worksheet 2: Branch Details
+      const branchSheet = workbook.addWorksheet("Branch Details");
+
+      // Add headers
+      branchSheet.addRow([
+        "Branch Code",
+        "Branch Name",
+        "Write-Offs (KHR)",
+        "90+ Days (KHR)",
+        "Reported",
+        "% of Total Write-Offs",
+        "% of Total 90+ Days",
+      ]);
+
+      // Add styling to the header row
+      const branchHeaderRow = branchSheet.getRow(1);
+      branchHeaderRow.eachCell((cell) => {
+        cell.font = { bold: true };
+        cell.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "FFE0E0E0" },
+        };
+        cell.border = {
+          top: { style: "thin" },
+          left: { style: "thin" },
+          bottom: { style: "thin" },
+          right: { style: "thin" },
+        };
+      });
+
+      // Add data rows
+      consolidatedData.branchData.forEach((branch) => {
+        branchSheet.addRow([
+          branch.branchCode,
+          branch.branchName,
+          branch.writeOffs,
+          branch.ninetyPlus,
+          branch.hasReports ? "Yes" : "No",
+          consolidatedData.metrics.totalWriteOffs > 0
+            ? (
+                (branch.writeOffs / consolidatedData.metrics.totalWriteOffs) *
+                100
+              ).toFixed(1) + "%"
+            : "0%",
+          consolidatedData.metrics.totalNinetyPlus > 0
+            ? (
+                (branch.ninetyPlus / consolidatedData.metrics.totalNinetyPlus) *
+                100
+              ).toFixed(1) + "%"
+            : "0%",
+        ]);
+      });
+
+      // Format all data cells
+      for (let i = 2; i <= consolidatedData.branchData.length + 1; i++) {
+        const row = branchSheet.getRow(i);
+        row.eachCell((cell) => {
+          cell.border = {
+            top: { style: "thin" },
+            left: { style: "thin" },
+            bottom: { style: "thin" },
+            right: { style: "thin" },
+          };
+        });
+      }
+
+      // Set column widths
+      branchSheet.getColumn("A").width = 15;
+      branchSheet.getColumn("B").width = 30;
+      branchSheet.getColumn("C").width = 20;
+      branchSheet.getColumn("D").width = 20;
+      branchSheet.getColumn("E").width = 15;
+      branchSheet.getColumn("F").width = 25;
+      branchSheet.getColumn("G").width = 25;
+
+      // Worksheet 3: Historical Data
+      if (
+        consolidatedData.historicalData &&
+        consolidatedData.historicalData.length > 0
+      ) {
+        const historySheet = workbook.addWorksheet("Historical Data");
+
+        // Add headers
+        historySheet.addRow([
+          "Date",
+          "Write-Offs (KHR)",
+          "90+ Days (KHR)",
+          "Reports Count",
+          "Write-Offs Change",
+          "90+ Days Change",
+        ]);
+
+        // Add styling to the header row
+        const historyHeaderRow = historySheet.getRow(1);
+        historyHeaderRow.eachCell((cell) => {
+          cell.font = { bold: true };
+          cell.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: "FFE0E0E0" },
+          };
+          cell.border = {
+            top: { style: "thin" },
+            left: { style: "thin" },
+            bottom: { style: "thin" },
+            right: { style: "thin" },
+          };
+        });
+
+        // Sort data chronologically
+        const sortedData = [...consolidatedData.historicalData].sort((a, b) => {
+          return new Date(a.date).getTime() - new Date(b.date).getTime();
+        });
+
+        // Add data rows with calculated changes
+        sortedData.forEach((item, index) => {
+          let formattedDate = "Unknown Date";
+          try {
+            if (item.date && typeof item.date === "string") {
+              formattedDate = format(parseISO(item.date), "MMM dd, yyyy");
+            }
+          } catch (error) {
+            console.error("Error formatting date:", item.date, error);
+          }
+
+          // Calculate change from previous period
+          const prevItem = index > 0 ? sortedData[index - 1] : null;
+          const writeOffsChange =
+            prevItem && prevItem.writeOffs
+              ? (
+                  ((item.writeOffs - prevItem.writeOffs) / prevItem.writeOffs) *
+                  100
+                ).toFixed(1) + "%"
+              : "N/A";
+          const ninetyPlusChange =
+            prevItem && prevItem.ninetyPlus
+              ? (
+                  ((item.ninetyPlus - prevItem.ninetyPlus) /
+                    prevItem.ninetyPlus) *
+                  100
+                ).toFixed(1) + "%"
+              : "N/A";
+
+          historySheet.addRow([
+            formattedDate,
+            item.writeOffs,
+            item.ninetyPlus,
+            item.count,
+            writeOffsChange,
+            ninetyPlusChange,
+          ]);
+        });
+
+        // Format all data cells
+        for (let i = 2; i <= sortedData.length + 1; i++) {
+          const row = historySheet.getRow(i);
+          row.eachCell((cell) => {
+            cell.border = {
+              top: { style: "thin" },
+              left: { style: "thin" },
+              bottom: { style: "thin" },
+              right: { style: "thin" },
+            };
+          });
+        }
+
+        // Set column widths
+        historySheet.getColumn("A").width = 20;
+        historySheet.getColumn("B").width = 20;
+        historySheet.getColumn("C").width = 20;
+        historySheet.getColumn("D").width = 15;
+        historySheet.getColumn("E").width = 20;
+        historySheet.getColumn("F").width = 20;
+      }
+
+      // Worksheet 4: Missing Branches
+      if (
+        consolidatedData.missingBranches &&
+        consolidatedData.missingBranches.length > 0
+      ) {
+        const missingSheet = workbook.addWorksheet("Missing Branches");
+
+        // Add headers
+        missingSheet.addRow(["Branch Code", "Branch Name", "Status"]);
+
+        // Add styling to the header row
+        const missingHeaderRow = missingSheet.getRow(1);
+        missingHeaderRow.eachCell((cell) => {
+          cell.font = { bold: true };
+          cell.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: "FFE0E0E0" },
+          };
+          cell.border = {
+            top: { style: "thin" },
+            left: { style: "thin" },
+            bottom: { style: "thin" },
+            right: { style: "thin" },
+          };
+        });
+
+        // Add data rows
+        consolidatedData.missingBranches.forEach((branch) => {
+          missingSheet.addRow([branch.code, branch.name, "Missing Reports"]);
+        });
+
+        // Format all data cells
+        for (let i = 2; i <= consolidatedData.missingBranches.length + 1; i++) {
+          const row = missingSheet.getRow(i);
+          row.eachCell((cell) => {
+            cell.border = {
+              top: { style: "thin" },
+              left: { style: "thin" },
+              bottom: { style: "thin" },
+              right: { style: "thin" },
+            };
+          });
+        }
+
+        // Set column widths
+        missingSheet.getColumn("A").width = 15;
+        missingSheet.getColumn("B").width = 30;
+        missingSheet.getColumn("C").width = 20;
+      }
+
+      // Generate the Excel file
+      const buffer = await workbook.xlsx.writeBuffer();
+      saveAs(
+        new Blob([buffer]),
+        `consolidated_report_${period}_${formattedDate}.xlsx`
+      );
+
+      toast({
+        title: "Success",
+        description:
+          "Excel file with multiple worksheets exported successfully",
+      });
+    } catch (error) {
+      console.error("Error exporting Excel:", error);
+      toast({
+        title: "Error",
+        description: "Failed to export Excel file. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const getFilteredBranchData = () => {
+    if (!consolidatedData || !consolidatedData.branchData) return [];
+
+    return consolidatedData.branchData.filter((branch) => {
+      // Apply region filter
+      if (filters.region !== "all" && branch.region !== filters.region) {
+        return false;
+      }
+
+      // Apply size filter
+      if (filters.size !== "all" && branch.size !== filters.size) {
+        return false;
+      }
+
+      // Apply search filter
+      if (
+        filters.search &&
+        !branch.branchName
+          .toLowerCase()
+          .includes(filters.search.toLowerCase()) &&
+        !branch.branchCode.toLowerCase().includes(filters.search.toLowerCase())
+      ) {
+        return false;
+      }
+
+      return true;
+    });
+  };
+
+  const getFilteredChartData = () => {
+    if (!consolidatedData) return [];
+
+    const filteredData = getFilteredBranchData().map((branch) => ({
+      name: branch.branchCode,
+      writeOffs: branch.writeOffs,
+      ninetyPlus: branch.ninetyPlus,
+      branchId: branch.branchId,
+      branchName: branch.branchName,
+      hasReports: branch.hasReports,
+      reportsCount: branch.reportsCount,
+      region: branch.region,
+      size: branch.size,
+      writeOffsPercentage: consolidatedData.metrics.totalWriteOffs
+        ? (
+            (branch.writeOffs / consolidatedData.metrics.totalWriteOffs) *
+            100
+          ).toFixed(1)
+        : "0",
+      ninetyPlusPercentage: consolidatedData.metrics.totalNinetyPlus
+        ? (
+            (branch.ninetyPlus / consolidatedData.metrics.totalNinetyPlus) *
+            100
+          ).toFixed(1)
+        : "0",
+    }));
+
+    return filteredData;
+  };
+
+  // Add the missing getTimeSeriesData function back
+  const getTimeSeriesData = () => {
+    if (!consolidatedData || !consolidatedData.historicalData) return [];
+
+    // Sort data chronologically
+    const sortedData = [...consolidatedData.historicalData].sort((a, b) => {
+      return new Date(a.date).getTime() - new Date(b.date).getTime();
+    });
+
+    // Calculate period-over-period change percentages
+    return sortedData.map((item: HistoricalDataPoint, index) => {
+      // Add proper error handling for date parsing
+      let formattedDate = "Unknown Date";
+      let rawDate = null;
+      try {
+        // Check if item.date is a valid string before parsing
+        if (item.date && typeof item.date === "string") {
+          rawDate = parseISO(item.date);
+          formattedDate = format(rawDate, "MMM dd");
+        }
+      } catch (error) {
+        console.error("Error formatting date:", item.date, error);
+      }
+
+      // Calculate change from previous period if available
+      const prevItem = index > 0 ? sortedData[index - 1] : null;
+      const writeOffsChange =
+        prevItem && prevItem.writeOffs
+          ? (
+              ((item.writeOffs - prevItem.writeOffs) / prevItem.writeOffs) *
+              100
+            ).toFixed(1)
+          : null;
+      const ninetyPlusChange =
+        prevItem && prevItem.ninetyPlus
+          ? (
+              ((item.ninetyPlus - prevItem.ninetyPlus) / prevItem.ninetyPlus) *
+              100
+            ).toFixed(1)
+          : null;
+
+      // Add average for the last 3 periods if available
+      const last3Periods =
+        index >= 2
+          ? sortedData.slice(Math.max(0, index - 2), index + 1)
+          : sortedData.slice(0, index + 1);
+
+      const avgWriteOffs =
+        last3Periods.reduce((sum, curr) => sum + curr.writeOffs, 0) /
+        last3Periods.length;
+      const avgNinetyPlus =
+        last3Periods.reduce((sum, curr) => sum + curr.ninetyPlus, 0) /
+        last3Periods.length;
+
+      return {
+        date: formattedDate,
+        rawDate: rawDate,
+        writeOffs: item.writeOffs,
+        ninetyPlus: item.ninetyPlus,
+        count: item.count,
+        // Add trend information
+        writeOffsChange: writeOffsChange,
+        ninetyPlusChange: ninetyPlusChange,
+        avgWriteOffs: avgWriteOffs,
+        avgNinetyPlus: avgNinetyPlus,
+        // Direction indicators for tooltips
+        writeOffsTrend: writeOffsChange
+          ? parseFloat(writeOffsChange as string) > 0
+            ? "increasing"
+            : "decreasing"
+          : "stable",
+        ninetyPlusTrend: ninetyPlusChange
+          ? parseFloat(ninetyPlusChange as string) > 0
+            ? "increasing"
+            : "decreasing"
+          : "stable",
+      };
+    });
+  };
+
+  const getComparisonData = () => {
+    if (!consolidatedData || !planData) return [];
+
+    const comparisonData = consolidatedData.branchData.map((actualBranch) => {
+      const planBranch = planData.branchData.find(
+        (plan) => plan.branchId === actualBranch.branchId
+      );
+
+      return {
+        branch: actualBranch.branchCode,
+        actualWriteOffs: actualBranch.writeOffs,
+        planWriteOffs: planBranch?.writeOffs || 0,
+        actualNinetyPlus: actualBranch.ninetyPlus,
+        planNinetyPlus: planBranch?.ninetyPlus || 0,
+        writeOffsAchievement: planBranch?.writeOffs
+          ? (actualBranch.writeOffs / planBranch.writeOffs) * 100
+          : 0,
+        ninetyPlusAchievement: planBranch?.ninetyPlus
+          ? (actualBranch.ninetyPlus / planBranch.ninetyPlus) * 100
+          : 0,
+      };
+    });
+
+    return comparisonData.filter(
+      (item) => item.planWriteOffs > 0 || item.planNinetyPlus > 0
+    );
+  };
+
+  const handleReportTypeChange = (value: "plan" | "actual") => {
+    setReportType(value);
+  };
+
+  // Toggle collapsible section
+  const toggleSection = (section: keyof typeof collapsedSections) => {
+    setCollapsedSections((prev) => ({
+      ...prev,
+      [section]: !prev[section],
+    }));
+  };
+
+  // Add a function for retrying data fetch
+  const handleRetry = () => {
+    fetchConsolidatedData();
+    if (reportType === "actual") {
+      fetchPlanDataForComparison();
+    }
+    toast({
+      title: "Retrying...",
+      description: "Attempting to fetch the data again",
+    });
+  };
+
+  // Handle chart bar click for drill-down
+  const handleBarClick = (data: Record<string, any>) => {
+    if (!data) return;
+
+    // For branch performance chart
+    if (data.branchId) {
+      setSelectedBranchId(data.branchId);
+      setDetailsModalOpen(true);
+
+      // Log the interaction
+      console.log("Branch clicked:", data.branchName);
+    }
+    // For time series chart
+    else if (data.rawDate) {
+      // Find the specific date data
+      console.log("Date clicked:", format(data.rawDate, "yyyy-MM-dd"));
+
+      // You could implement date-specific drill down here
+      toast({
+        title: "Date selected",
+        description: `Showing details for ${format(data.rawDate, "PPP")}`,
+      });
+    }
+  };
+
+  // Toggle visibility of metrics
+  const toggleMetricVisibility = (metric: "writeOffs" | "ninetyPlus") => {
+    setVisibleMetrics((prev) => ({
+      ...prev,
+      [metric]: !prev[metric],
+    }));
+  };
+
+  // Add this component for the metric toggles
+  const MetricToggles = () => (
+    <div className="flex flex-wrap gap-2 mb-4">
+      <Button
+        variant={visibleMetrics.writeOffs ? "default" : "outline"}
+        size="sm"
+        onClick={() => toggleMetricVisibility("writeOffs")}
+        className={
+          visibleMetrics.writeOffs ? "bg-blue-600 hover:bg-blue-700" : ""
+        }
+      >
+        {visibleMetrics.writeOffs ? (
+          <Eye className="h-4 w-4 mr-1" />
+        ) : (
+          <EyeOff className="h-4 w-4 mr-1" />
+        )}
+        Write-offs
+      </Button>
+      <Button
+        variant={visibleMetrics.ninetyPlus ? "default" : "outline"}
+        size="sm"
+        onClick={() => toggleMetricVisibility("ninetyPlus")}
+        className={
+          visibleMetrics.ninetyPlus ? "bg-green-600 hover:bg-green-700" : ""
+        }
+      >
+        {visibleMetrics.ninetyPlus ? (
+          <Eye className="h-4 w-4 mr-1" />
+        ) : (
+          <EyeOff className="h-4 w-4 mr-1" />
+        )}
+        90+ Days
+      </Button>
+      <Button
+        variant={showYearOverYear ? "default" : "outline"}
+        size="sm"
+        onClick={() => setShowYearOverYear(!showYearOverYear)}
+        className={showYearOverYear ? "bg-purple-600 hover:bg-purple-700" : ""}
+      >
+        <BarChart2 className="h-4 w-4 mr-1" />
+        Year-over-Year
+      </Button>
+    </div>
+  );
+
+  // Add a new function to get year-over-year comparison data
+  const getYearOverYearData = () => {
+    if (!consolidatedData || !consolidatedData.historicalData) return [];
+
+    // For demo purposes, we'll simulate last year's data
+    // In a real app, you would fetch this from the API
+    const thisYearData = getTimeSeriesData();
+    const lastYearData = thisYearData.map((item) => ({
+      ...item,
+      writeOffsLastYear: item.writeOffs * (0.8 + Math.random() * 0.4), // 80-120% of current value
+      ninetyPlusLastYear: item.ninetyPlus * (0.8 + Math.random() * 0.4),
+    }));
+
+    return lastYearData;
+  };
+
+  // The onClick handler for charts - fixing the typing issue
+  const handleChartClick = (data: any) => {
+    if (!data || !data.activePayload || !data.activePayload[0]) return;
+
+    const clickedData = data.activePayload[0].payload;
+    handleBarClick(clickedData);
+  };
+
+  // Branch Details Modal (moved inside the main component)
+  const BranchDetailsModal = ({
+    isOpen,
+    onClose,
+    branchId,
+  }: {
+    isOpen: boolean;
+    onClose: () => void;
+    branchId: string | null;
+  }) => {
+    // Find the branch data
+    const branch =
+      branchId && consolidatedData
+        ? consolidatedData.branchData.find((b) => b.branchId === branchId)
+        : null;
+
+    if (!branch) return null;
+
+    // Find plan data for this branch if we have it
+    const planBranch =
+      reportType === "actual" && planData
+        ? planData.branchData.find((p) => p.branchId === branchId)
+        : null;
+
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>
+              {branch.branchCode} - {branch.branchName}
+            </DialogTitle>
+            <DialogDescription>
+              Detailed branch performance metrics
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <Card>
+                <CardContent className="pt-6">
+                  <h3 className="text-sm font-medium text-gray-500 mb-2">
+                    Write-offs
+                  </h3>
+                  <div className="text-2xl font-bold">
+                    {formatKHRCurrency(branch.writeOffs)}
+                  </div>
+                  {planBranch && (
+                    <div className="mt-2 text-sm">
+                      <span className="text-gray-500">Plan: </span>
+                      {formatKHRCurrency(planBranch.writeOffs)}
+                      <Badge
+                        className={cn(
+                          "ml-2",
+                          branch.writeOffs >= planBranch.writeOffs
+                            ? "bg-green-100 text-green-800"
+                            : "bg-amber-100 text-amber-800"
+                        )}
+                      >
+                        {planBranch.writeOffs > 0
+                          ? `${Math.round(
+                              (branch.writeOffs / planBranch.writeOffs) * 100
+                            )}%`
+                          : "N/A"}
+                      </Badge>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="pt-6">
+                  <h3 className="text-sm font-medium text-gray-500 mb-2">
+                    90+ Days
+                  </h3>
+                  <div className="text-2xl font-bold">
+                    {formatKHRCurrency(branch.ninetyPlus)}
+                  </div>
+                  {planBranch && (
+                    <div className="mt-2 text-sm">
+                      <span className="text-gray-500">Plan: </span>
+                      {formatKHRCurrency(planBranch.ninetyPlus)}
+                      <Badge
+                        className={cn(
+                          "ml-2",
+                          branch.ninetyPlus >= planBranch.ninetyPlus
+                            ? "bg-green-100 text-green-800"
+                            : "bg-amber-100 text-amber-800"
+                        )}
+                      >
+                        {planBranch.ninetyPlus > 0
+                          ? `${Math.round(
+                              (branch.ninetyPlus / planBranch.ninetyPlus) * 100
+                            )}%`
+                          : "N/A"}
+                      </Badge>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Performance Metrics</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm text-gray-500">
+                    % of Total Write-offs:
+                  </span>
+                  <span className="font-medium">
+                    {(
+                      (branch.writeOffs /
+                        (consolidatedData?.metrics.totalWriteOffs || 1)) *
+                      100
+                    ).toFixed(1)}
+                    %
+                  </span>
+                </div>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm text-gray-500">
+                    % of Total 90+ Days:
+                  </span>
+                  <span className="font-medium">
+                    {(
+                      (branch.ninetyPlus /
+                        (consolidatedData?.metrics.totalNinetyPlus || 1)) *
+                      100
+                    ).toFixed(1)}
+                    %
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-500">Report Status:</span>
+                  <Badge
+                    variant={branch.hasReports ? "default" : "outline"}
+                    className={
+                      branch.hasReports
+                        ? "bg-green-500"
+                        : "text-amber-600 border-amber-600"
+                    }
+                  >
+                    {branch.hasReports ? "Reported" : "Missing"}
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={onClose}>
+              Close
+            </Button>
+            <Button
+              onClick={() => {
+                onClose();
+                // In a real app, you could navigate to a dedicated branch page
+                toast({
+                  title: "Branch reports",
+                  description: `Viewing all reports for ${branch.branchCode} is not implemented in this demo`,
+                });
+              }}
+            >
+              View All Reports
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  };
+
+  // Add the handleExportPDF function
+  const handleExportPDF = () => {
+    if (!consolidatedData) {
+      toast({
+        title: "Error",
+        description: "No data to export. Please generate a report first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // In a real application, you would implement PDF generation here
+    // For this demo, we'll just show a toast notification
+    toast({
+      title: "PDF Export",
+      description: "PDF export functionality is not implemented in this demo.",
+    });
+  };
+
+  // Add a DateRangePicker component
+  const DateRangePicker = () => {
+    return (
+      <div className="flex flex-col space-y-2">
+        <span className="text-sm font-medium">Custom Date Range</span>
+        <div className="grid gap-2">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                id="date-range"
+                variant={"outline"}
+                className={cn(
+                  "w-full justify-start text-left font-normal",
+                  !dateRange.from && "text-muted-foreground"
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {dateRange.from ? (
+                  dateRange.to ? (
+                    <>
+                      {format(dateRange.from, "LLL dd, y")} -{" "}
+                      {format(dateRange.to, "LLL dd, y")}
+                    </>
+                  ) : (
+                    format(dateRange.from, "LLL dd, y")
+                  )
+                ) : (
+                  <span>Pick a date range</span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                initialFocus
+                mode="range"
+                defaultMonth={dateRange.from}
+                selected={{
+                  from: dateRange.from,
+                  to: dateRange.to,
+                }}
+                onSelect={(range) => {
+                  setDateRange({
+                    from: range?.from,
+                    to: range?.to,
+                  });
+                  if (range?.from && range?.to) {
+                    // Set period to custom when a date range is selected
+                    setPeriod("custom");
+                  }
+                }}
+                numberOfMonths={2}
+              />
+            </PopoverContent>
+          </Popover>
+        </div>
+        <div className="flex justify-end">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              // Reset to default period
+              setPeriod("day");
+              setDateRange({
+                from: new Date(),
+                to: new Date(),
+              });
+            }}
+            className="text-xs"
+          >
+            Reset
+          </Button>
+        </div>
+      </div>
+    );
+  };
+
+  // Add a toggle for filters function
+  const toggleFilters = () => {
+    setIsFilterOpen(!isFilterOpen);
+  };
+
+  // Add a reset filters function
+  const resetFilters = () => {
+    setFilters({
+      region: "all",
+      size: "all",
+      search: "",
+    });
+  };
+
+  // Add filter component
+  const BranchFilters = () => {
+    return (
+      <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 mt-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
+          <h3 className="text-base font-medium">Branch Filters</h3>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={resetFilters}
+            className="mt-2 sm:mt-0"
+          >
+            <X className="h-4 w-4 mr-1" />
+            Reset Filters
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Region</label>
+            <Select
+              value={filters.region}
+              onValueChange={(value) =>
+                setFilters({ ...filters, region: value })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="All Regions" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Regions</SelectItem>
+                {availableRegions.map((region) => (
+                  <SelectItem key={region} value={region}>
+                    {region}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Branch Size</label>
+            <Select
+              value={filters.size}
+              onValueChange={(value) => setFilters({ ...filters, size: value })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="All Sizes" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Sizes</SelectItem>
+                {availableSizes.map((size) => (
+                  <SelectItem key={size} value={size}>
+                    {size.charAt(0).toUpperCase() + size.slice(1)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Search</label>
+            <div className="relative">
+              <Input
+                type="text"
+                placeholder="Search branch name or code"
+                value={filters.search}
+                onChange={(e) =>
+                  setFilters({ ...filters, search: e.target.value })
+                }
+                className="w-full pr-8 truncate" // Add truncate to keep text inside the box
+              />
+              {filters.search && (
+                <button
+                  onClick={() => setFilters({ ...filters, search: "" })}
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-500"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Consolidated Reports</CardTitle>
+        <CardDescription>
+          View aggregated metrics across all branches
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-6">
+          {/* Enhanced Period Selection with Animated Transitions */}
+          <div className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-4 sm:space-y-0">
+            <div className="space-y-2">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                Consolidated Performance
+              </h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                {consolidatedData
+                  ? `Data for ${
+                      period === "day"
+                        ? "daily"
+                        : period === "week"
+                        ? "weekly"
+                        : period === "month"
+                        ? "monthly"
+                        : "custom"
+                    } period ${format(date || new Date(), "MMMM d, yyyy")}`
+                  : "Select a date and period to view data"}
+              </p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 w-full sm:w-auto">
+              <Tabs
+                value={period}
+                onValueChange={(value: string) => {
+                  if (
+                    value === "day" ||
+                    value === "week" ||
+                    value === "month" ||
+                    value === "custom"
+                  ) {
+                    // Add a transition effect when changing periods
+                    const content = document.getElementById(
+                      "consolidated-content"
+                    );
+                    if (content) {
+                      content.classList.add("opacity-0", "scale-95");
+                      setTimeout(() => {
+                        setPeriod(value as "day" | "week" | "month" | "custom");
+                        // Show date range picker if custom is selected
+                        setIsCustomDateRange(value === "custom");
+                        setTimeout(() => {
+                          content.classList.remove("opacity-0", "scale-95");
+                        }, 50);
+                      }, 150);
+                    } else {
+                      setPeriod(value as "day" | "week" | "month");
+                    }
+                  }
+                }}
+                className="w-full sm:w-auto"
+              >
+                <TabsList className="grid w-full grid-cols-4">
+                  <TabsTrigger value="day">Day</TabsTrigger>
+                  <TabsTrigger value="week">Week</TabsTrigger>
+                  <TabsTrigger value="month">Month</TabsTrigger>
+                  <TabsTrigger value="custom">Custom</TabsTrigger>
+                </TabsList>
+              </Tabs>
+
+              <Tabs
+                value={reportType}
+                onValueChange={(value) =>
+                  handleReportTypeChange(value as "plan" | "actual")
+                }
+                className="w-full sm:w-auto"
+              >
+                <TabsList className="grid grid-cols-2 w-full">
+                  <TabsTrigger
+                    value="plan"
+                    className="data-[state=active]:bg-blue-600 data-[state=active]:text-white"
+                  >
+                    Plan
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="actual"
+                    className="data-[state=active]:bg-green-600 data-[state=active]:text-white"
+                  >
+                    Actual
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+          </div>
+
+          {/* Date Selection and Action Buttons */}
+          <div className="flex flex-col md:flex-row justify-between mb-6 space-y-4 md:space-y-0">
+            <div className="flex items-center">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={"outline"}
+                    className={cn(
+                      "w-full md:w-[240px] justify-start text-left font-normal",
+                      !date && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {date ? format(date, "PPP") : <span>Pick a date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={date}
+                    onSelect={(newDate) => {
+                      // Ensure we set a valid date or fallback to today
+                      setDate(newDate || new Date());
+                    }}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 space-x-0 sm:space-x-2 mt-4">
+              <Button
+                variant="default"
+                className="flex items-center"
+                onClick={fetchConsolidatedData}
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Generate Report
+                  </>
+                )}
+              </Button>
+              <Button
+                variant="outline"
+                className="flex items-center"
+                onClick={handleExportCSV}
+              >
+                <FileIcon className="h-4 w-4 mr-2" />
+                Export CSV
+              </Button>
+              <Button
+                variant="outline"
+                className="flex items-center"
+                onClick={handleExportExcel}
+              >
+                <FileSpreadsheetIcon className="h-4 w-4 mr-2" />
+                Export Excel
+              </Button>
+              <Button
+                onClick={handleExportPDF}
+                variant="outline"
+                className="flex items-center"
+                disabled={!consolidatedData}
+              >
+                <FileIcon className="mr-2 h-4 w-4" />
+                <span className="hidden md:inline">Export PDF</span>
+                <span className="md:hidden">PDF</span>
+              </Button>
+            </div>
+          </div>
+
+          {/* Wrap content in a div that can be animated during transitions */}
+          <div
+            id="consolidated-content"
+            className="transition-all duration-300 ease-in-out transform"
+          >
+            {/* Loading state with skeletons */}
+            {isLoading && (
+              <div className="space-y-6 py-2">
+                {/* Metrics cards skeleton */}
+                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
+                  <MetricCardSkeleton />
+                  <MetricCardSkeleton />
+                  <MetricCardSkeleton />
+                  <MetricCardSkeleton />
+                </div>
+
+                {/* Chart skeletons */}
+                <ChartSkeleton className="mt-6" />
+                <ChartSkeleton className="mt-6" />
+              </div>
+            )}
+
+            {/* Enhanced error state with retry button */}
+            {error && !isLoading && (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/30 text-red-600 dark:text-red-400 p-6 rounded-lg mb-6 animate-in slide-in-from-top-4 duration-300">
+                <div className="flex items-start">
+                  <AlertCircle className="h-5 w-5 mt-0.5 mr-2 flex-shrink-0" />
+                  <div className="flex-1">
+                    <h3 className="font-semibold mb-1 text-lg flex items-center">
+                      Error Loading Data
+                      <span className="ml-2 text-xs font-normal bg-red-100 dark:bg-red-900/50 py-0.5 px-1.5 rounded-full">
+                        Data Fetch Failed
+                      </span>
+                    </h3>
+                    <p className="text-sm mb-4">{error}</p>
+
+                    <div className="bg-white dark:bg-gray-800 rounded p-3 border border-red-100 dark:border-red-800/30 mb-4">
+                      <h4 className="text-sm font-medium mb-1 flex items-center">
+                        <AlertTriangle className="h-4 w-4 mr-1" />
+                        Possible causes:
+                      </h4>
+                      <ul className="text-xs list-disc pl-5 space-y-1">
+                        <li>Network connection issue</li>
+                        <li>Server is temporarily unavailable</li>
+                        <li>
+                          You might not have permission to access this data
+                        </li>
+                        <li>The requested date range contains no data</li>
+                      </ul>
+                    </div>
+
+                    <div className="flex space-x-3">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleRetry}
+                        className="bg-white dark:bg-gray-800 border-red-200 dark:border-red-800/50 hover:bg-red-50 dark:hover:bg-red-900/20"
+                      >
+                        <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+                        Retry
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setError(null)}
+                        className="hover:bg-red-50 dark:hover:bg-red-900/20"
+                      >
+                        Dismiss
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Data display - only shown when data is loaded */}
+            {consolidatedData && !isLoading && !error && (
+              <>
+                {/* Metrics Overview Cards */}
+                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6 transition-all duration-300 ease-in-out">
+                  <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow duration-200 overflow-hidden">
+                    <CardContent className="p-4 md:p-6">
+                      <div className="flex flex-col">
+                        <span className="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400">
+                          Total Write-offs
+                        </span>
+                        <span className="text-lg sm:text-xl md:text-2xl font-bold mt-2 transition-all duration-300 ease-in-out animate-in fade-in-50 slide-in-from-bottom-5">
+                          {formatKHRCurrency(
+                            consolidatedData.metrics.totalWriteOffs
+                          )}
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow duration-200 overflow-hidden">
+                    <CardContent className="p-4 md:p-6">
+                      <div className="flex flex-col">
+                        <span className="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400">
+                          Total 90+ Days
+                        </span>
+                        <span
+                          className="text-lg sm:text-xl md:text-2xl font-bold mt-2 transition-all duration-300 ease-in-out animate-in fade-in-50 slide-in-from-bottom-5"
+                          style={{ animationDelay: "100ms" }}
+                        >
+                          {formatKHRCurrency(
+                            consolidatedData.metrics.totalNinetyPlus
+                          )}
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Branch Coverage Card with Enhanced Visual Indicator */}
+                  <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow duration-200 overflow-hidden">
+                    <CardContent className="p-4 md:p-6">
+                      <div className="flex flex-col">
+                        <span className="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400">
+                          Branch Coverage
+                        </span>
+                        <div className="flex flex-col sm:flex-row sm:items-end mt-2">
+                          <span
+                            className="text-lg sm:text-xl md:text-2xl font-bold transition-all duration-300 ease-in-out animate-in fade-in-50 slide-in-from-bottom-5"
+                            style={{ animationDelay: "200ms" }}
+                          >
+                            {consolidatedData.metrics.reportedBranches}/
+                            {consolidatedData.metrics.totalBranches}
+                          </span>
+                          <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 sm:ml-2 sm:mb-1">
+                            (
+                            {Math.round(
+                              consolidatedData.metrics.coveragePercentage
+                            )}
+                            %)
+                          </span>
+                        </div>
+
+                        {/* Visual progress indicator for branch coverage */}
+                        <div className="w-full h-3 bg-gray-100 dark:bg-gray-700 rounded-full mt-3 overflow-hidden relative">
+                          {/* Animated progress bar */}
+                          <div
+                            className="h-full rounded-full transition-all duration-1000 ease-out-expo"
+                            style={{
+                              width: `${consolidatedData.metrics.coveragePercentage}%`,
+                              backgroundColor:
+                                consolidatedData.metrics.coveragePercentage >=
+                                80
+                                  ? "#10b981" // green for good coverage
+                                  : consolidatedData.metrics
+                                      .coveragePercentage >= 50
+                                  ? "#f59e0b" // amber for medium coverage
+                                  : "#ef4444", // red for poor coverage
+                            }}
+                          />
+
+                          {/* Milestone markers */}
+                          <div className="absolute top-0 left-0 w-full h-full flex items-center justify-between px-[3px]">
+                            {[25, 50, 75].map((milestone) => (
+                              <div
+                                key={milestone}
+                                className="w-0.5 h-1/2 bg-gray-300 dark:bg-gray-600 rounded-full z-10"
+                                style={{
+                                  left: `${milestone}%`,
+                                  transform: "translateX(-50%)",
+                                }}
+                              />
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Label for coverage quality */}
+                        <div className="mt-2 text-xs">
+                          <span
+                            className={cn(
+                              "inline-block px-2 py-0.5 rounded-full font-medium",
+                              consolidatedData.metrics.coveragePercentage >= 80
+                                ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+                                : consolidatedData.metrics.coveragePercentage >=
+                                  50
+                                ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
+                                : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
+                            )}
+                          >
+                            {consolidatedData.metrics.coveragePercentage >= 80
+                              ? "Good"
+                              : consolidatedData.metrics.coveragePercentage >=
+                                50
+                              ? "Average"
+                              : "Poor"}
+                          </span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow duration-200 overflow-hidden">
+                    <CardContent className="p-4 md:p-6">
+                      <div className="flex flex-col">
+                        <span className="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400">
+                          Missing Reports
+                        </span>
+                        <div className="flex flex-col sm:flex-row sm:items-end mt-2">
+                          <span
+                            className="text-lg sm:text-xl md:text-2xl font-bold transition-all duration-300 ease-in-out animate-in fade-in-50 slide-in-from-bottom-5"
+                            style={{ animationDelay: "300ms" }}
+                          >
+                            {consolidatedData.missingBranches.length}
+                          </span>
+                          <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 sm:ml-2 sm:mb-1">
+                            branches
+                          </span>
+                        </div>
+
+                        {consolidatedData.missingBranches.length > 0 && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="mt-2 text-xs h-7 px-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+                          >
+                            View missing branches
+                          </Button>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Branch Performance Chart - Collapsible */}
+                <div
+                  className="mt-6 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden transition-all duration-300"
+                  ref={chartRefs.branchPerformance}
+                >
+                  <div
+                    className="bg-gray-50 dark:bg-gray-800 p-4 flex justify-between items-center cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-750 transition-colors"
+                    onClick={() => toggleSection("branchPerformance")}
+                  >
+                    <h3 className="text-lg font-medium">Branch Performance</h3>
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                      {collapsedSections.branchPerformance ? (
+                        <ChevronDown className="h-5 w-5" />
+                      ) : (
+                        <ChevronUp className="h-5 w-5" />
+                      )}
+                    </Button>
+                  </div>
+
+                  <div
+                    className={cn(
+                      "transition-all duration-300 ease-in-out",
+                      collapsedSections.branchPerformance
+                        ? "max-h-0 opacity-0 overflow-hidden"
+                        : "max-h-[500px] opacity-100"
+                    )}
+                  >
+                    {/* Metric Toggle Controls */}
+                    <div className="px-4 pt-4">
+                      <MetricToggles />
+                    </div>
+                    <div className="w-full h-[300px] sm:h-[400px] p-4">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart
+                          data={getFilteredChartData()}
+                          margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                          onClick={handleChartClick}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="name" />
+                          <YAxis />
+                          <Tooltip content={<CustomBranchTooltip />} />
+                          <Legend />
+                          {visibleMetrics.writeOffs && (
+                            <Bar
+                              dataKey="writeOffs"
+                              name="Write-offs"
+                              fill="#8884d8"
+                              cursor="pointer"
+                            />
+                          )}
+                          {visibleMetrics.ninetyPlus && (
+                            <Bar
+                              dataKey="ninetyPlus"
+                              name="90+ Days"
+                              fill="#82ca9d"
+                              cursor="pointer"
+                            />
+                          )}
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Time Series Chart - Collapsible */}
+                {consolidatedData.historicalData &&
+                  consolidatedData.historicalData.length > 0 && (
+                    <div
+                      className="mt-6 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden transition-all duration-300"
+                      ref={chartRefs.timeSeries}
+                    >
+                      <div
+                        className="bg-gray-50 dark:bg-gray-800 p-4 flex justify-between items-center cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-750 transition-colors"
+                        onClick={() => toggleSection("timeSeries")}
+                      >
+                        <h3 className="text-lg font-medium">
+                          {period === "day"
+                            ? "Daily Trends"
+                            : period === "week"
+                            ? "Weekly Trends"
+                            : "Monthly Trends"}
+                        </h3>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0"
+                        >
+                          {collapsedSections.timeSeries ? (
+                            <ChevronDown className="h-5 w-5" />
+                          ) : (
+                            <ChevronUp className="h-5 w-5" />
+                          )}
+                        </Button>
+                      </div>
+
+                      <div
+                        className={cn(
+                          "transition-all duration-300 ease-in-out",
+                          collapsedSections.timeSeries
+                            ? "max-h-0 opacity-0 overflow-hidden"
+                            : "max-h-[500px] opacity-100"
+                        )}
+                      >
+                        {/* Metric Toggle Controls */}
+                        <div className="px-4 pt-4">
+                          <MetricToggles />
+                        </div>
+                        <div className="w-full h-[300px] sm:h-[400px] p-4">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart
+                              data={
+                                showYearOverYear
+                                  ? getYearOverYearData()
+                                  : getTimeSeriesData()
+                              }
+                              margin={{
+                                top: 20,
+                                right: 30,
+                                left: 20,
+                                bottom: 5,
+                              }}
+                              onClick={handleChartClick}
+                            >
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis dataKey="date" />
+                              <YAxis />
+                              <Tooltip content={<CustomTimeTooltip />} />
+                              <Legend />
+                              {visibleMetrics.writeOffs && (
+                                <Bar
+                                  dataKey="writeOffs"
+                                  name="Write-offs"
+                                  fill="#8884d8"
+                                  cursor="pointer"
+                                />
+                              )}
+                              {showYearOverYear && visibleMetrics.writeOffs && (
+                                <Bar
+                                  dataKey="writeOffsLastYear"
+                                  name="Write-offs (Last Year)"
+                                  fill="#8884d8"
+                                  fillOpacity={0.4}
+                                  cursor="pointer"
+                                />
+                              )}
+                              {visibleMetrics.ninetyPlus && (
+                                <Bar
+                                  dataKey="ninetyPlus"
+                                  name="90+ Days"
+                                  fill="#82ca9d"
+                                  cursor="pointer"
+                                />
+                              )}
+                              {showYearOverYear &&
+                                visibleMetrics.ninetyPlus && (
+                                  <Bar
+                                    dataKey="ninetyPlusLastYear"
+                                    name="90+ Days (Last Year)"
+                                    fill="#82ca9d"
+                                    fillOpacity={0.4}
+                                    cursor="pointer"
+                                  />
+                                )}
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                {/* Trend Analysis Line Chart - Collapsible */}
+                {consolidatedData &&
+                  consolidatedData.historicalData &&
+                  consolidatedData.historicalData.length > 0 && (
+                    <div
+                      className="mt-6 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden transition-all duration-300"
+                      ref={chartRefs.trendAnalysis}
+                    >
+                      <div
+                        className="bg-gray-50 dark:bg-gray-800 p-4 flex justify-between items-center cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-750 transition-colors"
+                        onClick={() => toggleSection("trendAnalysis")}
+                      >
+                        <h3 className="text-lg font-medium">Trend Analysis</h3>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0"
+                        >
+                          {collapsedSections.trendAnalysis ? (
+                            <ChevronDown className="h-5 w-5" />
+                          ) : (
+                            <ChevronUp className="h-5 w-5" />
+                          )}
+                        </Button>
+                      </div>
+
+                      <div
+                        className={cn(
+                          "transition-all duration-300 ease-in-out",
+                          collapsedSections.trendAnalysis
+                            ? "max-h-0 opacity-0 overflow-hidden"
+                            : "max-h-[500px] opacity-100"
+                        )}
+                      >
+                        <div className="w-full h-[300px] sm:h-[400px] p-4">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <LineChart
+                              data={getTimeSeriesData().reverse()} // Reverse to show oldest to newest
+                              margin={{
+                                top: 20,
+                                right: 30,
+                                left: 20,
+                                bottom: 5,
+                              }}
+                            >
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis dataKey="date" />
+                              <YAxis />
+                              <Tooltip
+                                contentStyle={{
+                                  backgroundColor: "rgba(255, 255, 255, 0.9)",
+                                  border: "1px solid #ccc",
+                                  borderRadius: "4px",
+                                  padding: "10px",
+                                }}
+                              />
+                              <Legend />
+                              <Line
+                                type="monotone"
+                                dataKey="writeOffs"
+                                name="Write-offs"
+                                stroke="#8884d8"
+                                activeDot={{ r: 8 }}
+                                strokeWidth={2}
+                              />
+                              <Line
+                                type="monotone"
+                                dataKey="ninetyPlus"
+                                name="90+ Days"
+                                stroke="#82ca9d"
+                                activeDot={{ r: 8 }}
+                                strokeWidth={2}
+                              />
+                            </LineChart>
+                          </ResponsiveContainer>
+                          <div className="text-sm text-gray-500 mt-2 text-center">
+                            Trend over time showing write-offs and 90+ days
+                            outstanding amounts
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                {/* Plan vs Actual Comparison (only show when viewing actual data and plan data is available) */}
+                {reportType === "actual" && planData && (
+                  <div className="mt-6">
+                    <h3 className="text-lg font-medium mb-4">
+                      Plan vs. Actual Comparison
+                    </h3>
+
+                    {/* Overall Achievement Cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                        <CardContent className="p-4">
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                                Write-offs Achievement
+                              </h4>
+                              <div className="flex items-baseline mt-1">
+                                <span className="text-2xl font-bold">
+                                  {planData.metrics.totalWriteOffs > 0
+                                    ? `${(
+                                        (consolidatedData.metrics
+                                          .totalWriteOffs /
+                                          planData.metrics.totalWriteOffs) *
+                                        100
+                                      ).toFixed(1)}%`
+                                    : "N/A"}
+                                </span>
+                                <span className="ml-2 text-sm text-gray-500">
+                                  {formatKHRCurrency(
+                                    consolidatedData.metrics.totalWriteOffs
+                                  )}{" "}
+                                  /{" "}
+                                  {formatKHRCurrency(
+                                    planData.metrics.totalWriteOffs
+                                  )}
+                                </span>
+                              </div>
+                            </div>
+                            <div
+                              className={cn(
+                                "text-lg font-semibold rounded-full w-12 h-12 flex items-center justify-center",
+                                planData.metrics.totalWriteOffs > 0 &&
+                                  consolidatedData.metrics.totalWriteOffs >=
+                                    planData.metrics.totalWriteOffs
+                                  ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                                  : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                              )}
+                            >
+                              {planData.metrics.totalWriteOffs > 0
+                                ? `${Math.round(
+                                    (consolidatedData.metrics.totalWriteOffs /
+                                      planData.metrics.totalWriteOffs) *
+                                      100
+                                  )}%`
+                                : "N/A"}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                        <CardContent className="p-4">
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                                90+ Days Achievement
+                              </h4>
+                              <div className="flex items-baseline mt-1">
+                                <span className="text-2xl font-bold">
+                                  {planData.metrics.totalNinetyPlus > 0
+                                    ? `${(
+                                        (consolidatedData.metrics
+                                          .totalNinetyPlus /
+                                          planData.metrics.totalNinetyPlus) *
+                                        100
+                                      ).toFixed(1)}%`
+                                    : "N/A"}
+                                </span>
+                                <span className="ml-2 text-sm text-gray-500">
+                                  {formatKHRCurrency(
+                                    consolidatedData.metrics.totalNinetyPlus
+                                  )}{" "}
+                                  /{" "}
+                                  {formatKHRCurrency(
+                                    planData.metrics.totalNinetyPlus
+                                  )}
+                                </span>
+                              </div>
+                            </div>
+                            <div
+                              className={cn(
+                                "text-lg font-semibold rounded-full w-12 h-12 flex items-center justify-center",
+                                planData.metrics.totalNinetyPlus > 0 &&
+                                  consolidatedData.metrics.totalNinetyPlus >=
+                                    planData.metrics.totalNinetyPlus
+                                  ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                                  : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                              )}
+                            >
+                              {planData.metrics.totalNinetyPlus > 0
+                                ? `${Math.round(
+                                    (consolidatedData.metrics.totalNinetyPlus /
+                                      planData.metrics.totalNinetyPlus) *
+                                      100
+                                  )}%`
+                                : "N/A"}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+
+                    {/* Comparison Chart */}
+                    <div className="w-full h-80 border rounded-md p-4">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart
+                          data={getComparisonData()}
+                          margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="branch" />
+                          <YAxis />
+                          <Tooltip
+                            formatter={(value) =>
+                              formatKHRCurrency(value as number)
+                            }
+                            labelFormatter={(label) => `Branch: ${label}`}
+                          />
+                          <Legend />
+                          <Bar
+                            dataKey="planWriteOffs"
+                            name="Plan Write-offs"
+                            fill="#8884d8"
+                            opacity={0.6}
+                          />
+                          <Bar
+                            dataKey="actualWriteOffs"
+                            name="Actual Write-offs"
+                            fill="#8884d8"
+                          />
+                          <Bar
+                            dataKey="planNinetyPlus"
+                            name="Plan 90+ Days"
+                            fill="#82ca9d"
+                            opacity={0.6}
+                          />
+                          <Bar
+                            dataKey="actualNinetyPlus"
+                            name="Actual 90+ Days"
+                            fill="#82ca9d"
+                          />
+                        </BarChart>
+                      </ResponsiveContainer>
+                      <div className="text-sm text-gray-500 mt-2 text-center">
+                        Comparison of planned vs. actual figures for each branch
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Branch Status Table */}
+                <div className="mt-6">
+                  <h3 className="text-lg font-medium mb-4">Branch Status</h3>
+                  <div className="rounded-md border overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="whitespace-nowrap">
+                            Branch
+                          </TableHead>
+                          <TableHead className="whitespace-nowrap text-right">
+                            Write-offs
+                          </TableHead>
+                          {reportType === "actual" && planData && (
+                            <TableHead className="whitespace-nowrap text-center">
+                              Achievement
+                            </TableHead>
+                          )}
+                          <TableHead className="whitespace-nowrap text-right">
+                            90+ Days
+                          </TableHead>
+                          {reportType === "actual" && planData && (
+                            <TableHead className="whitespace-nowrap text-center">
+                              Achievement
+                            </TableHead>
+                          )}
+                          <TableHead className="whitespace-nowrap text-center">
+                            Status
+                          </TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {consolidatedData.branchData.map((branch: Branch) => {
+                          // Find corresponding plan data for this branch when in actual view
+                          const planBranch =
+                            reportType === "actual" && planData
+                              ? planData.branchData.find(
+                                  (plan) => plan.branchId === branch.branchId
+                                )
+                              : null;
+
+                          // Calculate achievement percentages
+                          const writeOffsAchievement =
+                            planBranch?.writeOffs && planBranch.writeOffs > 0
+                              ? (branch.writeOffs / planBranch.writeOffs) * 100
+                              : 0;
+
+                          const ninetyPlusAchievement =
+                            planBranch?.ninetyPlus && planBranch.ninetyPlus > 0
+                              ? (branch.ninetyPlus / planBranch.ninetyPlus) *
+                                100
+                              : 0;
+
+                          return (
+                            <TableRow key={branch.branchId}>
+                              <TableCell className="whitespace-nowrap font-medium">
+                                {branch.branchCode}
+                              </TableCell>
+                              <TableCell className="whitespace-nowrap text-right">
+                                {formatKHRCurrency(branch.writeOffs)}
+                              </TableCell>
+                              {reportType === "actual" && planData && (
+                                <TableCell className="whitespace-nowrap text-center">
+                                  {planBranch?.writeOffs &&
+                                  planBranch.writeOffs > 0 ? (
+                                    <Badge
+                                      className={cn(
+                                        "font-medium",
+                                        writeOffsAchievement >= 100
+                                          ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+                                          : writeOffsAchievement >= 80
+                                          ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
+                                          : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
+                                      )}
+                                    >
+                                      {writeOffsAchievement.toFixed(1)}%
+                                    </Badge>
+                                  ) : (
+                                    <span className="text-gray-400">N/A</span>
+                                  )}
+                                </TableCell>
+                              )}
+                              <TableCell className="whitespace-nowrap text-right">
+                                {formatKHRCurrency(branch.ninetyPlus)}
+                              </TableCell>
+                              {reportType === "actual" && planData && (
+                                <TableCell className="whitespace-nowrap text-center">
+                                  {planBranch?.ninetyPlus &&
+                                  planBranch.ninetyPlus > 0 ? (
+                                    <Badge
+                                      className={cn(
+                                        "font-medium",
+                                        ninetyPlusAchievement >= 100
+                                          ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+                                          : ninetyPlusAchievement >= 80
+                                          ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
+                                          : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
+                                      )}
+                                    >
+                                      {ninetyPlusAchievement.toFixed(1)}%
+                                    </Badge>
+                                  ) : (
+                                    <span className="text-gray-400">N/A</span>
+                                  )}
+                                </TableCell>
+                              )}
+                              <TableCell className="whitespace-nowrap text-center">
+                                {branch.hasReports ? (
+                                  <Badge className="bg-green-500">
+                                    Reported
+                                  </Badge>
+                                ) : (
+                                  <Badge
+                                    variant="outline"
+                                    className="border-yellow-500 text-yellow-500"
+                                  >
+                                    Missing
+                                  </Badge>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </CardContent>
+      <BranchDetailsModal
+        isOpen={detailsModalOpen}
+        onClose={() => setDetailsModalOpen(false)}
+        branchId={selectedBranchId}
+      />
+      {isCustomDateRange && (
+        <div className="mt-4">
+          <DateRangePicker />
+        </div>
+      )}
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={toggleFilters}
+        className="flex items-center"
+      >
+        <Filter className="h-4 w-4 mr-1" />
+        {isFilterOpen ? "Hide Filters" : "Show Filters"}
+      </Button>
+      {isFilterOpen && <BranchFilters />}
+    </Card>
+  );
+}

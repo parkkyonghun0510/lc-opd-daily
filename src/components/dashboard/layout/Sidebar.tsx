@@ -13,13 +13,19 @@ import {
   ChevronRight,
   Menu,
   X,
+  FileText,
 } from "lucide-react";
 import { ThemeToggle } from "../theme/ThemeToggle";
 
 const navigationItems = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { name: "View Reports", href: "/dashboard/reports", icon: FileText },
+  {
+    name: "Consolidated View",
+    href: "/dashboard/consolidated",
+    icon: BarChart3,
+  },
   { name: "Users", href: "/dashboard/users", icon: Users },
-  { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
   { name: "Settings", href: "/dashboard/settings", icon: Settings },
 ];
 
