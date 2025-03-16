@@ -108,13 +108,37 @@ interface ConsolidatedData {
   historicalData: HistoricalDataPoint[];
 }
 
+// Custom tooltip interfaces
+interface TooltipPayloadData {
+  name: string;
+  branchName?: string;
+  branchCode?: string;
+  writeOffs?: number;
+  ninetyPlus?: number;
+  date?: string;
+  count?: number;
+  writeOffsPercentage?: number;
+  ninetyPlusPercentage?: number;
+  hasReports?: boolean;
+  writeOffsChange?: number;
+  ninetyPlusChange?: number;
+}
+
+interface TooltipPayloadItem {
+  payload: TooltipPayloadData;
+  name: string;
+  value: number;
+  dataKey: string;
+  color: string;
+}
+
 // Create a custom tooltip component for branch performance chart
 const CustomBranchTooltip = ({
   active,
   payload,
 }: {
   active?: boolean;
-  payload?: Array<{ payload: Record<string, any> }>;
+  payload?: Array<TooltipPayloadItem>;
 }) => {
   if (!active || !payload || !payload.length) return null;
 
@@ -130,7 +154,7 @@ const CustomBranchTooltip = ({
       </div>
       <div className="border-t border-gray-200 dark:border-gray-700 my-2" />
 
-      {payload.map((entry: any, index: number) => (
+      {payload.map((entry: TooltipPayloadItem, index: number) => (
         <div key={`item-${index}`} className="py-1">
           <div className="flex justify-between items-center">
             <span className="flex items-center text-sm">
@@ -183,7 +207,7 @@ const CustomTimeTooltip = ({
   payload,
 }: {
   active?: boolean;
-  payload?: Array<{ payload: Record<string, any> }>;
+  payload?: Array<TooltipPayloadItem>;
 }) => {
   if (!active || !payload || !payload.length) return null;
 
@@ -191,10 +215,13 @@ const CustomTimeTooltip = ({
 
   return (
     <div className="bg-white dark:bg-gray-800 p-3 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg">
-      <div className="font-medium mb-2">{data.date}</div>
+      <div className="flex items-center space-x-2 mb-2">
+        <div className="w-3 h-3 rounded-full bg-blue-500" />
+        <span className="font-medium">{data.date}</span>
+      </div>
       <div className="border-t border-gray-200 dark:border-gray-700 my-2" />
 
-      {payload.map((entry: any, index: number) => (
+      {payload.map((entry: TooltipPayloadItem, index: number) => (
         <div key={`item-${index}`} className="py-1">
           <div className="flex justify-between items-center">
             <span className="flex items-center text-sm">
@@ -204,38 +231,29 @@ const CustomTimeTooltip = ({
               />
               {entry.name}:
             </span>
-            <span className="font-medium text-sm">
-              {formatKHRCurrency(entry.value)}
+            <span
+              className={cn(
+                "flex items-center",
+                (data.writeOffsChange || 0) > 0
+                  ? "text-red-600 dark:text-red-400"
+                  : (data.writeOffsChange || 0) < 0
+                  ? "text-green-600 dark:text-green-400"
+                  : "text-gray-500"
+              )}
+            >
+              {(data.writeOffsChange || 0) > 0 && (
+                <TrendingUp className="h-3 w-3 mr-1" />
+              )}
+              {(data.writeOffsChange || 0) < 0 && (
+                <TrendingDown className="h-3 w-3 mr-1" />
+              )}
+              {(data.writeOffsChange || 0) === 0 && (
+                <Minus className="h-3 w-3 mr-1" />
+              )}
+              {(data.writeOffsChange || 0) > 0 ? "+" : ""}
+              {data.writeOffsChange || 0}%
             </span>
           </div>
-
-          {entry.dataKey === "writeOffs" && data.writeOffsChange && (
-            <div className="text-xs flex justify-between mt-1">
-              <span>Change:</span>
-              <span
-                className={cn(
-                  "flex items-center",
-                  parseFloat(data.writeOffsChange) > 0
-                    ? "text-red-600 dark:text-red-400"
-                    : parseFloat(data.writeOffsChange) < 0
-                    ? "text-green-600 dark:text-green-400"
-                    : "text-gray-500"
-                )}
-              >
-                {parseFloat(data.writeOffsChange) > 0 && (
-                  <TrendingUp className="h-3 w-3 mr-1" />
-                )}
-                {parseFloat(data.writeOffsChange) < 0 && (
-                  <TrendingDown className="h-3 w-3 mr-1" />
-                )}
-                {parseFloat(data.writeOffsChange) === 0 && (
-                  <Minus className="h-3 w-3 mr-1" />
-                )}
-                {parseFloat(data.writeOffsChange) > 0 ? "+" : ""}
-                {data.writeOffsChange}%
-              </span>
-            </div>
-          )}
 
           {entry.dataKey === "ninetyPlus" && data.ninetyPlusChange && (
             <div className="text-xs flex justify-between mt-1">
@@ -243,24 +261,24 @@ const CustomTimeTooltip = ({
               <span
                 className={cn(
                   "flex items-center",
-                  parseFloat(data.ninetyPlusChange) > 0
+                  (data.ninetyPlusChange || 0) > 0
                     ? "text-red-600 dark:text-red-400"
-                    : parseFloat(data.ninetyPlusChange) < 0
+                    : (data.ninetyPlusChange || 0) < 0
                     ? "text-green-600 dark:text-green-400"
                     : "text-gray-500"
                 )}
               >
-                {parseFloat(data.ninetyPlusChange) > 0 && (
+                {(data.ninetyPlusChange || 0) > 0 && (
                   <TrendingUp className="h-3 w-3 mr-1" />
                 )}
-                {parseFloat(data.ninetyPlusChange) < 0 && (
+                {(data.ninetyPlusChange || 0) < 0 && (
                   <TrendingDown className="h-3 w-3 mr-1" />
                 )}
-                {parseFloat(data.ninetyPlusChange) === 0 && (
+                {(data.ninetyPlusChange || 0) === 0 && (
                   <Minus className="h-3 w-3 mr-1" />
                 )}
-                {parseFloat(data.ninetyPlusChange) > 0 ? "+" : ""}
-                {data.ninetyPlusChange}%
+                {(data.ninetyPlusChange || 0) > 0 ? "+" : ""}
+                {data.ninetyPlusChange || 0}%
               </span>
             </div>
           )}
@@ -809,12 +827,16 @@ export default function ConsolidatedView() {
   };
 
   // Handle chart bar click for drill-down
-  const handleBarClick = (data: Record<string, any>) => {
+  const handleBarClick = (
+    data: Record<string, string | number | boolean | undefined>
+  ) => {
     if (!data) return;
 
     // For branch performance chart
     if (data.branchId) {
-      setSelectedBranchId(data.branchId);
+      // Ensure branchId is treated as a string for the state setter
+      const branchIdString = String(data.branchId);
+      setSelectedBranchId(branchIdString);
       setDetailsModalOpen(true);
 
       // Log the interaction
@@ -822,14 +844,20 @@ export default function ConsolidatedView() {
     }
     // For time series chart
     else if (data.rawDate) {
-      // Find the specific date data
-      console.log("Date clicked:", format(data.rawDate, "yyyy-MM-dd"));
+      // Ensure rawDate is a valid date input for format function
+      const rawDate = data.rawDate;
+      if (typeof rawDate === "string" || typeof rawDate === "number") {
+        // Find the specific date data
+        console.log("Date clicked:", format(rawDate, "yyyy-MM-dd"));
 
-      // You could implement date-specific drill down here
-      toast({
-        title: "Date selected",
-        description: `Showing details for ${format(data.rawDate, "PPP")}`,
-      });
+        // You could implement date-specific drill down here
+        toast({
+          title: "Date selected",
+          description: `Showing details for ${format(rawDate, "PPP")}`,
+        });
+      } else {
+        console.error("Invalid date format:", rawDate);
+      }
     }
   };
 
@@ -902,8 +930,30 @@ export default function ConsolidatedView() {
     return lastYearData;
   };
 
-  // The onClick handler for charts - fixing the typing issue
-  const handleChartClick = (data: any) => {
+  // Update ChartClickPayload to be compatible with handleBarClick parameter type
+  interface ChartClickPayload {
+    name?: string;
+    branchName?: string;
+    branchCode?: string;
+    writeOffs?: number;
+    ninetyPlus?: number;
+    date?: string;
+    count?: number;
+    writeOffsPercentage?: number;
+    ninetyPlusPercentage?: number;
+    hasReports?: boolean;
+    writeOffsChange?: number;
+    ninetyPlusChange?: number;
+    [key: string]: string | number | boolean | undefined;
+  }
+
+  interface ChartClickData {
+    activePayload?: Array<{
+      payload: ChartClickPayload;
+    }>;
+  }
+
+  const handleChartClick = (data: ChartClickData) => {
     if (!data || !data.activePayload || !data.activePayload[0]) return;
 
     const clickedData = data.activePayload[0].payload;

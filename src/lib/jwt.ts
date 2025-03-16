@@ -1,12 +1,8 @@
-import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
+import { NextRequest } from "next/server";
 
-// JWT secret should be stored in environment variables in production
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
-const JWT_EXPIRES_IN = 604800; // 7 days in seconds
-
-// Convert secret to Uint8Array for jose
-const secretKey = new TextEncoder().encode(JWT_SECRET);
+// Import the getUserFromToken function from auth.ts
+import { getUserFromToken as getNextAuthUser } from "./auth";
 
 export type TokenPayload = {
   userId: string;
@@ -15,53 +11,57 @@ export type TokenPayload = {
   branchId?: string;
 };
 
-// Generate a JWT token using jose
-export async function generateToken(payload: TokenPayload): Promise<string> {
-  const token = await new SignJWT({ ...payload })
-    .setProtectedHeader({ alg: "HS256" })
-    .setIssuedAt()
-    .setExpirationTime(Math.floor(Date.now() / 1000) + JWT_EXPIRES_IN)
-    .sign(secretKey);
-
-  return token;
+// DEPRECATED: Use NextAuth signIn instead
+// This function is kept for backwards compatibility
+export async function generateToken(_payload: TokenPayload): Promise<string> {
+  console.warn("generateToken is deprecated. Use NextAuth signIn instead.");
+  // This is a placeholder that returns a dummy token
+  // In a real migration, you would handle the transition strategy here
+  return "placeholder-token-migration-in-progress";
 }
 
-// Verify a JWT token using jose
-export async function verifyToken(token: string): Promise<TokenPayload | null> {
-  try {
-    const { payload } = await jwtVerify(token, secretKey);
-    return payload as unknown as TokenPayload;
-  } catch (error) {
-    console.error("JWT verification failed:", error);
-    return null;
-  }
+// DEPRECATED: Use NextAuth getToken instead
+// This function is kept for backwards compatibility
+export async function verifyToken(
+  _token: string
+): Promise<TokenPayload | null> {
+  console.warn("verifyToken is deprecated. Use NextAuth getToken instead.");
+  // This is a placeholder
+  return null;
 }
 
-// Set JWT token in cookies
-export async function setTokenCookie(token: string) {
-  (await cookies()).set("auth_token", token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    maxAge: JWT_EXPIRES_IN,
-    path: "/",
-    sameSite: "strict",
-  });
+// DEPRECATED: Use NextAuth cookies instead
+// This function is kept for backwards compatibility
+export async function setTokenCookie(_token: string) {
+  console.warn(
+    "setTokenCookie is deprecated. NextAuth handles cookies automatically."
+  );
+  // NextAuth handles cookies automatically, so this is just a no-op for compatibility
 }
 
-// Get JWT token from cookies
+// DEPRECATED: Use NextAuth cookies instead
+// This function is kept for backwards compatibility
 export async function getTokenFromCookies(): Promise<string | undefined> {
-  return (await cookies()).get("auth_token")?.value;
+  console.warn(
+    "getTokenFromCookies is deprecated. Use NextAuth cookies instead."
+  );
+  return (await cookies()).get("next-auth.session-token")?.value;
 }
 
-// Clear JWT token from cookies
+// DEPRECATED: Use NextAuth signOut instead
+// This function is kept for backwards compatibility
 export async function clearTokenCookie() {
-  (await cookies()).delete("auth_token");
+  console.warn("clearTokenCookie is deprecated. Use NextAuth signOut instead.");
+  // NextAuth handles cookie clearing on signOut, so this is just a no-op for compatibility
 }
 
-// Get current user from JWT token
-export async function getUserFromToken(): Promise<TokenPayload | null> {
-  const token = await getTokenFromCookies();
-  if (!token) return null;
-
-  return await verifyToken(token);
+// DEPRECATED: Use NextAuth getToken or getSession instead
+// This function is kept for backwards compatibility
+export async function getUserFromToken(
+  req?: NextRequest
+): Promise<TokenPayload | null> {
+  console.warn(
+    "getUserFromToken in jwt.ts is deprecated. Use NextAuth getToken or getSession instead."
+  );
+  return getNextAuthUser(req);
 }

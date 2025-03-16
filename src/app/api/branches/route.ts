@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { PrismaClient } from "@prisma/client";
-import { getUserFromToken } from "@/lib/jwt";
+import { getToken } from "next-auth/jwt";
 import { z } from "zod";
+import { UserRole } from "@/lib/auth/roles";
+import { getAccessibleBranches } from "@/lib/auth/branch-access";
 
 const prisma = new PrismaClient();
 
@@ -24,7 +27,7 @@ const branchSchema = z.object({
 });
 
 // GET /api/branches - Get all branches with optional filtering
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search") || "";
@@ -32,6 +35,12 @@ export async function GET(request: Request) {
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "50");
     const skip = (page - 1) * limit;
+
+    // Use NextAuth for authentication
+    const token = await getToken({ req: request });
+    if (!token) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     // Build where clause
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -46,6 +55,50 @@ export async function GET(request: Request) {
 
     if (active !== null) {
       where.isActive = active === "true";
+    }
+
+    // Apply RBAC filters based on user role
+    if (token.role !== "admin") {
+      // Get branch IDs that this user can access
+      // Get user branch assignments
+      const userBranchAssignments = await prisma.$queryRaw<
+        Array<{ branchId: string }>
+      >`
+        SELECT "branchId" FROM "UserBranchAssignment" 
+        WHERE "userId" = ${token.id}
+      `;
+
+      const assignedBranchIds = userBranchAssignments.map(
+        (uba) => uba.branchId
+      );
+
+      // Get all branches for hierarchy calculation
+      const allBranches = await prisma.branch.findMany({
+        select: {
+          id: true,
+          parentId: true,
+        },
+      });
+
+      // Convert to BranchHierarchy structure for access control
+      const branchHierarchy = allBranches.map((branch) => ({
+        id: branch.id,
+        name: "", // Not needed for hierarchy check
+        parentId: branch.parentId,
+        level: 0, // Would need proper calculation in production
+        path: [branch.id], // Would need proper calculation in production
+      }));
+
+      // Get accessible branches based on user role
+      const accessibleBranchIds = getAccessibleBranches(
+        token.role as UserRole,
+        token.branchId || null,
+        branchHierarchy,
+        assignedBranchIds
+      );
+
+      // Filter by accessible branches
+      where.id = { in: accessibleBranchIds };
     }
 
     // Get branches with counts and pagination
@@ -107,13 +160,13 @@ export async function GET(request: Request) {
 }
 
 // POST /api/branches - Create a new branch
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    // Verify admin permission
-    const authUser = await getUserFromToken();
-    if (!authUser || authUser.role !== "admin") {
+    // Use NextAuth for authentication
+    const token = await getToken({ req: request });
+    if (!token || token.role !== "admin") {
       return NextResponse.json(
-        { error: "Unauthorized access" },
+        { error: "Unauthorized - Admin access required" },
         { status: 403 }
       );
     }
@@ -152,7 +205,7 @@ export async function POST(request: Request) {
       // Log the activity
       await prisma.activityLog.create({
         data: {
-          userId: authUser.userId,
+          userId: token.id as string,
           action: "CREATE_BRANCH",
           details: `Created branch ${branch.code} - ${branch.name}`,
         },
@@ -178,13 +231,13 @@ export async function POST(request: Request) {
 }
 
 // PATCH /api/branches - Update a branch
-export async function PATCH(request: Request) {
+export async function PATCH(request: NextRequest) {
   try {
-    // Verify admin permission
-    const authUser = await getUserFromToken();
-    if (!authUser || authUser.role !== "admin") {
+    // Use NextAuth for authentication
+    const token = await getToken({ req: request });
+    if (!token || token.role !== "admin") {
       return NextResponse.json(
-        { error: "Unauthorized access" },
+        { error: "Unauthorized - Admin access required" },
         { status: 403 }
       );
     }
@@ -246,7 +299,7 @@ export async function PATCH(request: Request) {
       // Log the activity
       await prisma.activityLog.create({
         data: {
-          userId: authUser.userId,
+          userId: token.id as string,
           action: "UPDATE_BRANCH",
           details: `Updated branch ${branch.code} - ${branch.name}`,
         },
@@ -272,13 +325,13 @@ export async function PATCH(request: Request) {
 }
 
 // DELETE /api/branches - Delete a branch
-export async function DELETE(request: Request) {
+export async function DELETE(request: NextRequest) {
   try {
-    // Verify admin permission
-    const authUser = await getUserFromToken();
-    if (!authUser || authUser.role !== "admin") {
+    // Use NextAuth for authentication
+    const token = await getToken({ req: request });
+    if (!token || token.role !== "admin") {
       return NextResponse.json(
-        { error: "Unauthorized access" },
+        { error: "Unauthorized - Admin access required" },
         { status: 403 }
       );
     }
@@ -334,7 +387,7 @@ export async function DELETE(request: Request) {
     // Log the activity
     await prisma.activityLog.create({
       data: {
-        userId: authUser.userId,
+        userId: token.id as string,
         action: "DELETE_BRANCH",
         details: `Deleted branch ${branch.code} - ${branch.name}`,
       },

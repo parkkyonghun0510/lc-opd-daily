@@ -49,7 +49,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Search, Edit, Trash, Plus, Check, X } from "lucide-react";
-import { UserRole } from "@/lib/auth/roles";
 
 type Branch = {
   id: string;
@@ -200,22 +199,18 @@ export default function UsersPage() {
   };
 
   // Handle role change
-  const handleRoleChange = async (
-    userId: string,
-    newRole: string,
-    branchId: string | null
-  ) => {
+  const handleRoleChange = async (userId: string, newRole: string, branchId: string | null) => {
     try {
-      const response = await fetch("/api/roles/assign", {
-        method: "POST",
+      const response = await fetch('/api/roles/assign', {
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({ userId, role: newRole, branchId }),
       });
 
       if (!response.ok) {
-        throw new Error("Failed to update role");
+        throw new Error('Failed to update role');
       }
 
       // Refresh user list and reset editing state
@@ -223,8 +218,8 @@ export default function UsersPage() {
       setEditingRole(null);
       setSelectedUser(null);
     } catch (err) {
-      console.error("Error updating role:", err);
-      alert(err instanceof Error ? err.message : "Failed to update role");
+      console.error('Error updating role:', err);
+      alert(err instanceof Error ? err.message : 'Failed to update role');
     }
   };
 
@@ -464,12 +459,9 @@ export default function UsersPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Roles</SelectItem>
-                {Object.values(UserRole).map((role) => (
-                  <SelectItem key={role} value={role}>
-                    {role.charAt(0).toUpperCase() +
-                      role.slice(1).toLowerCase().replace("_", " ")}
-                  </SelectItem>
-                ))}
+                <SelectItem value="admin">Admin</SelectItem>
+                <SelectItem value="manager">Manager</SelectItem>
+                <SelectItem value="user">User</SelectItem>
               </SelectContent>
             </Select>
 

@@ -14,19 +14,58 @@ import {
   Menu,
   X,
   FileText,
+  ClipboardCheck,
+  Shield,
 } from "lucide-react";
 import { ThemeToggle } from "../theme/ThemeToggle";
+import { Permission, UserRole } from "@/lib/auth/roles";
+import { RoleBasedNavigation } from "./RoleBasedNavigation";
 
+// Define navigation items with permission requirements
 const navigationItems = [
-  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { name: "View Reports", href: "/dashboard/reports", icon: FileText },
+  {
+    name: "Dashboard",
+    href: "/dashboard",
+    icon: <LayoutDashboard size={20} />,
+    permissions: [Permission.VIEW_DASHBOARD],
+  },
+  {
+    name: "View Reports",
+    href: "/dashboard/reports",
+    icon: <FileText size={20} />,
+    permissions: [Permission.VIEW_REPORTS],
+  },
+  {
+    name: "Approval Queue",
+    href: "/dashboard/approvals",
+    icon: <ClipboardCheck size={20} />,
+    permissions: [Permission.APPROVE_REPORTS],
+  },
   {
     name: "Consolidated View",
     href: "/dashboard/consolidated",
-    icon: BarChart3,
+    icon: <BarChart3 size={20} />,
+    permissions: [Permission.CONSOLIDATE_REPORTS],
   },
-  { name: "Users", href: "/dashboard/users", icon: Users },
-  { name: "Settings", href: "/dashboard/settings", icon: Settings },
+  {
+    name: "User Management",
+    href: "/dashboard/users",
+    icon: <Users size={20} />,
+    permissions: [Permission.VIEW_USERS, Permission.MANAGE_USERS],
+  },
+  {
+    name: "Role Management",
+    href: "/dashboard/roles",
+    icon: <Shield size={20} />,
+    permissions: [Permission.ASSIGN_ROLES],
+    roles: [UserRole.ADMIN],
+  },
+  {
+    name: "Settings",
+    href: "/dashboard/settings",
+    icon: <Settings size={20} />,
+    permissions: [Permission.VIEW_DASHBOARD],
+  },
 ];
 
 export function Sidebar() {
@@ -125,8 +164,14 @@ export function Sidebar() {
           </div>
         )}
       </div>
-
-      <nav className="flex-1 p-2 space-y-1">
+      <RoleBasedNavigation
+        items={navigationItems}
+        collapsed={collapsed}
+        isMobile={isMobile}
+        pathname={pathname}
+        onMobileClick={() => isMobile && setMobileOpen(false)}
+      />
+      {/* <nav className="flex-1 p-2 space-y-1">
         {navigationItems.map((item) => {
           const Icon = item.icon;
           return (
@@ -146,7 +191,7 @@ export function Sidebar() {
             </Link>
           );
         })}
-      </nav>
+      </nav> */}
 
       <div className="p-2 space-y-2 border-t border-gray-200 dark:border-gray-700">
         <div className="px-3 py-2 flex items-center justify-between">

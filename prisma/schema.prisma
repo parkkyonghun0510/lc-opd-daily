@@ -27,6 +27,7 @@ model User {
   userRoles           UserRole[]
 }
 
+// For UserBranchAssignment
 model UserBranchAssignment {
   id        String   @id @default(cuid())
   userId    String
@@ -38,9 +39,7 @@ model UserBranchAssignment {
   branch    Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
 
   @@unique([userId, branchId])
-  @@unique([userId], map: "UserBranchAssignment_userId_isDefault_key", where: isDefault = true)
   @@index([userId])
-  @@index([branchId])
 }
 
 model Branch {
@@ -61,7 +60,7 @@ model Branch {
 
 model Report {
   id          String   @id @default(cuid())
-  date        String   // Store as YYYY-MM-DD
+  date        String // Store as YYYY-MM-DD
   branch      Branch   @relation(fields: [branchId], references: [id])
   branchId    String
   writeOffs   Float
@@ -106,12 +105,9 @@ model UserRole {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role      Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  branch    Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  role      Role     @relation(fields: [roleId], references: [id])
+  branch    Branch?  @relation(fields: [branchId], references: [id])
 
   @@unique([userId, roleId, branchId])
-  @@unique([userId], map: "UserRole_userId_isDefault_key", where: isDefault = true)
   @@index([userId])
-  @@index([roleId])
-  @@index([branchId])
 }

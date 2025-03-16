@@ -1,16 +1,17 @@
 import { NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { PrismaClient } from "@prisma/client";
-import { getUserFromToken } from "@/lib/jwt";
+import { getToken } from "next-auth/jwt";
 import { startOfDay, endOfDay, startOfWeek, endOfWeek, format } from "date-fns";
 
 const prisma = new PrismaClient();
 
 // GET /api/reports/consolidated - Get consolidated report data
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
-    // Verify user authentication
-    const authUser = await getUserFromToken();
-    if (!authUser) {
+    // Verify user authentication using NextAuth
+    const token = await getToken({ req: request });
+    if (!token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

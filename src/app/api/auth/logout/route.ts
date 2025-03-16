@@ -1,16 +1,18 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { NextRequest } from "next/server";
 import { logUserActivity } from "@/lib/auth";
-import { clearTokenCookie, getUserFromToken } from "@/lib/jwt";
+import { getToken } from "next-auth/jwt";
+import { cookies } from "next/headers";
 
 // POST /api/auth/logout - Log out a user
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    // Get the user from the JWT token before clearing it
-    const user = getUserFromToken();
+    // Get the user from the NextAuth token
+    const token = await getToken({ req: request });
 
-    // Clear the JWT token cookie
-    clearTokenCookie();
+    // Clear the NextAuth session cookie
+    (await cookies()).delete("next-auth.session-token");
+    (await cookies()).delete(".next-auth.session-token"); // for cross-subdomain cookies
 
     // Get request information for activity logging
     const ip =
@@ -20,10 +22,9 @@ export async function POST(request: Request) {
     const userAgent = request.headers.get("user-agent") || "unknown";
 
     // Log the logout activity if we have a user ID
-    const userData = await user;
-    if (userData && userData.userId) {
+    if (token && token.id) {
       await logUserActivity(
-        userData.userId,
+        token.id as string,
         "logout",
         { method: "api" },
         { ipAddress: ip, userAgent }

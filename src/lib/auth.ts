@@ -8,6 +8,7 @@ import {
 } from "./utils/account-security";
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import { cookies } from "next/headers";
 
 export interface CustomUser {
   id: string;
@@ -41,6 +42,8 @@ declare module "next-auth/jwt" {
     id: string;
     role: string;
     branchId: string | null;
+    userId?: string;
+    username?: string;
   }
 }
 
@@ -246,7 +249,7 @@ export async function logUserActivity(
 }
 
 export const authOptions: NextAuthOptions = {
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET,
   session: {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 days
@@ -331,14 +334,21 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
+        console.log("JWT Callback - Setting user data on token:", user.id);
         token.id = user.id;
         token.role = user.role;
         token.branchId = user.branchId;
+        token.userId = user.id; // Add this for compatibility with existing code
+        token.username = user.username; // Add this for compatibility with existing code
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
+        console.log(
+          "Session Callback - Setting token data on session for user:",
+          token.id
+        );
         (session.user as SessionUser).id = token.id as string;
         (session.user as SessionUser).role = token.role as string;
         (session.user as SessionUser).branchId = token.branchId as
@@ -347,5 +357,73 @@ export const authOptions: NextAuthOptions = {
       }
       return session;
     },
+    async redirect({ url, baseUrl }) {
+      console.log("Redirect Callback - URL:", url, "BaseURL:", baseUrl);
+
+      // If the URL is relative, prepend the base URL
+      if (url.startsWith("/")) {
+        const redirectUrl = `${baseUrl}${url}`;
+        console.log("Redirecting to:", redirectUrl);
+        return redirectUrl;
+      }
+
+      // If the URL is already absolute but matches our base URL, allow it
+      else if (url.startsWith(baseUrl)) {
+        console.log("Redirecting to:", url);
+        return url;
+      }
+
+      // For safety, we redirect to the base URL for any other case
+      console.log("Redirecting to base URL:", baseUrl);
+      return baseUrl;
+    },
   },
 };
+
+// The following functions will help transition from custom JWT to NextAuth
+// They provide compatibility for existing code that uses the custom JWT functions
+
+import { getToken } from "next-auth/jwt";
+import { NextRequest } from "next/server";
+
+// Type for the token payload returned by compatibility functions
+export type TokenPayload = {
+  userId: string;
+  role: string;
+  branchId: string | null;
+  username?: string;
+};
+
+// DEPRECATED: Use getToken from next-auth/jwt directly
+// Get current user from NextAuth token (compatibility function)
+export async function getUserFromToken(
+  req?: NextRequest
+): Promise<TokenPayload | null> {
+  console.warn(
+    "DEPRECATED: getUserFromToken in auth.ts is deprecated. Use getToken from next-auth/jwt directly instead."
+  );
+
+  if (req) {
+    const token = await getToken({ req });
+    return token
+      ? {
+          userId: token.id,
+          role: token.role,
+          branchId: token.branchId,
+          username: token.username,
+        }
+      : null;
+  } else {
+    // For server components without request object
+    console.warn(
+      "CRITICAL: Using getUserFromToken without a request object is no longer supported. Use getServerSession instead."
+    );
+
+    const authToken = (await cookies()).get("next-auth.session-token")?.value;
+    if (!authToken) return null;
+
+    // We'll use the existing NextAuth cookie, no need to verify it ourselves
+    // as NextAuth handles this internally
+    return null; // This is a stub - in practice you'd extract user data from a validated token
+  }
+}

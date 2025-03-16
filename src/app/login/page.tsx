@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { signIn } from "next-auth/react";
+import { useState, useEffect } from "react";
+import { signIn, useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -19,9 +19,26 @@ import { Icons } from "@/components/ui/icons";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { status } = useSession();
   const searchParams = useSearchParams();
   const [isLoading, setIsLoading] = useState(false);
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+
+  // Redirect to dashboard if already authenticated
+  useEffect(() => {
+    if (status === "authenticated") {
+      console.log("User already authenticated, redirecting to:", callbackUrl);
+      router.push(callbackUrl);
+    }
+
+    // Display error message if present in URL
+    const error = searchParams.get("error");
+    if (error) {
+      toast.error(
+        error === "Invalid credentials" ? "Invalid username or password" : error
+      );
+    }
+  }, [status, callbackUrl, router, searchParams]);
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -34,8 +51,11 @@ export default function LoginPage() {
 
       if (!username || !password) {
         toast.error("Please enter both username and password");
+        setIsLoading(false);
         return;
       }
+
+      console.log("Attempting to sign in with redirect to:", callbackUrl);
 
       const result = await signIn("credentials", {
         username,
@@ -46,16 +66,19 @@ export default function LoginPage() {
 
       if (!result?.ok) {
         toast.error(result?.error || "Failed to sign in");
+        setIsLoading(false);
         return;
       }
 
+      // Success! Manual redirect
       toast.success("Signed in successfully");
-      router.push(callbackUrl);
-      router.refresh();
+      console.log("Login successful, redirecting to:", callbackUrl);
+
+      // Force a hard navigation instead of client-side routing
+      window.location.href = callbackUrl;
     } catch (error) {
       console.error("Login error:", error);
       toast.error("An error occurred during sign in");
-    } finally {
       setIsLoading(false);
     }
   }

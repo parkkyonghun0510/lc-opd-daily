@@ -1,21 +1,22 @@
 import { NextResponse } from "next/server";
-import { verifyToken, getTokenFromCookies } from "@/lib/jwt";
+import { NextRequest } from "next/server";
 import { getCurrentUser, logUserActivity } from "@/lib/auth";
+import { getToken } from "next-auth/jwt";
 
 // GET /api/auth/me - Get the current authenticated user
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
-    // Get the token from cookies
-    const token = await getTokenFromCookies();
+    // Get the token from NextAuth instead of custom JWT
+    const token = await getToken({ req: request });
 
     if (!token) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    // Verify the token
-    const payload = await verifyToken(token);
+    // Get user ID from NextAuth token
+    const userId = token.id as string;
 
-    if (!payload || !payload.userId) {
+    if (!userId) {
       return NextResponse.json(
         { error: "Invalid authentication token" },
         { status: 401 }
@@ -23,7 +24,7 @@ export async function GET(request: Request) {
     }
 
     // Get the user from the database
-    const user = await getCurrentUser(payload.userId);
+    const user = await getCurrentUser(userId);
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });

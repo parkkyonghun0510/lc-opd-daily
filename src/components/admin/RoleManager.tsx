@@ -40,11 +40,10 @@ function ErrorFallback({
 }
 
 interface RoleManagerProps {
-  context?: "branch" | "user";
+  context?: 'branch' | 'user';
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export function RoleManager({ context = "user" }: RoleManagerProps) {
+export function RoleManager({ context = 'user' }: RoleManagerProps) {
   const [users, setUsers] = useState<User[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [loading, setLoading] = useState(true);
@@ -64,10 +63,10 @@ export function RoleManager({ context = "user" }: RoleManagerProps) {
         throw new Error("Failed to fetch users");
       }
       const data = await response.json();
-      if (!data.users || !Array.isArray(data.users)) {
+      if (!Array.isArray(data)) {
         throw new Error("Invalid users data format");
       }
-      setUsers(data.users);
+      setUsers(data);
     } catch (error) {
       console.error("Error fetching users:", error);
       toast.error("Failed to fetch users");

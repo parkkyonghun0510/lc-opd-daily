@@ -14,6 +14,7 @@ export enum Permission {
   REVIEW_REPORTS = "review_reports",
   CONSOLIDATE_REPORTS = "consolidate_reports",
   EXPORT_REPORTS = "export_reports",
+  APPROVE_REPORTS = "approve_reports",
   ARCHIVE_REPORTS = "archive_reports",
   RESTORE_REPORTS = "restore_reports",
 
@@ -55,6 +56,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     Permission.EDIT_REPORTS,
     Permission.REVIEW_REPORTS,
     Permission.EXPORT_REPORTS,
+    Permission.APPROVE_REPORTS,
     Permission.ARCHIVE_REPORTS,
     Permission.VIEW_BRANCH,
     Permission.EDIT_BRANCH,

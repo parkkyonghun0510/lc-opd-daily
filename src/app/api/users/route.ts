@@ -1,41 +1,50 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
-import { getUserFromToken } from "@/lib/jwt";
 import { hashPassword } from "@/lib/auth";
+import { getToken } from "next-auth/jwt";
+import prisma from "@/lib/prisma";
+import { hasPermission } from "@/lib/permissions";
+import { getUserFromToken } from "@/lib/jwt";
 
-const prisma = new PrismaClient();
+const prismaClient = new PrismaClient();
 
 // GET /api/users - Get all users with optional filtering
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
-    // Verify admin permission
-    const user = await getUserFromToken();
-    if (!user || user.role !== "admin") {
+    // Verify admin permission using NextAuth
+    const token = await getToken({ req: request });
+
+    // Check if user is authenticated and has admin role
+    if (!token || token.role !== "admin") {
       return NextResponse.json(
         { error: "Unauthorized access" },
         { status: 403 }
       );
     }
 
-    const { searchParams } = new URL(request.url);
-    const search = searchParams.get("search") || "";
-    const role = searchParams.get("role");
-    const branch = searchParams.get("branch");
-    const active = searchParams.get("active");
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "10");
+    // Parse query parameters
+    const url = new URL(request.url);
+    const search = url.searchParams.get("search") || "";
+    const status = url.searchParams.get("status");
+    const role = url.searchParams.get("role");
+    const branch = url.searchParams.get("branch");
+    const page = parseInt(url.searchParams.get("page") || "1");
+    const limit = parseInt(url.searchParams.get("limit") || "10");
     const skip = (page - 1) * limit;
 
-    // Build the where clause
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const where: any = {};
+    // Build filter conditions
+    const where: Record<string, any> = {};
 
     if (search) {
       where.OR = [
-        { username: { contains: search, mode: "insensitive" } },
         { name: { contains: search, mode: "insensitive" } },
         { email: { contains: search, mode: "insensitive" } },
+        { username: { contains: search, mode: "insensitive" } },
       ];
+    }
+
+    if (status) {
+      where.isActive = status === "active";
     }
 
     if (role) {
@@ -46,13 +55,9 @@ export async function GET(request: Request) {
       where.branchId = branch;
     }
 
-    if (active !== null) {
-      where.isActive = active === "true";
-    }
-
     // Get users with pagination
     const [users, total] = await Promise.all([
-      prisma.user.findMany({
+      prismaClient.user.findMany({
         where,
         select: {
           id: true,
@@ -60,11 +65,8 @@ export async function GET(request: Request) {
           email: true,
           name: true,
           role: true,
-          branchId: true,
           isActive: true,
-          lastLogin: true,
-          createdAt: true,
-          updatedAt: true,
+          branchId: true,
           branch: {
             select: {
               id: true,
@@ -73,11 +75,11 @@ export async function GET(request: Request) {
             },
           },
         },
-        orderBy: [{ role: "asc" }, { name: "asc" }],
+        orderBy: { name: "asc" },
         skip,
         take: limit,
       }),
-      prisma.user.count({ where }),
+      prismaClient.user.count({ where }),
     ]);
 
     return NextResponse.json({
@@ -86,7 +88,7 @@ export async function GET(request: Request) {
         total,
         page,
         limit,
-        pages: Math.ceil(total / limit),
+        totalPages: Math.ceil(total / limit),
       },
     });
   } catch (error) {
@@ -99,11 +101,13 @@ export async function GET(request: Request) {
 }
 
 // POST /api/users - Create a new user
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    // Verify admin permission
-    const authUser = await getUserFromToken();
-    if (!authUser || authUser.role !== "admin") {
+    // Verify admin permission using NextAuth
+    const token = await getToken({ req: request });
+
+    // Check if user is authenticated and has admin role
+    if (!token || token.role !== "admin") {
       return NextResponse.json(
         { error: "Unauthorized access" },
         { status: 403 }
@@ -122,7 +126,7 @@ export async function POST(request: Request) {
     }
 
     // Check if username or email already exists
-    const existingUser = await prisma.user.findFirst({
+    const existingUser = await prismaClient.user.findFirst({
       where: {
         OR: [{ username }, { email }],
       },
@@ -147,7 +151,7 @@ export async function POST(request: Request) {
     const hashedPassword = await hashPassword(password);
 
     // Create the user
-    const user = await prisma.user.create({
+    const user = await prismaClient.user.create({
       data: {
         username,
         email,
@@ -179,31 +183,29 @@ export async function POST(request: Request) {
   }
 }
 
-// PATCH /api/users - Update a user
-export async function PATCH(request: Request) {
+// PATCH /api/users/:id - Update a user
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
-    // Verify admin permission
-    const authUser = await getUserFromToken();
-    if (!authUser || authUser.role !== "admin") {
+    // Verify admin permission using NextAuth
+    const token = await getToken({ req: request });
+
+    // Check if user is authenticated and has admin role
+    if (!token || token.role !== "admin") {
       return NextResponse.json(
         { error: "Unauthorized access" },
         { status: 403 }
       );
     }
 
+    const id = params.id;
     const body = await request.json();
-    const { id, username, email, name, password, role, branchId, isActive } =
-      body;
-
-    if (!id) {
-      return NextResponse.json(
-        { error: "User ID is required" },
-        { status: 400 }
-      );
-    }
+    const { username, email, name, password, role, branchId, isActive } = body;
 
     // Check if user exists
-    const existingUser = await prisma.user.findUnique({
+    const existingUser = await prismaClient.user.findUnique({
       where: { id },
     });
 
@@ -211,9 +213,16 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
+    // Prepare update data
+    const updateData: any = {};
+    if (name) updateData.name = name;
+    if (role) updateData.role = role;
+    if (branchId !== undefined) updateData.branchId = branchId;
+    if (isActive !== undefined) updateData.isActive = isActive;
+
     // Check if username/email is changed and already exists
     if (username && username !== existingUser.username) {
-      const usernameExists = await prisma.user.findFirst({
+      const usernameExists = await prismaClient.user.findFirst({
         where: { username },
       });
       if (usernameExists) {
@@ -222,10 +231,11 @@ export async function PATCH(request: Request) {
           { status: 409 }
         );
       }
+      updateData.username = username;
     }
 
     if (email && email !== existingUser.email) {
-      const emailExists = await prisma.user.findFirst({
+      const emailExists = await prismaClient.user.findFirst({
         where: { email },
       });
       if (emailExists) {
@@ -234,21 +244,16 @@ export async function PATCH(request: Request) {
           { status: 409 }
         );
       }
+      updateData.email = email;
     }
 
-    // Prepare update data
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const updateData: any = {};
-    if (username) updateData.username = username;
-    if (email) updateData.email = email;
-    if (name) updateData.name = name;
-    if (password) updateData.password = await hashPassword(password);
-    if (role) updateData.role = role;
-    if (branchId !== undefined) updateData.branchId = branchId;
-    if (isActive !== undefined) updateData.isActive = isActive;
+    // Hash the password if provided
+    if (password) {
+      updateData.password = await hashPassword(password);
+    }
 
     // Update the user
-    const user = await prisma.user.update({
+    const user = await prismaClient.user.update({
       where: { id },
       data: updateData,
       select: {
@@ -259,15 +264,7 @@ export async function PATCH(request: Request) {
         role: true,
         branchId: true,
         isActive: true,
-        lastLogin: true,
         updatedAt: true,
-        branch: {
-          select: {
-            id: true,
-            code: true,
-            name: true,
-          },
-        },
       },
     });
 
@@ -281,30 +278,27 @@ export async function PATCH(request: Request) {
   }
 }
 
-// DELETE /api/users - Delete a user
-export async function DELETE(request: Request) {
+// DELETE /api/users/:id - Delete a user
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
-    // Verify admin permission
-    const authUser = await getUserFromToken();
-    if (!authUser || authUser.role !== "admin") {
+    // Verify admin permission using NextAuth
+    const token = await getToken({ req: request });
+
+    // Check if user is authenticated and has admin role
+    if (!token || token.role !== "admin") {
       return NextResponse.json(
         { error: "Unauthorized access" },
         { status: 403 }
       );
     }
 
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get("id");
-
-    if (!id) {
-      return NextResponse.json(
-        { error: "User ID is required" },
-        { status: 400 }
-      );
-    }
+    const id = params.id;
 
     // Check if user exists
-    const existingUser = await prisma.user.findUnique({
+    const existingUser = await prismaClient.user.findUnique({
       where: { id },
     });
 
@@ -312,16 +306,16 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Don't allow deleting your own account
-    if (id === authUser.userId) {
+    // Prevent self-deletion
+    if (token.id === id) {
       return NextResponse.json(
-        { error: "You cannot delete your own account" },
-        { status: 400 }
+        { error: "Cannot delete your own account" },
+        { status: 403 }
       );
     }
 
     // Delete the user
-    await prisma.user.delete({
+    await prismaClient.user.delete({
       where: { id },
     });
 
