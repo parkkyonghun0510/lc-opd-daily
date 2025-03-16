@@ -8,8 +8,8 @@ This checklist helps verify that role-based access controls are working correctl
 
 Create or use the following test accounts:
 
-- [ ] Admin User: Full system access
-- [ ] Manager User: Branch management and report approval
+- [ok] Admin User: Full system access
+- [ok] Manager User: Branch management and report approval
 - [ ] Regular User: Basic reporting functionality
 - [ ] Read-Only User: View-only access
 
@@ -28,7 +28,7 @@ Create or use the following test accounts:
 
 - [ ] Cannot access admin dashboard
 - [ ] Can view all assigned branches
-- [ ] Can approve reports for assigned branches
+- [] Can approve reports for assigned branches
 - [ ] Cannot create/edit/delete branches
 - [ ] Cannot create/edit/delete users not in their branch
 

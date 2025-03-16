@@ -16,8 +16,8 @@ import fetch from "node-fetch";
 // Configuration
 const BASE_URL = "http://localhost:3000"; // Change to your dev server URL
 const TEST_CREDENTIALS = {
-  username: "admin", // Replace with valid test username
-  password: "password", // Replace with valid test password
+  username: "pheakdey", // Replace with valid test username
+  password: "12345678", // Replace with valid test password
 };
 
 // Test helper functions

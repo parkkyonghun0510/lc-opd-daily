@@ -1,162 +1,176 @@
-# Authentication System Documentation
+# Authentication Documentation
 
 ## Overview
 
-This application uses NextAuth.js for all authentication and session management. This document provides guidance on how to properly implement authentication in different parts of the application.
+This application uses NextAuth.js for authentication. NextAuth.js provides a complete authentication solution with support for multiple providers, session management, and JWT handling.
 
-## Key Files
+## Configuration
 
-- `src/lib/auth.ts` - Contains NextAuth configuration and authentication utilities
-- `src/app/api/auth/[...nextauth]/route.ts` - NextAuth API route handler
-- `src/components/providers/NextAuthProvider.tsx` - Client-side provider for NextAuth
+Authentication is configured in `src/lib/auth.ts`. The main configuration includes:
 
-## Authentication Methods
-
-### Client-Side Authentication
-
-To access the current session on the client side:
-
-```tsx
-"use client";
-
-import { useSession } from "next-auth/react";
-
-export default function ProfilePage() {
-  const { data: session, status } = useSession();
-
-  if (status === "loading") {
-    return <div>Loading...</div>;
-  }
-
-  if (status === "unauthenticated") {
-    return <div>Not authenticated</div>;
-  }
-
-  return (
-    <div>
-      <h1>Welcome {session?.user?.name}</h1>
-      <p>Email: {session?.user?.email}</p>
-      <p>Role: {session?.user?.role}</p>
-    </div>
-  );
-}
+```typescript
+export const authOptions: NextAuthOptions = {
+  providers: [
+    CredentialsProvider({
+      // Credentials provider configuration
+    }),
+  ],
+  callbacks: {
+    // JWT and session callbacks
+  },
+  pages: {
+    signIn: "/auth/login",
+    error: "/auth/error",
+  },
+  session: {
+    strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30 days
+  },
+};
 ```
 
-### Server-Side Authentication
+## Usage Examples
 
-#### In Server Components
+### API Routes
 
-```tsx
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
-
-export default async function ProfilePage() {
-  const session = await getServerSession(authOptions);
-
-  if (!session) {
-    return <div>Not authenticated</div>;
-  }
-
-  return (
-    <div>
-      <h1>Welcome {session.user.name}</h1>
-      <p>Email: {session.user.email}</p>
-      <p>Role: {session.user.role}</p>
-    </div>
-  );
-}
-```
-
-#### In API Routes
-
-```tsx
-import { NextResponse } from "next/server";
-import { NextRequest } from "next/server";
+```typescript
 import { getToken } from "next-auth/jwt";
 
 export async function GET(request: NextRequest) {
   const token = await getToken({ req: request });
 
   if (!token) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json(
+      { error: "Unauthorized - Authentication required" },
+      { status: 401 }
+    );
   }
 
-  // Access token properties
-  const userId = token.id;
-  const userRole = token.role;
-
-  // Continue with protected API logic
-  return NextResponse.json({ message: "Success" });
+  // Your authenticated logic here
 }
 ```
 
-## Authentication Flows
+### Client Components
 
-### Login
-
-1. User navigates to `/login`
-2. User submits credentials
-3. NextAuth validates credentials
-4. On success, NextAuth creates a session and redirects to the callback URL
-
-### Logout
-
-```tsx
+```typescript
 "use client";
+import { useSession, signIn, signOut } from "next-auth/react";
 
-import { signOut } from "next-auth/react";
-import { Button } from "@/components/ui/button";
+export default function AuthComponent() {
+  const { data: session } = useSession();
 
-export function LogoutButton() {
-  return (
-    <Button onClick={() => signOut({ callbackUrl: "/" })}>Sign Out</Button>
-  );
+  if (session) {
+    return (
+      <>
+        Signed in as {session.user.email}
+        <button onClick={() => signOut()}>Sign out</button>
+      </>
+    );
+  }
+  return <button onClick={() => signIn()}>Sign in</button>;
+}
+```
+
+### Server Components
+
+```typescript
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
+
+export default async function ServerComponent() {
+  const session = await getServerSession(authOptions);
+
+  if (session) {
+    return <div>Welcome {session.user.email}</div>;
+  }
+  return <div>Please sign in</div>;
 }
 ```
 
 ## Role-Based Access Control
 
-Role-based permissions are defined in `src/lib/auth/roles.ts`. Use the `hasPermission` function to check if a user has the required permission:
+The application supports role-based access control through the user's role stored in the JWT token:
 
-```tsx
-import { hasPermission, Permission, UserRole } from "@/lib/auth/roles";
+- Admin users: Full access to all features
+- Regular users: Limited access based on their role
 
-// Check if user has permission
-const canApproveReports = hasPermission(userRole, Permission.APPROVE_REPORTS);
+Example of role checking:
+
+```typescript
+if (token.role !== "admin") {
+  return NextResponse.json(
+    { error: "Forbidden - Admin access required" },
+    { status: 403 }
+  );
+}
 ```
 
-## Best Practices
+## Error Handling
 
-1. Always use NextAuth functions directly - avoid using deprecated compatibility functions
-2. For API routes, use `getToken()` from 'next-auth/jwt' to verify authentication
-3. Always handle loading and unauthenticated states in client components
-4. Use `getServerSession()` for server components
-5. Check user permissions before displaying sensitive UI elements
+Common authentication errors and their meanings:
+
+- 401 Unauthorized: User is not authenticated
+- 403 Forbidden: User is authenticated but lacks required permissions
+- 400 Bad Request: Invalid credentials or request format
+
+## Testing
+
+For testing authentication:
+
+1. Configure test environment:
+
+   ```typescript
+   // Set shorter session duration
+   session: {
+     maxAge: 60; // 60 seconds
+   }
+   ```
+
+2. Run the test scripts:
+   ```bash
+   node test-auth-api.js
+   node test-session-expiry.js
+   ```
 
 ## Troubleshooting
 
-### Session Not Available
+### Common Issues
 
-If the session is not available in client components, ensure:
+1. Token Expiration
 
-- `NextAuthProvider` is wrapping your application in the root layout
-- The component is a client component with 'use client' directive
-- You're using `useSession()` to access the session
+   - Default session duration is 30 days
+   - Check token expiration in session callback
+   - Use refresh token rotation if needed
 
-### Token Not Available in API Routes
+2. CORS Issues
 
-If `getToken()` returns null in API routes, check:
+   - Ensure NextAuth callback URL is configured correctly
+   - Check CORS settings in `next.config.js`
 
-- The user is authenticated
-- The NextAuth secret is properly configured
-- The JWT expiration has not passed
+3. Role-Based Access
+   - Verify token contains correct role information
+   - Check role verification logic in protected routes
+
+### Debug Mode
+
+Enable debug logging in NextAuth configuration:
+
+```typescript
+debug: process.env.NODE_ENV === "development";
+```
+
+## Security Best Practices
+
+1. Always use HTTPS in production
+2. Implement proper CSRF protection
+3. Use secure session cookies
+4. Regularly rotate secrets and keys
+5. Implement rate limiting for authentication endpoints
 
 ## Migration Notes
 
-This application has been migrated from a custom JWT implementation to NextAuth. The following functions are deprecated and should not be used:
+The application has been migrated from a custom JWT implementation to NextAuth.js. All deprecated functions have been removed:
 
-- `getUserFromToken()` - Use `getToken()` from 'next-auth/jwt' instead
-- `generateToken()` - Use NextAuth signIn directly
-- `verifyToken()` - Use `getToken()` from 'next-auth/jwt' instead
-
-If you encounter any references to these functions, please update them to use the NextAuth equivalents.
+- ❌ `getUserFromToken()` -> ✅ Use `getToken()` from 'next-auth/jwt'
+- ❌ `generateToken()` -> ✅ Use NextAuth signIn
+- ❌ `verifyToken()` -> ✅ Use `getToken()` from 'next-auth/jwt'
