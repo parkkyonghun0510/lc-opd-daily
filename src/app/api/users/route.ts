@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { PrismaClient, Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { hashPassword } from "@/lib/auth";
 import { getToken } from "next-auth/jwt";
-
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/prisma";
 
 type SearchField = {
   contains: string;
@@ -202,10 +201,10 @@ export async function POST(request: NextRequest) {
         username,
         email,
         password: await hashPassword(password),
-        name,
+        name: name || username,
         role: role || "user",
         isActive: isActive ?? true,
-        ...(branchId && { branch: { connect: { id: branchId } } }),
+        branchId: branchId || null,
       },
       select: {
         id: true,

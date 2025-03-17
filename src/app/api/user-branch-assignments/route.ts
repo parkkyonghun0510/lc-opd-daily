@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { prisma } from "@/lib/prisma";
 import { Permission, UserRole } from "@/lib/auth/roles";
 import { hasPermission } from "@/lib/auth/roles";
 import { invalidateUserBranchCaches } from "@/lib/cache/branch-cache";
@@ -9,6 +9,44 @@ import {
   createBranchAssignment,
   setDefaultBranchAssignment,
 } from "@/lib/branch/user-branch-assignment";
+import { z } from "zod";
+
+// Validation schemas
+const createAssignmentSchema = z.object({
+  userId: z.string().min(1, "User ID is required"),
+  branchId: z.string().min(1, "Branch ID is required"),
+  isDefault: z.boolean().optional(),
+});
+
+const updateAssignmentSchema = z.object({
+  id: z.string().min(1, "Assignment ID is required"),
+  isDefault: z.boolean().optional(),
+});
+
+// Helper function to check if user has access to branch
+async function checkBranchAccess(
+  userId: string,
+  branchId: string
+): Promise<boolean> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: {
+      branchAssignments: {
+        include: {
+          branch: true,
+        },
+      },
+    },
+  });
+
+  if (!user) return false;
+
+  // Check if user is assigned to the branch or its parent
+  return user.branchAssignments.some((assignment) => {
+    const branch = assignment.branch;
+    return branch.id === branchId || branch.parentId === branchId;
+  });
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -42,8 +80,8 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Get user branch assignments
-    const assignments = await db.userBranchAssignment.findMany({
+    // Get user branch assignments with additional branch info
+    const assignments = await prisma.userBranchAssignment.findMany({
       where: {
         userId: userId,
       },
@@ -53,15 +91,19 @@ export async function GET(req: NextRequest) {
             id: true,
             code: true,
             name: true,
+            parentId: true,
+            isActive: true,
           },
         },
       },
-      orderBy: {
-        createdAt: "desc",
-      },
+      orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }],
     });
 
-    return NextResponse.json({ data: assignments });
+    return NextResponse.json({
+      data: assignments,
+      total: assignments.length,
+      defaultAssignment: assignments.find((a) => a.isDefault),
+    });
   } catch (error) {
     console.error("Error fetching user branch assignments:", error);
     return NextResponse.json(
@@ -91,28 +133,41 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { userId, branchId, isDefault } = body;
 
-    if (!userId || !branchId) {
+    // Validate input
+    const result = createAssignmentSchema.safeParse(body);
+    if (!result.success) {
       return NextResponse.json(
-        { error: "User ID and Branch ID are required" },
+        { error: "Invalid input", details: result.error.flatten() },
         { status: 400 }
       );
     }
 
+    const { userId, branchId, isDefault } = result.data;
+
     // Check if user and branch exist
-    const user = await db.user.findUnique({ where: { id: userId } });
+    const [user, branch] = await Promise.all([
+      prisma.user.findUnique({ where: { id: userId } }),
+      prisma.branch.findUnique({ where: { id: branchId } }),
+    ]);
+
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    const branch = await db.branch.findUnique({ where: { id: branchId } });
     if (!branch) {
       return NextResponse.json({ error: "Branch not found" }, { status: 404 });
     }
 
+    if (!branch.isActive) {
+      return NextResponse.json(
+        { error: "Cannot assign user to an inactive branch" },
+        { status: 400 }
+      );
+    }
+
     // Check if assignment already exists
-    const existingAssignment = await db.userBranchAssignment.findFirst({
+    const existingAssignment = await prisma.userBranchAssignment.findFirst({
       where: { userId, branchId },
     });
 
@@ -134,11 +189,26 @@ export async function POST(req: NextRequest) {
     try {
       await invalidateUserBranchCaches(userId);
     } catch (cacheError) {
-      // Log the error but don't fail the request
       console.error("Error invalidating cache (non-critical):", cacheError);
     }
 
-    return NextResponse.json(assignment);
+    // Return the created assignment with branch details
+    const createdAssignment = await prisma.userBranchAssignment.findUnique({
+      where: { id: assignment.id },
+      include: {
+        branch: {
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            parentId: true,
+            isActive: true,
+          },
+        },
+      },
+    });
+
+    return NextResponse.json(createdAssignment);
   } catch (error) {
     console.error("Error creating user branch assignment:", error);
     return NextResponse.json(
@@ -168,18 +238,24 @@ export async function PATCH(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { id, isDefault } = body;
 
-    if (!id) {
+    // Validate input
+    const result = updateAssignmentSchema.safeParse(body);
+    if (!result.success) {
       return NextResponse.json(
-        { error: "Assignment ID is required" },
+        { error: "Invalid input", details: result.error.flatten() },
         { status: 400 }
       );
     }
 
+    const { id, isDefault } = result.data;
+
     // Get the assignment to check if it exists and get userId
-    const assignment = await db.userBranchAssignment.findUnique({
+    const assignment = await prisma.userBranchAssignment.findUnique({
       where: { id },
+      include: {
+        branch: true,
+      },
     });
 
     if (!assignment) {
@@ -189,13 +265,21 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
+    // Check if branch is active
+    if (!assignment.branch.isActive) {
+      return NextResponse.json(
+        { error: "Cannot update assignment for an inactive branch" },
+        { status: 400 }
+      );
+    }
+
     // Handle setting default branch
     if (isDefault === true) {
       // Use our utility to set default and handle constraints
       await setDefaultBranchAssignment(assignment.userId, id);
     } else {
       // Just update the assignment
-      await db.userBranchAssignment.update({
+      await prisma.userBranchAssignment.update({
         where: { id },
         data: { isDefault: isDefault },
       });
@@ -205,12 +289,11 @@ export async function PATCH(req: NextRequest) {
     try {
       await invalidateUserBranchCaches(assignment.userId);
     } catch (cacheError) {
-      // Log the error but don't fail the request
       console.error("Error invalidating cache (non-critical):", cacheError);
     }
 
     // Return the updated assignment
-    const updatedAssignment = await db.userBranchAssignment.findUnique({
+    const updatedAssignment = await prisma.userBranchAssignment.findUnique({
       where: { id },
       include: {
         branch: {
@@ -218,6 +301,8 @@ export async function PATCH(req: NextRequest) {
             id: true,
             code: true,
             name: true,
+            parentId: true,
+            isActive: true,
           },
         },
       },
@@ -263,8 +348,11 @@ export async function DELETE(req: NextRequest) {
     }
 
     // Get the assignment to check if it exists and get userId
-    const assignment = await db.userBranchAssignment.findUnique({
+    const assignment = await prisma.userBranchAssignment.findUnique({
       where: { id },
+      include: {
+        branch: true,
+      },
     });
 
     if (!assignment) {
@@ -286,13 +374,14 @@ export async function DELETE(req: NextRequest) {
     }
 
     // Delete the assignment
-    await db.userBranchAssignment.delete({ where: { id } });
+    await prisma.userBranchAssignment.delete({
+      where: { id },
+    });
 
     // Invalidate user's branch caches
     try {
       await invalidateUserBranchCaches(assignment.userId);
     } catch (cacheError) {
-      // Log the error but don't fail the request
       console.error("Error invalidating cache (non-critical):", cacheError);
     }
 

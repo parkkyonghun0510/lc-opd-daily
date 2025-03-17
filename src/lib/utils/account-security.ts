@@ -3,9 +3,9 @@
  * These functions help protect against brute force attacks and other security threats
  */
 
-import { PrismaClient } from "@prisma/client";
+"use server";
 
-const prisma = new PrismaClient();
+import { getPrisma } from "@/lib/prisma-server";
 
 // Maximum number of failed login attempts before account lockout
 const MAX_FAILED_ATTEMPTS = 5;
@@ -21,8 +21,11 @@ const LOCKOUT_DURATION_MINUTES = 15;
 export async function recordFailedLoginAttempt(
   usernameValue: string
 ): Promise<boolean> {
-  // Find the user by username using manual filtering
-  const allUsers = await prisma.user.findMany({
+  const prisma = await getPrisma();
+
+  // Find the user by username
+  const user = await prisma.user.findUnique({
+    where: { username: usernameValue },
     select: {
       id: true,
       username: true,
@@ -30,10 +33,6 @@ export async function recordFailedLoginAttempt(
       lockedUntil: true,
     },
   });
-
-  const user = allUsers.find(
-    (u) => u.username.toLowerCase() === usernameValue.toLowerCase()
-  );
 
   // If user doesn't exist, do nothing (don't reveal if account exists)
   if (!user) return false;
@@ -68,30 +67,11 @@ export async function recordFailedLoginAttempt(
 }
 
 /**
- * Checks if a user account is currently locked
- * @param usernameValue The username of the user to check
- * @returns True if the account is locked, false otherwise
- */
-export async function isAccountLocked(usernameValue: string): Promise<boolean> {
-  // Find the user by username using manual filtering
-  const allUsers = await prisma.user.findMany({
-    select: { username: true, lockedUntil: true },
-  });
-
-  const user = allUsers.find(
-    (u) => u.username.toLowerCase() === usernameValue.toLowerCase()
-  );
-
-  if (!user || !user.lockedUntil) return false;
-
-  return new Date(user.lockedUntil) > new Date();
-}
-
-/**
- * Resets the failed login attempts counter for a user after successful login
- * @param userId The ID of the user who successfully logged in
+ * Resets failed login attempts for a user
+ * @param userId The ID of the user
  */
 export async function resetFailedLoginAttempts(userId: string): Promise<void> {
+  const prisma = await getPrisma();
   await prisma.user.update({
     where: { id: userId },
     data: {
@@ -102,30 +82,45 @@ export async function resetFailedLoginAttempts(userId: string): Promise<void> {
 }
 
 /**
- * Gets the remaining lockout time in minutes
- * @param usernameValue The username of the locked user
- * @returns The number of minutes until the account is unlocked, or 0 if not locked
+ * Checks if an account is locked
+ * @param username The username to check
+ * @returns True if the account is locked, false otherwise
  */
-export async function getRemainingLockoutTime(
-  usernameValue: string
-): Promise<number> {
-  // Find the user by username using manual filtering
-  const allUsers = await prisma.user.findMany({
-    select: { username: true, lockedUntil: true },
+export async function isAccountLocked(username: string): Promise<boolean> {
+  const prisma = await getPrisma();
+  const user = await prisma.user.findUnique({
+    where: { username },
+    select: {
+      lockedUntil: true,
+    },
   });
 
-  const user = allUsers.find(
-    (u) => u.username.toLowerCase() === usernameValue.toLowerCase()
-  );
+  if (!user) return false;
 
-  if (!user || !user.lockedUntil) return 0;
+  return user.lockedUntil ? new Date(user.lockedUntil) > new Date() : false;
+}
+
+/**
+ * Gets the remaining lockout time in minutes
+ * @param username The username to check
+ * @returns The remaining lockout time in minutes, or 0 if not locked
+ */
+export async function getRemainingLockoutTime(
+  username: string
+): Promise<number> {
+  const prisma = await getPrisma();
+  const user = await prisma.user.findUnique({
+    where: { username },
+    select: {
+      lockedUntil: true,
+    },
+  });
+
+  if (!user?.lockedUntil) return 0;
 
   const now = new Date();
   const lockUntil = new Date(user.lockedUntil);
-
-  if (lockUntil <= now) return 0;
-
-  // Calculate remaining minutes
   const remainingMs = lockUntil.getTime() - now.getTime();
-  return Math.ceil(remainingMs / (60 * 1000));
+
+  return Math.max(0, Math.ceil(remainingMs / (60 * 1000)));
 }

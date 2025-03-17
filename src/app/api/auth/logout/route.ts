@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { NextRequest } from "next/server";
-import { logUserActivity } from "@/lib/auth";
+import { logUserActivity } from "@/lib/auth/log-user-activity";
 import { getToken } from "next-auth/jwt";
 import { cookies } from "next/headers";
 

@@ -1,8 +1,8 @@
 import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
-import { NextRequest } from "next/server";
 
-// The withAuth middleware now directly handles protected routes
+// Combined middleware function
+// The withAuth middleware handles protected routes and authentication
 export default withAuth(
   function middleware(req) {
     console.log("Auth Middleware executing for path:", req.nextUrl.pathname);
@@ -60,15 +60,41 @@ export default withAuth(
       }
     }
 
+    // Prisma Client handling - check if this is an API route that should allow database access
+    const apiRoutes = [
+      "/api/auth",
+      "/api/users",
+      "/api/reports",
+      "/api/branches",
+    ];
+    const isApiRoute = apiRoutes.some((route) => path.startsWith(route));
+
+    // If this is a client-side route, add header to indicate no Prisma should be used
+    if (!isApiRoute) {
+      const response = NextResponse.next();
+      response.headers.set("X-Prisma-Client", "disabled");
+      return response;
+    }
+
     // For all other authenticated requests, allow access
     return NextResponse.next();
   },
   {
     callbacks: {
-      authorized: ({ token }) => {
-        const isAuthorized = !!token;
-        console.log("Authorization check:", isAuthorized ? "Passed" : "Failed");
-        return isAuthorized;
+      authorized: ({ token, req }) => {
+        const path = req.nextUrl.pathname;
+
+        // Special handling for login page when already logged in
+        if (path === "/login") {
+          // If user is authenticated, they shouldn't access login page
+          if (token) {
+            return false; // This will trigger a redirect to dashboard
+          }
+          return true; // Allow unauthenticated users to access login
+        }
+
+        // For all other paths, require authentication
+        return !!token;
       },
     },
     pages: {
@@ -77,41 +103,16 @@ export default withAuth(
   }
 );
 
-// Create middleware for handling non-protected routes
-export function middleware(req: NextRequest) {
-  const path = req.nextUrl.pathname;
-
-  // Special handling for login page when already logged in
-  if (path === "/login") {
-    // Check if there's a session token (check both possible token names)
-    const sessionToken =
-      req.cookies.get("next-auth.session-token")?.value ||
-      req.cookies.get(".next-auth.session-token")?.value;
-
-    if (sessionToken) {
-      console.log(
-        "Session token found on login page, redirecting to dashboard"
-      );
-      return NextResponse.redirect(new URL("/dashboard", req.url));
-    }
-  }
-
-  // For all non-login paths, proceed normally
-  return NextResponse.next();
-}
-
-// Configure which routes each middleware applies to
+// Comprehensive matcher configuration that combines all needs
 export const config = {
   matcher: [
-    // Apply the default export (withAuth) to protected routes
-    {
-      source: "/((?!api|_next/static|_next/image|favicon.ico|public|login).*)",
-      missing: [
-        { type: "header", key: "next-router-prefetch" },
-        { type: "header", key: "purpose", value: "prefetch" },
-      ],
-    },
-    // Apply the named export (middleware) to the login route
+    // Protected routes (requiring auth)
+    "/((?!api|_next/static|_next/image|favicon.ico|public|login).*)",
+
+    // Special routes that need middleware processing but not auth
     "/login",
+
+    // API routes that need Prisma client header handling
+    "/api/:path*",
   ],
 };

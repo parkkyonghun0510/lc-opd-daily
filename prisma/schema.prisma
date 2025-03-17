@@ -21,10 +21,15 @@ model User {
   failedLoginAttempts Int                    @default(0)
   lockedUntil         DateTime?
   username            String                 @unique
+  image               String?                // Profile picture URL
+  preferences         Json?                  // User preferences for notifications and appearance
   activityLogs        ActivityLog[]
   branch              Branch?                @relation(fields: [branchId], references: [id])
   branchAssignments   UserBranchAssignment[]
   userRoles           UserRole[]
+  activities          UserActivity[]
+
+  @@index([branchId])
 }
 
 // For UserBranchAssignment
@@ -110,4 +115,27 @@ model UserRole {
 
   @@unique([userId, roleId, branchId])
   @@index([userId])
+}
+
+model UserActivity {
+  id        String   @id @default(cuid())
+  userId    String
+  action    String
+  details   Json
+  ipAddress String
+  userAgent String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+model OrganizationSettings {
+  id              String   @id @default(cuid())
+  organizationId  String   @unique
+  validationRules Json     @default("{\"writeOffs\": {\"maxAmount\": 1000, \"requireApproval\": true}, \"ninetyPlus\": {\"maxAmount\": 5000, \"requireApproval\": true}, \"comments\": {\"required\": true, \"minLength\": 10}, \"duplicateCheck\": {\"enabled\": true}}")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }

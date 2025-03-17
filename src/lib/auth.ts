@@ -1,4 +1,3 @@
-import { PrismaClient } from "@prisma/client";
 import { compare, hash } from "bcrypt";
 import {
   isAccountLocked,
@@ -8,6 +7,7 @@ import {
 } from "./utils/account-security";
 import { NextAuthOptions, DefaultSession } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import { getPrisma } from "./prisma-server";
 
 // Extend the built-in session types
 declare module "next-auth" {
@@ -17,6 +17,7 @@ declare module "next-auth" {
       role: string;
       email: string;
       name: string;
+      username: string;
       branchId?: string | null;
     } & DefaultSession["user"];
   }
@@ -26,6 +27,7 @@ declare module "next-auth" {
     role: string;
     email: string;
     name: string;
+    username: string;
     branchId?: string | null;
   }
 }
@@ -60,8 +62,6 @@ export type SafeUser = {
   lastLogin?: Date;
 };
 
-const prisma = new PrismaClient();
-
 export async function hashPassword(password: string): Promise<string> {
   return hash(password, 12);
 }
@@ -75,6 +75,7 @@ export async function verifyPassword(
 
 export async function createUser(userData: CreateUserData): Promise<SafeUser> {
   const { username, email, name, password, role = "user", branchId } = userData;
+  const prisma = await getPrisma();
 
   const existingUserByEmail = await prisma.user.findUnique({
     where: { email },
@@ -114,6 +115,7 @@ export async function authenticateUser(
   username: string,
   password: string
 ): Promise<SafeUser | null> {
+  const prisma = await getPrisma();
   const isLocked = await isAccountLocked(username);
   if (isLocked) {
     const remainingTime = await getRemainingLockoutTime(username);
@@ -161,6 +163,7 @@ export async function getCurrentUser(userId: string): Promise<SafeUser | null> {
     return null;
   }
 
+  const prisma = await getPrisma();
   const user = await prisma.user.findUnique({
     where: { id: userId },
     include: {
@@ -190,6 +193,7 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Missing username or password");
         }
 
+        const prisma = await getPrisma();
         const user = await prisma.user.findUnique({
           where: { username: credentials.username },
         });
@@ -215,6 +219,7 @@ export const authOptions: NextAuthOptions = {
           id: user.id,
           name: user.name || user.username,
           email: user.email,
+          username: user.username,
           role: user.role,
           branchId: user.branchId,
         };

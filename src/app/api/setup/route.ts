@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { PrismaClient, Branch } from "@prisma/client";
 import { hashPassword } from "@/lib/auth";
-import { logUserActivity } from "@/lib/auth";
+import { logUserActivity } from "@/lib/auth/log-user-activity";
 
 const prisma = new PrismaClient();
 

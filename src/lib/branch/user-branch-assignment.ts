@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import { prisma } from "@/lib/prisma";
 
 /**
  * Sets a specific branch assignment as the default for a user
@@ -9,9 +9,9 @@ export async function setDefaultBranchAssignment(
   assignmentId: string
 ): Promise<void> {
   // Use a transaction to ensure atomicity
-  await db.$transaction([
+  await prisma.$transaction([
     // First, unset all default assignments for this user
-    db.userBranchAssignment.updateMany({
+    prisma.userBranchAssignment.updateMany({
       where: {
         userId,
         isDefault: true,
@@ -22,7 +22,7 @@ export async function setDefaultBranchAssignment(
     }),
 
     // Then, set the specified assignment as default
-    db.userBranchAssignment.update({
+    prisma.userBranchAssignment.update({
       where: {
         id: assignmentId,
       },
@@ -43,7 +43,7 @@ export async function createBranchAssignment(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<any> {
   // First create the assignment
-  const assignment = await db.userBranchAssignment.create({
+  const assignment = await prisma.userBranchAssignment.create({
     data: {
       userId,
       branchId,
@@ -56,7 +56,7 @@ export async function createBranchAssignment(
     await setDefaultBranchAssignment(userId, assignment.id);
 
     // Return the updated assignment
-    return db.userBranchAssignment.findUnique({
+    return prisma.userBranchAssignment.findUnique({
       where: { id: assignment.id },
     });
   }
@@ -71,8 +71,8 @@ export async function setDefaultUserRole(
   userId: string,
   userRoleId: string
 ): Promise<void> {
-  await db.$transaction([
-    db.userRole.updateMany({
+  await prisma.$transaction([
+    prisma.userRole.updateMany({
       where: {
         userId,
         isDefault: true,
@@ -82,7 +82,7 @@ export async function setDefaultUserRole(
       },
     }),
 
-    db.userRole.update({
+    prisma.userRole.update({
       where: {
         id: userRoleId,
       },

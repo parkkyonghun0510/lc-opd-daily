@@ -7,7 +7,7 @@ import {
   hasPermission,
 } from "@/lib/auth/roles";
 import { PrismaClient } from "@prisma/client";
-import { logUserActivity } from "@/lib/auth";
+import { logUserActivity } from "@/lib/auth/log-user-activity";
 
 const prisma = new PrismaClient();
 

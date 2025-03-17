@@ -19,6 +19,7 @@ declare module "next-auth" {
       name: string;
       email: string;
       role: string;
+      username: string;
       branchId: string | null;
       assignedBranchIds?: string[];
       [key: string]: unknown;

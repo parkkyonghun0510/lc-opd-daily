@@ -8,10 +8,10 @@ This checklist helps verify that role-based access controls are working correctl
 
 Create or use the following test accounts:
 
-- [ok] Admin User: Full system access
-- [ok] Manager User: Branch management and report approval
-- [ ] Regular User: Basic reporting functionality
-- [ ] Read-Only User: View-only access
+- [x] Admin User: Full system access
+- [x] Manager User: Branch management and report approval
+- [x] Regular User: Basic reporting functionality
+- [x] Read-Only User: View-only access
 
 ## Role-Based UI Testing
 
