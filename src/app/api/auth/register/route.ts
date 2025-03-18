@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { createUser, logUserActivity } from "@/lib/auth";
-import { generateToken, setTokenCookie } from "@/lib/jwt";
 import { validatePassword } from "@/lib/utils/password-validation";
 
 // POST /api/auth/register - Register a new user
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { username, name, email, password, role, branchId } = body;
@@ -37,16 +37,9 @@ export async function POST(request: Request) {
         branchId,
       });
 
-      // Generate JWT token
-      const token = await generateToken({
-        userId: user.id,
-        username: user.username,
-        role: user.role,
-        branchId: user.branchId || undefined,
-      });
-
-      // Set JWT token in cookie
-      await setTokenCookie(token);
+      // NOTE: We're not using JWT tokens directly anymore
+      // User needs to explicitly login via NextAuth after registration
+      // or the client can handle automatic login after successful registration
 
       // Get request information for activity logging
       const ip =

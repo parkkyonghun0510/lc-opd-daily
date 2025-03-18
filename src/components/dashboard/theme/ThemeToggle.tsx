@@ -1,34 +1,21 @@
-import { useState, useEffect } from "react";
+"use client";
+
+import { useTheme } from "next-themes";
 import { Sun, Moon } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export function ThemeToggle() {
-  const [darkMode, setDarkMode] = useState(false);
-
-  useEffect(() => {
-    // Check initial theme
-    if (typeof window !== "undefined") {
-      setDarkMode(document.documentElement.classList.contains("dark"));
-    }
-  }, []);
-
-  const toggleTheme = () => {
-    const newDarkMode = !darkMode;
-    setDarkMode(newDarkMode);
-
-    // Update document class
-    document.documentElement.classList.toggle("dark", newDarkMode);
-
-    // Save preference
-    localStorage.setItem("theme", newDarkMode ? "dark" : "light");
-  };
+  const { theme, setTheme } = useTheme();
 
   return (
-    <button
-      onClick={toggleTheme}
-      className="p-2 rounded-lg transition-colors dark:text-gray-400 dark:hover:text-white text-gray-600 hover:text-gray-900"
-      title={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+      className="rounded-lg transition-colors dark:text-gray-400 dark:hover:text-white text-gray-600 hover:text-gray-900"
+      title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
     >
-      {darkMode ? <Sun size={20} /> : <Moon size={20} />}
-    </button>
+      {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
+    </Button>
   );
 }

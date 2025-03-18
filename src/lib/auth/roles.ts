@@ -14,6 +14,7 @@ export enum Permission {
   REVIEW_REPORTS = "review_reports",
   CONSOLIDATE_REPORTS = "consolidate_reports",
   EXPORT_REPORTS = "export_reports",
+  APPROVE_REPORTS = "approve_reports",
   ARCHIVE_REPORTS = "archive_reports",
   RESTORE_REPORTS = "restore_reports",
 
@@ -55,6 +56,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     Permission.EDIT_REPORTS,
     Permission.REVIEW_REPORTS,
     Permission.EXPORT_REPORTS,
+    Permission.APPROVE_REPORTS,
     Permission.ARCHIVE_REPORTS,
     Permission.VIEW_BRANCH,
     Permission.EDIT_BRANCH,
@@ -121,19 +123,27 @@ export function getRolePermissions(role: UserRole): Permission[] {
   return ROLE_PERMISSIONS[role] || [];
 }
 
-// Enhanced branch access control with hierarchy support
+// Enhanced branch access control with hierarchy and multi-branch assignment support
 export function canAccessBranch(
   userRole: UserRole,
   userBranchId: string | null,
   targetBranchId: string,
-  branchHierarchy?: BranchHierarchy[]
+  branchHierarchy?: BranchHierarchy[],
+  assignedBranchIds?: string[]
 ): boolean {
   if (userRole === UserRole.ADMIN) return true;
-  if (!userBranchId) return false;
+  if (!userBranchId && !assignedBranchIds?.length) return false;
+
+  // Check if user has direct assignment to target branch
+  if (assignedBranchIds?.includes(targetBranchId)) return true;
 
   // If no hierarchy provided, fall back to direct branch check
   if (!branchHierarchy) {
-    return userBranchId === targetBranchId;
+    return (
+      userBranchId === targetBranchId ||
+      assignedBranchIds?.includes(targetBranchId) ||
+      false
+    );
   }
 
   const userBranch = branchHierarchy.find((b) => b.id === userBranchId);
@@ -143,12 +153,24 @@ export function canAccessBranch(
 
   switch (userRole) {
     case UserRole.BRANCH_MANAGER:
-      // Branch manager can access their branch and any child branches
-      return targetBranch.path.includes(userBranchId);
+      // Branch manager can access their default branch, assigned branches, and any child branches
+      return (
+        targetBranch.path.includes(userBranchId) ||
+        assignedBranchIds?.some((id) => targetBranch.path.includes(id)) ||
+        false
+      );
     case UserRole.SUPERVISOR:
+      // Supervisor can access their assigned branches
+      return (
+        assignedBranchIds?.includes(targetBranchId) ||
+        userBranchId === targetBranchId
+      );
     case UserRole.USER:
-      // These roles can only access their own branch
-      return userBranchId === targetBranchId;
+      // Users can access their assigned branches
+      return (
+        assignedBranchIds?.includes(targetBranchId) ||
+        userBranchId === targetBranchId
+      );
     default:
       return false;
   }
@@ -158,28 +180,40 @@ export function canAccessBranch(
 export function getAccessibleBranches(
   userRole: UserRole,
   userBranchId: string | null,
-  branchHierarchy: BranchHierarchy[]
+  branchHierarchy: BranchHierarchy[],
+  assignedBranchIds: string[] = []
 ): string[] {
   if (userRole === UserRole.ADMIN) {
     return branchHierarchy.map((b) => b.id);
   }
 
-  if (!userBranchId) return [];
+  const accessibleBranches = new Set<string>();
 
-  const userBranch = branchHierarchy.find((b) => b.id === userBranchId);
-  if (!userBranch) return [];
+  // Add assigned branches
+  assignedBranchIds.forEach((id) => accessibleBranches.add(id));
+
+  // Add default branch if exists
+  if (userBranchId) {
+    accessibleBranches.add(userBranchId);
+  }
 
   switch (userRole) {
     case UserRole.BRANCH_MANAGER:
-      // Return user's branch and all child branches
-      return branchHierarchy
-        .filter((b) => b.path.includes(userBranchId))
-        .map((b) => b.id);
+      // Add child branches for both default and assigned branches
+      const managerBranches = [...accessibleBranches];
+      branchHierarchy.forEach((branch) => {
+        if (managerBranches.some((id) => branch.path.includes(id))) {
+          accessibleBranches.add(branch.id);
+        }
+      });
+      break;
     case UserRole.SUPERVISOR:
     case UserRole.USER:
-      // Only their own branch
-      return [userBranchId];
+      // Only their assigned branches and default branch
+      break;
     default:
       return [];
   }
+
+  return Array.from(accessibleBranches);
 }

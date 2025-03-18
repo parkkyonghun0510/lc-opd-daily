@@ -1,11 +1,23 @@
 import { PrismaClient } from "@prisma/client";
 
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined;
-};
+// Check if this code is running on the client side (browser)
+// and throw an appropriate error if it is
+const isClient = typeof window !== "undefined";
+if (isClient) {
+  throw new Error(
+    "PrismaClient cannot be used in the browser. " +
+      "Please use server actions or API routes for database operations."
+  );
+}
 
-const prisma =
-  globalForPrisma.prisma ??
+// PrismaClient is attached to the `global` object in development to prevent
+// exhausting your database connection limit.
+// Learn more: https://pris.ly/d/help/next-js-best-practices
+
+const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
+
+export const prisma =
+  globalForPrisma.prisma ||
   new PrismaClient({
     log:
       process.env.NODE_ENV === "development"
@@ -15,4 +27,6 @@ const prisma =
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
 
-export default prisma;
+// Make sure this file is used on the server only
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";

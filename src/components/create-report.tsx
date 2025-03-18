@@ -8,7 +8,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -29,7 +28,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/use-toast";
-import { CurrencyInput, KHCurrencyInput } from "@/components/ui/currency-input";
+import { KHCurrencyInput } from "@/components/ui/currency-input";
 
 type Branch = {
   id: string;
@@ -208,14 +207,23 @@ export default function CreateReport() {
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="writeOffs">Write-offs (Amount in KHR) *</Label>
-            <KHCurrencyInput />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="ninetyPlus">90+ Days (Amount in KHR) *</Label>
-            <KHCurrencyInput />
+          <div className="grid grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <Label htmlFor="writeOffs">Write-offs (Amount in KHR) *</Label>
+              <KHCurrencyInput
+                value={writeOffs}
+                onValueChange={(rawValue: string) => setWriteOffs(rawValue)}
+                className="w-full"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="ninetyPlus">90+ Days (Amount in KHR) *</Label>
+              <KHCurrencyInput
+                value={ninetyPlus}
+                onValueChange={(rawValue: string) => setNinetyPlus(rawValue)}
+                className="w-full"
+              />
+            </div>
           </div>
 
           <div className="space-y-2">

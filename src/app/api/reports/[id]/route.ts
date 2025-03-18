@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import { z } from "zod";
-import { getUserFromToken } from "@/lib/jwt";
+import { getToken } from "next-auth/jwt";
 
 const prisma = new PrismaClient();
 
@@ -14,18 +15,22 @@ const updateReportSchema = z.object({
 
 // GET /api/reports/[id] - Get a specific report by ID
 export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  context: { params: { id: string } }
 ) {
   try {
-    const authUser = await getUserFromToken(request);
-    if (!authUser) {
+    // Access the id from the context params
+    const id = context.params.id;
+
+    // Use NextAuth for authentication
+    const token = await getToken({ req: request });
+    if (!token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const report = await prisma.report.findUnique({
       where: {
-        id: params.id,
+        id,
       },
       include: {
         branch: {
@@ -45,7 +50,7 @@ export async function GET(
     await prisma.activityLog.create({
       data: {
         action: "VIEW_REPORT",
-        userId: authUser.userId,
+        userId: token.id as string, // Cast to string since we know it exists
         details: `Viewed report for branch: ${report.branch.code} on ${
           new Date(report.date).toISOString().split("T")[0]
         }`,
@@ -54,12 +59,9 @@ export async function GET(
 
     return NextResponse.json(report);
   } catch (error) {
-    console.error("Error fetching report:", error);
+    console.error("Error retrieving report:", error);
     return NextResponse.json(
-      {
-        error: "Failed to fetch report",
-        details: error instanceof Error ? error.message : "Unknown error",
-      },
+      { error: "Failed to retrieve report" },
       { status: 500 }
     );
   }
@@ -67,41 +69,22 @@ export async function GET(
 
 // PUT /api/reports/[id] - Update a specific report
 export async function PUT(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  context: { params: { id: string } }
 ) {
   try {
+    // Get the report ID from the URL
+    const id = context.params.id;
+
     // Get the user from the auth token
-    const authUser = await getUserFromToken(request);
-    if (!authUser) {
+    const token = await getToken({ req: request });
+    if (!token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get the existing report
+    // Check if the report exists
     const existingReport = await prisma.report.findUnique({
-      where: {
-        id: params.id,
-      },
-    });
-
-    if (!existingReport) {
-      return NextResponse.json({ error: "Report not found" }, { status: 404 });
-    }
-
-    // Parse and validate the request body
-    const body = await request.json();
-    const validatedData = updateReportSchema.parse(body);
-
-    // Update the report
-    const updatedReport = await prisma.report.update({
-      where: {
-        id: params.id,
-      },
-      data: {
-        writeOffs: validatedData.writeOffs,
-        ninetyPlus: validatedData.ninetyPlus,
-        comments: validatedData.comments,
-      },
+      where: { id },
       include: {
         branch: {
           select: {
@@ -113,13 +96,41 @@ export async function PUT(
       },
     });
 
-    // Create activity log
+    if (!existingReport) {
+      return NextResponse.json({ error: "Report not found" }, { status: 404 });
+    }
+
+    // Parse and validate the request body
+    const body = await request.json();
+    const validationResult = updateReportSchema.safeParse(body);
+
+    if (!validationResult.success) {
+      return NextResponse.json(
+        { error: "Invalid data", details: validationResult.error.format() },
+        { status: 400 }
+      );
+    }
+
+    const { writeOffs, ninetyPlus, comments } = validationResult.data;
+
+    // Update the report
+    const updatedReport = await prisma.report.update({
+      where: { id },
+      data: {
+        writeOffs,
+        ninetyPlus,
+        comments,
+        updatedAt: new Date(),
+      },
+    });
+
+    // Log the activity
     await prisma.activityLog.create({
       data: {
         action: "UPDATE_REPORT",
-        userId: authUser.userId,
-        details: `Updated report for branch: ${updatedReport.branch.code} on ${
-          new Date(updatedReport.date).toISOString().split("T")[0]
+        userId: token.id as string, // Cast to string since we know it exists
+        details: `Updated report for branch: ${existingReport.branch.code} on ${
+          new Date(existingReport.date).toISOString().split("T")[0]
         }`,
       },
     });
@@ -128,10 +139,7 @@ export async function PUT(
   } catch (error) {
     console.error("Error updating report:", error);
     return NextResponse.json(
-      {
-        error: "Failed to update report",
-        details: error instanceof Error ? error.message : "Unknown error",
-      },
+      { error: "Failed to update report" },
       { status: 500 }
     );
   }
@@ -139,25 +147,28 @@ export async function PUT(
 
 // DELETE /api/reports/[id] - Delete a specific report
 export async function DELETE(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  context: { params: { id: string } }
 ) {
   try {
+    // Get the report ID from the URL
+    const id = context.params.id;
+
     // Get the user from the auth token
-    const authUser = await getUserFromToken(request);
-    if (!authUser) {
+    const token = await getToken({ req: request });
+    if (!token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get the existing report for logging
+    // Check if the report exists
     const existingReport = await prisma.report.findUnique({
-      where: {
-        id: params.id,
-      },
+      where: { id },
       include: {
         branch: {
           select: {
+            id: true,
             code: true,
+            name: true,
           },
         },
       },
@@ -169,16 +180,14 @@ export async function DELETE(
 
     // Delete the report
     await prisma.report.delete({
-      where: {
-        id: params.id,
-      },
+      where: { id },
     });
 
-    // Create activity log
+    // Log the activity
     await prisma.activityLog.create({
       data: {
         action: "DELETE_REPORT",
-        userId: authUser.userId,
+        userId: token.id as string, // Cast to string since we know it exists
         details: `Deleted report for branch: ${existingReport.branch.code} on ${
           new Date(existingReport.date).toISOString().split("T")[0]
         }`,
@@ -189,10 +198,7 @@ export async function DELETE(
   } catch (error) {
     console.error("Error deleting report:", error);
     return NextResponse.json(
-      {
-        error: "Failed to delete report",
-        details: error instanceof Error ? error.message : "Unknown error",
-      },
+      { error: "Failed to delete report" },
       { status: 500 }
     );
   }

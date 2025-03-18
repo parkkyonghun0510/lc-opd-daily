@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import prisma from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 
 type ReportType = "plan" | "actual";
 
@@ -27,17 +27,32 @@ export async function GET(request: Request) {
     const limit = parseInt(searchParams.get("limit") || "10");
     const date = searchParams.get("date");
     const type = (searchParams.get("type") || "actual") as ReportType;
+    const branchId = searchParams.get("branchId");
 
     const skip = (page - 1) * limit;
 
-    const where = {
+    // Build where clause based on filters and permissions
+    const where: {
+      reportType: ReportType;
+      date?: string;
+      branchId?: string;
+    } = {
       reportType: type,
-      ...(date && { date }),
-      ...(session.user.role !== "admin" &&
-        session.user.branchId && {
-          branchId: session.user.branchId,
-        }),
     };
+
+    // Add date filter if provided
+    if (date) {
+      where.date = date;
+    }
+
+    // Handle branch filtering based on user role and provided branchId
+    if (branchId) {
+      // If a specific branch is requested, use it (assuming user has access)
+      where.branchId = branchId;
+    } else if (session.user.role !== "admin" && session.user.branchId) {
+      // For non-admin users without a specific branch request, default to their branch
+      where.branchId = session.user.branchId;
+    }
 
     // Get total count for pagination
     const total = await prisma.report.count({ where });

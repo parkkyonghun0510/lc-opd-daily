@@ -39,7 +39,11 @@ function ErrorFallback({
   );
 }
 
-export function RoleManager() {
+interface RoleManagerProps {
+  context?: 'branch' | 'user';
+}
+
+export function RoleManager({ context = 'user' }: RoleManagerProps) {
   const [users, setUsers] = useState<User[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,6 +63,9 @@ export function RoleManager() {
         throw new Error("Failed to fetch users");
       }
       const data = await response.json();
+      if (!Array.isArray(data)) {
+        throw new Error("Invalid users data format");
+      }
       setUsers(data);
     } catch (error) {
       console.error("Error fetching users:", error);

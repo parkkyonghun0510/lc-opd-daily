@@ -1,7 +1,15 @@
 "use client";
 
-import { useState } from "react";
 import { format } from "date-fns";
+import { CalendarIcon, AlertCircle, Info } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -10,10 +18,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { KHCurrencyInput } from "@/components/ui/currency-input";
+import type { Branch, ReportType } from "@/types/reports";
+import { useReportForm } from "@/hooks/useReportForm";
 import {
   Select,
   SelectContent,
@@ -21,31 +30,39 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Calendar } from "@/components/ui/calendar";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { CalendarIcon, Loader2 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { toast } from "@/components/ui/use-toast";
-
-interface Branch {
-  id: string;
-  code: string;
-  name: string;
-}
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import React from "react";
 
 interface CreateReportModalProps {
   isOpen: boolean;
   onClose: () => void;
-  reportType: "plan" | "actual";
+  reportType: ReportType;
   onSuccess: () => void;
   userBranches: Branch[];
-  isAdmin: boolean;
-  defaultBranchId?: string;
 }
+
+const COMMENT_TEMPLATES = [
+  {
+    label: "No issues reported",
+    value: "No issues reported for this period.",
+  },
+  {
+    label: "System maintenance",
+    value: "System maintenance completed successfully.",
+  },
+  {
+    label: "Data reconciliation",
+    value: "Data reconciliation completed with no discrepancies.",
+  },
+  {
+    label: "Staff training",
+    value: "Staff training completed on new procedures.",
+  },
+  {
+    label: "Custom comment",
+    value: "custom",
+  },
+];
 
 export function CreateReportModal({
   isOpen,
@@ -53,178 +70,240 @@ export function CreateReportModal({
   reportType,
   onSuccess,
   userBranches,
-  isAdmin,
-  defaultBranchId,
 }: CreateReportModalProps) {
-  const [date, setDate] = useState<Date | undefined>(new Date());
-  const [branchId, setBranchId] = useState(defaultBranchId || "");
-  const [writeOffs, setWriteOffs] = useState("");
-  const [ninetyPlus, setNinetyPlus] = useState("");
-  const [comments, setComments] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const handleSubmit = async () => {
-    if (!date || !branchId || !writeOffs || !ninetyPlus) {
-      toast({
-        title: "Validation Error",
-        description: "Please fill in all required fields",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      const response = await fetch("/api/reports", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          date: format(date, "yyyy-MM-dd"),
-          branchId,
-          writeOffs: parseFloat(writeOffs),
-          ninetyPlus: parseFloat(ninetyPlus),
-          comments,
-          reportType,
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to create report");
-      }
-
-      toast({
-        title: "Success",
-        description: "Report created successfully",
-      });
-
-      // Reset form
-      setDate(new Date());
-      setBranchId(defaultBranchId || "");
-      setWriteOffs("");
-      setNinetyPlus("");
-      setComments("");
-
+  const {
+    formData,
+    errors,
+    isSubmitting,
+    isCheckingDuplicate,
+    updateField,
+    handleSubmit,
+    validationRules,
+  } = useReportForm({
+    reportType,
+    userBranches,
+    onSuccess: () => {
       onSuccess();
       onClose();
-    } catch (error) {
-      toast({
-        title: "Error",
-        description:
-          error instanceof Error ? error.message : "Failed to create report",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSubmitting(false);
+    },
+  });
+
+  // For users with only one branch, automatically select it
+  React.useEffect(() => {
+    if (userBranches.length === 1 && !formData.branchId) {
+      updateField("branchId", userBranches[0].id);
+    }
+  }, [userBranches, formData.branchId, updateField]);
+
+  // If user has no branches assigned, show error message
+  if (!userBranches || userBranches.length === 0) {
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Access Denied</DialogTitle>
+            <DialogDescription>
+              You are not assigned to any branches. Please contact your
+              administrator to get access.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={onClose}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  const handleTemplateSelect = (template: string) => {
+    if (template === "custom") {
+      updateField("comments", "");
+    } else {
+      updateField("comments", template);
     }
   };
 
+  // Get today's date at midnight to ensure consistent comparison
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            Create {reportType === "plan" ? "Morning Plan" : "Evening Actual"}{" "}
-            Report
+            Create New{" "}
+            {reportType === "plan" ? "Morning Plan" : "Evening Actual"} Report
           </DialogTitle>
           <DialogDescription>
-            Submit a new {reportType === "plan" ? "plan" : "actual"} report for
-            write-offs and 90+ days collection
+            Enter the details for your new{" "}
+            {reportType === "plan" ? "morning plan" : "evening actual"} report
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="date" className="col-span-4">
-              Date
-            </Label>
+          {errors.general && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{errors.general}</AlertDescription>
+            </Alert>
+          )}
+
+          <div className="grid gap-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="date">Date</Label>
+              <div className="flex items-center gap-2">
+                {isCheckingDuplicate && (
+                  <span className="text-sm text-muted-foreground animate-pulse">
+                    Checking for duplicates...
+                  </span>
+                )}
+                <Alert className="py-1 bg-blue-50 border-blue-200">
+                  <Info className="h-4 w-4 text-blue-600" />
+                  <AlertDescription className="text-blue-700">
+                    {reportType === "plan"
+                      ? "Morning plan must be submitted before evening actual report"
+                      : "Only today's entries are allowed"}
+                  </AlertDescription>
+                </Alert>
+              </div>
+            </div>
             <Popover>
               <PopoverTrigger asChild>
                 <Button
-                  variant={"outline"}
+                  variant="outline"
                   className={cn(
-                    "w-full col-span-4 justify-start text-left font-normal",
-                    !date && "text-muted-foreground"
+                    "w-full justify-start text-left font-normal",
+                    !formData.date && "text-muted-foreground"
                   )}
                 >
                   <CalendarIcon className="mr-2 h-4 w-4" />
-                  {date ? format(date, "PPP") : <span>Pick a date</span>}
+                  {formData.date ? (
+                    format(formData.date, "PPP")
+                  ) : (
+                    <span>Pick a date</span>
+                  )}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
+              <PopoverContent className="w-auto p-0">
                 <Calendar
                   mode="single"
-                  selected={date}
-                  onSelect={setDate}
+                  selected={formData.date}
+                  onSelect={(date) => {
+                    if (date) {
+                      // Set the time to midnight for consistent comparison
+                      date.setHours(0, 0, 0, 0);
+                      if (date > today) {
+                        return; // Don't update if future date
+                      }
+                    }
+                    updateField("date", date);
+                  }}
+                  disabled={(date) => {
+                    date.setHours(0, 0, 0, 0);
+                    return date > today;
+                  }}
                   initialFocus
                 />
               </PopoverContent>
             </Popover>
+            {errors.date && (
+              <p className="text-sm text-red-500">{errors.date}</p>
+            )}
           </div>
 
-          {isAdmin && (
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="branch" className="col-span-4">
-                Branch
-              </Label>
-              <Select value={branchId} onValueChange={setBranchId}>
-                <SelectTrigger className="col-span-4">
-                  <SelectValue placeholder="Select branch" />
+          {userBranches.length > 1 && (
+            <div className="grid gap-2">
+              <Label htmlFor="branch">Branch</Label>
+              <Select
+                value={formData.branchId}
+                onValueChange={(value) => updateField("branchId", value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a branch" />
                 </SelectTrigger>
                 <SelectContent>
                   {userBranches.map((branch) => (
                     <SelectItem key={branch.id} value={branch.id}>
-                      {branch.code} - {branch.name}
+                      {branch.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.branchId && (
+                <p className="text-sm text-red-500">{errors.branchId}</p>
+              )}
+            </div>
+          )}
+
+          <div className="grid gap-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="writeOffs">Write-offs</Label>
+              {validationRules && (
+                <span className="text-sm text-muted-foreground">
+                  Max: {validationRules.writeOffs.maxAmount.toLocaleString()}{" "}
+                  KHR
+                </span>
+              )}
+            </div>
+            <KHCurrencyInput
+              id="writeOffs"
+              value={formData.writeOffs}
+              onValueChange={(value) => updateField("writeOffs", value)}
+            />
+            {errors.writeOffs && (
+              <p className="text-sm text-red-500">{errors.writeOffs}</p>
+            )}
+          </div>
+
+          <div className="grid gap-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="ninetyPlus">90+ Days</Label>
+              {validationRules && (
+                <span className="text-sm text-muted-foreground">
+                  Max: {validationRules.ninetyPlus.maxAmount.toLocaleString()}{" "}
+                  KHR
+                </span>
+              )}
+            </div>
+            <KHCurrencyInput
+              id="ninetyPlus"
+              value={formData.ninetyPlus}
+              onValueChange={(value) => updateField("ninetyPlus", value)}
+            />
+            {errors.ninetyPlus && (
+              <p className="text-sm text-red-500">{errors.ninetyPlus}</p>
+            )}
+          </div>
+
+          <div className="grid gap-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="comments">Comments</Label>
+              <Select onValueChange={handleTemplateSelect} defaultValue="">
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Use template" />
+                </SelectTrigger>
+                <SelectContent>
+                  {COMMENT_TEMPLATES.map((template) => (
+                    <SelectItem key={template.label} value={template.value}>
+                      {template.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-          )}
-
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="writeOffs" className="col-span-4">
-              {reportType === "plan" ? "Write-offs Plan" : "Write-offs Actual"}{" "}
-              (Amount in KHR)
-            </Label>
-            <Input
-              id="writeOffs"
-              type="number"
-              step="0.01"
-              min="0"
-              value={writeOffs}
-              onChange={(e) => setWriteOffs(e.target.value)}
-              className="col-span-4"
-            />
-          </div>
-
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="ninetyPlus" className="col-span-4">
-              {reportType === "plan" ? "90+ Days Plan" : "90+ Days Actual"}{" "}
-              (Amount in KHR)
-            </Label>
-            <Input
-              id="ninetyPlus"
-              type="number"
-              step="0.01"
-              min="0"
-              value={ninetyPlus}
-              onChange={(e) => setNinetyPlus(e.target.value)}
-              className="col-span-4"
-            />
-          </div>
-
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="comments" className="col-span-4">
-              Comments
-            </Label>
             <Textarea
               id="comments"
-              value={comments}
-              onChange={(e) => setComments(e.target.value)}
-              className="col-span-4"
+              value={formData.comments}
+              onChange={(e) => updateField("comments", e.target.value)}
+              placeholder={`Add any comments about this report...${
+                validationRules?.comments.required
+                  ? ` (Minimum ${validationRules.comments.minLength} characters)`
+                  : ""
+              }`}
             />
+            {errors.comments && (
+              <p className="text-sm text-red-500">{errors.comments}</p>
+            )}
           </div>
         </div>
         <DialogFooter>
@@ -232,14 +311,7 @@ export function CreateReportModal({
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={isSubmitting}>
-            {isSubmitting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Creating...
-              </>
-            ) : (
-              "Create Report"
-            )}
+            {isSubmitting ? "Creating..." : "Create Report"}
           </Button>
         </DialogFooter>
       </DialogContent>

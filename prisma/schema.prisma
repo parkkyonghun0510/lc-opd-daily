@@ -8,40 +8,64 @@ datasource db {
 }
 
 model User {
-  id                  String        @id @default(cuid())
-  email               String        @unique
+  id                  String                 @id @default(cuid())
+  email               String                 @unique
   name                String
   password            String
-  role                String        @default("user")
+  role                String                 @default("user") // Legacy field, kept for backward compatibility
   branchId            String?
-  isActive            Boolean       @default(true)
+  isActive            Boolean                @default(true)
   lastLogin           DateTime?
-  createdAt           DateTime      @default(now())
-  updatedAt           DateTime      @updatedAt
-  failedLoginAttempts Int           @default(0)
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
+  failedLoginAttempts Int                    @default(0)
   lockedUntil         DateTime?
-  username            String        @unique
+  username            String                 @unique
+  image               String?                // Profile picture URL
+  preferences         Json?                  // User preferences for notifications and appearance
   activityLogs        ActivityLog[]
-  branch              Branch?       @relation(fields: [branchId], references: [id])
+  branch              Branch?                @relation(fields: [branchId], references: [id])
+  branchAssignments   UserBranchAssignment[]
+  userRoles           UserRole[]
+  activities          UserActivity[]
+
+  @@index([branchId])
+}
+
+// For UserBranchAssignment
+model UserBranchAssignment {
+  id        String   @id @default(cuid())
+  userId    String
+  branchId  String
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  branch    Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, branchId])
+  @@index([userId])
 }
 
 model Branch {
-  id        String   @id @default(cuid())
-  code      String   @unique
-  name      String
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  parentId  String?
-  parent    Branch?  @relation("BranchHierarchy", fields: [parentId], references: [id])
-  children  Branch[] @relation("BranchHierarchy")
-  reports   Report[]
-  users     User[]
+  id                String                 @id @default(cuid())
+  code              String                 @unique
+  name              String
+  isActive          Boolean                @default(true)
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  parentId          String?
+  parent            Branch?                @relation("BranchHierarchy", fields: [parentId], references: [id])
+  children          Branch[]               @relation("BranchHierarchy")
+  reports           Report[]
+  users             User[]
+  branchAssignments UserBranchAssignment[]
+  userRoles         UserRole[]
 }
 
 model Report {
   id          String   @id @default(cuid())
-  date        String   // Store as YYYY-MM-DD
+  date        String // Store as YYYY-MM-DD
   branch      Branch   @relation(fields: [branchId], references: [id])
   branchId    String
   writeOffs   Float
@@ -66,4 +90,52 @@ model ActivityLog {
   userAgent String?
   timestamp DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Role {
+  id          String     @id @default(cuid())
+  name        String     @unique
+  description String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  userRoles   UserRole[]
+}
+
+model UserRole {
+  id        String   @id @default(cuid())
+  userId    String
+  roleId    String
+  branchId  String?
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      Role     @relation(fields: [roleId], references: [id])
+  branch    Branch?  @relation(fields: [branchId], references: [id])
+
+  @@unique([userId, roleId, branchId])
+  @@index([userId])
+}
+
+model UserActivity {
+  id        String   @id @default(cuid())
+  userId    String
+  action    String
+  details   Json
+  ipAddress String
+  userAgent String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+model OrganizationSettings {
+  id              String   @id @default(cuid())
+  organizationId  String   @unique
+  validationRules Json     @default("{\"writeOffs\": {\"maxAmount\": 1000, \"requireApproval\": true}, \"ninetyPlus\": {\"maxAmount\": 5000, \"requireApproval\": true}, \"comments\": {\"required\": true, \"minLength\": 10}, \"duplicateCheck\": {\"enabled\": true}}")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }

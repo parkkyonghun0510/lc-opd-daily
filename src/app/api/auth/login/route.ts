@@ -1,27 +1,25 @@
 import { NextResponse } from "next/server";
-import { authenticateUser, logUserActivity } from "@/lib/auth";
-import { generateToken, setTokenCookie } from "@/lib/jwt";
+import { NextRequest } from "next/server";
 import {
   isAccountLocked,
-  recordFailedLoginAttempt,
-  resetFailedLoginAttempts,
   getRemainingLockoutTime,
 } from "@/lib/utils/account-security";
 
-// POST /api/auth/login - Authenticate a user
-export async function POST(request: Request) {
+// POST /api/auth/login - Pre-authentication checks
+export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { username, password } = body;
+    const { username } = body;
 
-    if (!username || !password) {
+    if (!username) {
       return NextResponse.json(
-        { error: "Username and password are required" },
+        { error: "Username is required" },
         { status: 400 }
       );
     }
 
-    // Check if account is locked
+    // Check if account is locked before attempting authentication
+    // This provides early feedback before NextAuth attempts login
     const accountLocked = await isAccountLocked(username);
     if (accountLocked) {
       const remainingMinutes = await getRemainingLockoutTime(username);
@@ -35,73 +33,15 @@ export async function POST(request: Request) {
       );
     }
 
-    const user = await authenticateUser(username, password);
-
-    if (!user) {
-      // Record failed login attempt
-      const isNowLocked = await recordFailedLoginAttempt(username);
-
-      // If the account is now locked, return a specific message
-      if (isNowLocked) {
-        const lockoutMinutes = await getRemainingLockoutTime(username);
-        return NextResponse.json(
-          {
-            error: "Account locked",
-            message: `Too many failed login attempts. Account locked for ${lockoutMinutes} minutes.`,
-          },
-          { status: 429 } // Too Many Requests
-        );
-      }
-
-      return NextResponse.json(
-        { error: "Invalid username or password" },
-        { status: 401 }
-      );
-    }
-
-    // Reset failed login attempts on successful login
-    await resetFailedLoginAttempts(user.id);
-
-    // Generate JWT token (now async)
-    const token = await generateToken({
-      userId: user.id,
-      username: user.username,
-      role: user.role,
-      branchId: user.branchId || undefined,
-    });
-
-    // Set JWT token in cookie
-    await setTokenCookie(token);
-
-    // Get request information for activity logging
-    const ip =
-      request.headers.get("x-forwarded-for") ||
-      request.headers.get("x-real-ip") ||
-      "unknown";
-    const userAgent = request.headers.get("user-agent") || "unknown";
-
-    // Log the login activity with request information
-    await logUserActivity(
-      user.id,
-      "login",
-      { method: "api" },
-      { ipAddress: ip, userAgent }
-    );
-
+    // If account is not locked, return success and let NextAuth handle the actual authentication
     return NextResponse.json({
-      user: {
-        id: user.id,
-        username: user.username,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        branchId: user.branchId,
-      },
+      success: true,
+      message: "Account available for login",
     });
   } catch (error) {
-    console.error("Error during login:", error);
+    console.error("Error during login pre-check:", error);
     return NextResponse.json(
-      { error: "Authentication failed" },
+      { error: "Authentication pre-check failed" },
       { status: 500 }
     );
   }

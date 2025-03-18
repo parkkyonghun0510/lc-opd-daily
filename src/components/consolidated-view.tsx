@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Card,
   CardContent,
@@ -9,14 +9,14 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CalendarIcon } from "@radix-ui/react-icons";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
+import { cn, formatKHRCurrency } from "@/lib/utils";
 import {
   Table,
   TableBody,
@@ -26,13 +26,32 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { FileIcon, FileSpreadsheetIcon } from "lucide-react";
+import {
+  FileIcon,
+  FileSpreadsheetIcon,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  Eye,
+  EyeOff,
+  ArrowRight,
+  BarChart2,
+} from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
-import { Loader2 } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Loader2,
+  ChevronDown,
+  ChevronUp,
+  RefreshCw,
+  AlertCircle,
+  AlertTriangle,
+} from "lucide-react";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   BarChart,
   Bar,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -40,351 +59,452 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
-// Mock data for demonstration
-const mockConsolidatedData = {
-  date: "2023-03-06",
-  totalWriteOffs: 396000.0,
-  totalNinetyPlus: 520000.0,
-  reportedBranches: 6,
-  totalBranches: 15,
-  branches: [
-    {
-      branch: "01-PNH",
-      writeOffs: 23000.0,
-      ninetyPlus: 100000.0,
-      reported: true,
-    },
-    { branch: "02-BTB", writeOffs: 23000.0, ninetyPlus: 335.0, reported: true },
-    { branch: "03-SRP", writeOffs: 48000.0, ninetyPlus: 335.0, reported: true },
-    {
-      branch: "04-KTI",
-      writeOffs: 245000.0,
-      ninetyPlus: 100000.0,
-      reported: true,
-    },
-    {
-      branch: "05-SHV",
-      writeOffs: 75000.0,
-      ninetyPlus: 100000.0,
-      reported: true,
-    },
-    {
-      branch: "06-STR",
-      writeOffs: 4000.0,
-      ninetyPlus: 220000.0,
-      reported: true,
-    },
-    { branch: "07-KCH", writeOffs: 0, ninetyPlus: 0, reported: false },
-    { branch: "08-KKG", writeOffs: 0, ninetyPlus: 0, reported: false },
-    { branch: "09-PST", writeOffs: 0, ninetyPlus: 0, reported: false },
-    { branch: "10-BMC", writeOffs: 0, ninetyPlus: 0, reported: false },
-    { branch: "11-KPT", writeOffs: 0, ninetyPlus: 0, reported: false },
-    { branch: "12-SRL", writeOffs: 0, ninetyPlus: 0, reported: false },
-    { branch: "13-SRG", writeOffs: 0, ninetyPlus: 0, reported: false },
-    { branch: "14-OMC", writeOffs: 0, ninetyPlus: 0, reported: false },
-    { branch: "15-RLU", writeOffs: 0, ninetyPlus: 0, reported: false },
-    { branch: "16-KTM", writeOffs: 0, ninetyPlus: 0, reported: false },
-  ],
+// Define proper types for our data
+interface Branch {
+  branchId: string;
+  branchCode: string;
+  branchName: string;
+  writeOffs: number;
+  ninetyPlus: number;
+  reportsCount: number;
+  hasReports: boolean;
+}
+
+interface HistoricalDataPoint {
+  date: string;
+  writeOffs: number;
+  ninetyPlus: number;
+  count: number;
+}
+
+interface ConsolidatedData {
+  period: {
+    start: string;
+    end: string;
+    type: "day" | "week" | "month";
+  };
+  metrics: {
+    totalWriteOffs: number;
+    totalNinetyPlus: number;
+    reportedBranches: number;
+    totalBranches: number;
+    coveragePercentage: number;
+  };
+  missingBranches: Array<{
+    id: string;
+    code: string;
+    name: string;
+  }>;
+  branchData: Branch[];
+  historicalData: HistoricalDataPoint[];
+}
+
+// Custom tooltip interfaces
+interface TooltipPayloadData {
+  name: string;
+  branchName?: string;
+  branchCode?: string;
+  writeOffs?: number;
+  ninetyPlus?: number;
+  date?: string;
+  count?: number;
+  writeOffsPercentage?: number;
+  ninetyPlusPercentage?: number;
+  hasReports?: boolean;
+  writeOffsChange?: number;
+  ninetyPlusChange?: number;
+}
+
+interface TooltipPayloadItem {
+  payload: TooltipPayloadData;
+  name: string;
+  value: number;
+  dataKey: string;
+  color: string;
+}
+
+// Create a custom tooltip component for branch performance chart
+const CustomBranchTooltip = ({
+  active,
+  payload,
+}: {
+  active?: boolean;
+  payload?: Array<TooltipPayloadItem>;
+}) => {
+  if (!active || !payload || !payload.length) return null;
+
+  const data = payload[0].payload;
+
+  return (
+    <div className="bg-white dark:bg-gray-800 p-3 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg">
+      <div className="flex items-center space-x-2 mb-2">
+        <div className="w-3 h-3 rounded-full bg-blue-500" />
+        <span className="font-medium">
+          {data.name} - {data.branchName}
+        </span>
+      </div>
+      <div className="border-t border-gray-200 dark:border-gray-700 my-2" />
+
+      {payload.map((entry: TooltipPayloadItem, index: number) => (
+        <div key={`item-${index}`} className="py-1">
+          <div className="flex justify-between items-center">
+            <span className="flex items-center text-sm">
+              <div
+                className="w-2 h-2 rounded-full mr-1"
+                style={{ backgroundColor: entry.color }}
+              />
+              {entry.name}:
+            </span>
+            <span className="font-medium text-sm">
+              {formatKHRCurrency(entry.value)}
+            </span>
+          </div>
+
+          {entry.dataKey === "writeOffs" && (
+            <div className="text-xs text-gray-500 flex justify-between mt-1">
+              <span>% of Total:</span>
+              <Badge variant="outline" className="h-5 px-1 font-normal">
+                {data.writeOffsPercentage}%
+              </Badge>
+            </div>
+          )}
+
+          {entry.dataKey === "ninetyPlus" && (
+            <div className="text-xs text-gray-500 flex justify-between mt-1">
+              <span>% of Total:</span>
+              <Badge variant="outline" className="h-5 px-1 font-normal">
+                {data.ninetyPlusPercentage}%
+              </Badge>
+            </div>
+          )}
+        </div>
+      ))}
+
+      <div className="border-t border-gray-200 dark:border-gray-700 my-2" />
+      <div className="flex justify-between text-xs text-gray-500">
+        <span>Status:</span>
+        <span>{data.hasReports ? "Reported" : "Missing"}</span>
+      </div>
+      <div className="text-xs text-blue-600 dark:text-blue-400 mt-2 flex justify-center items-center cursor-pointer">
+        <ArrowRight className="h-3 w-3 mr-1" /> Click for details
+      </div>
+    </div>
+  );
 };
 
-// Mock weekly data
-const mockWeeklyData = {
-  startDate: "2023-03-01",
-  endDate: "2023-03-07",
-  totalWriteOffs: 1250000.0,
-  totalNinetyPlus: 1800000.0,
-  reportedBranches: 12,
-  totalBranches: 15,
-  branches: [
-    {
-      branch: "01-PNH",
-      writeOffs: 120000.0,
-      ninetyPlus: 350000.0,
-      reported: true,
-    },
-    {
-      branch: "02-BTB",
-      writeOffs: 85000.0,
-      ninetyPlus: 120000.0,
-      reported: true,
-    },
-    {
-      branch: "03-SRP",
-      writeOffs: 95000.0,
-      ninetyPlus: 110000.0,
-      reported: true,
-    },
-    {
-      branch: "04-KTI",
-      writeOffs: 145000.0,
-      ninetyPlus: 200000.0,
-      reported: true,
-    },
-    {
-      branch: "05-SHV",
-      writeOffs: 175000.0,
-      ninetyPlus: 250000.0,
-      reported: true,
-    },
-    {
-      branch: "06-STR",
-      writeOffs: 104000.0,
-      ninetyPlus: 320000.0,
-      reported: true,
-    },
-    {
-      branch: "07-KCH",
-      writeOffs: 85000.0,
-      ninetyPlus: 110000.0,
-      reported: true,
-    },
-    {
-      branch: "08-KKG",
-      writeOffs: 75000.0,
-      ninetyPlus: 90000.0,
-      reported: true,
-    },
-    {
-      branch: "09-PST",
-      writeOffs: 65000.0,
-      ninetyPlus: 80000.0,
-      reported: true,
-    },
-    {
-      branch: "10-BMC",
-      writeOffs: 55000.0,
-      ninetyPlus: 70000.0,
-      reported: true,
-    },
-    {
-      branch: "11-KPT",
-      writeOffs: 45000.0,
-      ninetyPlus: 60000.0,
-      reported: true,
-    },
-    {
-      branch: "12-SRL",
-      writeOffs: 35000.0,
-      ninetyPlus: 50000.0,
-      reported: true,
-    },
-    { branch: "13-SRG", writeOffs: 0, ninetyPlus: 0, reported: false },
-    { branch: "14-OMC", writeOffs: 0, ninetyPlus: 0, reported: false },
-    { branch: "15-RLU", writeOffs: 0, ninetyPlus: 0, reported: false },
-  ],
-  dailyTotals: [
-    { date: "2023-03-01", writeOffs: 180000, ninetyPlus: 250000 },
-    { date: "2023-03-02", writeOffs: 195000, ninetyPlus: 270000 },
-    { date: "2023-03-03", writeOffs: 210000, ninetyPlus: 290000 },
-    { date: "2023-03-04", writeOffs: 225000, ninetyPlus: 310000 },
-    { date: "2023-03-05", writeOffs: 240000, ninetyPlus: 330000 },
-    { date: "2023-03-06", writeOffs: 200000, ninetyPlus: 350000 },
-  ],
+// Create a custom tooltip component for time series chart
+const CustomTimeTooltip = ({
+  active,
+  payload,
+}: {
+  active?: boolean;
+  payload?: Array<TooltipPayloadItem>;
+}) => {
+  if (!active || !payload || !payload.length) return null;
+
+  const data = payload[0].payload;
+
+  return (
+    <div className="bg-white dark:bg-gray-800 p-3 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg">
+      <div className="flex items-center space-x-2 mb-2">
+        <div className="w-3 h-3 rounded-full bg-blue-500" />
+        <span className="font-medium">{data.date}</span>
+      </div>
+      <div className="border-t border-gray-200 dark:border-gray-700 my-2" />
+
+      {payload.map((entry: TooltipPayloadItem, index: number) => (
+        <div key={`item-${index}`} className="py-1">
+          <div className="flex justify-between items-center">
+            <span className="flex items-center text-sm">
+              <div
+                className="w-2 h-2 rounded-full mr-1"
+                style={{ backgroundColor: entry.color }}
+              />
+              {entry.name}:
+            </span>
+            <span
+              className={cn(
+                "flex items-center",
+                (data.writeOffsChange || 0) > 0
+                  ? "text-red-600 dark:text-red-400"
+                  : (data.writeOffsChange || 0) < 0
+                  ? "text-green-600 dark:text-green-400"
+                  : "text-gray-500"
+              )}
+            >
+              {(data.writeOffsChange || 0) > 0 && (
+                <TrendingUp className="h-3 w-3 mr-1" />
+              )}
+              {(data.writeOffsChange || 0) < 0 && (
+                <TrendingDown className="h-3 w-3 mr-1" />
+              )}
+              {(data.writeOffsChange || 0) === 0 && (
+                <Minus className="h-3 w-3 mr-1" />
+              )}
+              {(data.writeOffsChange || 0) > 0 ? "+" : ""}
+              {data.writeOffsChange || 0}%
+            </span>
+          </div>
+
+          {entry.dataKey === "ninetyPlus" && data.ninetyPlusChange && (
+            <div className="text-xs flex justify-between mt-1">
+              <span>Change:</span>
+              <span
+                className={cn(
+                  "flex items-center",
+                  (data.ninetyPlusChange || 0) > 0
+                    ? "text-red-600 dark:text-red-400"
+                    : (data.ninetyPlusChange || 0) < 0
+                    ? "text-green-600 dark:text-green-400"
+                    : "text-gray-500"
+                )}
+              >
+                {(data.ninetyPlusChange || 0) > 0 && (
+                  <TrendingUp className="h-3 w-3 mr-1" />
+                )}
+                {(data.ninetyPlusChange || 0) < 0 && (
+                  <TrendingDown className="h-3 w-3 mr-1" />
+                )}
+                {(data.ninetyPlusChange || 0) === 0 && (
+                  <Minus className="h-3 w-3 mr-1" />
+                )}
+                {(data.ninetyPlusChange || 0) > 0 ? "+" : ""}
+                {data.ninetyPlusChange || 0}%
+              </span>
+            </div>
+          )}
+        </div>
+      ))}
+
+      <div className="border-t border-gray-200 dark:border-gray-700 my-2" />
+      <div className="flex justify-between text-xs text-gray-500">
+        <span>Reports:</span>
+        <span>{data.count} submitted</span>
+      </div>
+      <div className="text-xs text-blue-600 dark:text-blue-400 mt-2 flex justify-center items-center cursor-pointer">
+        <ArrowRight className="h-3 w-3 mr-1" /> View trend details
+      </div>
+    </div>
+  );
 };
 
-// Mock monthly data
-const mockMonthlyData = {
-  month: "March 2023",
-  totalWriteOffs: 5200000.0,
-  totalNinetyPlus: 7500000.0,
-  reportedBranches: 15,
-  totalBranches: 15,
-  branches: [
-    {
-      branch: "01-PNH",
-      writeOffs: 520000.0,
-      ninetyPlus: 750000.0,
-      reported: true,
-    },
-    {
-      branch: "02-BTB",
-      writeOffs: 480000.0,
-      ninetyPlus: 620000.0,
-      reported: true,
-    },
-    {
-      branch: "03-SRP",
-      writeOffs: 450000.0,
-      ninetyPlus: 580000.0,
-      reported: true,
-    },
-    {
-      branch: "04-KTI",
-      writeOffs: 445000.0,
-      ninetyPlus: 570000.0,
-      reported: true,
-    },
-    {
-      branch: "05-SHV",
-      writeOffs: 435000.0,
-      ninetyPlus: 560000.0,
-      reported: true,
-    },
-    {
-      branch: "06-STR",
-      writeOffs: 425000.0,
-      ninetyPlus: 550000.0,
-      reported: true,
-    },
-    {
-      branch: "07-KCH",
-      writeOffs: 415000.0,
-      ninetyPlus: 540000.0,
-      reported: true,
-    },
-    {
-      branch: "08-KKG",
-      writeOffs: 405000.0,
-      ninetyPlus: 530000.0,
-      reported: true,
-    },
-    {
-      branch: "09-PST",
-      writeOffs: 395000.0,
-      ninetyPlus: 520000.0,
-      reported: true,
-    },
-    {
-      branch: "10-BMC",
-      writeOffs: 385000.0,
-      ninetyPlus: 510000.0,
-      reported: true,
-    },
-    {
-      branch: "11-KPT",
-      writeOffs: 375000.0,
-      ninetyPlus: 500000.0,
-      reported: true,
-    },
-    {
-      branch: "12-SRL",
-      writeOffs: 365000.0,
-      ninetyPlus: 490000.0,
-      reported: true,
-    },
-    {
-      branch: "13-SRG",
-      writeOffs: 355000.0,
-      ninetyPlus: 480000.0,
-      reported: true,
-    },
-    {
-      branch: "14-OMC",
-      writeOffs: 345000.0,
-      ninetyPlus: 470000.0,
-      reported: true,
-    },
-    {
-      branch: "15-RLU",
-      writeOffs: 335000.0,
-      ninetyPlus: 460000.0,
-      reported: true,
-    },
-  ],
-  weeklyTotals: [
-    { week: "Week 1", writeOffs: 1200000, ninetyPlus: 1800000 },
-    { week: "Week 2", writeOffs: 1300000, ninetyPlus: 1900000 },
-    { week: "Week 3", writeOffs: 1400000, ninetyPlus: 2000000 },
-    { week: "Week 4", writeOffs: 1300000, ninetyPlus: 1800000 },
-  ],
-};
+// After the custom tooltips but before the main component
+// Create a skeleton loader component for charts
+function ChartSkeleton({ className }: { className?: string }) {
+  return (
+    <div className={cn("animate-pulse space-y-3", className)}>
+      <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-1/3"></div>
+      <div className="h-[300px] bg-gray-100 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 flex items-center justify-center">
+        <BarChart2 className="h-16 w-16 text-gray-300 dark:text-gray-600" />
+      </div>
+    </div>
+  );
+}
+
+// Create a component for the metrics card skeleton
+function MetricCardSkeleton() {
+  return (
+    <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 overflow-hidden">
+      <CardContent className="p-4 md:p-6">
+        <div className="flex flex-col animate-pulse">
+          <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-2/3"></div>
+          <div className="h-8 bg-gray-100 dark:bg-gray-800 rounded mt-2 w-full"></div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function ConsolidatedView() {
-  const [date, setDate] = useState<Date>();
-  const [consolidatedData, setConsolidatedData] = useState<any>();
+  const [date, setDate] = useState<Date | undefined>(new Date());
+  const [period, setPeriod] = useState<"day" | "week" | "month">("day");
+  const [reportType, setReportType] = useState<"plan" | "actual">("actual");
   const [isLoading, setIsLoading] = useState(false);
-  const [viewType, setViewType] = useState("daily"); // daily, weekly, monthly
+  const [consolidatedData, setConsolidatedData] =
+    useState<ConsolidatedData | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [planData, setPlanData] = useState<ConsolidatedData | null>(null);
+  const [collapsedSections, setCollapsedSections] = useState<
+    Record<string, boolean>
+  >({
+    branchPerformance: false,
+    timeSeries: false,
+    trendAnalysis: false,
+  });
+  const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
+  const [visibleMetrics, setVisibleMetrics] = useState({
+    writeOffs: true,
+    ninetyPlus: true,
+  });
+  const [showYearOverYear, setShowYearOverYear] = useState(false);
+  const [detailsModalOpen, setDetailsModalOpen] = useState(false);
 
-  const handleGenerateReport = async () => {
-    if (!date) {
-      toast({
-        title: "Error",
-        description: "Please select a date",
-        variant: "destructive",
-      });
+  // Scroll references for animations
+  const chartRefs = {
+    branchPerformance: useRef<HTMLDivElement>(null),
+    timeSeries: useRef<HTMLDivElement>(null),
+    trendAnalysis: useRef<HTMLDivElement>(null),
+  };
+
+  useEffect(() => {
+    // Initialize with current date if not set
+    if (!date || isNaN(date.getTime())) {
+      setDate(new Date());
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchConsolidatedData();
+
+    if (reportType === "actual") {
+      fetchPlanDataForComparison();
+    } else {
+      setPlanData(null);
+    }
+  }, [date, period, reportType]);
+
+  // Animation effect when period changes
+  useEffect(() => {
+    // Reset collapsed sections when period changes
+    setCollapsedSections({
+      branchPerformance: false,
+      timeSeries: false,
+      trendAnalysis: false,
+    });
+
+    // Add a slight delay to ensure DOM is updated
+    const timeout = setTimeout(() => {
+      // Scroll to each section with smooth behavior
+      if (chartRefs.branchPerformance.current) {
+        chartRefs.branchPerformance.current.scrollIntoView({
+          behavior: "smooth",
+          block: "nearest",
+        });
+      }
+    }, 100);
+
+    return () => clearTimeout(timeout);
+  }, [period]);
+
+  const fetchConsolidatedData = async () => {
+    if (!date) return;
+
+    // Check if date is valid before proceeding
+    if (!(date instanceof Date) || isNaN(date.getTime())) {
+      setError("Invalid date selected. Please select a valid date.");
       return;
     }
 
     setIsLoading(true);
+    setError("");
+
     try {
-      // Format the date for the API - YYYY-MM-DD format without timezone
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, "0");
-      const day = String(date.getDate()).padStart(2, "0");
-      const formattedDate = `${year}-${month}-${day}T00:00:00.000Z`;
+      const formattedDate = format(date, "yyyy-MM-dd");
+      const url = `/api/reports/consolidated?date=${formattedDate}&period=${period}&type=${reportType}`;
 
-      console.log("Formatted date for API:", formattedDate);
-
-      // Call the API with the appropriate parameters
-      const apiUrl = `/api/consolidated?date=${encodeURIComponent(
-        formattedDate
-      )}&includeInactive=true&viewType=${viewType}`;
-      console.log("Calling API with URL:", apiUrl);
-
-      const response = await fetch(apiUrl);
-
-      console.log("API response status:", response.status);
+      const response = await fetch(url);
 
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error("API error response:", errorText);
-        throw new Error(
-          `Failed to fetch consolidated data: ${response.status} ${errorText}`
-        );
+        throw new Error(`Error fetching data: ${response.statusText}`);
       }
 
       const data = await response.json();
-      console.log("Received data from API:", data);
 
-      // Check if the API returned valid data
-      if (!data || !data.branches || data.branches.length === 0) {
-        console.warn("API returned empty data, using mock data for display");
-        // Use appropriate mock data based on view type
-        if (viewType === "daily") {
-          setConsolidatedData(mockConsolidatedData);
-        } else if (viewType === "weekly") {
-          setConsolidatedData(mockWeeklyData);
-        } else if (viewType === "monthly") {
-          setConsolidatedData(mockMonthlyData);
-        }
-
-        toast({
-          title: "Warning",
-          description: `No data available for the selected ${viewType} view. Showing mock data.`,
-          variant: "default",
-        });
-      } else {
-        // Process the API data to match the expected structure
-        const processedData = {
-          ...data,
-          totalWriteOffs: data.statistics?.totalWriteOffs || 0,
-          totalNinetyPlus: data.statistics?.totalNinetyPlus || 0,
-          reportedBranches: data.statistics?.reportedBranches || 0,
-          totalBranches: data.statistics?.totalBranches || 0,
-        };
-
-        // Use the real data
-        setConsolidatedData(processedData);
-        toast({
-          title: "Success",
-          description: "Report generated successfully",
-        });
+      // Validate historical data to ensure dates are valid
+      if (data && data.historicalData) {
+        // Filter out any items with invalid dates
+        data.historicalData = data.historicalData.filter(
+          (item: HistoricalDataPoint) => {
+            try {
+              if (!item.date || typeof item.date !== "string") return false;
+              // Try to parse the date to validate it
+              parseISO(item.date);
+              return true;
+            } catch {
+              console.warn("Filtered out item with invalid date:", item);
+              return false;
+            }
+          }
+        );
       }
-    } catch (error) {
-      console.error("Error generating report:", error);
-      toast({
-        title: "Error",
-        description: "Failed to generate report. Please try again.",
-        variant: "destructive",
-      });
+
+      setConsolidatedData(data);
+      setError("");
+    } catch {
+      console.error("Error fetching consolidated data");
+      setError("Failed to load consolidated data. Please try again.");
     } finally {
       setIsLoading(false);
     }
   };
 
+  const fetchPlanDataForComparison = async () => {
+    if (!date) return;
+
+    // Validate date
+    if (!(date instanceof Date) || isNaN(date.getTime())) {
+      console.error("Invalid date for plan data comparison");
+      return;
+    }
+
+    try {
+      const formattedDate = format(date, "yyyy-MM-dd");
+      const url = `/api/reports/consolidated?date=${formattedDate}&period=${period}&type=plan`;
+
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        console.error("Failed to fetch plan data for comparison");
+        return;
+      }
+
+      const data = await response.json();
+
+      // Add validation for historicalData in plan data
+      if (data && data.historicalData) {
+        // Filter out any items with invalid dates
+        data.historicalData = data.historicalData.filter(
+          (item: HistoricalDataPoint) => {
+            try {
+              if (!item.date || typeof item.date !== "string") return false;
+              // Try to parse the date to validate it
+              parseISO(item.date);
+              return true;
+            } catch {
+              console.warn("Filtered out plan item with invalid date:", item);
+              return false;
+            }
+          }
+        );
+      }
+
+      setPlanData(data);
+    } catch (error) {
+      console.error("Error fetching plan data for comparison:", error);
+    }
+  };
+
+  const handleGenerateReport = async () => {
+    await fetchConsolidatedData();
+    toast({
+      title: "Report Generated",
+      description: `Consolidated report for ${
+        date ? format(date, "PPP") : "today"
+      } has been generated.`,
+    });
+  };
+
   const handleExportCSV = () => {
-    if (!consolidatedData || !consolidatedData.branches) {
+    if (!consolidatedData || !consolidatedData.branchData) {
       toast({
         title: "Error",
         description: "No data to export. Please generate a report first.",
@@ -398,14 +518,14 @@ export default function ConsolidatedView() {
       let csvContent = "Branch,Write-Offs (KHR),90+ Days (KHR),Reported\n";
 
       // Add data rows
-      consolidatedData.branches.forEach((branch) => {
-        csvContent += `${branch.branch},${branch.writeOffs},${
+      consolidatedData.branchData.forEach((branch) => {
+        csvContent += `${branch.branchCode},${branch.writeOffs},${
           branch.ninetyPlus
-        },${branch.reported ? "Yes" : "No"}\n`;
+        },${branch.hasReports ? "Yes" : "No"}\n`;
       });
 
       // Add summary row
-      csvContent += `\nTotal,${consolidatedData.totalWriteOffs},${consolidatedData.totalNinetyPlus},${consolidatedData.reportedBranches}/${consolidatedData.totalBranches}\n`;
+      csvContent += `\nTotal,${consolidatedData.metrics.totalWriteOffs},${consolidatedData.metrics.totalNinetyPlus},${consolidatedData.metrics.reportedBranches}/${consolidatedData.metrics.totalBranches}\n`;
 
       // Create blob and download link
       const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
@@ -413,14 +533,14 @@ export default function ConsolidatedView() {
       const link = document.createElement("a");
 
       // Format the current date for the filename
-      const reportDate = new Date(consolidatedData.date);
+      const reportDate = new Date(consolidatedData.period.start);
       const formattedDate = reportDate.toISOString().split("T")[0];
 
       // Set link properties and trigger download
       link.setAttribute("href", url);
       link.setAttribute(
         "download",
-        `consolidated_report_${viewType}_${formattedDate}.csv`
+        `consolidated_report_${period}_${formattedDate}.csv`
       );
       link.style.visibility = "hidden";
       document.body.appendChild(link);
@@ -442,7 +562,7 @@ export default function ConsolidatedView() {
   };
 
   const handleExportPDF = () => {
-    if (!consolidatedData || !consolidatedData.branches) {
+    if (!consolidatedData || !consolidatedData.branchData) {
       toast({
         title: "Error",
         description: "No data to export. Please generate a report first.",
@@ -459,7 +579,7 @@ export default function ConsolidatedView() {
       }
 
       // Format the date
-      const reportDate = new Date(consolidatedData.date);
+      const reportDate = new Date(consolidatedData.period.start);
       const formattedDate = reportDate.toISOString().split("T")[0];
 
       // Create the HTML content
@@ -467,7 +587,7 @@ export default function ConsolidatedView() {
         <html>
           <head>
             <title>Consolidated Report ${
-              viewType.charAt(0).toUpperCase() + viewType.slice(1)
+              period.charAt(0).toUpperCase() + period.slice(1)
             } - ${formattedDate}</title>
             <style>
               body { font-family: Arial, sans-serif; margin: 20px; }
@@ -481,19 +601,19 @@ export default function ConsolidatedView() {
           </head>
           <body>
             <h1>Consolidated ${
-              viewType.charAt(0).toUpperCase() + viewType.slice(1)
+              period.charAt(0).toUpperCase() + period.slice(1)
             } Report - ${formattedDate}</h1>
             
             <div>
-              <p><strong>Total Write-Offs:</strong> ${formatCurrency(
-                consolidatedData?.totalWriteOffs || 0.0
+              <p><strong>Total Write-Offs:</strong> ${formatKHRCurrency(
+                consolidatedData?.metrics.totalWriteOffs || 0.0
               )}</p>
-              <p><strong>Total 90+ Days:</strong> ${formatCurrency(
-                consolidatedData?.totalNinetyPlus || 0.0
+              <p><strong>Total 90+ Days:</strong> ${formatKHRCurrency(
+                consolidatedData?.metrics.totalNinetyPlus || 0.0
               )}</p>
               <p><strong>Branches Reported:</strong> ${
-                consolidatedData?.reportedBranches || 0.0
-              } of ${consolidatedData?.totalBranches || 0.0}</p>
+                consolidatedData?.metrics.reportedBranches || 0.0
+              } of ${consolidatedData?.metrics.totalBranches || 0.0}</p>
             </div>
             
             <table>
@@ -506,14 +626,14 @@ export default function ConsolidatedView() {
                 </tr>
               </thead>
               <tbody>
-                ${(consolidatedData?.branches || [])
+                ${(consolidatedData?.branchData || [])
                   .map(
                     (branch) => `
                   <tr>
-                    <td>${branch.branch}</td>
-                    <td>${formatCurrency(branch.writeOffs)}</td>
-                    <td>${formatCurrency(branch.ninetyPlus)}</td>
-                    <td>${branch.reported ? "Yes" : "No"}</td>
+                    <td>${branch.branchCode}</td>
+                    <td>${formatKHRCurrency(branch.writeOffs)}</td>
+                    <td>${formatKHRCurrency(branch.ninetyPlus)}</td>
+                    <td>${branch.hasReports ? "Yes" : "No"}</td>
                   </tr>
                 `
                   )
@@ -549,123 +669,603 @@ export default function ConsolidatedView() {
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("km-KH", {
-      style: "currency",
-      currency: "KHR",
-      currencyDisplay: "symbol",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
-
-  // Prepare chart data from branches
   const getChartData = () => {
-    if (!consolidatedData || !consolidatedData.branches) return [];
-
-    // Filter only reported branches and sort by write-offs
-    return consolidatedData.branches
-      .filter((branch) => branch.reported)
-      .sort((a, b) => b.writeOffs - a.writeOffs)
-      .slice(0, 10) // Show top 10 branches
-      .map((branch) => ({
-        name: branch.branch,
-        writeOffs: branch.writeOffs,
-        ninetyPlus: branch.ninetyPlus,
-      }));
-  };
-
-  // Get time series data for weekly/monthly views
-  const getTimeSeriesData = () => {
     if (!consolidatedData) return [];
 
-    if (viewType === "weekly" && consolidatedData.dailyTotals) {
-      return consolidatedData.dailyTotals;
-    } else if (viewType === "monthly" && consolidatedData.weeklyTotals) {
-      return consolidatedData.weeklyTotals;
-    }
+    return consolidatedData.branchData.map((branch: Branch) => ({
+      name: branch.branchCode,
+      writeOffs: branch.writeOffs,
+      ninetyPlus: branch.ninetyPlus,
+      branchId: branch.branchId,
+      branchName: branch.branchName,
+      hasReports: branch.hasReports,
+      reportsCount: branch.reportsCount,
+      writeOffsPercentage: consolidatedData.metrics.totalWriteOffs
+        ? (
+            (branch.writeOffs / consolidatedData.metrics.totalWriteOffs) *
+            100
+          ).toFixed(1)
+        : "0",
+      ninetyPlusPercentage: consolidatedData.metrics.totalNinetyPlus
+        ? (
+            (branch.ninetyPlus / consolidatedData.metrics.totalNinetyPlus) *
+            100
+          ).toFixed(1)
+        : "0",
+    }));
+  };
 
-    return [];
+  const getTimeSeriesData = () => {
+    if (!consolidatedData || !consolidatedData.historicalData) return [];
+
+    // Sort data chronologically
+    const sortedData = [...consolidatedData.historicalData].sort((a, b) => {
+      return new Date(a.date).getTime() - new Date(b.date).getTime();
+    });
+
+    // Calculate period-over-period change percentages
+    return sortedData.map((item: HistoricalDataPoint, index) => {
+      // Add proper error handling for date parsing
+      let formattedDate = "Unknown Date";
+      let rawDate = null;
+      try {
+        // Check if item.date is a valid string before parsing
+        if (item.date && typeof item.date === "string") {
+          rawDate = parseISO(item.date);
+          formattedDate = format(rawDate, "MMM dd");
+        }
+      } catch (error) {
+        console.error("Error formatting date:", item.date, error);
+      }
+
+      // Calculate change from previous period if available
+      const prevItem = index > 0 ? sortedData[index - 1] : null;
+      const writeOffsChange =
+        prevItem && prevItem.writeOffs
+          ? (
+              ((item.writeOffs - prevItem.writeOffs) / prevItem.writeOffs) *
+              100
+            ).toFixed(1)
+          : null;
+      const ninetyPlusChange =
+        prevItem && prevItem.ninetyPlus
+          ? (
+              ((item.ninetyPlus - prevItem.ninetyPlus) / prevItem.ninetyPlus) *
+              100
+            ).toFixed(1)
+          : null;
+
+      // Add average for the last 3 periods if available
+      const last3Periods =
+        index >= 2
+          ? sortedData.slice(Math.max(0, index - 2), index + 1)
+          : sortedData.slice(0, index + 1);
+
+      const avgWriteOffs =
+        last3Periods.reduce((sum, curr) => sum + curr.writeOffs, 0) /
+        last3Periods.length;
+      const avgNinetyPlus =
+        last3Periods.reduce((sum, curr) => sum + curr.ninetyPlus, 0) /
+        last3Periods.length;
+
+      return {
+        date: formattedDate,
+        rawDate: rawDate,
+        writeOffs: item.writeOffs,
+        ninetyPlus: item.ninetyPlus,
+        count: item.count,
+        // Add trend information
+        writeOffsChange: writeOffsChange,
+        ninetyPlusChange: ninetyPlusChange,
+        avgWriteOffs: avgWriteOffs,
+        avgNinetyPlus: avgNinetyPlus,
+        // Direction indicators for tooltips
+        writeOffsTrend: writeOffsChange
+          ? parseFloat(writeOffsChange) > 0
+            ? "increasing"
+            : "decreasing"
+          : "stable",
+        ninetyPlusTrend: ninetyPlusChange
+          ? parseFloat(ninetyPlusChange) > 0
+            ? "increasing"
+            : "decreasing"
+          : "stable",
+      };
+    });
+  };
+
+  const getComparisonData = () => {
+    if (!consolidatedData || !planData) return [];
+
+    const comparisonData = consolidatedData.branchData.map((actualBranch) => {
+      const planBranch = planData.branchData.find(
+        (plan) => plan.branchId === actualBranch.branchId
+      );
+
+      return {
+        branch: actualBranch.branchCode,
+        actualWriteOffs: actualBranch.writeOffs,
+        planWriteOffs: planBranch?.writeOffs || 0,
+        actualNinetyPlus: actualBranch.ninetyPlus,
+        planNinetyPlus: planBranch?.ninetyPlus || 0,
+        writeOffsAchievement: planBranch?.writeOffs
+          ? (actualBranch.writeOffs / planBranch.writeOffs) * 100
+          : 0,
+        ninetyPlusAchievement: planBranch?.ninetyPlus
+          ? (actualBranch.ninetyPlus / planBranch.ninetyPlus) * 100
+          : 0,
+      };
+    });
+
+    return comparisonData.filter(
+      (item) => item.planWriteOffs > 0 || item.planNinetyPlus > 0
+    );
+  };
+
+  const handleReportTypeChange = (value: "plan" | "actual") => {
+    setReportType(value);
+  };
+
+  // Toggle collapsible section
+  const toggleSection = (section: keyof typeof collapsedSections) => {
+    setCollapsedSections((prev) => ({
+      ...prev,
+      [section]: !prev[section],
+    }));
+  };
+
+  // Add a function for retrying data fetch
+  const handleRetry = () => {
+    fetchConsolidatedData();
+    if (reportType === "actual") {
+      fetchPlanDataForComparison();
+    }
+    toast({
+      title: "Retrying...",
+      description: "Attempting to fetch the data again",
+    });
+  };
+
+  // Handle chart bar click for drill-down
+  const handleBarClick = (
+    data: Record<string, string | number | boolean | undefined>
+  ) => {
+    if (!data) return;
+
+    // For branch performance chart
+    if (data.branchId) {
+      // Ensure branchId is treated as a string for the state setter
+      const branchIdString = String(data.branchId);
+      setSelectedBranchId(branchIdString);
+      setDetailsModalOpen(true);
+
+      // Log the interaction
+      console.log("Branch clicked:", data.branchName);
+    }
+    // For time series chart
+    else if (data.rawDate) {
+      // Ensure rawDate is a valid date input for format function
+      const rawDate = data.rawDate;
+      if (typeof rawDate === "string" || typeof rawDate === "number") {
+        // Find the specific date data
+        console.log("Date clicked:", format(rawDate, "yyyy-MM-dd"));
+
+        // You could implement date-specific drill down here
+        toast({
+          title: "Date selected",
+          description: `Showing details for ${format(rawDate, "PPP")}`,
+        });
+      } else {
+        console.error("Invalid date format:", rawDate);
+      }
+    }
+  };
+
+  // Toggle visibility of metrics
+  const toggleMetricVisibility = (metric: "writeOffs" | "ninetyPlus") => {
+    setVisibleMetrics((prev) => ({
+      ...prev,
+      [metric]: !prev[metric],
+    }));
+  };
+
+  // Add this component for the metric toggles
+  const MetricToggles = () => (
+    <div className="flex flex-wrap gap-2 mb-4">
+      <Button
+        variant={visibleMetrics.writeOffs ? "default" : "outline"}
+        size="sm"
+        onClick={() => toggleMetricVisibility("writeOffs")}
+        className={
+          visibleMetrics.writeOffs ? "bg-blue-600 hover:bg-blue-700" : ""
+        }
+      >
+        {visibleMetrics.writeOffs ? (
+          <Eye className="h-4 w-4 mr-1" />
+        ) : (
+          <EyeOff className="h-4 w-4 mr-1" />
+        )}
+        Write-offs
+      </Button>
+      <Button
+        variant={visibleMetrics.ninetyPlus ? "default" : "outline"}
+        size="sm"
+        onClick={() => toggleMetricVisibility("ninetyPlus")}
+        className={
+          visibleMetrics.ninetyPlus ? "bg-green-600 hover:bg-green-700" : ""
+        }
+      >
+        {visibleMetrics.ninetyPlus ? (
+          <Eye className="h-4 w-4 mr-1" />
+        ) : (
+          <EyeOff className="h-4 w-4 mr-1" />
+        )}
+        90+ Days
+      </Button>
+      <Button
+        variant={showYearOverYear ? "default" : "outline"}
+        size="sm"
+        onClick={() => setShowYearOverYear(!showYearOverYear)}
+        className={showYearOverYear ? "bg-purple-600 hover:bg-purple-700" : ""}
+      >
+        <BarChart2 className="h-4 w-4 mr-1" />
+        Year-over-Year
+      </Button>
+    </div>
+  );
+
+  // Add a new function to get year-over-year comparison data
+  const getYearOverYearData = () => {
+    if (!consolidatedData || !consolidatedData.historicalData) return [];
+
+    // For demo purposes, we'll simulate last year's data
+    // In a real app, you would fetch this from the API
+    const thisYearData = getTimeSeriesData();
+    const lastYearData = thisYearData.map((item) => ({
+      ...item,
+      writeOffsLastYear: item.writeOffs * (0.8 + Math.random() * 0.4), // 80-120% of current value
+      ninetyPlusLastYear: item.ninetyPlus * (0.8 + Math.random() * 0.4),
+    }));
+
+    return lastYearData;
+  };
+
+  // Update ChartClickPayload to be compatible with handleBarClick parameter type
+  interface ChartClickPayload {
+    name?: string;
+    branchName?: string;
+    branchCode?: string;
+    writeOffs?: number;
+    ninetyPlus?: number;
+    date?: string;
+    count?: number;
+    writeOffsPercentage?: number;
+    ninetyPlusPercentage?: number;
+    hasReports?: boolean;
+    writeOffsChange?: number;
+    ninetyPlusChange?: number;
+    [key: string]: string | number | boolean | undefined;
+  }
+
+  interface ChartClickData {
+    activePayload?: Array<{
+      payload: ChartClickPayload;
+    }>;
+  }
+
+  const handleChartClick = (data: ChartClickData) => {
+    if (!data || !data.activePayload || !data.activePayload[0]) return;
+
+    const clickedData = data.activePayload[0].payload;
+    handleBarClick(clickedData);
+  };
+
+  // Branch Details Modal (moved inside the main component)
+  const BranchDetailsModal = ({
+    isOpen,
+    onClose,
+    branchId,
+  }: {
+    isOpen: boolean;
+    onClose: () => void;
+    branchId: string | null;
+  }) => {
+    // Find the branch data
+    const branch =
+      branchId && consolidatedData
+        ? consolidatedData.branchData.find((b) => b.branchId === branchId)
+        : null;
+
+    if (!branch) return null;
+
+    // Find plan data for this branch if we have it
+    const planBranch =
+      reportType === "actual" && planData
+        ? planData.branchData.find((p) => p.branchId === branchId)
+        : null;
+
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>
+              {branch.branchCode} - {branch.branchName}
+            </DialogTitle>
+            <DialogDescription>
+              Detailed branch performance metrics
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <Card>
+                <CardContent className="pt-6">
+                  <h3 className="text-sm font-medium text-gray-500 mb-2">
+                    Write-offs
+                  </h3>
+                  <div className="text-2xl font-bold">
+                    {formatKHRCurrency(branch.writeOffs)}
+                  </div>
+                  {planBranch && (
+                    <div className="mt-2 text-sm">
+                      <span className="text-gray-500">Plan: </span>
+                      {formatKHRCurrency(planBranch.writeOffs)}
+                      <Badge
+                        className={cn(
+                          "ml-2",
+                          branch.writeOffs >= planBranch.writeOffs
+                            ? "bg-green-100 text-green-800"
+                            : "bg-amber-100 text-amber-800"
+                        )}
+                      >
+                        {planBranch.writeOffs > 0
+                          ? `${Math.round(
+                              (branch.writeOffs / planBranch.writeOffs) * 100
+                            )}%`
+                          : "N/A"}
+                      </Badge>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="pt-6">
+                  <h3 className="text-sm font-medium text-gray-500 mb-2">
+                    90+ Days
+                  </h3>
+                  <div className="text-2xl font-bold">
+                    {formatKHRCurrency(branch.ninetyPlus)}
+                  </div>
+                  {planBranch && (
+                    <div className="mt-2 text-sm">
+                      <span className="text-gray-500">Plan: </span>
+                      {formatKHRCurrency(planBranch.ninetyPlus)}
+                      <Badge
+                        className={cn(
+                          "ml-2",
+                          branch.ninetyPlus >= planBranch.ninetyPlus
+                            ? "bg-green-100 text-green-800"
+                            : "bg-amber-100 text-amber-800"
+                        )}
+                      >
+                        {planBranch.ninetyPlus > 0
+                          ? `${Math.round(
+                              (branch.ninetyPlus / planBranch.ninetyPlus) * 100
+                            )}%`
+                          : "N/A"}
+                      </Badge>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Performance Metrics</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm text-gray-500">
+                    % of Total Write-offs:
+                  </span>
+                  <span className="font-medium">
+                    {(
+                      (branch.writeOffs /
+                        (consolidatedData?.metrics.totalWriteOffs || 1)) *
+                      100
+                    ).toFixed(1)}
+                    %
+                  </span>
+                </div>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm text-gray-500">
+                    % of Total 90+ Days:
+                  </span>
+                  <span className="font-medium">
+                    {(
+                      (branch.ninetyPlus /
+                        (consolidatedData?.metrics.totalNinetyPlus || 1)) *
+                      100
+                    ).toFixed(1)}
+                    %
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-500">Report Status:</span>
+                  <Badge
+                    variant={branch.hasReports ? "default" : "outline"}
+                    className={
+                      branch.hasReports
+                        ? "bg-green-500"
+                        : "text-amber-600 border-amber-600"
+                    }
+                  >
+                    {branch.hasReports ? "Reported" : "Missing"}
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={onClose}>
+              Close
+            </Button>
+            <Button
+              onClick={() => {
+                onClose();
+                // In a real app, you could navigate to a dedicated branch page
+                toast({
+                  title: "Branch reports",
+                  description: `Viewing all reports for ${branch.branchCode} is not implemented in this demo`,
+                });
+              }}
+            >
+              View All Reports
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
   };
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Consolidated Report</CardTitle>
+        <CardTitle>Consolidated Reports</CardTitle>
         <CardDescription>
-          View consolidated data for all branches
+          View aggregated metrics across all branches
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="flex flex-col space-y-4">
-          {/* View Type Tabs */}
-          <Tabs
-            defaultValue="daily"
-            value={viewType}
-            onValueChange={setViewType}
-            className="w-full"
-          >
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="daily">Daily View</TabsTrigger>
-              <TabsTrigger value="weekly">Weekly View</TabsTrigger>
-              <TabsTrigger value="monthly">Monthly View</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="daily" className="mt-4">
-              <p className="text-sm text-muted-foreground mb-4">
-                View consolidated data for a specific date across all branches.
+        <div className="space-y-6">
+          {/* Enhanced Period Selection with Animated Transitions */}
+          <div className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-4 sm:space-y-0">
+            <div className="space-y-2">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                Consolidated Performance
+              </h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                {consolidatedData
+                  ? `Data for ${
+                      period === "day"
+                        ? "daily"
+                        : period === "week"
+                        ? "weekly"
+                        : "monthly"
+                    } period ${format(date || new Date(), "MMMM d, yyyy")}`
+                  : "Select a date and period to view data"}
               </p>
-            </TabsContent>
+            </div>
 
-            <TabsContent value="weekly" className="mt-4">
-              <p className="text-sm text-muted-foreground mb-4">
-                View weekly consolidated data starting from the selected date.
-              </p>
-            </TabsContent>
+            <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 w-full sm:w-auto">
+              <Tabs
+                value={period}
+                onValueChange={(value: string) => {
+                  if (
+                    value === "day" ||
+                    value === "week" ||
+                    value === "month"
+                  ) {
+                    // Add a transition effect when changing periods
+                    const content = document.getElementById(
+                      "consolidated-content"
+                    );
+                    if (content) {
+                      content.classList.add("opacity-0", "scale-95");
+                      setTimeout(() => {
+                        setPeriod(value as "day" | "week" | "month");
+                        setTimeout(() => {
+                          content.classList.remove("opacity-0", "scale-95");
+                        }, 50);
+                      }, 150);
+                    } else {
+                      setPeriod(value as "day" | "week" | "month");
+                    }
+                  }
+                }}
+                className="w-full sm:w-auto"
+              >
+                <TabsList className="grid grid-cols-3 w-full">
+                  <TabsTrigger
+                    value="day"
+                    className="data-[state=active]:bg-blue-600 data-[state=active]:text-white"
+                  >
+                    Daily
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="week"
+                    className="data-[state=active]:bg-blue-600 data-[state=active]:text-white"
+                  >
+                    Weekly
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="month"
+                    className="data-[state=active]:bg-blue-600 data-[state=active]:text-white"
+                  >
+                    Monthly
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
 
-            <TabsContent value="monthly" className="mt-4">
-              <p className="text-sm text-muted-foreground mb-4">
-                View monthly consolidated data for the month of the selected
-                date.
-              </p>
-            </TabsContent>
-          </Tabs>
+              <Tabs
+                value={reportType}
+                onValueChange={(value) =>
+                  handleReportTypeChange(value as "plan" | "actual")
+                }
+                className="w-full sm:w-auto"
+              >
+                <TabsList className="grid grid-cols-2 w-full">
+                  <TabsTrigger
+                    value="plan"
+                    className="data-[state=active]:bg-blue-600 data-[state=active]:text-white"
+                  >
+                    Plan
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="actual"
+                    className="data-[state=active]:bg-green-600 data-[state=active]:text-white"
+                  >
+                    Actual
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+          </div>
 
           {/* Date Selection and Action Buttons */}
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
-            <div className="flex flex-col md:flex-row md:items-center space-y-2 md:space-y-0 md:space-x-2">
-              <span className="text-sm font-medium">
-                {viewType === "daily"
-                  ? "Select Date"
-                  : viewType === "weekly"
-                  ? "Select Start Date"
-                  : "Select Month"}
-              </span>
+          <div className="flex flex-col md:flex-row justify-between mb-6 space-y-4 md:space-y-0">
+            <div className="flex items-center">
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
                     variant={"outline"}
                     className={cn(
-                      "w-full md:w-auto justify-start text-left font-normal",
+                      "w-full md:w-[240px] justify-start text-left font-normal",
                       !date && "text-muted-foreground"
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {date ? format(date, "PPP") : <span>Select a date</span>}
+                    {date ? format(date, "PPP") : <span>Pick a date</span>}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0">
                   <Calendar
                     mode="single"
                     selected={date}
-                    onSelect={setDate}
+                    onSelect={(newDate) => {
+                      // Ensure we set a valid date or fallback to today
+                      setDate(newDate || new Date());
+                    }}
                     initialFocus
                   />
                 </PopoverContent>
               </Popover>
             </div>
 
-            <div className="flex flex-wrap gap-2">
+            <div className="flex space-x-2">
               <Button
                 onClick={handleGenerateReport}
                 disabled={!date || isLoading}
@@ -680,230 +1280,808 @@ export default function ConsolidatedView() {
                   "Generate"
                 )}
               </Button>
-              <div className="flex gap-2 w-full md:w-auto">
-                <Button
-                  onClick={handleExportCSV}
-                  variant="outline"
-                  className="flex items-center flex-1 md:flex-auto"
-                  disabled={!consolidatedData}
-                >
-                  <FileSpreadsheetIcon className="mr-2 h-4 w-4" />
-                  <span className="md:inline">CSV</span>
-                </Button>
-                <Button
-                  onClick={handleExportPDF}
-                  variant="outline"
-                  className="flex items-center flex-1 md:flex-auto"
-                  disabled={!consolidatedData}
-                >
-                  <FileIcon className="mr-2 h-4 w-4" />
-                  <span className="md:inline">PDF</span>
-                </Button>
-              </div>
+              <Button
+                onClick={handleExportCSV}
+                variant="outline"
+                className="flex items-center"
+                disabled={!consolidatedData}
+              >
+                <FileSpreadsheetIcon className="mr-2 h-4 w-4" />
+                <span className="hidden md:inline">Export CSV</span>
+                <span className="md:hidden">CSV</span>
+              </Button>
+              <Button
+                onClick={handleExportPDF}
+                variant="outline"
+                className="flex items-center"
+                disabled={!consolidatedData}
+              >
+                <FileIcon className="mr-2 h-4 w-4" />
+                <span className="hidden md:inline">Export PDF</span>
+                <span className="md:hidden">PDF</span>
+              </Button>
             </div>
           </div>
 
-          {/* Summary Cards */}
-          {consolidatedData && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 my-4">
-              <Card className="bg-white dark:bg-gray-800">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                    Total Write-offs
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {formatCurrency(consolidatedData?.totalWriteOffs || 0.0)}
-                  </div>
-                </CardContent>
-              </Card>
+          {/* Wrap content in a div that can be animated during transitions */}
+          <div
+            id="consolidated-content"
+            className="transition-all duration-300 ease-in-out transform"
+          >
+            {/* Loading state with skeletons */}
+            {isLoading && (
+              <div className="space-y-6 py-2">
+                {/* Metrics cards skeleton */}
+                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
+                  <MetricCardSkeleton />
+                  <MetricCardSkeleton />
+                  <MetricCardSkeleton />
+                  <MetricCardSkeleton />
+                </div>
 
-              <Card className="bg-white dark:bg-gray-800">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                    Total 90+ Days
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {formatCurrency(consolidatedData?.totalNinetyPlus || 0.0)}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-white dark:bg-gray-800">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                    Reporting Branches
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {consolidatedData?.reportedBranches || 0} /{" "}
-                    {consolidatedData?.totalBranches || 0}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-white dark:bg-gray-800">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                    {viewType === "daily"
-                      ? "Date"
-                      : viewType === "weekly"
-                      ? "Week Range"
-                      : "Month"}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {viewType === "daily"
-                      ? consolidatedData?.date
-                        ? new Date(consolidatedData.date).toLocaleDateString()
-                        : "N/A"
-                      : viewType === "weekly"
-                      ? `${consolidatedData?.startDate || ""} - ${
-                          consolidatedData?.endDate || ""
-                        }`
-                      : consolidatedData?.month || "N/A"}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          )}
-
-          {/* Branch Performance Chart */}
-          {consolidatedData && (
-            <div className="mt-6">
-              <h3 className="text-lg font-medium mb-4">Branch Performance</h3>
-              <div className="w-full h-80 border rounded-md p-4">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={getChartData()}
-                    margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip
-                      formatter={(value) => formatCurrency(value as number)}
-                    />
-                    <Legend />
-                    <Bar dataKey="writeOffs" name="Write-offs" fill="#8884d8" />
-                    <Bar dataKey="ninetyPlus" name="90+ Days" fill="#82ca9d" />
-                  </BarChart>
-                </ResponsiveContainer>
+                {/* Chart skeletons */}
+                <ChartSkeleton className="mt-6" />
+                <ChartSkeleton className="mt-6" />
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Time Series Chart for Weekly/Monthly Views */}
-          {consolidatedData &&
-            (viewType === "weekly" || viewType === "monthly") && (
-              <div className="mt-6">
-                <h3 className="text-lg font-medium mb-4">
-                  {viewType === "weekly" ? "Daily Trends" : "Weekly Trends"}
-                </h3>
-                <div className="w-full h-80 border rounded-md p-4">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={getTimeSeriesData()}
-                      margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis
-                        dataKey={viewType === "weekly" ? "date" : "week"}
-                      />
-                      <YAxis />
-                      <Tooltip
-                        formatter={(value) => formatCurrency(value as number)}
-                      />
-                      <Legend />
-                      <Bar
-                        dataKey="writeOffs"
-                        name="Write-offs"
-                        fill="#8884d8"
-                      />
-                      <Bar
-                        dataKey="ninetyPlus"
-                        name="90+ Days"
-                        fill="#82ca9d"
-                      />
-                    </BarChart>
-                  </ResponsiveContainer>
+            {/* Enhanced error state with retry button */}
+            {error && !isLoading && (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/30 text-red-600 dark:text-red-400 p-6 rounded-lg mb-6 animate-in slide-in-from-top-4 duration-300">
+                <div className="flex items-start">
+                  <AlertCircle className="h-5 w-5 mt-0.5 mr-2 flex-shrink-0" />
+                  <div className="flex-1">
+                    <h3 className="font-semibold mb-1 text-lg flex items-center">
+                      Error Loading Data
+                      <span className="ml-2 text-xs font-normal bg-red-100 dark:bg-red-900/50 py-0.5 px-1.5 rounded-full">
+                        Data Fetch Failed
+                      </span>
+                    </h3>
+                    <p className="text-sm mb-4">{error}</p>
+
+                    <div className="bg-white dark:bg-gray-800 rounded p-3 border border-red-100 dark:border-red-800/30 mb-4">
+                      <h4 className="text-sm font-medium mb-1 flex items-center">
+                        <AlertTriangle className="h-4 w-4 mr-1" />
+                        Possible causes:
+                      </h4>
+                      <ul className="text-xs list-disc pl-5 space-y-1">
+                        <li>Network connection issue</li>
+                        <li>Server is temporarily unavailable</li>
+                        <li>
+                          You might not have permission to access this data
+                        </li>
+                        <li>The requested date range contains no data</li>
+                      </ul>
+                    </div>
+
+                    <div className="flex space-x-3">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleRetry}
+                        className="bg-white dark:bg-gray-800 border-red-200 dark:border-red-800/50 hover:bg-red-50 dark:hover:bg-red-900/20"
+                      >
+                        <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+                        Retry
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setError(null)}
+                        className="hover:bg-red-50 dark:hover:bg-red-900/20"
+                      >
+                        Dismiss
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
 
-          {/* Branch Status Table */}
-          {consolidatedData && (
-            <div className="mt-6">
-              <h3 className="text-lg font-medium mb-4">Branch Status</h3>
-              <div className="rounded-md border overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="whitespace-nowrap">
-                        Branch
-                      </TableHead>
-                      <TableHead className="whitespace-nowrap text-right">
-                        Write-offs
-                      </TableHead>
-                      <TableHead className="whitespace-nowrap text-right">
-                        90+ Days
-                      </TableHead>
-                      <TableHead className="whitespace-nowrap text-center">
-                        Status
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {(consolidatedData?.branches || []).map((branch) => (
-                      <TableRow key={branch.branch}>
-                        <TableCell className="whitespace-nowrap font-medium">
-                          {branch.branch}
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap text-right">
-                          {formatCurrency(branch.writeOffs)}
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap text-right">
-                          {formatCurrency(branch.ninetyPlus)}
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap text-center">
-                          {branch.reported ? (
-                            <Badge className="bg-green-500">Reported</Badge>
-                          ) : (
-                            <Badge
-                              variant="outline"
-                              className="border-yellow-500 text-yellow-500"
-                            >
-                              Missing
-                            </Badge>
+            {/* Data display - only shown when data is loaded */}
+            {consolidatedData && !isLoading && !error && (
+              <>
+                {/* Metrics Overview Cards */}
+                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6 transition-all duration-300 ease-in-out">
+                  <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow duration-200 overflow-hidden">
+                    <CardContent className="p-4 md:p-6">
+                      <div className="flex flex-col">
+                        <span className="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400">
+                          Total Write-offs
+                        </span>
+                        <span className="text-lg sm:text-xl md:text-2xl font-bold mt-2 transition-all duration-300 ease-in-out animate-in fade-in-50 slide-in-from-bottom-5">
+                          {formatKHRCurrency(
+                            consolidatedData.metrics.totalWriteOffs
                           )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </div>
-          )}
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
 
-          {/* No Data Message */}
-          {!consolidatedData && !isLoading && (
-            <div className="flex flex-col items-center justify-center p-8 text-center">
-              <div className="text-muted-foreground mb-2">
-                No data to display
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Select a date and view type, then click Generate to view the
-                report.
-              </p>
-            </div>
-          )}
+                  <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow duration-200 overflow-hidden">
+                    <CardContent className="p-4 md:p-6">
+                      <div className="flex flex-col">
+                        <span className="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400">
+                          Total 90+ Days
+                        </span>
+                        <span
+                          className="text-lg sm:text-xl md:text-2xl font-bold mt-2 transition-all duration-300 ease-in-out animate-in fade-in-50 slide-in-from-bottom-5"
+                          style={{ animationDelay: "100ms" }}
+                        >
+                          {formatKHRCurrency(
+                            consolidatedData.metrics.totalNinetyPlus
+                          )}
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Branch Coverage Card with Enhanced Visual Indicator */}
+                  <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow duration-200 overflow-hidden">
+                    <CardContent className="p-4 md:p-6">
+                      <div className="flex flex-col">
+                        <span className="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400">
+                          Branch Coverage
+                        </span>
+                        <div className="flex flex-col sm:flex-row sm:items-end mt-2">
+                          <span
+                            className="text-lg sm:text-xl md:text-2xl font-bold transition-all duration-300 ease-in-out animate-in fade-in-50 slide-in-from-bottom-5"
+                            style={{ animationDelay: "200ms" }}
+                          >
+                            {consolidatedData.metrics.reportedBranches}/
+                            {consolidatedData.metrics.totalBranches}
+                          </span>
+                          <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 sm:ml-2 sm:mb-1">
+                            (
+                            {Math.round(
+                              consolidatedData.metrics.coveragePercentage
+                            )}
+                            %)
+                          </span>
+                        </div>
+
+                        {/* Visual progress indicator for branch coverage */}
+                        <div className="w-full h-3 bg-gray-100 dark:bg-gray-700 rounded-full mt-3 overflow-hidden relative">
+                          {/* Animated progress bar */}
+                          <div
+                            className="h-full rounded-full transition-all duration-1000 ease-out-expo"
+                            style={{
+                              width: `${consolidatedData.metrics.coveragePercentage}%`,
+                              backgroundColor:
+                                consolidatedData.metrics.coveragePercentage >=
+                                80
+                                  ? "#10b981" // green for good coverage
+                                  : consolidatedData.metrics
+                                      .coveragePercentage >= 50
+                                  ? "#f59e0b" // amber for medium coverage
+                                  : "#ef4444", // red for poor coverage
+                            }}
+                          />
+
+                          {/* Milestone markers */}
+                          <div className="absolute top-0 left-0 w-full h-full flex items-center justify-between px-[3px]">
+                            {[25, 50, 75].map((milestone) => (
+                              <div
+                                key={milestone}
+                                className="w-0.5 h-1/2 bg-gray-300 dark:bg-gray-600 rounded-full z-10"
+                                style={{
+                                  left: `${milestone}%`,
+                                  transform: "translateX(-50%)",
+                                }}
+                              />
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Label for coverage quality */}
+                        <div className="mt-2 text-xs">
+                          <span
+                            className={cn(
+                              "inline-block px-2 py-0.5 rounded-full font-medium",
+                              consolidatedData.metrics.coveragePercentage >= 80
+                                ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+                                : consolidatedData.metrics.coveragePercentage >=
+                                  50
+                                ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
+                                : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
+                            )}
+                          >
+                            {consolidatedData.metrics.coveragePercentage >= 80
+                              ? "Good"
+                              : consolidatedData.metrics.coveragePercentage >=
+                                50
+                              ? "Average"
+                              : "Poor"}
+                          </span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow duration-200 overflow-hidden">
+                    <CardContent className="p-4 md:p-6">
+                      <div className="flex flex-col">
+                        <span className="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400">
+                          Missing Reports
+                        </span>
+                        <div className="flex flex-col sm:flex-row sm:items-end mt-2">
+                          <span
+                            className="text-lg sm:text-xl md:text-2xl font-bold transition-all duration-300 ease-in-out animate-in fade-in-50 slide-in-from-bottom-5"
+                            style={{ animationDelay: "300ms" }}
+                          >
+                            {consolidatedData.missingBranches.length}
+                          </span>
+                          <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 sm:ml-2 sm:mb-1">
+                            branches
+                          </span>
+                        </div>
+
+                        {consolidatedData.missingBranches.length > 0 && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="mt-2 text-xs h-7 px-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+                          >
+                            View missing branches
+                          </Button>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Branch Performance Chart - Collapsible */}
+                <div
+                  className="mt-6 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden transition-all duration-300"
+                  ref={chartRefs.branchPerformance}
+                >
+                  <div
+                    className="bg-gray-50 dark:bg-gray-800 p-4 flex justify-between items-center cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-750 transition-colors"
+                    onClick={() => toggleSection("branchPerformance")}
+                  >
+                    <h3 className="text-lg font-medium">Branch Performance</h3>
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                      {collapsedSections.branchPerformance ? (
+                        <ChevronDown className="h-5 w-5" />
+                      ) : (
+                        <ChevronUp className="h-5 w-5" />
+                      )}
+                    </Button>
+                  </div>
+
+                  <div
+                    className={cn(
+                      "transition-all duration-300 ease-in-out",
+                      collapsedSections.branchPerformance
+                        ? "max-h-0 opacity-0 overflow-hidden"
+                        : "max-h-[500px] opacity-100"
+                    )}
+                  >
+                    {/* Metric Toggle Controls */}
+                    <div className="px-4 pt-4">
+                      <MetricToggles />
+                    </div>
+                    <div className="w-full h-[300px] sm:h-[400px] p-4">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart
+                          data={getChartData()}
+                          margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                          onClick={handleChartClick}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="name" />
+                          <YAxis />
+                          <Tooltip content={<CustomBranchTooltip />} />
+                          <Legend />
+                          {visibleMetrics.writeOffs && (
+                            <Bar
+                              dataKey="writeOffs"
+                              name="Write-offs"
+                              fill="#8884d8"
+                              cursor="pointer"
+                            />
+                          )}
+                          {visibleMetrics.ninetyPlus && (
+                            <Bar
+                              dataKey="ninetyPlus"
+                              name="90+ Days"
+                              fill="#82ca9d"
+                              cursor="pointer"
+                            />
+                          )}
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Time Series Chart - Collapsible */}
+                {consolidatedData.historicalData &&
+                  consolidatedData.historicalData.length > 0 && (
+                    <div
+                      className="mt-6 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden transition-all duration-300"
+                      ref={chartRefs.timeSeries}
+                    >
+                      <div
+                        className="bg-gray-50 dark:bg-gray-800 p-4 flex justify-between items-center cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-750 transition-colors"
+                        onClick={() => toggleSection("timeSeries")}
+                      >
+                        <h3 className="text-lg font-medium">
+                          {period === "day"
+                            ? "Daily Trends"
+                            : period === "week"
+                            ? "Weekly Trends"
+                            : "Monthly Trends"}
+                        </h3>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0"
+                        >
+                          {collapsedSections.timeSeries ? (
+                            <ChevronDown className="h-5 w-5" />
+                          ) : (
+                            <ChevronUp className="h-5 w-5" />
+                          )}
+                        </Button>
+                      </div>
+
+                      <div
+                        className={cn(
+                          "transition-all duration-300 ease-in-out",
+                          collapsedSections.timeSeries
+                            ? "max-h-0 opacity-0 overflow-hidden"
+                            : "max-h-[500px] opacity-100"
+                        )}
+                      >
+                        {/* Metric Toggle Controls */}
+                        <div className="px-4 pt-4">
+                          <MetricToggles />
+                        </div>
+                        <div className="w-full h-[300px] sm:h-[400px] p-4">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart
+                              data={
+                                showYearOverYear
+                                  ? getYearOverYearData()
+                                  : getTimeSeriesData()
+                              }
+                              margin={{
+                                top: 20,
+                                right: 30,
+                                left: 20,
+                                bottom: 5,
+                              }}
+                              onClick={handleChartClick}
+                            >
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis dataKey="date" />
+                              <YAxis />
+                              <Tooltip content={<CustomTimeTooltip />} />
+                              <Legend />
+                              {visibleMetrics.writeOffs && (
+                                <Bar
+                                  dataKey="writeOffs"
+                                  name="Write-offs"
+                                  fill="#8884d8"
+                                  cursor="pointer"
+                                />
+                              )}
+                              {showYearOverYear && visibleMetrics.writeOffs && (
+                                <Bar
+                                  dataKey="writeOffsLastYear"
+                                  name="Write-offs (Last Year)"
+                                  fill="#8884d8"
+                                  fillOpacity={0.4}
+                                  cursor="pointer"
+                                />
+                              )}
+                              {visibleMetrics.ninetyPlus && (
+                                <Bar
+                                  dataKey="ninetyPlus"
+                                  name="90+ Days"
+                                  fill="#82ca9d"
+                                  cursor="pointer"
+                                />
+                              )}
+                              {showYearOverYear &&
+                                visibleMetrics.ninetyPlus && (
+                                  <Bar
+                                    dataKey="ninetyPlusLastYear"
+                                    name="90+ Days (Last Year)"
+                                    fill="#82ca9d"
+                                    fillOpacity={0.4}
+                                    cursor="pointer"
+                                  />
+                                )}
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                {/* Trend Analysis Line Chart - Collapsible */}
+                {consolidatedData &&
+                  consolidatedData.historicalData &&
+                  consolidatedData.historicalData.length > 0 && (
+                    <div
+                      className="mt-6 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden transition-all duration-300"
+                      ref={chartRefs.trendAnalysis}
+                    >
+                      <div
+                        className="bg-gray-50 dark:bg-gray-800 p-4 flex justify-between items-center cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-750 transition-colors"
+                        onClick={() => toggleSection("trendAnalysis")}
+                      >
+                        <h3 className="text-lg font-medium">Trend Analysis</h3>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0"
+                        >
+                          {collapsedSections.trendAnalysis ? (
+                            <ChevronDown className="h-5 w-5" />
+                          ) : (
+                            <ChevronUp className="h-5 w-5" />
+                          )}
+                        </Button>
+                      </div>
+
+                      <div
+                        className={cn(
+                          "transition-all duration-300 ease-in-out",
+                          collapsedSections.trendAnalysis
+                            ? "max-h-0 opacity-0 overflow-hidden"
+                            : "max-h-[500px] opacity-100"
+                        )}
+                      >
+                        <div className="w-full h-[300px] sm:h-[400px] p-4">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <LineChart
+                              data={getTimeSeriesData().reverse()} // Reverse to show oldest to newest
+                              margin={{
+                                top: 20,
+                                right: 30,
+                                left: 20,
+                                bottom: 5,
+                              }}
+                            >
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis dataKey="date" />
+                              <YAxis />
+                              <Tooltip
+                                contentStyle={{
+                                  backgroundColor: "rgba(255, 255, 255, 0.9)",
+                                  border: "1px solid #ccc",
+                                  borderRadius: "4px",
+                                  padding: "10px",
+                                }}
+                              />
+                              <Legend />
+                              <Line
+                                type="monotone"
+                                dataKey="writeOffs"
+                                name="Write-offs"
+                                stroke="#8884d8"
+                                activeDot={{ r: 8 }}
+                                strokeWidth={2}
+                              />
+                              <Line
+                                type="monotone"
+                                dataKey="ninetyPlus"
+                                name="90+ Days"
+                                stroke="#82ca9d"
+                                activeDot={{ r: 8 }}
+                                strokeWidth={2}
+                              />
+                            </LineChart>
+                          </ResponsiveContainer>
+                          <div className="text-sm text-gray-500 mt-2 text-center">
+                            Trend over time showing write-offs and 90+ days
+                            outstanding amounts
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                {/* Plan vs Actual Comparison (only show when viewing actual data and plan data is available) */}
+                {reportType === "actual" && planData && (
+                  <div className="mt-6">
+                    <h3 className="text-lg font-medium mb-4">
+                      Plan vs. Actual Comparison
+                    </h3>
+
+                    {/* Overall Achievement Cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                        <CardContent className="p-4">
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                                Write-offs Achievement
+                              </h4>
+                              <div className="flex items-baseline mt-1">
+                                <span className="text-2xl font-bold">
+                                  {planData.metrics.totalWriteOffs > 0
+                                    ? `${(
+                                        (consolidatedData.metrics
+                                          .totalWriteOffs /
+                                          planData.metrics.totalWriteOffs) *
+                                        100
+                                      ).toFixed(1)}%`
+                                    : "N/A"}
+                                </span>
+                                <span className="ml-2 text-sm text-gray-500">
+                                  {formatKHRCurrency(
+                                    consolidatedData.metrics.totalWriteOffs
+                                  )}{" "}
+                                  /{" "}
+                                  {formatKHRCurrency(
+                                    planData.metrics.totalWriteOffs
+                                  )}
+                                </span>
+                              </div>
+                            </div>
+                            <div
+                              className={cn(
+                                "text-lg font-semibold rounded-full w-12 h-12 flex items-center justify-center",
+                                planData.metrics.totalWriteOffs > 0 &&
+                                  consolidatedData.metrics.totalWriteOffs >=
+                                    planData.metrics.totalWriteOffs
+                                  ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                                  : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                              )}
+                            >
+                              {planData.metrics.totalWriteOffs > 0
+                                ? `${Math.round(
+                                    (consolidatedData.metrics.totalWriteOffs /
+                                      planData.metrics.totalWriteOffs) *
+                                      100
+                                  )}%`
+                                : "N/A"}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                        <CardContent className="p-4">
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                                90+ Days Achievement
+                              </h4>
+                              <div className="flex items-baseline mt-1">
+                                <span className="text-2xl font-bold">
+                                  {planData.metrics.totalNinetyPlus > 0
+                                    ? `${(
+                                        (consolidatedData.metrics
+                                          .totalNinetyPlus /
+                                          planData.metrics.totalNinetyPlus) *
+                                        100
+                                      ).toFixed(1)}%`
+                                    : "N/A"}
+                                </span>
+                                <span className="ml-2 text-sm text-gray-500">
+                                  {formatKHRCurrency(
+                                    consolidatedData.metrics.totalNinetyPlus
+                                  )}{" "}
+                                  /{" "}
+                                  {formatKHRCurrency(
+                                    planData.metrics.totalNinetyPlus
+                                  )}
+                                </span>
+                              </div>
+                            </div>
+                            <div
+                              className={cn(
+                                "text-lg font-semibold rounded-full w-12 h-12 flex items-center justify-center",
+                                planData.metrics.totalNinetyPlus > 0 &&
+                                  consolidatedData.metrics.totalNinetyPlus >=
+                                    planData.metrics.totalNinetyPlus
+                                  ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                                  : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                              )}
+                            >
+                              {planData.metrics.totalNinetyPlus > 0
+                                ? `${Math.round(
+                                    (consolidatedData.metrics.totalNinetyPlus /
+                                      planData.metrics.totalNinetyPlus) *
+                                      100
+                                  )}%`
+                                : "N/A"}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+
+                    {/* Comparison Chart */}
+                    <div className="w-full h-80 border rounded-md p-4">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart
+                          data={getComparisonData()}
+                          margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="branch" />
+                          <YAxis />
+                          <Tooltip
+                            formatter={(value) =>
+                              formatKHRCurrency(value as number)
+                            }
+                            labelFormatter={(label) => `Branch: ${label}`}
+                          />
+                          <Legend />
+                          <Bar
+                            dataKey="planWriteOffs"
+                            name="Plan Write-offs"
+                            fill="#8884d8"
+                            opacity={0.6}
+                          />
+                          <Bar
+                            dataKey="actualWriteOffs"
+                            name="Actual Write-offs"
+                            fill="#8884d8"
+                          />
+                          <Bar
+                            dataKey="planNinetyPlus"
+                            name="Plan 90+ Days"
+                            fill="#82ca9d"
+                            opacity={0.6}
+                          />
+                          <Bar
+                            dataKey="actualNinetyPlus"
+                            name="Actual 90+ Days"
+                            fill="#82ca9d"
+                          />
+                        </BarChart>
+                      </ResponsiveContainer>
+                      <div className="text-sm text-gray-500 mt-2 text-center">
+                        Comparison of planned vs. actual figures for each branch
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Branch Status Table */}
+                <div className="mt-6">
+                  <h3 className="text-lg font-medium mb-4">Branch Status</h3>
+                  <div className="rounded-md border overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="whitespace-nowrap">
+                            Branch
+                          </TableHead>
+                          <TableHead className="whitespace-nowrap text-right">
+                            Write-offs
+                          </TableHead>
+                          {reportType === "actual" && planData && (
+                            <TableHead className="whitespace-nowrap text-center">
+                              Achievement
+                            </TableHead>
+                          )}
+                          <TableHead className="whitespace-nowrap text-right">
+                            90+ Days
+                          </TableHead>
+                          {reportType === "actual" && planData && (
+                            <TableHead className="whitespace-nowrap text-center">
+                              Achievement
+                            </TableHead>
+                          )}
+                          <TableHead className="whitespace-nowrap text-center">
+                            Status
+                          </TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {consolidatedData.branchData.map((branch: Branch) => {
+                          // Find corresponding plan data for this branch when in actual view
+                          const planBranch =
+                            reportType === "actual" && planData
+                              ? planData.branchData.find(
+                                  (plan) => plan.branchId === branch.branchId
+                                )
+                              : null;
+
+                          // Calculate achievement percentages
+                          const writeOffsAchievement =
+                            planBranch?.writeOffs && planBranch.writeOffs > 0
+                              ? (branch.writeOffs / planBranch.writeOffs) * 100
+                              : 0;
+
+                          const ninetyPlusAchievement =
+                            planBranch?.ninetyPlus && planBranch.ninetyPlus > 0
+                              ? (branch.ninetyPlus / planBranch.ninetyPlus) *
+                                100
+                              : 0;
+
+                          return (
+                            <TableRow key={branch.branchId}>
+                              <TableCell className="whitespace-nowrap font-medium">
+                                {branch.branchCode}
+                              </TableCell>
+                              <TableCell className="whitespace-nowrap text-right">
+                                {formatKHRCurrency(branch.writeOffs)}
+                              </TableCell>
+                              {reportType === "actual" && planData && (
+                                <TableCell className="whitespace-nowrap text-center">
+                                  {planBranch?.writeOffs &&
+                                  planBranch.writeOffs > 0 ? (
+                                    <Badge
+                                      className={cn(
+                                        "font-medium",
+                                        writeOffsAchievement >= 100
+                                          ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+                                          : writeOffsAchievement >= 80
+                                          ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
+                                          : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
+                                      )}
+                                    >
+                                      {writeOffsAchievement.toFixed(1)}%
+                                    </Badge>
+                                  ) : (
+                                    <span className="text-gray-400">N/A</span>
+                                  )}
+                                </TableCell>
+                              )}
+                              <TableCell className="whitespace-nowrap text-right">
+                                {formatKHRCurrency(branch.ninetyPlus)}
+                              </TableCell>
+                              {reportType === "actual" && planData && (
+                                <TableCell className="whitespace-nowrap text-center">
+                                  {planBranch?.ninetyPlus &&
+                                  planBranch.ninetyPlus > 0 ? (
+                                    <Badge
+                                      className={cn(
+                                        "font-medium",
+                                        ninetyPlusAchievement >= 100
+                                          ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+                                          : ninetyPlusAchievement >= 80
+                                          ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
+                                          : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
+                                      )}
+                                    >
+                                      {ninetyPlusAchievement.toFixed(1)}%
+                                    </Badge>
+                                  ) : (
+                                    <span className="text-gray-400">N/A</span>
+                                  )}
+                                </TableCell>
+                              )}
+                              <TableCell className="whitespace-nowrap text-center">
+                                {branch.hasReports ? (
+                                  <Badge className="bg-green-500">
+                                    Reported
+                                  </Badge>
+                                ) : (
+                                  <Badge
+                                    variant="outline"
+                                    className="border-yellow-500 text-yellow-500"
+                                  >
+                                    Missing
+                                  </Badge>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </CardContent>
+      <BranchDetailsModal
+        isOpen={detailsModalOpen}
+        onClose={() => setDetailsModalOpen(false)}
+        branchId={selectedBranchId}
+      />
     </Card>
   );
 }
