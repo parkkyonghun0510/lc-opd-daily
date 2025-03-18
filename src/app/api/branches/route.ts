@@ -5,8 +5,9 @@ import { getToken } from "next-auth/jwt";
 import { z } from "zod";
 import { UserRole } from "@/lib/auth/roles";
 import { getAccessibleBranches } from "@/lib/auth/branch-access";
+import { prisma } from "@/lib/prisma";
 
-const prisma = new PrismaClient();
+const prismaClient = new PrismaClient();
 
 // Validation schema for branch creation/update
 const branchSchema = z.object({
@@ -29,131 +30,45 @@ const branchSchema = z.object({
 // GET /api/branches - Get all branches with optional filtering
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const search = searchParams.get("search") || "";
-    const active = searchParams.get("active");
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "50");
-    const skip = (page - 1) * limit;
-
-    // Use NextAuth for authentication
     const token = await getToken({ req: request });
+
     if (!token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Build where clause
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const where: any = {};
-
-    if (search) {
-      where.OR = [
-        { code: { contains: search.toUpperCase(), mode: "insensitive" } },
-        { name: { contains: search, mode: "insensitive" } },
-      ];
-    }
-
-    if (active !== null) {
-      where.isActive = active === "true";
-    }
-
-    // Apply RBAC filters based on user role
-    if (token.role !== "admin") {
-      // Get branch IDs that this user can access
-      // Get user branch assignments
-      const userBranchAssignments = await prisma.$queryRaw<
-        Array<{ branchId: string }>
-      >`
-        SELECT "branchId" FROM "UserBranchAssignment" 
-        WHERE "userId" = ${token.id}
-      `;
-
-      const assignedBranchIds = userBranchAssignments.map(
-        (uba) => uba.branchId
+      return NextResponse.json(
+        { error: "Unauthorized - Authentication required" },
+        { status: 401 }
       );
-
-      // Get all branches for hierarchy calculation
-      const allBranches = await prisma.branch.findMany({
-        select: {
-          id: true,
-          parentId: true,
-        },
-      });
-
-      // Convert to BranchHierarchy structure for access control
-      const branchHierarchy = allBranches.map((branch) => ({
-        id: branch.id,
-        name: "", // Not needed for hierarchy check
-        parentId: branch.parentId,
-        level: 0, // Would need proper calculation in production
-        path: [branch.id], // Would need proper calculation in production
-      }));
-
-      // Get accessible branches based on user role
-      const accessibleBranchIds = getAccessibleBranches(
-        token.role as UserRole,
-        token.branchId || null,
-        branchHierarchy,
-        assignedBranchIds
-      );
-
-      // Filter by accessible branches
-      where.id = { in: accessibleBranchIds };
     }
 
-    // Get branches with counts and pagination
-    const [branches, total] = await Promise.all([
-      prisma.branch.findMany({
-        where,
-        orderBy: [{ isActive: "desc" }, { code: "asc" }],
-        include: {
-          parent: {
-            select: {
-              id: true,
-              code: true,
-              name: true,
-            },
-          },
-          children: {
-            select: {
-              id: true,
-              code: true,
-              name: true,
-            },
-          },
-          _count: {
-            select: {
-              users: true,
-              reports: true,
-              children: true,
-            },
-          },
-        },
-        skip,
-        take: limit,
-      }),
-      prisma.branch.count({ where }),
-    ]);
+    const url = new URL(request.url);
+    const searchQuery = url.searchParams.get("search") || "";
+    
+    // Build the query
+    const where = searchQuery 
+      ? {
+          OR: [
+            { name: { contains: searchQuery, mode: "insensitive" } },
+            { code: { contains: searchQuery, mode: "insensitive" } },
+          ],
+        } 
+      : {};
 
-    // If pagination was requested, return meta info
-    if (searchParams.has("page")) {
-      return NextResponse.json({
-        branches,
-        meta: {
-          total,
-          page,
-          limit,
-          pages: Math.ceil(total / limit),
-        },
-      });
-    }
+    // Fetch branches
+    const branches = await prisma.branch.findMany({
+      where,
+      select: {
+        id: true,
+        name: true,
+        code: true,
+        parentId: true,
+      },
+      orderBy: { name: "asc" },
+    });
 
-    // Otherwise just return the branches
     return NextResponse.json(branches);
   } catch (error) {
     console.error("Error fetching branches:", error);
     return NextResponse.json(
-      { error: "Failed to fetch branches" },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }
@@ -178,7 +93,7 @@ export async function POST(request: NextRequest) {
       const validatedData = branchSchema.parse(body);
 
       // Check if branch code already exists
-      const existingBranch = await prisma.branch.findUnique({
+      const existingBranch = await prismaClient.branch.findUnique({
         where: { code: validatedData.code },
       });
 
@@ -190,7 +105,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Create the branch
-      const branch = await prisma.branch.create({
+      const branch = await prismaClient.branch.create({
         data: validatedData,
         include: {
           _count: {
@@ -203,7 +118,7 @@ export async function POST(request: NextRequest) {
       });
 
       // Log the activity
-      await prisma.activityLog.create({
+      await prismaClient.activityLog.create({
         data: {
           userId: token.id as string,
           action: "CREATE_BRANCH",
@@ -257,7 +172,7 @@ export async function PATCH(request: NextRequest) {
       const validatedData = branchSchema.partial().parse(updateData);
 
       // Check if branch exists
-      const existingBranch = await prisma.branch.findUnique({
+      const existingBranch = await prismaClient.branch.findUnique({
         where: { id },
       });
 
@@ -270,7 +185,7 @@ export async function PATCH(request: NextRequest) {
 
       // If code is being changed, check if it already exists
       if (validatedData.code && validatedData.code !== existingBranch.code) {
-        const codeExists = await prisma.branch.findUnique({
+        const codeExists = await prismaClient.branch.findUnique({
           where: { code: validatedData.code },
         });
 
@@ -283,7 +198,7 @@ export async function PATCH(request: NextRequest) {
       }
 
       // Update the branch
-      const branch = await prisma.branch.update({
+      const branch = await prismaClient.branch.update({
         where: { id },
         data: validatedData,
         include: {
@@ -297,7 +212,7 @@ export async function PATCH(request: NextRequest) {
       });
 
       // Log the activity
-      await prisma.activityLog.create({
+      await prismaClient.activityLog.create({
         data: {
           userId: token.id as string,
           action: "UPDATE_BRANCH",
@@ -347,7 +262,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Check if branch exists and has no associated data
-    const branch = await prisma.branch.findUnique({
+    const branch = await prismaClient.branch.findUnique({
       where: { id },
       include: {
         _count: {
@@ -380,12 +295,12 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Delete the branch
-    await prisma.branch.delete({
+    await prismaClient.branch.delete({
       where: { id },
     });
 
     // Log the activity
-    await prisma.activityLog.create({
+    await prismaClient.activityLog.create({
       data: {
         userId: token.id as string,
         action: "DELETE_BRANCH",

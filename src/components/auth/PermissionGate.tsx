@@ -1,42 +1,86 @@
 import { ReactNode } from "react";
-import { Permission } from "@/lib/auth/roles";
-import { usePermissions } from "@/hooks/usePermissions";
+import { Permission, UserRole } from "@/lib/auth/roles";
+import { usePermissionCheck, useRoleCheck } from "@/hooks/usePermissionCheck";
 
 interface PermissionGateProps {
   children: ReactNode;
   fallback?: ReactNode;
   permissions?: Permission[];
+  requiredRole?: UserRole | UserRole[];
   requireAll?: boolean;
   branchId?: string;
+  showLoading?: boolean;
+  loadingComponent?: ReactNode;
 }
 
+/**
+ * PermissionGate component controls access to UI components based on user permissions
+ * It can check for specific permissions, roles, or branch access
+ * 
+ * @example
+ * <PermissionGate
+ *   permissions={[Permission.VIEW_REPORTS]}
+ *   fallback={<AccessDenied />}
+ * >
+ *   <ReportsTable />
+ * </PermissionGate>
+ */
 export function PermissionGate({
   children,
   fallback = null,
   permissions = [],
+  requiredRole,
   requireAll = false,
   branchId,
+  showLoading = true,
+  loadingComponent = <div>Loading permissions...</div>,
 }: PermissionGateProps) {
-  const { canAny, canAll, canAccessBranch } = usePermissions();
+  // Handle permission checks
+  const { 
+    hasPermission, 
+    isLoading: permissionsLoading, 
+    error: permissionsError 
+  } = usePermissionCheck(permissions, requireAll);
 
-  // Check branch access if branchId is provided
-  if (branchId && !canAccessBranch(branchId)) {
+  // Handle role checks if required
+  const { 
+    hasRole, 
+    isLoading: roleLoading 
+  } = useRoleCheck(requiredRole || []);
+
+  // Determine if we're still loading
+  const isLoading = permissions.length > 0 ? permissionsLoading : 
+    requiredRole ? roleLoading : false;
+
+  // Show loading state if still loading
+  if (isLoading && showLoading) {
+    return <>{loadingComponent}</>;
+  }
+
+  // Determine if access is granted
+  let hasAccess = true;
+
+  // Check permissions if needed
+  if (permissions.length > 0) {
+    hasAccess = hasAccess && hasPermission;
+  }
+
+  // Check role if needed
+  if (requiredRole) {
+    hasAccess = hasAccess && hasRole;
+  }
+
+  // Handle error cases
+  if (permissionsError && !hasAccess) {
     return <>{fallback}</>;
   }
 
-  // Check permissions
-  if (permissions.length > 0) {
-    const hasPermission = requireAll
-      ? canAll(permissions)
-      : canAny(permissions);
-
-    if (!hasPermission) {
-      return <>{fallback}</>;
-    }
-  }
-
-  return <>{children}</>;
+  // Render children if access granted, otherwise fallback
+  return hasAccess ? <>{children}</> : <>{fallback}</>;
 }
+
+// For backward compatibility
+export const AccessControl = PermissionGate;
 
 // Example usage:
 /*

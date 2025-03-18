@@ -5,7 +5,6 @@
 
 const { execSync } = require("child_process");
 const readline = require("readline");
-const fetch = require("node-fetch");
 const crypto = require("crypto");
 const path = require("path");
 const fs = require("fs");
@@ -65,7 +64,7 @@ async function promptPassword(question) {
   });
 }
 
-// Generate a random setup key
+// Generate setup key
 function generateSetupKey() {
   return crypto.randomBytes(16).toString("hex");
 }
@@ -142,7 +141,8 @@ async function setupSystem() {
 
     console.log("\n🔄 Setting up the system...");
 
-    // Call setup API endpoint
+    // Call setup API endpoint using dynamic import for node-fetch
+    const { default: fetch } = await import("node-fetch");
     const serverUrl = "http://localhost:3000";
     const response = await fetch(`${serverUrl}/api/setup`, {
       method: "POST",
@@ -181,5 +181,5 @@ async function setupSystem() {
   }
 }
 
-// Run the setup
+// Run setup
 setupSystem();

@@ -41,7 +41,7 @@ export function useReports({
   const fetchReports = async () => {
     setIsLoading(true);
     try {
-      let url = `/api/reports?page=${pagination.page}&limit=${pagination.limit}&type=${reportType}`;
+      let url = `/api/reports?page=${pagination.page}&limit=${pagination.limit}`;
 
       if (date) {
         url += `&date=${format(date, "yyyy-MM-dd")}`;
@@ -59,7 +59,7 @@ export function useReports({
       }
 
       const data = await response.json();
-      setReports(data.reports ?? []);
+      setReports(data.data ?? []);
       setPagination(
         data.pagination ?? {
           total: 0,
@@ -141,12 +141,12 @@ export function useReports({
   // Update an existing report
   const updateReport = async (id: string, data: Partial<CreateReportData>) => {
     try {
-      const response = await fetch(`/api/reports/${id}`, {
-        method: "PUT",
+      const response = await fetch("/api/reports", {
+        method: "PATCH",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify({ id, ...data }),
       });
 
       if (!response.ok) {

@@ -49,6 +49,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Search, Edit, Trash, Plus, Check, X } from "lucide-react";
+import { fetchUsers, fetchBranches } from "@/lib/api";
+import { UserRole } from "@/lib/auth/roles";
 
 type Branch = {
   id: string;
@@ -56,12 +58,16 @@ type Branch = {
   name: string;
 };
 
+type Role = UserRole;
+
+const ROLES: Role[] = Object.values(UserRole);
+
 type User = {
   id: string;
   username: string;
   email: string;
   name: string;
-  role: string;
+  role: Role;
   branchId: string | null;
   isActive: boolean;
   lastLogin: string | null;
@@ -89,11 +95,11 @@ export default function UsersPage() {
 
   // State for user list and pagination
   const [users, setUsers] = useState<User[]>([]);
-  const [meta, setMeta] = useState<Meta>({
+  const [meta, setMeta] = useState({
     total: 0,
     page: 1,
     limit: 10,
-    pages: 0,
+    pages: 1  // Initialize pages to 1
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -120,7 +126,7 @@ export default function UsersPage() {
     email: "",
     name: "",
     password: "",
-    role: "user",
+    role: "user" as Role,
     branchId: "none",
     isActive: true,
   });
@@ -130,7 +136,7 @@ export default function UsersPage() {
   const [formError, setFormError] = useState<string | null>(null);
 
   // Fetch users based on filters and pagination
-  const fetchUsers = async (page = 1) => {
+  const fetchUsersWithParams = async (page = 1) => {
     setLoading(true);
     setError(null);
 
@@ -148,15 +154,14 @@ export default function UsersPage() {
           activeFilter === "active" ? "true" : "false"
         );
 
-      const response = await fetch(`/api/users?${queryParams.toString()}`);
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch users");
-      }
-
-      const data = await response.json();
+      const data = await fetchUsers(`?${queryParams.toString()}`);
       setUsers(data.users);
-      setMeta(data.meta);
+      setMeta({
+        total: data.total,
+        page: data.page,
+        limit: data.limit,
+        pages: data.pages || 1, // Default to 1 if pages is not provided
+      });
     } catch (err) {
       console.error("Error fetching users:", err);
       setError("Failed to load users. Please try again.");
@@ -166,15 +171,9 @@ export default function UsersPage() {
   };
 
   // Fetch branches for dropdown
-  const fetchBranches = async () => {
+  const loadBranches = async () => {
     try {
-      const response = await fetch("/api/branches");
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch branches");
-      }
-
-      const data = await response.json();
+      const data = await fetchBranches();
       setBranches(data);
     } catch (err) {
       console.error("Error fetching branches:", err);
@@ -183,19 +182,19 @@ export default function UsersPage() {
 
   // Initial data load
   useEffect(() => {
-    fetchUsers();
-    fetchBranches();
+    fetchUsersWithParams();
+    loadBranches();
   }, []);
 
   // Handle filter changes
   useEffect(() => {
-    fetchUsers(1); // Reset to first page on filter change
+    fetchUsersWithParams(1); // Reset to first page on filter change
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, roleFilter, branchFilter, activeFilter]);
 
   // Handle page change
   const handlePageChange = (page: number) => {
-    fetchUsers(page);
+    fetchUsersWithParams(page);
   };
 
   // Handle role change
@@ -214,7 +213,7 @@ export default function UsersPage() {
       }
 
       // Refresh user list and reset editing state
-      fetchUsers();
+      fetchUsersWithParams();
       setEditingRole(null);
       setSelectedUser(null);
     } catch (err) {
@@ -246,7 +245,7 @@ export default function UsersPage() {
       email: "",
       name: "",
       password: "",
-      role: "user",
+      role: "user" as Role,
       branchId: "none",
       isActive: true,
     });
@@ -308,7 +307,7 @@ export default function UsersPage() {
       }
 
       // Refresh user list
-      fetchUsers();
+      fetchUsersWithParams();
       setCreateDialogOpen(false);
       resetFormData();
     } catch (err) {
@@ -355,7 +354,7 @@ export default function UsersPage() {
         }
 
         // Refresh user list
-        fetchUsers();
+        fetchUsersWithParams();
         setEditDialogOpen(false);
         resetFormData();
       } catch (err) {
@@ -383,7 +382,7 @@ export default function UsersPage() {
         }
 
         // Refresh user list
-        fetchUsers();
+        fetchUsersWithParams();
         setEditDialogOpen(false);
         resetFormData();
       } catch (err) {
@@ -412,7 +411,7 @@ export default function UsersPage() {
       }
 
       // Refresh user list
-      fetchUsers();
+      fetchUsersWithParams();
       setDeleteDialogOpen(false);
     } catch (err) {
       console.error("Error deleting user:", err);
@@ -459,9 +458,11 @@ export default function UsersPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Roles</SelectItem>
-                <SelectItem value="admin">Admin</SelectItem>
-                <SelectItem value="manager">Manager</SelectItem>
-                <SelectItem value="user">User</SelectItem>
+                {ROLES.map((role) => (
+                  <SelectItem key={role} value={role}>
+                    {role.charAt(0).toUpperCase() + role.slice(1)}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
 
@@ -546,16 +547,16 @@ export default function UsersPage() {
                                 <Select
                                   value={selectedUser?.role || user.role}
                                   onValueChange={(value) => {
-                                    setSelectedUser({ ...user, role: value });
+                                    setSelectedUser({ ...user, role: value as Role });
                                   }}
                                 >
                                   <SelectTrigger className="w-[140px]">
                                     <SelectValue />
                                   </SelectTrigger>
                                   <SelectContent>
-                                    {Object.values(UserRole).map((role) => (
+                                    {ROLES.map((role) => (
                                       <SelectItem key={role} value={role}>
-                                        {role.replace("_", " ")}
+                                        {role.charAt(0).toUpperCase() + role.slice(1)}
                                       </SelectItem>
                                     ))}
                                   </SelectContent>
@@ -587,7 +588,7 @@ export default function UsersPage() {
                               <div className="flex items-center gap-2">
                                 <Badge
                                   variant={
-                                    user.role === "admin"
+                                    user.role === UserRole.ADMIN
                                       ? "destructive"
                                       : "default"
                                   }
@@ -757,9 +758,11 @@ export default function UsersPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="manager">Manager</SelectItem>
-                  <SelectItem value="user">User</SelectItem>
+                  {ROLES.map((role) => (
+                    <SelectItem key={role} value={role}>
+                      {role.charAt(0).toUpperCase() + role.slice(1)}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -918,9 +921,11 @@ export default function UsersPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="manager">Manager</SelectItem>
-                  <SelectItem value="user">User</SelectItem>
+                  {ROLES.map((role) => (
+                    <SelectItem key={role} value={role}>
+                      {role.charAt(0).toUpperCase() + role.slice(1)}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

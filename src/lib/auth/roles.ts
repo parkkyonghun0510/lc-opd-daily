@@ -1,40 +1,45 @@
 export enum UserRole {
-  ADMIN = "admin",
-  BRANCH_MANAGER = "branch_manager",
-  SUPERVISOR = "supervisor",
-  USER = "user",
+  ADMIN = "ADMIN",
+  BRANCH_MANAGER = "BRANCH_MANAGER",
+  SUPERVISOR = "SUPERVISOR",
+  USER = "USER",
 }
 
 export enum Permission {
+  // Admin Access
+  ACCESS_ADMIN = "ACCESS_ADMIN",
+  ASSIGN_ROLES = "ASSIGN_ROLES",
+  MANAGE_USERS = "MANAGE_USERS",
+  MANAGE_BRANCHES = "MANAGE_BRANCHES",
+  MANAGE_SETTINGS = "MANAGE_SETTINGS",
+
   // Report Permissions
-  VIEW_REPORTS = "view_reports",
-  CREATE_REPORTS = "create_reports",
-  EDIT_REPORTS = "edit_reports",
-  DELETE_REPORTS = "delete_reports",
-  REVIEW_REPORTS = "review_reports",
-  CONSOLIDATE_REPORTS = "consolidate_reports",
-  EXPORT_REPORTS = "export_reports",
-  APPROVE_REPORTS = "approve_reports",
-  ARCHIVE_REPORTS = "archive_reports",
-  RESTORE_REPORTS = "restore_reports",
+  VIEW_REPORTS = "VIEW_REPORTS",
+  CREATE_REPORTS = "CREATE_REPORTS",
+  EDIT_REPORTS = "EDIT_REPORTS",
+  DELETE_REPORTS = "DELETE_REPORTS",
+  REVIEW_REPORTS = "REVIEW_REPORTS",
+  CONSOLIDATE_REPORTS = "CONSOLIDATE_REPORTS",
+  RESTORE_REPORTS = "RESTORE_REPORTS",
+  EXPORT_REPORTS = "EXPORT_REPORTS",
+  APPROVE_REPORTS = "APPROVE_REPORTS",
+  ARCHIVE_REPORTS = "ARCHIVE_REPORTS",
 
   // Branch Permissions
-  VIEW_BRANCH = "view_branch",
-  MANAGE_BRANCH = "manage_branch",
-  CREATE_BRANCH = "create_branch",
-  EDIT_BRANCH = "edit_branch",
-  DELETE_BRANCH = "delete_branch",
-  ASSIGN_BRANCH_MANAGER = "assign_branch_manager",
-  VIEW_BRANCH_ANALYTICS = "view_branch_analytics",
+  VIEW_BRANCH = "VIEW_BRANCH",
+  MANAGE_BRANCH = "MANAGE_BRANCH",
+  CREATE_BRANCH = "CREATE_BRANCH",
+  EDIT_BRANCH = "EDIT_BRANCH",
+  DELETE_BRANCH = "DELETE_BRANCH",
+  ASSIGN_BRANCH_MANAGER = "ASSIGN_BRANCH_MANAGER",
+  VIEW_BRANCH_ANALYTICS = "VIEW_BRANCH_ANALYTICS",
 
   // User Permissions
-  VIEW_USERS = "view_users",
-  MANAGE_USERS = "manage_users",
-  CREATE_USER = "create_user",
-  EDIT_USER = "edit_user",
-  DELETE_USER = "delete_user",
-  ASSIGN_ROLES = "assign_roles",
-  RESET_USER_PASSWORD = "reset_user_password",
+  VIEW_USERS = "VIEW_USERS",
+  CREATE_USER = "CREATE_USER",
+  EDIT_USER = "EDIT_USER",
+  DELETE_USER = "DELETE_USER",
+  RESET_USER_PASSWORD = "RESET_USER_PASSWORD",
 
   // Dashboard Permissions
   VIEW_DASHBOARD = "view_dashboard",
@@ -54,37 +59,23 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     Permission.VIEW_REPORTS,
     Permission.CREATE_REPORTS,
     Permission.EDIT_REPORTS,
-    Permission.REVIEW_REPORTS,
-    Permission.EXPORT_REPORTS,
-    Permission.APPROVE_REPORTS,
-    Permission.ARCHIVE_REPORTS,
+    Permission.DELETE_REPORTS,
     Permission.VIEW_BRANCH,
-    Permission.EDIT_BRANCH,
+    Permission.MANAGE_BRANCH,
     Permission.VIEW_USERS,
-    Permission.CREATE_USER,
-    Permission.EDIT_USER,
-    Permission.RESET_USER_PASSWORD,
-    Permission.VIEW_DASHBOARD,
-    Permission.VIEW_ANALYTICS,
     Permission.VIEW_BRANCH_ANALYTICS,
-    Permission.CUSTOMIZE_DASHBOARD,
-    Permission.VIEW_AUDIT_LOGS,
   ],
   [UserRole.SUPERVISOR]: [
     Permission.VIEW_REPORTS,
     Permission.CREATE_REPORTS,
     Permission.EDIT_REPORTS,
-    Permission.EXPORT_REPORTS,
     Permission.VIEW_BRANCH,
-    Permission.VIEW_DASHBOARD,
-    Permission.VIEW_ANALYTICS,
     Permission.VIEW_USERS,
   ],
   [UserRole.USER]: [
     Permission.VIEW_REPORTS,
     Permission.CREATE_REPORTS,
     Permission.VIEW_BRANCH,
-    Permission.VIEW_DASHBOARD,
   ],
 };
 
@@ -155,7 +146,7 @@ export function canAccessBranch(
     case UserRole.BRANCH_MANAGER:
       // Branch manager can access their default branch, assigned branches, and any child branches
       return (
-        targetBranch.path.includes(userBranchId) ||
+        (userBranchId !== null && targetBranch.path.includes(userBranchId)) ||
         assignedBranchIds?.some((id) => targetBranch.path.includes(id)) ||
         false
       );
@@ -216,4 +207,45 @@ export function getAccessibleBranches(
   }
 
   return Array.from(accessibleBranches);
+}
+
+// Utility for API routes to check permission
+export function checkPermission(
+  userRole: string,
+  requiredPermission: Permission
+): boolean {
+  if (!userRole || !Object.values(UserRole).includes(userRole as UserRole)) {
+    return false;
+  }
+  return hasPermission(userRole as UserRole, requiredPermission);
+}
+
+// Helper function to map UI permission strings to internal Permission enum
+export function mapToPermission(permissionString: string): Permission | null {
+  // Handle case differences (API and UI might use different casing conventions)
+  const normalizedString = permissionString.toUpperCase().replace(/ /g, '_');
+  const found = Object.values(Permission).find(
+    p => p.toUpperCase() === normalizedString
+  );
+  return found || null;
+}
+
+// Get display name for permission (useful for UI)
+export function getPermissionDisplayName(permission: Permission): string {
+  return permission
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+}
+
+// Group permissions by category for better UI organization
+export function getGroupedPermissions(): Record<string, Permission[]> {
+  return {
+    'Admin Access': Object.values(Permission).filter(p => p.startsWith('ACCESS_') || p.startsWith('ASSIGN_') || p.startsWith('MANAGE_')),
+    'Report Management': Object.values(Permission).filter(p => p.includes('REPORT')),
+    'Branch Management': Object.values(Permission).filter(p => p.includes('BRANCH')),
+    'User Management': Object.values(Permission).filter(p => p.includes('USER')),
+    'Dashboard & Analytics': Object.values(Permission).filter(p => p.toLowerCase().includes('dashboard') || p.toLowerCase().includes('analytics')),
+    'Audit & Logs': Object.values(Permission).filter(p => p.toLowerCase().includes('audit') || p.toLowerCase().includes('log')),
+  };
 }

@@ -200,4 +200,4 @@ export async function warmCache() {
   console.log("✨ Cache warming completed");
 }
 
-export { warmCache, warmChartsCache };
+export { warmChartsCache };

@@ -15,7 +15,7 @@ export async function GET(
     const token = await getToken({ req: request });
 
     // Check if user is authenticated and has admin role
-    if (!token || token.role !== "admin") {
+    if (!token || token.role !== "ADMIN") {
       return NextResponse.json(
         { error: "Unauthorized access" },
         { status: 403 }
@@ -78,7 +78,7 @@ export async function PATCH(
     const token = await getToken({ req: request });
 
     // Check if user is authenticated and has admin role
-    if (!token || token.role !== "admin") {
+    if (!token || token.role !== "ADMIN") {
       return NextResponse.json(
         { error: "Unauthorized access" },
         { status: 403 }
@@ -173,7 +173,7 @@ export async function DELETE(
     const token = await getToken({ req: request });
 
     // Check if user is authenticated and has admin role
-    if (!token || token.role !== "admin") {
+    if (!token || token.role !== "ADMIN") {
       return NextResponse.json(
         { error: "Unauthorized access" },
         { status: 403 }

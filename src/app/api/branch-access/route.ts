@@ -3,7 +3,6 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import {
-  UserRole,
   BranchAccessPermission,
   BranchAccessResult,
 } from "@/lib/types/branch";
@@ -13,6 +12,7 @@ import {
   getCachedUserBranchAccess,
   cacheUserBranchAccess,
 } from "@/lib/cache/branch-cache";
+import { UserRole } from "@/lib/auth/roles";
 
 /**
  * Check if a user has access to a specific branch
@@ -55,7 +55,7 @@ export async function GET(req: NextRequest) {
 
     // If not in cache, determine access
     // For admin, always grant access
-    if (userRole === "admin") {
+    if (userRole === UserRole.ADMIN) {
       await cacheBranchAccessCheck(userId, branchId, true);
       return NextResponse.json({
         hasAccess: true,
@@ -85,7 +85,7 @@ export async function GET(req: NextRequest) {
       WHERE "userId" = ${userId}
     `;
 
-    const assignedBranchIds = userBranchAssignments.map((a) => a.branchId);
+    const assignedBranchIds = userBranchAssignments.map((a: { branchId: any; }) => a.branchId);
 
     // Cache the assigned branch IDs for this user
     await cacheUserBranchAccess(userId, assignedBranchIds);
@@ -100,7 +100,7 @@ export async function GET(req: NextRequest) {
     }
 
     // For manager and supervisor roles, check branch hierarchy
-    if (["manager", "supervisor"].includes(userRole)) {
+    if ([UserRole.BRANCH_MANAGER, UserRole.SUPERVISOR].includes(userRole)) {
       // Get all branches to build hierarchy
       const branches = await db.branch.findMany({
         select: {
@@ -113,10 +113,10 @@ export async function GET(req: NextRequest) {
       const accessibleBranchIds = new Set<string>();
 
       // Add directly assigned branches
-      assignedBranchIds.forEach((id) => accessibleBranchIds.add(id));
+      assignedBranchIds.forEach((id: string) => accessibleBranchIds.add(id));
 
       // For managers, add child branches of assigned branches
-      if (userRole === "manager") {
+      if (userRole === UserRole.BRANCH_MANAGER) {
         for (const assignedId of assignedBranchIds) {
           addChildBranches(branches, assignedId, accessibleBranchIds);
         }
@@ -173,15 +173,14 @@ function addChildBranches(
  */
 function determineBranchPermission(role: UserRole): BranchAccessPermission {
   switch (role) {
-    case "admin":
+    case UserRole.ADMIN:
       return BranchAccessPermission.ADMIN;
-    case "manager":
+    case UserRole.BRANCH_MANAGER:
       return BranchAccessPermission.MANAGE;
-    case "supervisor":
+    case UserRole.SUPERVISOR:
       return BranchAccessPermission.APPROVE;
-    case "operator":
+    case UserRole.USER:
       return BranchAccessPermission.SUBMIT;
-    case "viewer":
     default:
       return BranchAccessPermission.VIEW;
   }

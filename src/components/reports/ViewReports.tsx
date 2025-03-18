@@ -64,6 +64,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
+import Link from "next/link";
 
 export function ViewReports() {
   const { data: session } = useSession();
@@ -104,8 +105,15 @@ export function ViewReports() {
         <CardHeader>
           <CardTitle>Access Denied</CardTitle>
           <CardDescription>
-            You are not assigned to any branches. Please contact your
-            administrator to get access.
+            <p>
+              You are not assigned to any branches. Please contact your
+              administrator to get access.
+            </p>
+            <p>
+              If you are an administrator, please go to the{" "}
+              <Link href="/admin/branches">branches {userBranches.length}</Link> page to assign
+              branches to users.
+            </p>
           </CardDescription>
         </CardHeader>
       </Card>
@@ -115,7 +123,7 @@ export function ViewReports() {
   const handleEditClick = (report: Report) => {
     // Only allow editing if user has access to the branch
     if (
-      session?.user?.role !== "admin" &&
+      session?.user?.role !== "ADMIN" &&
       session?.user?.branchId !== report.branch.id
     ) {
       toast({
@@ -166,11 +174,8 @@ export function ViewReports() {
         reportType: editingReport.reportType,
         writeOffs: writeOffsNum,
         ninetyPlus: ninetyPlusNum,
+        comments: editComments
       };
-
-      if (editComments !== undefined) {
-        updateData.comments = editComments;
-      }
 
       const success = await updateReport(editingReport.id, updateData);
 
@@ -218,8 +223,7 @@ export function ViewReports() {
   };
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return format(date, "yyyy-MM-dd");
+    return dateString; // The date is already in YYYY-MM-DD format
   };
 
   const formatCurrency = formatKHRCurrency;

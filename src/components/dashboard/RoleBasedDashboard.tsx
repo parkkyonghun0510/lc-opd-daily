@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
+import { UserRole } from "@/lib/auth/roles";
 
 interface StatCardProps {
   title: string;
@@ -51,7 +52,7 @@ function StatCard({ title, value, icon, description, onClick }: StatCardProps) {
 export function RoleBasedDashboard() {
   const { data: session } = useSession();
   const router = useRouter();
-  const userRole = session?.user?.role || "user";
+  const userRole = session?.user?.role || UserRole.USER;
 
   const AdminDashboard = () => (
     <div className="space-y-6">
@@ -218,10 +219,10 @@ export function RoleBasedDashboard() {
 
   return (
     <div className="p-6">
-      {userRole === "admin" && <AdminDashboard />}
-      {userRole === "manager" && <ManagerDashboard />}
-      {userRole === "user" && <UserDashboard />}
-      {userRole === "readonly" && <ReadOnlyDashboard />}
+      {userRole === UserRole.ADMIN && <AdminDashboard />}
+      {userRole === UserRole.BRANCH_MANAGER && <ManagerDashboard />}
+      {userRole === UserRole.USER && <UserDashboard />}
+      {userRole === UserRole.SUPERVISOR && <ReadOnlyDashboard />}
     </div>
   );
 }

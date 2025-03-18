@@ -5,6 +5,7 @@ import { getPrisma } from "@/lib/prisma-server";
 import { revalidatePath } from "next/cache";
 import { UserPreferences } from "../types";
 import { authOptions } from "@/lib/auth/options";
+import { UserRole } from "@/lib/auth/roles";
 
 // Type for user profile update data
 type UserProfileUpdate = {
@@ -75,15 +76,19 @@ export async function fetchUserData() {
           : undefined,
       },
       permissions: {
-        canAccessAdmin: userData.role === "admin",
-        canViewAnalytics: ["admin", "manager", "analyst"].includes(
-          userData.role
+        canAccessAdmin: userData.role === UserRole.ADMIN,
+        canViewAnalytics: [UserRole.ADMIN, UserRole.BRANCH_MANAGER, UserRole.SUPERVISOR].includes(
+          userData.role as UserRole
         ),
-        canViewAuditLogs: ["admin", "manager"].includes(userData.role),
-        canCustomizeDashboard: ["admin", "manager", "analyst"].includes(
-          userData.role
+        canViewAuditLogs: [UserRole.ADMIN, UserRole.BRANCH_MANAGER].includes(
+          userData.role as UserRole
         ),
-        canManageSettings: ["admin", "manager"].includes(userData.role),
+        canCustomizeDashboard: [UserRole.ADMIN, UserRole.BRANCH_MANAGER, UserRole.SUPERVISOR].includes(
+          userData.role as UserRole
+        ),
+        canManageSettings: [UserRole.ADMIN, UserRole.BRANCH_MANAGER].includes(
+          userData.role as UserRole
+        ),
       },
     };
 
