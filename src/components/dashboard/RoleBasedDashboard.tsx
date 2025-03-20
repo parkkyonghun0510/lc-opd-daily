@@ -10,10 +10,22 @@ import {
   Clock,
   AlertCircle,
   ChevronLeft,
+  Loader2,
+  Shield,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { UserRole } from "@/lib/auth/roles";
+import { useEffect, useState } from "react";
+import { toast } from "@/components/ui/use-toast";
+import { formatKHRCurrency } from "@/lib/utils";
+
+interface DashboardData {
+  totalUsers: number;
+  totalReports: number;
+  totalAmount: number;
+  growthRate: number;
+}
 
 interface StatCardProps {
   title: string;
@@ -21,9 +33,17 @@ interface StatCardProps {
   icon: React.ReactNode;
   description: string;
   onClick?: () => void;
+  isLoading?: boolean;
 }
 
-function StatCard({ title, value, icon, description, onClick }: StatCardProps) {
+function StatCard({ 
+  title, 
+  value, 
+  icon, 
+  description, 
+  onClick,
+  isLoading = false
+}: StatCardProps) {
   return (
     <Card
       className={`bg-white dark:bg-gray-800 rounded-lg shadow-sm ${
@@ -39,7 +59,14 @@ function StatCard({ title, value, icon, description, onClick }: StatCardProps) {
           </h3>
         </div>
         <div className="text-2xl font-semibold text-gray-900 dark:text-white mb-1">
-          {value}
+          {isLoading ? (
+            <div className="flex items-center">
+              <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+              <span className="text-gray-400">Loading...</span>
+            </div>
+          ) : (
+            value
+          )}
         </div>
         <p className="text-sm text-gray-500 dark:text-gray-400">
           {description}
@@ -53,6 +80,70 @@ export function RoleBasedDashboard() {
   const { data: session } = useSession();
   const router = useRouter();
   const userRole = session?.user?.role || UserRole.USER;
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+  const [pendingReports, setPendingReports] = useState<number | null>(null);
+  const [userStats, setUserStats] = useState<{total: number, active: number, admin: number} | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  useEffect(() => {
+    async function fetchDashboardData() {
+      try {
+        const response = await fetch("/api/dashboard/data");
+        if (!response.ok) {
+          throw new Error("Failed to fetch dashboard data");
+        }
+        const result = await response.json();
+        setDashboardData(result.data);
+      } catch (error) {
+        console.error("Error fetching dashboard data:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load dashboard data",
+          variant: "destructive"
+        });
+      }
+    }
+    
+    async function fetchPendingReports() {
+      try {
+        const response = await fetch("/api/reports/pending");
+        if (!response.ok) {
+          throw new Error("Failed to fetch pending reports");
+        }
+        const result = await response.json();
+        setPendingReports(result.reports.length);
+      } catch (error) {
+        console.error("Error fetching pending reports:", error);
+      }
+    }
+    
+    async function fetchUserStats() {
+      if (userRole === UserRole.ADMIN) {
+        try {
+          const response = await fetch("/api/users/stats");
+          if (!response.ok) {
+            throw new Error("Failed to fetch user statistics");
+          }
+          const result = await response.json();
+          setUserStats(result);
+        } catch (error) {
+          console.error("Error fetching user statistics:", error);
+        }
+      }
+    }
+    
+    const fetchAllData = async () => {
+      setIsLoading(true);
+      await Promise.all([
+        fetchDashboardData(),
+        fetchPendingReports(),
+        fetchUserStats()
+      ]);
+      setIsLoading(false);
+    };
+    
+    fetchAllData();
+  }, [userRole]);
 
   const AdminDashboard = () => (
     <div className="space-y-6">
@@ -66,45 +157,51 @@ export function RoleBasedDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <StatCard
           title="Total Users"
-          value={150}
+          value={userStats?.total || 0}
           icon={<Users size={20} />}
           description="Active users in the system"
           onClick={() => router.push("/dashboard/users")}
-        />
-        <StatCard
-          title="Total Branches"
-          value={12}
-          icon={<Building2 size={20} />}
-          description="Active branches"
-          onClick={() => router.push("/dashboard/branches")}
-        />
-        <StatCard
-          title="Pending Reports"
-          value={8}
-          icon={<Clock size={20} />}
-          description="Reports awaiting approval"
-          onClick={() => router.push("/dashboard/reports/pending")}
+          isLoading={isLoading}
         />
         <StatCard
           title="Total Reports"
-          value={450}
+          value={dashboardData?.totalReports || 0}
           icon={<FileText size={20} />}
-          description="All reports across branches"
+          description="Reports across all branches"
           onClick={() => router.push("/dashboard/reports")}
+          isLoading={isLoading}
         />
         <StatCard
-          title="System Alerts"
-          value={3}
-          icon={<AlertCircle size={20} />}
-          description="Active system notifications"
-          onClick={() => router.push("/dashboard/alerts")}
+          title="Pending Reports"
+          value={pendingReports || 0}
+          icon={<Clock size={20} />}
+          description="Reports awaiting approval"
+          onClick={() => router.push("/dashboard/reports/pending")}
+          isLoading={isLoading}
         />
         <StatCard
-          title="Monthly Activity"
-          value="View"
-          icon={<BarChart size={20} />}
-          description="System activity overview"
+          title="Total Amount"
+          value={formatKHRCurrency(dashboardData?.totalAmount || 0)}
+          icon={<Building2 size={20} />}
+          description="Total write-offs and 90+ days"
           onClick={() => router.push("/dashboard/analytics")}
+          isLoading={isLoading}
+        />
+        <StatCard
+          title="Admin Users"
+          value={userStats?.admin || 0}
+          icon={<Shield size={20} />}
+          description="Users with admin access"
+          onClick={() => router.push("/dashboard/admin/users")}
+          isLoading={isLoading}
+        />
+        <StatCard
+          title="Growth Rate"
+          value={`${dashboardData?.growthRate || 0}%`}
+          icon={<BarChart size={20} />}
+          description="Month-over-month growth"
+          onClick={() => router.push("/dashboard/analytics")}
+          isLoading={isLoading}
         />
       </div>
     </div>
@@ -121,25 +218,36 @@ export function RoleBasedDashboard() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <StatCard
-          title="Branch Users"
-          value={25}
-          icon={<Users size={20} />}
-          description="Users in your branches"
-          onClick={() => router.push("/dashboard/branch-users")}
+          title="Branch Reports"
+          value={dashboardData?.totalReports || 0}
+          icon={<FileText size={20} />}
+          description="Reports in your branches"
+          onClick={() => router.push("/dashboard/reports")}
+          isLoading={isLoading}
         />
         <StatCard
           title="Pending Reports"
-          value={5}
+          value={pendingReports || 0}
           icon={<Clock size={20} />}
           description="Reports awaiting your approval"
           onClick={() => router.push("/dashboard/reports/pending")}
+          isLoading={isLoading}
         />
         <StatCard
-          title="Branch Reports"
-          value={120}
-          icon={<FileText size={20} />}
-          description="All reports in your branches"
+          title="Total Amount"
+          value={formatKHRCurrency(dashboardData?.totalAmount || 0)}
+          icon={<Building2 size={20} />}
+          description="Total write-offs and 90+ days"
+          onClick={() => router.push("/dashboard/analytics")}
+          isLoading={isLoading}
+        />
+        <StatCard
+          title="Growth Rate"
+          value={`${dashboardData?.growthRate || 0}%`}
+          icon={<BarChart size={20} />}
+          description="Month-over-month growth"
           onClick={() => router.push("/dashboard/reports")}
+          isLoading={isLoading}
         />
       </div>
     </div>
@@ -169,24 +277,27 @@ export function RoleBasedDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <StatCard
           title="My Reports"
-          value={15}
+          value={dashboardData?.totalReports || 0}
           icon={<FileText className="h-5 w-5" />}
           description="Your submitted reports"
-          onClick={() => router.push("/dashboard/my-reports")}
+          onClick={() => router.push("/dashboard/reports")}
+          isLoading={isLoading}
         />
         <StatCard
-          title="Pending Reports"
-          value={2}
-          icon={<Clock className="h-5 w-5" />}
-          description="Your reports awaiting approval"
-          onClick={() => router.push("/dashboard/my-reports/pending")}
+          title="Total Amount"
+          value={formatKHRCurrency(dashboardData?.totalAmount || 0)}
+          icon={<Building2 className="h-5 w-5" />}
+          description="Total write-offs and 90+ days"
+          onClick={() => router.push("/dashboard/reports")}
+          isLoading={isLoading}
         />
         <StatCard
-          title="Branch Activity"
-          value="View"
+          title="Growth Rate"
+          value={`${dashboardData?.growthRate || 0}%`}
           icon={<BarChart className="h-5 w-5" />}
-          description="Your branch overview"
-          onClick={() => router.push("/dashboard/branch-activity")}
+          description="Month-over-month growth"
+          onClick={() => router.push("/dashboard/analytics")}
+          isLoading={isLoading}
         />
       </div>
     </div>
@@ -201,17 +312,27 @@ export function RoleBasedDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <StatCard
           title="Branch Reports"
-          value={120}
+          value={dashboardData?.totalReports || 0}
           icon={<FileText size={20} />}
           description="Available reports to view"
           onClick={() => router.push("/dashboard/reports")}
+          isLoading={isLoading}
         />
         <StatCard
-          title="Branch Activity"
-          value="View"
+          title="Total Amount"
+          value={formatKHRCurrency(dashboardData?.totalAmount || 0)}
+          icon={<Building2 size={20} />}
+          description="Total write-offs and 90+ days"
+          onClick={() => router.push("/dashboard/analytics")}
+          isLoading={isLoading}
+        />
+        <StatCard
+          title="Growth Rate"
+          value={`${dashboardData?.growthRate || 0}%`}
           icon={<BarChart size={20} />}
-          description="Branch statistics"
-          onClick={() => router.push("/dashboard/statistics")}
+          description="Month-over-month growth"
+          onClick={() => router.push("/dashboard/reports")}
+          isLoading={isLoading}
         />
       </div>
     </div>

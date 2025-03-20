@@ -14,6 +14,8 @@ import {
 import { toast } from "@/components/ui/use-toast";
 import { Loader2, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { BranchSelector } from "@/components/ui/branch-selector";
+import { Label } from "@/components/ui/label";
 
 interface Branch {
   id: string;
@@ -32,6 +34,7 @@ export function BranchAssignmentManager({ userId }: BranchAssignmentManagerProps
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedBranch, setSelectedBranch] = useState<string>("");
 
   useEffect(() => {
     const fetchData = async () => {
@@ -118,6 +121,41 @@ export function BranchAssignmentManager({ userId }: BranchAssignmentManagerProps
     branch.code.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const handleAssignBranch = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch(`/api/users/${userId}/branch-assignments`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ branchIds: [selectedBranch] }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to assign branch");
+      }
+
+      const updatedAssignments = await response.json();
+      setAssignedBranches(updatedAssignments);
+
+      toast({
+        title: "Success",
+        description: "Branch assigned successfully",
+      });
+    } catch (error) {
+      console.error("Error assigning branch:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to assign branch",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-32">
@@ -128,6 +166,25 @@ export function BranchAssignmentManager({ userId }: BranchAssignmentManagerProps
 
   return (
     <div className="space-y-4">
+      <div className="flex items-center gap-4">
+        <div className="flex-1">
+          <Label>Assign Branch</Label>
+          <BranchSelector
+            userId={userId}
+            value={selectedBranch}
+            onChange={setSelectedBranch}
+            placeholder="Select branch to assign"
+          />
+        </div>
+        <Button
+          onClick={handleAssignBranch}
+          disabled={!selectedBranch || isLoading}
+          className="mt-6"
+        >
+          {isLoading ? "Assigning..." : "Assign Branch"}
+        </Button>
+      </div>
+
       <div className="flex items-center space-x-2">
         <div className="relative flex-1">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />

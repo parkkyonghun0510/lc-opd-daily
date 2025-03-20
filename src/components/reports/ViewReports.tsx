@@ -65,6 +65,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
+import { UserDisplayName } from "@/components/user/UserDisplayName";
 
 export function ViewReports() {
   const { data: session } = useSession();
@@ -373,6 +374,7 @@ export function ViewReports() {
                 )}
                 <TableHead>Comments</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Submitted By</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -424,6 +426,9 @@ export function ViewReports() {
                       >
                         {report.status}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <UserDisplayName userId={report.submittedBy} />
                     </TableCell>
                     <TableCell>
                       <Button

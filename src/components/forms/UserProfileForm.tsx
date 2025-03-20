@@ -26,6 +26,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
+import { BranchSelector } from "@/components/ui/branch-selector";
+import { Label } from "@/components/ui/label";
+import { useUserData } from "@/contexts/UserDataContext";
 
 interface Branch {
   id: string;
@@ -181,31 +184,12 @@ export default function UserProfileForm({ user }: UserProfileFormProps) {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Primary Branch</FormLabel>
-                <Select
-                  onValueChange={field.onChange}
-                  defaultValue={field.value}
-                  disabled={loadingBranches}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select branch" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="">None</SelectItem>
-                    {loadingBranches ? (
-                      <div className="flex items-center justify-center py-2">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      </div>
-                    ) : (
-                      branches.map((branch) => (
-                        <SelectItem key={branch.id} value={branch.id}>
-                          {branch.name} ({branch.code})
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
+                <BranchSelector
+                  userId={user.id}
+                  value={field.value}
+                  onChange={field.onChange}
+                  placeholder="Select branch"
+                />
                 <p className="text-sm text-muted-foreground mt-1">
                   The primary branch this user belongs to.
                 </p>

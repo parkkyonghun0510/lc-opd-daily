@@ -6,11 +6,9 @@ import { format } from "date-fns";
 
 interface ValidationRules {
   writeOffs: {
-    maxAmount: number;
     requireApproval: boolean;
   };
   ninetyPlus: {
-    maxAmount: number;
     requireApproval: boolean;
   };
   comments: {
@@ -29,16 +27,11 @@ const reportFormSchema = z.object({
   branchId: z.string({
     required_error: "Branch is required",
   }),
-  writeOffs: z.string().refine((val) => {
-    const num = parseFloat(val);
-    return !isNaN(num) && num >= 0;
-  }, "Write-offs must be a positive number"),
-  ninetyPlus: z.string().refine((val) => {
-    const num = parseFloat(val);
-    return !isNaN(num) && num >= 0;
-  }, "90+ Days must be a positive number"),
+  writeOffs: z.number().min(0, "Write-offs must be a positive number"),
+  ninetyPlus: z.number().min(0, "90+ Days must be a positive number"),
   comments: z.string().optional(),
   reportType: z.enum(["plan", "actual"]),
+  title: z.string().min(1, "Title is required"),
 });
 
 type ReportFormData = z.infer<typeof reportFormSchema>;
@@ -59,16 +52,16 @@ export function useReportForm({
   const [formData, setFormData] = useState<ReportFormData>({
     date: new Date(),
     branchId: userBranches.length === 1 ? userBranches[0].id : "",
-    writeOffs: "",
-    ninetyPlus: "",
+    writeOffs: 0,
+    ninetyPlus: 0,
     comments: "",
     reportType,
+    title: `${reportType === "plan" ? "Plan" : "Actual"} Report - ${format(new Date(), "yyyy-MM-dd")}`,
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [validationRules, setValidationRules] =
-    useState<ValidationRules | null>(null);
+  const [validationRules, setValidationRules] = useState<ValidationRules>();
   const [isCheckingDuplicate, setIsCheckingDuplicate] = useState(false);
 
   // Fetch validation rules
@@ -130,7 +123,13 @@ export function useReportForm({
         const parsedDraft = JSON.parse(savedDraft);
         // Only load draft if it's for the same report type
         if (parsedDraft.reportType === reportType) {
-          setFormData(parsedDraft);
+          // Convert string values to numbers for numeric fields
+          const draftData = {
+            ...parsedDraft,
+            writeOffs: Number(parsedDraft.writeOffs),
+            ninetyPlus: Number(parsedDraft.ninetyPlus),
+          };
+          setFormData(draftData);
         }
       } catch (error) {
         console.error("Error loading draft:", error);
@@ -158,41 +157,34 @@ export function useReportForm({
     localStorage.removeItem(STORAGE_KEY);
   };
 
-  const validateForm = () => {
+  const validateForm = (): boolean => {
     try {
+      // Convert numeric fields to numbers if they're strings
+      const dataToValidate = {
+        ...formData,
+        writeOffs: Number(formData.writeOffs),
+        ninetyPlus: Number(formData.ninetyPlus),
+        title: `${reportType === "plan" ? "Plan" : "Actual"} Report - ${format(new Date(), "yyyy-MM-dd")}`,
+      };
+
       // First validate against the schema
-      reportFormSchema.parse(formData);
+      reportFormSchema.parse(dataToValidate);
 
       // Then validate against organization rules if available
       if (validationRules) {
-        const writeOffs = parseFloat(formData.writeOffs);
-        const ninetyPlus = parseFloat(formData.ninetyPlus);
-
-        // Check write-offs limits
-        if (writeOffs > validationRules.writeOffs.maxAmount) {
-          throw new Error(
-            `Write-offs cannot exceed ${validationRules.writeOffs.maxAmount}`
-          );
-        }
-
-        // Check 90+ days limits
-        if (ninetyPlus > validationRules.ninetyPlus.maxAmount) {
-          throw new Error(
-            `90+ Days cannot exceed ${validationRules.ninetyPlus.maxAmount}`
-          );
-        }
-
         // Check comments requirements
-        if (validationRules.comments.required && !formData.comments) {
-          throw new Error("Comments are required");
+        if (validationRules.comments.required && !dataToValidate.comments) {
+          setErrors({ comments: "Comments are required" });
+          return false;
         }
         if (
-          formData.comments &&
-          formData.comments.length < validationRules.comments.minLength
+          dataToValidate.comments &&
+          dataToValidate.comments.length < validationRules.comments.minLength
         ) {
-          throw new Error(
-            `Comments must be at least ${validationRules.comments.minLength} characters`
-          );
+          setErrors({
+            comments: `Comments must be at least ${validationRules.comments.minLength} characters`,
+          });
+          return false;
         }
       }
 
@@ -203,7 +195,8 @@ export function useReportForm({
         const newErrors: Record<string, string> = {};
         error.errors.forEach((err) => {
           if (err.path[0]) {
-            newErrors[err.path[0].toString()] = err.message;
+            const field = err.path[0].toString();
+            newErrors[field] = err.message;
           }
         });
         setErrors(newErrors);
@@ -215,19 +208,23 @@ export function useReportForm({
   };
 
   const handleSubmit = async () => {
-    if (!validateForm()) {
-      toast({
-        title: "Validation Error",
-        description: "Please check the form for errors",
-        variant: "destructive",
-      });
-      return;
+    // Clear any existing errors
+    setErrors({});
+    
+    // Make sure title is set
+    if (!formData.title) {
+      updateField("title", `${reportType === "plan" ? "Plan" : "Actual"} Report - ${format(new Date(), "yyyy-MM-dd")}`);
     }
 
-    if (errors.general) {
+    // Validate form data
+    if (!validateForm()) {
+      const errorMessages = Object.entries(errors)
+        .map(([field, message]) => `${field}: ${message}`)
+        .join(", ");
+      
       toast({
-        title: "Error",
-        description: errors.general,
+        title: "Validation Error",
+        description: errorMessages || "Please check the form for errors",
         variant: "destructive",
       });
       return;
@@ -235,21 +232,55 @@ export function useReportForm({
 
     setIsSubmitting(true);
     try {
+      // Prepare data for submission
+      const submitData = {
+        ...formData,
+        writeOffs: Number(formData.writeOffs),
+        ninetyPlus: Number(formData.ninetyPlus),
+        content: formData.comments, // Map comments to content for API
+        // Format date in YYYY-MM-DD to preserve the local date regardless of timezone
+        date: format(formData.date, "yyyy-MM-dd"),
+      };
+
       const response = await fetch("/api/reports", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          ...formData,
-          writeOffs: parseFloat(formData.writeOffs),
-          ninetyPlus: parseFloat(formData.ninetyPlus),
-        }),
+        body: JSON.stringify(submitData),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to create report");
+        // Handle API validation errors
+        if (response.status === 400) {
+          const errorMessage = data.details || data.error || "Failed to create report";
+          const fieldErrors: Record<string, string> = {};
+          
+          // Parse field-specific errors from the details
+          if (data.details) {
+            const fields = data.details.match(/The following fields are required: (.*)/);
+            if (fields) {
+              fields[1].split(", ").forEach((field: string) => {
+                fieldErrors[field] = `${field} is required`;
+              });
+            }
+          }
+          
+          setErrors({
+            general: errorMessage,
+            ...fieldErrors,
+          });
+          
+          toast({
+            title: "Validation Error",
+            description: errorMessage,
+            variant: "destructive",
+          });
+          return;
+        }
+        throw new Error(data.error || "Failed to create report");
       }
 
       clearDraft();
@@ -262,8 +293,7 @@ export function useReportForm({
       console.error("Error creating report:", error);
       toast({
         title: "Error",
-        description:
-          error instanceof Error ? error.message : "Failed to create report",
+        description: error instanceof Error ? error.message : "Failed to create report",
         variant: "destructive",
       });
     } finally {
@@ -271,11 +301,26 @@ export function useReportForm({
     }
   };
 
-  const updateField = (
-    field: keyof ReportFormData,
-    value: ReportFormData[keyof ReportFormData]
+  // Update a specific field in the form data
+  const updateField = <K extends keyof ReportFormData>(
+    field: K,
+    value: ReportFormData[K]
   ) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    // Convert string values to numbers for numeric fields
+    if (field === "writeOffs" || field === "ninetyPlus") {
+      const numValue = typeof value === "string" ? Number(value) : value;
+      setFormData((prev) => ({ ...prev, [field]: numValue }));
+    } else if (field === "date" && value) {
+      // If we're updating the date, also update the title accordingly
+      setFormData((prev) => ({
+        ...prev,
+        [field]: value,
+        title: `${reportType === "plan" ? "Plan" : "Actual"} Report - ${format(value as Date, "yyyy-MM-dd")}`,
+      }));
+    } else {
+      setFormData((prev) => ({ ...prev, [field]: value }));
+    }
+    
     // Clear error for the field when it's updated
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: "" }));

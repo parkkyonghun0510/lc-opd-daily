@@ -24,8 +24,10 @@ import { Permission, UserRole } from "@/lib/auth/roles";
 import { RoleBasedNavigation } from "./RoleBasedNavigation";
 import { useSwipeable } from "react-swipeable";
 import { useTransition, animated, useSpring, config } from "@react-spring/web";
-import { useCompactMode } from "@/contexts/UserDataContext";
+import { useCompactMode, useUserData } from "@/contexts/UserDataContext";
 import { RecentlyVisited } from "@/components/dashboard/navigation/RecentlyVisited";
+import { useBranchPermission } from "@/hooks/useBranchPermission";
+import { BranchSwitcher } from "@/components/dashboard/navigation/BranchSwitcher";
 
 interface NavigationItem {
   name: string;
@@ -34,6 +36,7 @@ interface NavigationItem {
   permissions: Permission[];
   roles?: UserRole[];
   children?: NavigationChild[];
+  branchSpecific?: boolean;
 }
 
 interface NavigationChild {
@@ -56,6 +59,7 @@ const navigationItems: NavigationItem[] = [
     href: "/dashboard/reports",
     icon: FileText,
     permissions: [Permission.VIEW_REPORTS],
+    branchSpecific: true,
     children: [
       {
         name: "View Reports",
@@ -71,6 +75,7 @@ const navigationItems: NavigationItem[] = [
         name: "Consolidated View",
         href: "/dashboard/reports/consolidated",
         permissions: [Permission.CONSOLIDATE_REPORTS],
+        roles: [UserRole.ADMIN, UserRole.BRANCH_MANAGER],
       },
     ],
   },
@@ -79,6 +84,7 @@ const navigationItems: NavigationItem[] = [
     href: "/dashboard/analytics",
     icon: BarChart3,
     permissions: [Permission.VIEW_ANALYTICS],
+    roles: [UserRole.ADMIN, UserRole.BRANCH_MANAGER],
     children: [
       {
         name: "Overview",
@@ -89,6 +95,7 @@ const navigationItems: NavigationItem[] = [
         name: "Branch Analytics",
         href: "/dashboard/analytics/branch",
         permissions: [Permission.VIEW_BRANCH_ANALYTICS],
+        roles: [UserRole.ADMIN, UserRole.BRANCH_MANAGER],
       },
     ],
   },
@@ -97,6 +104,7 @@ const navigationItems: NavigationItem[] = [
     href: "/dashboard/branches",
     icon: Building2,
     permissions: [Permission.VIEW_BRANCH],
+    roles: [UserRole.ADMIN, UserRole.BRANCH_MANAGER],
     children: [
       {
         name: "Branch Overview",
@@ -107,11 +115,13 @@ const navigationItems: NavigationItem[] = [
         name: "Branch Settings",
         href: "/dashboard/branches/settings",
         permissions: [Permission.MANAGE_BRANCH],
+        roles: [UserRole.ADMIN],
       },
       {
         name: "Branch Hierarchy",
         href: "/dashboard/branches/hierarchy",
         permissions: [Permission.MANAGE_BRANCH],
+        roles: [UserRole.ADMIN],
       },
     ],
   },
@@ -120,6 +130,7 @@ const navigationItems: NavigationItem[] = [
     href: "/dashboard/users",
     icon: Users,
     permissions: [Permission.VIEW_USERS],
+    roles: [UserRole.ADMIN],
     children: [
       {
         name: "Users",
@@ -130,6 +141,7 @@ const navigationItems: NavigationItem[] = [
         name: "Roles",
         href: "/dashboard/users/roles",
         permissions: [Permission.MANAGE_USERS],
+        roles: [UserRole.ADMIN],
       },
     ],
   },
@@ -138,12 +150,14 @@ const navigationItems: NavigationItem[] = [
     href: "/dashboard/audit",
     icon: History,
     permissions: [Permission.VIEW_AUDIT_LOGS],
+    roles: [UserRole.ADMIN],
   },
   {
     name: "Settings",
     href: "/dashboard/settings",
     icon: Settings,
-    permissions: [Permission.MANAGE_USERS],
+    permissions: [Permission.MANAGE_SETTINGS],
+    roles: [UserRole.ADMIN],
   },
 ];
 
@@ -171,6 +185,8 @@ export function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
   const isCompactMode = useCompactMode();
+  const { userData } = useUserData();
+  const branchPermission = useBranchPermission(userData?.branch?.id);
 
   // Close mobile menu when route changes
   useEffect(() => {
@@ -361,6 +377,19 @@ export function Sidebar() {
 
   const SidebarContent = () => {
     const isCompactMode = useCompactMode();
+    const { userData } = useUserData();
+    const branchPermission = useBranchPermission(userData?.branch?.id);
+    const pathname = usePathname();
+
+    // Function to get current path segments
+    const getPathSegments = () => {
+      const segments = pathname.split('/').filter(Boolean);
+      return segments.map((segment, index) => {
+        const href = '/' + segments.slice(0, index + 1).join('/');
+        const label = segment.charAt(0).toUpperCase() + segment.slice(1);
+        return { href, label };
+      });
+    };
 
     return (
       <div
@@ -370,6 +399,33 @@ export function Sidebar() {
         )}
       >
         <CompanyLogo />
+        
+        {/* Add BranchSwitcher */}
+        <BranchSwitcher />
+        
+        {/* Add path display */}
+        <div className="px-3 py-2 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-center space-x-1 text-sm text-gray-500 dark:text-gray-400">
+            <Link href="/dashboard" className="hover:text-gray-700 dark:hover:text-gray-200">
+              Home
+            </Link>
+            {getPathSegments().map((segment, index) => (
+              <div key={segment.href} className="flex items-center">
+                <span className="mx-1">/</span>
+                <Link
+                  href={segment.href}
+                  className={cn(
+                    "hover:text-gray-700 dark:hover:text-gray-200",
+                    index === getPathSegments().length - 1 && "font-medium text-gray-900 dark:text-white"
+                  )}
+                >
+                  {segment.label}
+                </Link>
+              </div>
+            ))}
+          </div>
+        </div>
+
         <nav className="flex-1 overflow-y-auto">
           <RoleBasedNavigation>
             {({ hasPermission, hasRole }) => (
@@ -380,14 +436,18 @@ export function Sidebar() {
                 )}
               >
                 {navigationItems.map((item) => {
-                  const hasAccess = item.permissions.some((p) =>
-                    hasPermission(p)
-                  );
+                  // Check permissions and roles
+                  const hasAccess = item.permissions.some((p) => hasPermission(p));
                   const hasRoleAccess = item.roles
                     ? item.roles.some((role) => hasRole(role))
                     : true;
 
-                  if (!hasAccess || !hasRoleAccess) return null;
+                  // Check branch access for branch-specific items
+                  const hasBranchAccessForItem = item.branchSpecific
+                    ? branchPermission.hasAccess
+                    : true;
+
+                  if (!hasAccess || !hasRoleAccess || !hasBranchAccessForItem) return null;
 
                   const isActive = pathname === item.href;
                   const hasActiveChild = item.children?.some(
@@ -428,6 +488,7 @@ export function Sidebar() {
                           )}
                         >
                           {item.children.map((child) => {
+                            // Check permissions and roles for child items
                             const hasChildAccess = child.permissions.some((p) =>
                               hasPermission(p)
                             );
@@ -435,7 +496,12 @@ export function Sidebar() {
                               ? child.roles.some((role) => hasRole(role))
                               : true;
 
-                            if (!hasChildAccess || !hasChildRoleAccess)
+                            // Check branch access for child items if parent is branch-specific
+                            const hasChildBranchAccess = item.branchSpecific
+                              ? branchPermission.hasAccess
+                              : true;
+
+                            if (!hasChildAccess || !hasChildRoleAccess || !hasChildBranchAccess)
                               return null;
 
                             const isChildActive = pathname === child.href;

@@ -27,13 +27,16 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const reportType = searchParams.get("type") || "actual";
+    const reportType = searchParams.get("type");
 
-    if (!["plan", "actual"].includes(reportType)) {
-      return NextResponse.json(
-        { error: "Invalid report type" },
-        { status: 400 }
-      );
+    // Create base query condition
+    let whereCondition: any = {
+      status: "pending",
+    };
+
+    // Add reportType filter if provided
+    if (reportType && ["plan", "actual"].includes(reportType)) {
+      whereCondition.reportType = reportType;
     }
 
     // Get branches hierarchy for access control
@@ -54,52 +57,58 @@ export async function GET(request: NextRequest) {
       path: [branch.id], // This would need to be calculated properly
     }));
 
-    // Get user branch assignments
-    const userBranchAssignments = await prisma.$queryRawUnsafe<
-      Array<{ branchId: string }>
-    >(
-      `SELECT "branchId" FROM "UserBranchAssignment" WHERE "userId" = $1`,
-      token.id
-    );
+    // For non-admin users, filter by accessible branches
+    if (token.role !== UserRole.ADMIN) {
+      // Get user branch assignments
+      const userBranchAssignments = await prisma.userBranchAssignment.findMany({
+        where: { userId: token.id as string },
+        select: { branchId: true },
+      });
+      
+      const assignedBranchIds = userBranchAssignments.map((uba) => uba.branchId);
 
-    const assignedBranchIds = userBranchAssignments.map((uba) => uba.branchId);
+      // Get accessible branch IDs based on user role
+      const accessibleBranchIds = getAccessibleBranches(
+        token.role as UserRole,
+        token.branchId as string | null,
+        branches,
+        assignedBranchIds
+      );
+      
+      whereCondition.branchId = { in: accessibleBranchIds };
+    }
 
-    // Get accessible branch IDs based on user role
-    const accessibleBranchIds = getAccessibleBranches(
-      token.role as UserRole,
-      token.branchId as string | null,
-      branches,
-      assignedBranchIds
-    );
-
-    // Admin can see all pending reports, other roles see only their accessible branches
-    const whereCondition =
-      token.role === UserRole.ADMIN
-        ? {
-            status: "pending",
-            reportType,
-          }
-        : {
-            status: "pending",
-            reportType,
-            branchId: { in: accessibleBranchIds },
-          };
-
+    // Fetch pending reports
     const pendingReports = await prisma.report.findMany({
       where: whereCondition,
-      orderBy: [{ date: "desc" }, { submittedAt: "desc" }],
-      include: {
-        branch: {
-          select: {
-            id: true,
-            code: true,
-            name: true,
-          },
-        },
-      },
+      orderBy: [{ date: "desc" }, { createdAt: "desc" }],
     });
 
-    return NextResponse.json({ reports: pendingReports });
+    // Manually fetch user data for submitted reports
+    const reportsWithUsers = await Promise.all(
+      pendingReports.map(async (report) => {
+        let userData = null;
+        if (report.submittedBy) {
+          try {
+            const user = await prisma.user.findUnique({
+              where: { id: report.submittedBy },
+              select: { id: true, name: true, username: true },
+            });
+            userData = user;
+          } catch (e) {
+            console.error(`Error fetching user for report ${report.id}:`, e);
+          }
+        }
+        
+        return {
+          ...report,
+          user: userData,
+        };
+      })
+    );
+
+    // Return simplified array of reports
+    return NextResponse.json(reportsWithUsers);
   } catch (error) {
     console.error("Error fetching pending reports:", error);
     return NextResponse.json(

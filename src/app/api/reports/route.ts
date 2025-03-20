@@ -123,9 +123,40 @@ export const POST = withPermissionGuard(
       } = data;
       
       // Validate required fields
-      if (!title || !date || !branchId) {
+      const missingFields = [];
+      if (!title) missingFields.push("title");
+      if (!date) missingFields.push("date");
+      if (!branchId) missingFields.push("branchId");
+      
+      if (missingFields.length > 0) {
         return NextResponse.json(
-          { error: "Missing required fields" },
+          { 
+            error: "Missing required fields",
+            details: `The following fields are required: ${missingFields.join(", ")}`
+          },
+          { status: 400 }
+        );
+      }
+
+      // Validate data types
+      if (typeof writeOffs !== "number") {
+        return NextResponse.json(
+          { error: "Invalid write-offs value", details: "Write-offs must be a number" },
+          { status: 400 }
+        );
+      }
+
+      if (typeof ninetyPlus !== "number") {
+        return NextResponse.json(
+          { error: "Invalid 90+ days value", details: "90+ days must be a number" },
+          { status: 400 }
+        );
+      }
+
+      // Validate report type
+      if (!["plan", "actual"].includes(data.reportType)) {
+        return NextResponse.json(
+          { error: "Invalid report type", details: "Report type must be either 'plan' or 'actual'" },
           { status: 400 }
         );
       }
