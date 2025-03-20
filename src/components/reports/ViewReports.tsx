@@ -264,6 +264,8 @@ export function ViewReports() {
                 onValueChange={(value: string) => {
                   if (value === "plan" || value === "actual") {
                     setReportType(value);
+                    // Apply filters immediately when changing report type
+                    setTimeout(() => handleFilter(), 0);
                   }
                 }}
               >
@@ -364,13 +366,17 @@ export function ViewReports() {
               <TableRow>
                 <TableHead>Date</TableHead>
                 <TableHead>Branch</TableHead>
-                <TableHead>Write-offs</TableHead>
+                <TableHead>
+                  {reportType === "actual" ? "Write-offs (Actual)" : "Write-offs"}
+                </TableHead>
                 {reportType === "actual" && (
-                  <TableHead>Write-offs (Plan)</TableHead>
+                  <TableHead className="text-blue-600">Write-offs (Plan)</TableHead>
                 )}
-                <TableHead>90+ Days</TableHead>
+                <TableHead>
+                  {reportType === "actual" ? "90+ Days (Actual)" : "90+ Days"}
+                </TableHead>
                 {reportType === "actual" && (
-                  <TableHead>90+ Days (Plan)</TableHead>
+                  <TableHead className="text-blue-600">90+ Days (Plan)</TableHead>
                 )}
                 <TableHead>Comments</TableHead>
                 <TableHead>Status</TableHead>
@@ -381,7 +387,7 @@ export function ViewReports() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8">
+                  <TableCell colSpan={reportType === "actual" ? 10 : 8} className="text-center py-8">
                     <div className="flex items-center justify-center">
                       <Loader2 className="h-6 w-6 animate-spin" />
                     </div>
@@ -389,7 +395,7 @@ export function ViewReports() {
                 </TableRow>
               ) : reports.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8">
+                  <TableCell colSpan={reportType === "actual" ? 10 : 8} className="text-center py-8">
                     No reports found for the selected filters
                   </TableCell>
                 </TableRow>
@@ -398,18 +404,22 @@ export function ViewReports() {
                   <TableRow key={report.id}>
                     <TableCell>{formatDate(report.date)}</TableCell>
                     <TableCell>{report.branch.name}</TableCell>
-                    <TableCell>{formatCurrency(report.writeOffs)}</TableCell>
+                    <TableCell className={reportType === "actual" ? "font-medium" : ""}>
+                      {formatCurrency(report.writeOffs)}
+                    </TableCell>
                     {reportType === "actual" && (
-                      <TableCell>
-                        {report.writeOffsPlan !== null
+                      <TableCell className="text-blue-600">
+                        {report.writeOffsPlan !== null && report.writeOffsPlan !== undefined
                           ? formatCurrency(report.writeOffsPlan)
                           : "-"}
                       </TableCell>
                     )}
-                    <TableCell>{formatCurrency(report.ninetyPlus)}</TableCell>
+                    <TableCell className={reportType === "actual" ? "font-medium" : ""}>
+                      {formatCurrency(report.ninetyPlus)}
+                    </TableCell>
                     {reportType === "actual" && (
-                      <TableCell>
-                        {report.ninetyPlusPlan !== null
+                      <TableCell className="text-blue-600">
+                        {report.ninetyPlusPlan !== null && report.ninetyPlusPlan !== undefined
                           ? formatCurrency(report.ninetyPlusPlan)
                           : "-"}
                       </TableCell>

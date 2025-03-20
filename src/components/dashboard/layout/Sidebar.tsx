@@ -18,6 +18,7 @@ import {
   CircleDot,
   Building2,
   History,
+  CheckCircle,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/dashboard/theme/ThemeToggle";
 import { Permission, UserRole } from "@/lib/auth/roles";
@@ -78,6 +79,13 @@ const navigationItems: NavigationItem[] = [
         roles: [UserRole.ADMIN, UserRole.BRANCH_MANAGER],
       },
     ],
+  },
+  {
+    name: "Approvals",
+    href: "/dashboard/approvals",
+    icon: CheckCircle,
+    permissions: [Permission.APPROVE_REPORTS],
+    roles: [UserRole.ADMIN, UserRole.BRANCH_MANAGER],
   },
   {
     name: "Analytics",

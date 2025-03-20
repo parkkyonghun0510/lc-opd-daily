@@ -149,8 +149,8 @@ export function RoleBasedDashboard() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Admin Dashboard</h2>
-        <Button onClick={() => router.push("/dashboard/reports/create")}>
-          Create Report
+        <Button onClick={() => router.push("/dashboard/reports/consolidated")}>
+          View Consolidated Reports
         </Button>
       </div>
 

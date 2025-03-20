@@ -31,7 +31,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { BranchSelector } from "@/components/ui/branch-selector";
 import { useUserData } from "@/contexts/UserDataContext";
 
@@ -130,6 +130,46 @@ export function CreateReportModal({
   // Get today's date at noon for consistent comparison
   const today = new Date();
   today.setHours(12, 0, 0, 0);
+
+  // For actual reports, show the corresponding plan data
+  const [planData, setPlanData] = useState<{
+    writeOffsPlan: number | null;
+    ninetyPlusPlan: number | null;
+  }>({ writeOffsPlan: null, ninetyPlusPlan: null });
+
+  // Load plan data when creating an actual report
+  useEffect(() => {
+    if (reportType === "actual" && formData.date && formData.branchId) {
+      const fetchPlanData = async () => {
+        try {
+          const formattedDate = format(formData.date, "yyyy-MM-dd");
+          const url = `/api/reports?date=${formattedDate}&branchId=${formData.branchId}&reportType=plan`;
+          const response = await fetch(url);
+          
+          if (!response.ok) {
+            throw new Error("Failed to fetch plan data");
+          }
+          
+          const data = await response.json();
+          if (data.data && data.data.length > 0) {
+            setPlanData({
+              writeOffsPlan: data.data[0].writeOffs,
+              ninetyPlusPlan: data.data[0].ninetyPlus
+            });
+            console.log("Found plan data:", data.data[0]);
+          } else {
+            setPlanData({ writeOffsPlan: null, ninetyPlusPlan: null });
+            console.log("No plan data found for this date and branch");
+          }
+        } catch (error) {
+          console.error("Error loading plan data:", error);
+          setPlanData({ writeOffsPlan: null, ninetyPlusPlan: null });
+        }
+      };
+      
+      fetchPlanData();
+    }
+  }, [reportType, formData.date, formData.branchId]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -305,6 +345,31 @@ export function CreateReportModal({
               <p className="text-sm text-red-500">{errors.comments}</p>
             )}
           </div>
+
+          {/* Display plan data if available when creating an actual report */}
+          {reportType === "actual" && (
+            <div className="bg-muted p-4 rounded-lg mb-4">
+              <h3 className="text-sm font-semibold mb-2">Morning Plan Data</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="planWriteOffs" className="text-xs">Write-offs (Plan)</Label>
+                  <p id="planWriteOffs" className="text-sm font-medium">
+                    {planData.writeOffsPlan !== null 
+                      ? formatKHRCurrency(planData.writeOffsPlan) 
+                      : "No plan data available"}
+                  </p>
+                </div>
+                <div>
+                  <Label htmlFor="planNinetyPlus" className="text-xs">90+ Days (Plan)</Label>
+                  <p id="planNinetyPlus" className="text-sm font-medium">
+                    {planData.ninetyPlusPlan !== null 
+                      ? formatKHRCurrency(planData.ninetyPlusPlan) 
+                      : "No plan data available"}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>

@@ -39,12 +39,35 @@ export async function GET(
             code: true,
             name: true,
           },
-        },
+        }
       },
     });
 
     if (!report) {
       return NextResponse.json({ error: "Report not found" }, { status: 404 });
+    }
+
+    // If this is an actual report, fetch the corresponding plan report
+    const responseData = { ...report } as any;
+
+    if (report.reportType === "actual") {
+      const planReport = await prisma.report.findFirst({
+        where: {
+          date: report.date,
+          branchId: report.branchId,
+          reportType: "plan"
+        }
+      });
+
+      if (planReport) {
+        // Add plan data with proper type conversion
+        responseData.writeOffsPlan = typeof planReport.writeOffs === 'number' ? planReport.writeOffs : 0;
+        responseData.ninetyPlusPlan = typeof planReport.ninetyPlus === 'number' ? planReport.ninetyPlus : 0;
+      } else {
+        // Set to null if no plan report found
+        responseData.writeOffsPlan = null;
+        responseData.ninetyPlusPlan = null;
+      }
     }
 
     await prisma.activityLog.create({
@@ -57,7 +80,7 @@ export async function GET(
       },
     });
 
-    return NextResponse.json(report);
+    return NextResponse.json(responseData);
   } catch (error) {
     console.error("Error retrieving report:", error);
     return NextResponse.json(

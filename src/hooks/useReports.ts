@@ -50,6 +50,11 @@ export function useReports({
       if (selectedBranchId) {
         url += `&branchId=${selectedBranchId}`;
       }
+      
+      // Add report type to the query params
+      url += `&reportType=${reportType}`;
+      
+      console.log("Fetching reports with URL:", url);
 
       const response = await fetch(url);
 
@@ -59,6 +64,7 @@ export function useReports({
       }
 
       const data = await response.json();
+      console.log("Reports received:", data.data ? data.data.length : 0);
       setReports(data.data ?? []);
       setPagination(
         data.pagination ?? {
