@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Permission } from "@/lib/auth/roles";
+import { Permission, UserRole } from "@/lib/auth/roles";
 import { PermissionGate } from "@/components/auth/PermissionGate";
 import { toast } from "sonner";
 import { ErrorBoundary } from "react-error-boundary";
@@ -8,7 +8,7 @@ interface User {
   id: string;
   name: string;
   email: string;
-  role: string;
+  role: UserRole;
   branchId: string | null;
 }
 
@@ -24,7 +24,7 @@ interface Role {
   description: string | null;
 }
 
-interface UserRole {
+interface UserRoleAssignment {
   id: string;
   userId: string;
   roleId: string;
@@ -63,7 +63,7 @@ export function UserRoleManager({ userId: initialUserId }: UserRoleManagerProps)
   const [users, setUsers] = useState<User[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
-  const [userRoles, setUserRoles] = useState<UserRole[]>([]);
+  const [userRoles, setUserRoles] = useState<UserRoleAssignment[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState<string | null>(initialUserId || null);
   const [selectedRole, setSelectedRole] = useState<string>("");
@@ -86,10 +86,29 @@ export function UserRoleManager({ userId: initialUserId }: UserRoleManagerProps)
 
   async function fetchUsers() {
     try {
-      const response = await fetch("/api/users");
-      if (!response.ok) {
-        throw new Error("Failed to fetch users");
+      const response = await fetch("/api/users", {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include', // Include cookies for authentication
+      });
+      
+      if (response.redirected) {
+        // User was redirected, likely to login page
+        toast.error("Authentication required. Please log in.");
+        window.location.href = response.url; // Redirect to login page
+        return;
       }
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch users: ${response.status} ${response.statusText}`);
+      }
+      
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error("Invalid response format. Expected JSON.");
+      }
+      
       const data = await response.json();
       if (!data.users || !Array.isArray(data.users)) {
         throw new Error("Invalid users data format");
@@ -389,4 +408,24 @@ export function UserRoleManager({ userId: initialUserId }: UserRoleManagerProps)
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap">
                                 <button
-                                  className="text-red-600
+                                  className="text-red-600 hover:text-red-900"
+                                  onClick={() => handleRoleRemoval(userRole.id)}
+                                >
+                                  Remove
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </PermissionGate>
+    </ErrorBoundary>
+  );
+}

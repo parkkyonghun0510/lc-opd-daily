@@ -31,7 +31,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import React from "react";
+import React, { useState, useEffect } from "react";
+import { BranchSelector } from "@/components/ui/branch-selector";
+import { useUserData } from "@/contexts/UserDataContext";
 
 interface CreateReportModalProps {
   isOpen: boolean;
@@ -88,6 +90,8 @@ export function CreateReportModal({
     },
   });
 
+  const { userData } = useUserData();
+
   // For users with only one branch, automatically select it
   React.useEffect(() => {
     if (userBranches.length === 1 && !formData.branchId) {
@@ -123,21 +127,57 @@ export function CreateReportModal({
     }
   };
 
-  // Get today's date at midnight to ensure consistent comparison
+  // Get today's date at noon for consistent comparison
   const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  today.setHours(12, 0, 0, 0);
+
+  // For actual reports, show the corresponding plan data
+  const [planData, setPlanData] = useState<{
+    writeOffsPlan: number | null;
+    ninetyPlusPlan: number | null;
+  }>({ writeOffsPlan: null, ninetyPlusPlan: null });
+
+  // Load plan data when creating an actual report
+  useEffect(() => {
+    if (reportType === "actual" && formData.date && formData.branchId) {
+      const fetchPlanData = async () => {
+        try {
+          const formattedDate = format(formData.date, "yyyy-MM-dd");
+          const url = `/api/reports?date=${formattedDate}&branchId=${formData.branchId}&reportType=plan`;
+          const response = await fetch(url);
+          
+          if (!response.ok) {
+            throw new Error("Failed to fetch plan data");
+          }
+          
+          const data = await response.json();
+          if (data.data && data.data.length > 0) {
+            setPlanData({
+              writeOffsPlan: data.data[0].writeOffs,
+              ninetyPlusPlan: data.data[0].ninetyPlus
+            });
+            console.log("Found plan data:", data.data[0]);
+          } else {
+            setPlanData({ writeOffsPlan: null, ninetyPlusPlan: null });
+            console.log("No plan data found for this date and branch");
+          }
+        } catch (error) {
+          console.error("Error loading plan data:", error);
+          setPlanData({ writeOffsPlan: null, ninetyPlusPlan: null });
+        }
+      };
+      
+      fetchPlanData();
+    }
+  }, [reportType, formData.date, formData.branchId]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>
-            Create New{" "}
-            {reportType === "plan" ? "Morning Plan" : "Evening Actual"} Report
-          </DialogTitle>
+          <DialogTitle>Create New Report</DialogTitle>
           <DialogDescription>
-            Enter the details for your new{" "}
-            {reportType === "plan" ? "morning plan" : "evening actual"} report
+            Select a branch and fill in the report details.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
@@ -147,108 +187,113 @@ export function CreateReportModal({
               <AlertDescription>{errors.general}</AlertDescription>
             </Alert>
           )}
+          
+          {/* Hidden title field */}
+          <input 
+            type="hidden" 
+            id="title" 
+            name="title" 
+            value={formData.title || `${reportType === "plan" ? "Plan" : "Actual"} Report - ${format(new Date(), "yyyy-MM-dd")}`} 
+          />
+          {errors.title && (
+            <p className="text-sm text-red-500">{errors.title}</p>
+          )}
 
           <div className="grid gap-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="date">Date</Label>
-              <div className="flex items-center gap-2">
-                {isCheckingDuplicate && (
-                  <span className="text-sm text-muted-foreground animate-pulse">
-                    Checking for duplicates...
-                  </span>
-                )}
-                <Alert className="py-1 bg-blue-50 border-blue-200">
-                  <Info className="h-4 w-4 text-blue-600" />
-                  <AlertDescription className="text-blue-700">
-                    {reportType === "plan"
-                      ? "Morning plan must be submitted before evening actual report"
-                      : "Only today's entries are allowed"}
-                  </AlertDescription>
-                </Alert>
-              </div>
+            <Label htmlFor="date">Date</Label>
+            <div className="flex items-center gap-2">
+              {isCheckingDuplicate && (
+                <span className="text-sm text-muted-foreground animate-pulse">
+                  Checking for duplicates...
+                </span>
+              )}
+              <Alert className="py-1 bg-blue-50 border-blue-200">
+                <Info className="h-4 w-4 text-blue-600" />
+                <AlertDescription className="text-blue-700">
+                  {reportType === "plan"
+                    ? "Morning plan must be submitted before evening actual report"
+                    : "Only today's entries are allowed"}
+                </AlertDescription>
+              </Alert>
             </div>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-normal",
-                    !formData.date && "text-muted-foreground"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {formData.date ? (
-                    format(formData.date, "PPP")
-                  ) : (
-                    <span>Pick a date</span>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0">
-                <Calendar
-                  mode="single"
-                  selected={formData.date}
-                  onSelect={(date) => {
-                    if (date) {
-                      // Set the time to midnight for consistent comparison
-                      date.setHours(0, 0, 0, 0);
-                      if (date > today) {
-                        return; // Don't update if future date
-                      }
-                    }
-                    updateField("date", date);
-                  }}
-                  disabled={(date) => {
-                    date.setHours(0, 0, 0, 0);
-                    return date > today;
-                  }}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
-            {errors.date && (
-              <p className="text-sm text-red-500">{errors.date}</p>
+          </div>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                id="date"
+                variant="outline"
+                className={cn(
+                  "w-full justify-start text-left font-normal",
+                  !formData.date && "text-muted-foreground"
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {formData.date ? (
+                  format(formData.date, "PPP")
+                ) : (
+                  <span>Pick a date</span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0">
+              <Calendar
+                mode="single"
+                selected={formData.date}
+                onSelect={(date) => {
+                  if (!date) return;
+                  
+                  // Set the time to noon to avoid timezone issues
+                  const selectedDate = new Date(date);
+                  selectedDate.setHours(12, 0, 0, 0);
+                  
+                  // Don't update if future date
+                  if (selectedDate > today) return;
+                  
+                  updateField("date", selectedDate);
+                  
+                  // Update the title with the local date format
+                  updateField(
+                    "title", 
+                    `${reportType === "plan" ? "Plan" : "Actual"} Report - ${format(selectedDate, "yyyy-MM-dd")}`
+                  );
+                }}
+                disabled={(date) => {
+                  // Set time to noon to match the "today" variable's time
+                  const compareDate = new Date(date);
+                  compareDate.setHours(12, 0, 0, 0);
+                  // This should allow selecting today's date but disable future dates
+                  return compareDate > today;
+                }}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
+          {errors.date && (
+            <p className="text-sm text-red-500">{errors.date}</p>
+          )}
+
+          <div className="grid gap-2">
+            <Label htmlFor="branch">Branch</Label>
+            <BranchSelector
+              id="branch"
+              userId={userData?.id || ""}
+              value={formData.branchId}
+              onChange={(branchId) => updateField("branchId", branchId)}
+              placeholder="Select branch"
+            />
+            {errors.branchId && (
+              <p className="text-sm text-red-500">{errors.branchId}</p>
             )}
           </div>
-
-          {userBranches.length > 1 && (
-            <div className="grid gap-2">
-              <Label htmlFor="branch">Branch</Label>
-              <Select
-                value={formData.branchId}
-                onValueChange={(value) => updateField("branchId", value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a branch" />
-                </SelectTrigger>
-                <SelectContent>
-                  {userBranches.map((branch) => (
-                    <SelectItem key={branch.id} value={branch.id}>
-                      {branch.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.branchId && (
-                <p className="text-sm text-red-500">{errors.branchId}</p>
-              )}
-            </div>
-          )}
 
           <div className="grid gap-2">
             <div className="flex items-center justify-between">
               <Label htmlFor="writeOffs">Write-offs</Label>
-              {validationRules && (
-                <span className="text-sm text-muted-foreground">
-                  Max: {validationRules.writeOffs.maxAmount.toLocaleString()}{" "}
-                  KHR
-                </span>
-              )}
             </div>
             <KHCurrencyInput
               id="writeOffs"
               value={formData.writeOffs}
-              onValueChange={(value) => updateField("writeOffs", value)}
+              onValueChange={(value) => updateField("writeOffs", Number(value))}
             />
             {errors.writeOffs && (
               <p className="text-sm text-red-500">{errors.writeOffs}</p>
@@ -258,17 +303,11 @@ export function CreateReportModal({
           <div className="grid gap-2">
             <div className="flex items-center justify-between">
               <Label htmlFor="ninetyPlus">90+ Days</Label>
-              {validationRules && (
-                <span className="text-sm text-muted-foreground">
-                  Max: {validationRules.ninetyPlus.maxAmount.toLocaleString()}{" "}
-                  KHR
-                </span>
-              )}
             </div>
             <KHCurrencyInput
               id="ninetyPlus"
               value={formData.ninetyPlus}
-              onValueChange={(value) => updateField("ninetyPlus", value)}
+              onValueChange={(value) => updateField("ninetyPlus", Number(value))}
             />
             {errors.ninetyPlus && (
               <p className="text-sm text-red-500">{errors.ninetyPlus}</p>
@@ -300,11 +339,37 @@ export function CreateReportModal({
                   ? ` (Minimum ${validationRules.comments.minLength} characters)`
                   : ""
               }`}
+              className="min-h-[100px]"
             />
             {errors.comments && (
               <p className="text-sm text-red-500">{errors.comments}</p>
             )}
           </div>
+
+          {/* Display plan data if available when creating an actual report */}
+          {reportType === "actual" && (
+            <div className="bg-muted p-4 rounded-lg mb-4">
+              <h3 className="text-sm font-semibold mb-2">Morning Plan Data</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="planWriteOffs" className="text-xs">Write-offs (Plan)</Label>
+                  <p id="planWriteOffs" className="text-sm font-medium">
+                    {planData.writeOffsPlan !== null 
+                      ? formatKHRCurrency(planData.writeOffsPlan) 
+                      : "No plan data available"}
+                  </p>
+                </div>
+                <div>
+                  <Label htmlFor="planNinetyPlus" className="text-xs">90+ Days (Plan)</Label>
+                  <p id="planNinetyPlus" className="text-sm font-medium">
+                    {planData.ninetyPlusPlan !== null 
+                      ? formatKHRCurrency(planData.ninetyPlusPlan) 
+                      : "No plan data available"}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>

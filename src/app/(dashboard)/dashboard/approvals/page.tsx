@@ -1,175 +1,398 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ReportApproval } from "@/components/reports/ReportApproval";
-import { formatKHRCurrency } from "@/lib/utils";
-import { PermissionGate } from "@/components/auth/PermissionGate";
-import { Permission } from "@/lib/auth/roles";
-import { Breadcrumbs } from "@/components/dashboard/layout/Breadcrumbs";
-import { Loader2, Shield } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useUserData } from "@/contexts/UserDataContext";
+import { PendingReport } from "@/components/reports/PendingReport";
+import { getBranchById } from "@/lib/api/branches";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/components/ui/use-toast";
+import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { 
+  AlertCircle, 
+  Filter, 
+  Search, 
+  SortAsc, 
+  SortDesc, 
+  RefreshCw 
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Report, fetchPendingReports } from "@/lib/api/reports";
 
-// Define the report interface
-interface Report {
+interface Branch {
   id: string;
-  date: string;
-  branchId: string;
-  writeOffs: number;
-  ninetyPlus: number;
-  status: string;
-  submittedBy: string;
-  submittedAt: string;
-  comments?: string;
-  branch: {
-    id: string;
-    code: string;
-    name: string;
-  };
+  name: string;
 }
 
 export default function ApprovalsPage() {
+  const { toast } = useToast();
+  const { userData } = useUserData();
   const [pendingReports, setPendingReports] = useState<Report[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [reportType, setReportType] = useState<"plan" | "actual">("actual");
+  const [filteredReports, setFilteredReports] = useState<Report[]>([]);
+  const [branches, setBranches] = useState<Record<string, Branch>>({});
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Filter states
+  const [searchTerm, setSearchTerm] = useState("");
+  const [branchFilter, setBranchFilter] = useState("all");
+  const [reportTypeFilter, setReportTypeFilter] = useState("all");
+  const [sortField, setSortField] = useState("date");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+  const [activeTab, setActiveTab] = useState("pending");
 
-  useEffect(() => {
-    fetchPendingReports();
-  }, [reportType]);
-
-  const fetchPendingReports = async () => {
-    setIsLoading(true);
+  const loadPendingReports = async () => {
+    setLoading(true);
+    setError(null);
     try {
-      const response = await fetch(`/api/reports/pending?type=${reportType}`);
-      if (response.ok) {
-        const data = await response.json();
-        setPendingReports(data.reports || []);
+      // Use the helper function to fetch pending reports
+      const data = await fetchPendingReports(
+        reportTypeFilter === "all" ? undefined : reportTypeFilter
+      );
+      setPendingReports(data);
+      
+      // Fetch branch data for each report
+      const branchesRecord: Record<string, Branch> = {};
+      for (const report of data) {
+        if (!branchesRecord[report.branchId]) {
+          try {
+            const branchData = await getBranchById(report.branchId);
+            branchesRecord[report.branchId] = branchData;
+          } catch (error) {
+            console.error(
+              `Failed to fetch branch ${report.branchId}:`,
+              error
+            );
+            branchesRecord[report.branchId] = {
+              id: report.branchId,
+              name: "Unknown Branch",
+            };
+          }
+        }
       }
+      setBranches(branchesRecord);
     } catch (error) {
-      console.error("Failed to fetch pending reports:", error);
+      console.error("Error fetching pending reports:", error);
+      setError(error instanceof Error ? error.message : "Unknown error occurred");
+      toast({
+        title: "Error",
+        description: "Failed to load pending reports. Please try again.",
+        variant: "destructive",
+      });
     } finally {
-      setIsLoading(false);
+      setLoading(false);
+      setRefreshing(false);
     }
   };
 
-  return (
-    <div className="space-y-6">
-      <Breadcrumbs />
+  const handleRefresh = () => {
+    setRefreshing(true);
+    loadPendingReports();
+  };
 
-      <PermissionGate
-        permissions={[Permission.APPROVE_REPORTS]}
-        fallback={
+  // Apply filters and sorting
+  useEffect(() => {
+    let results = [...pendingReports];
+    
+    // Filter by report type
+    if (reportTypeFilter !== "all") {
+      results = results.filter(
+        (report) => report.reportType.toLowerCase() === reportTypeFilter
+      );
+    }
+    
+    // Filter by branch
+    if (branchFilter !== "all") {
+      results = results.filter((report) => report.branchId === branchFilter);
+    }
+    
+    // Filter by search term
+    if (searchTerm) {
+      const search = searchTerm.toLowerCase();
+      results = results.filter(
+        (report) =>
+          branches[report.branchId]?.name.toLowerCase().includes(search) ||
+          report.user?.name?.toLowerCase().includes(search) ||
+          report.user?.username?.toLowerCase().includes(search) ||
+          new Date(report.date).toLocaleDateString().includes(search)
+      );
+    }
+    
+    // Apply sorting
+    results.sort((a, b) => {
+      let valueA, valueB;
+      
+      switch (sortField) {
+        case "date":
+          valueA = new Date(a.date).getTime();
+          valueB = new Date(b.date).getTime();
+          break;
+        case "branch":
+          valueA = branches[a.branchId]?.name || "";
+          valueB = branches[b.branchId]?.name || "";
+          break;
+        case "created":
+          valueA = new Date(a.createdAt).getTime();
+          valueB = new Date(b.createdAt).getTime();
+          break;
+        case "writeOffs":
+          valueA = a.writeOffs;
+          valueB = b.writeOffs;
+          break;
+        case "ninetyPlus":
+          valueA = a.ninetyPlus;
+          valueB = b.ninetyPlus;
+          break;
+        default:
+          valueA = a.date;
+          valueB = b.date;
+      }
+      
+      if (sortDirection === "asc") {
+        return valueA > valueB ? 1 : -1;
+      } else {
+        return valueA < valueB ? 1 : -1;
+      }
+    });
+    
+    setFilteredReports(results);
+  }, [
+    pendingReports,
+    searchTerm,
+    branchFilter,
+    reportTypeFilter,
+    sortField,
+    sortDirection,
+    branches,
+  ]);
+
+  useEffect(() => {
+    loadPendingReports();
+  }, [reportTypeFilter]);
+
+  const handleApprovalComplete = () => {
+    loadPendingReports();
+  };
+
+  const toggleSortDirection = () => {
+    setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+  };
+
+  // Get unique branches for filter dropdown
+  const uniqueBranches = Object.values(branches).sort((a, b) => 
+    a.name.localeCompare(b.name)
+  );
+
+  return (
+    <div>
+      <DashboardHeader
+        heading="Report Approvals"
+        text="Review and approve pending reports submitted by branch staff."
+      />
+
+      <Tabs
+        defaultValue="pending"
+        value={activeTab}
+        onValueChange={setActiveTab}
+        className="mt-6"
+      >
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
+          <TabsList>
+            <TabsTrigger value="pending">Pending Approvals</TabsTrigger>
+            <TabsTrigger value="history">Approval History</TabsTrigger>
+          </TabsList>
+          
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleRefresh} 
+            disabled={refreshing}
+            className="flex items-center gap-1"
+          >
+            <RefreshCw className={cn(
+              "h-4 w-4", 
+              refreshing && "animate-spin"
+            )} />
+            {refreshing ? "Refreshing..." : "Refresh"}
+          </Button>
+        </div>
+
+        <TabsContent value="pending" className="space-y-4">
+          {/* Filters and Search */}
           <Card>
-            <CardContent className="pt-6">
-              <div className="flex flex-col items-center justify-center p-6 text-center">
-                <div className="rounded-full bg-yellow-100 p-3 text-yellow-600 mb-4">
-                  <Shield className="h-6 w-6" />
+            <CardHeader className="pb-3">
+              <CardTitle className="text-md flex items-center">
+                <Filter className="h-4 w-4 mr-2" />
+                Filter Reports
+              </CardTitle>
+              <CardDescription>
+                Use these filters to find specific pending reports
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="flex items-center space-x-2">
+                  <Search className="h-4 w-4 text-gray-500" />
+                  <Input
+                    placeholder="Search branch, user..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="flex-1"
+                  />
                 </div>
-                <h3 className="text-lg font-medium mb-2">
-                  Permission Required
-                </h3>
-                <p className="text-sm text-gray-500 max-w-md">
-                  You don&apos;t have permission to access the approval queue.
-                  Please contact an administrator if you believe this is an
-                  error.
-                </p>
+                
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-gray-500">Branch</p>
+                  <Select
+                    value={branchFilter}
+                    onValueChange={setBranchFilter}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="All Branches" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Branches</SelectItem>
+                      {uniqueBranches.map((branch) => (
+                        <SelectItem key={branch.id} value={branch.id}>
+                          {branch.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-gray-500">Report Type</p>
+                  <Select
+                    value={reportTypeFilter}
+                    onValueChange={setReportTypeFilter}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="All Types" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Types</SelectItem>
+                      <SelectItem value="plan">Plan</SelectItem>
+                      <SelectItem value="actual">Actual</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              
+              <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                <div className="text-sm text-gray-500">
+                  {filteredReports.length} reports found
+                </div>
+                
+                <div className="flex items-center space-x-2">
+                  <p className="text-sm font-medium mr-2">Sort by:</p>
+                  <Select value={sortField} onValueChange={setSortField}>
+                    <SelectTrigger className="w-[150px]">
+                      <SelectValue placeholder="Sort by Date" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="date">Report Date</SelectItem>
+                      <SelectItem value="created">Submission Date</SelectItem>
+                      <SelectItem value="branch">Branch</SelectItem>
+                      <SelectItem value="writeOffs">Write-offs</SelectItem>
+                      <SelectItem value="ninetyPlus">90+ Days</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={toggleSortDirection}
+                  >
+                    {sortDirection === "asc" ? (
+                      <SortAsc className="h-4 w-4" />
+                    ) : (
+                      <SortDesc className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
-        }
-      >
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-2xl font-bold">
-              Report Approval Queue
-            </CardTitle>
-            <Tabs
-              value={reportType}
-              onValueChange={(value: string) => {
-                if (value === "plan" || value === "actual") {
-                  setReportType(value);
-                }
-              }}
-            >
-              <TabsList>
-                <TabsTrigger value="plan">Morning Plan</TabsTrigger>
-                <TabsTrigger value="actual">Evening Actual</TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </CardHeader>
 
-          <CardContent>
-            {isLoading ? (
-              <div className="flex justify-center items-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
-              </div>
-            ) : pendingReports.length === 0 ? (
-              <div className="text-center py-12 border border-dashed rounded-md">
-                <p className="text-gray-500">No pending reports to approve</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {pendingReports.map((report) => (
-                  <div
-                    key={report.id}
-                    className="border rounded-lg p-4 hover:bg-gray-50 transition-colors"
-                  >
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                      <div className="space-y-2">
-                        <div className="flex items-center">
-                          <span className="font-medium text-lg">
-                            {report.branch.name}
-                          </span>
-                          <span className="text-sm text-gray-500 ml-2">
-                            ({report.branch.code})
-                          </span>
-                        </div>
-                        <div className="text-sm text-gray-600">
-                          {new Date(report.date).toLocaleDateString()} •
-                          Submitted by {report.submittedBy} •
-                          {new Date(report.submittedAt).toLocaleTimeString()}
-                        </div>
+          {error && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Error</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          {loading ? (
+            <div className="space-y-4">
+              {[...Array(3)].map((_, i) => (
+                <Card key={i}>
+                  <CardContent className="pt-6">
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-[250px]" />
+                      <Skeleton className="h-4 w-[200px]" />
+                      <div className="flex gap-2 mt-4">
+                        <Skeleton className="h-8 w-[100px]" />
+                        <Skeleton className="h-8 w-[100px]" />
                       </div>
-
-                      <div className="flex flex-col sm:flex-row gap-4">
-                        <div className="min-w-[150px]">
-                          <div className="text-sm text-gray-500">
-                            Write-offs
-                          </div>
-                          <div className="font-mono font-medium">
-                            {formatKHRCurrency(report.writeOffs)}
-                          </div>
-                        </div>
-                        <div className="min-w-[150px]">
-                          <div className="text-sm text-gray-500">90+ Days</div>
-                          <div className="font-mono font-medium">
-                            {formatKHRCurrency(report.ninetyPlus)}
-                          </div>
-                        </div>
-                      </div>
-
-                      <ReportApproval
-                        report={report}
-                        onApprovalComplete={fetchPendingReports}
-                        branchName={report.branch.name}
-                      />
                     </div>
-
-                    {report.comments && (
-                      <div className="mt-3 pt-3 border-t text-sm">
-                        <div className="font-medium text-gray-600 mb-1">
-                          Comments:
-                        </div>
-                        <div className="text-gray-600">{report.comments}</div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </PermissionGate>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : filteredReports.length === 0 ? (
+            <Card>
+              <CardContent className="pt-6 pb-6 text-center">
+                <div className="py-8 text-gray-500">
+                  <p className="text-lg font-medium mb-2">No Pending Reports</p>
+                  <p className="text-sm">
+                    There are no pending reports that match your filters.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {filteredReports.map((report) => (
+                <PendingReport
+                  key={report.id}
+                  report={report}
+                  branchName={branches[report.branchId]?.name || "Unknown Branch"}
+                  onApprovalComplete={handleApprovalComplete}
+                />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+        
+        <TabsContent value="history">
+          <Card>
+            <CardContent className="pt-6">
+              <p className="text-center text-gray-500 py-8">
+                Approval history feature coming soon.
+              </p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

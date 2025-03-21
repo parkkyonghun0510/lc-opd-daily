@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { hashPassword } from "@/lib/auth";
 import { getToken } from "next-auth/jwt";
 import { prisma } from "@/lib/prisma";
+import { UserRole } from "@/lib/auth/roles";
 
 type SearchField = {
   contains: string;
@@ -59,6 +60,7 @@ interface PaginatedUsersResponse {
   total: number;
   page: number;
   limit: number;
+  pages: number;
 }
 
 // GET /api/users - Get all users with optional filtering
@@ -73,7 +75,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    if (token.role !== "admin") {
+    if (token.role !== UserRole.ADMIN) {
       return NextResponse.json(
         { error: "Forbidden - Admin access required" },
         { status: 403 }
@@ -113,6 +115,11 @@ export async function GET(request: NextRequest) {
       where.branchId = branch;
     }
 
+    // Restrict non-admin users to only see users in their branch
+    if (token.role !== UserRole.ADMIN && token.branchId) {
+      where.branchId = token.branchId;
+    }
+
     // Get users with pagination
     const [users, total] = await Promise.all([
       prisma.user.findMany({
@@ -134,11 +141,14 @@ export async function GET(request: NextRequest) {
       prisma.user.count({ where }),
     ]);
 
+    const pages = Math.ceil(total / limit);
+
     const response: PaginatedUsersResponse = {
       users,
       total,
       page,
       limit,
+      pages,
     };
 
     return NextResponse.json(response);
@@ -163,7 +173,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (token.role !== "admin") {
+    if (token.role !== UserRole.ADMIN) {
       return NextResponse.json(
         { error: "Forbidden - Admin access required" },
         { status: 403 }
@@ -202,7 +212,7 @@ export async function POST(request: NextRequest) {
         email,
         password: await hashPassword(password),
         name: name || username,
-        role: role || "user",
+        role: role || UserRole.USER,
         isActive: isActive ?? true,
         branchId: branchId || null,
       },
@@ -241,7 +251,7 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    if (token.role !== "admin") {
+    if (token.role !== UserRole.ADMIN) {
       return NextResponse.json(
         { error: "Forbidden - Admin access required" },
         { status: 403 }
@@ -347,7 +357,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    if (token.role !== "admin") {
+    if (token.role !== UserRole.ADMIN) {
       return NextResponse.json(
         { error: "Forbidden - Admin access required" },
         { status: 403 }

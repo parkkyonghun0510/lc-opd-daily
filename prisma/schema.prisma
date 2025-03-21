@@ -77,8 +77,14 @@ model Report {
   comments    String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  
+  // Self-relation for plan/actual reports
+  planReportId String?
+  planReport   Report?  @relation("PlanActualRelation", fields: [planReportId], references: [id])
+  actualReports Report[] @relation("PlanActualRelation")
 
   @@unique([date, branchId, reportType])
+  @@index([planReportId])
 }
 
 model ActivityLog {

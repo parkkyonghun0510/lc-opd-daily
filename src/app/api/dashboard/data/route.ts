@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withAuth, Role } from "@/lib/api-auth";
 import { JWT } from "next-auth/jwt";
-import prisma from "../../../../lib/prisma";
+import { prisma } from "@/lib/prisma";
 
 interface AuthToken extends JWT {
   role: Role;
@@ -23,12 +23,17 @@ async function handler(req: NextRequest, token: AuthToken) {
       where: baseConditions,
     });
 
+    // Create date for 30 days ago
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const thirtyDaysAgoStr = thirtyDaysAgo.toISOString();
+
     // Fetch total reports
     const totalReports = await prisma.report.count({
       where: {
         ...baseConditions,
         date: {
-          gte: new Date(new Date().setDate(new Date().getDate() - 30)), // Last 30 days
+          gte: thirtyDaysAgoStr, // Last 30 days
         },
       },
     });
@@ -39,7 +44,7 @@ async function handler(req: NextRequest, token: AuthToken) {
         ...baseConditions,
         status: "approved",
         date: {
-          gte: new Date(new Date().setDate(new Date().getDate() - 30)), // Last 30 days
+          gte: thirtyDaysAgoStr, // Last 30 days
         },
       },
       _sum: {
@@ -56,16 +61,18 @@ async function handler(req: NextRequest, token: AuthToken) {
     const currentMonthStart = new Date();
     currentMonthStart.setDate(1);
     currentMonthStart.setHours(0, 0, 0, 0);
+    const currentMonthStartStr = currentMonthStart.toISOString();
 
     const previousMonthStart = new Date(currentMonthStart);
     previousMonthStart.setMonth(previousMonthStart.getMonth() - 1);
+    const previousMonthStartStr = previousMonthStart.toISOString();
 
     const currentMonthData = await prisma.report.aggregate({
       where: {
         ...baseConditions,
         status: "approved",
         date: {
-          gte: currentMonthStart,
+          gte: currentMonthStartStr,
         },
       },
       _sum: {
@@ -79,8 +86,8 @@ async function handler(req: NextRequest, token: AuthToken) {
         ...baseConditions,
         status: "approved",
         date: {
-          gte: previousMonthStart,
-          lt: currentMonthStart,
+          gte: previousMonthStartStr,
+          lt: currentMonthStartStr,
         },
       },
       _sum: {

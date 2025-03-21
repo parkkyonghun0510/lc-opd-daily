@@ -1,4 +1,5 @@
 import { useSession } from "next-auth/react";
+import { useState, useEffect } from "react";
 import {
   Permission,
   UserRole,
@@ -10,22 +11,6 @@ import {
   BranchHierarchy as RolesBranchHierarchy,
 } from "@/lib/auth/roles";
 import { BranchHierarchy } from "@/lib/types/branch";
-
-// Add assignedBranchIds to Session type
-declare module "next-auth" {
-  interface Session {
-    user: {
-      id: string;
-      name: string;
-      email: string;
-      role: string;
-      username: string;
-      branchId: string | null;
-      assignedBranchIds?: string[];
-      [key: string]: unknown;
-    };
-  }
-}
 
 // A function to convert BranchHierarchy[] from types/branch to roles format
 function convertBranchHierarchy(hierarchy: any[]): RolesBranchHierarchy[] {
@@ -40,10 +25,40 @@ function convertBranchHierarchy(hierarchy: any[]): RolesBranchHierarchy[] {
 
 export function usePermissions() {
   const { data: session } = useSession();
+  const [assignedBranchIds, setAssignedBranchIds] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
   const userRole = session?.user?.role as UserRole;
   const userBranchId = session?.user?.branchId as string | null;
-  const assignedBranchIds =
-    (session?.user?.assignedBranchIds as string[]) || [];
+
+  // Fetch assigned branch IDs
+  useEffect(() => {
+    async function fetchAssignedBranches() {
+      if (!session?.user?.id) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/user-branch-assignments?userId=${session.user.id}`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch branch assignments');
+        }
+        const data = await response.json();
+        // Extract branch IDs from assignments
+        const branchIds = data.data.map((assignment: any) => assignment.branch.id);
+        setAssignedBranchIds(branchIds);
+      } catch (error) {
+        console.error('Error fetching branch assignments:', error);
+        // On error, use the default branch ID if available
+        setAssignedBranchIds(userBranchId ? [userBranchId] : []);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    fetchAssignedBranches();
+  }, [session?.user?.id, userBranchId]);
 
   return {
     // Check if user has a specific permission
@@ -96,5 +111,8 @@ export function usePermissions() {
 
     // Check if user is regular user
     isUser: userRole === UserRole.USER,
+
+    // Loading state
+    isLoading,
   };
 }

@@ -1,38 +1,56 @@
 import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
+import { PrismaClient } from "@prisma/client";
+import { UserRole } from "@/lib/auth/roles";
+
+const prisma = new PrismaClient();
+
+// Check if system needs setup
+async function checkIfSystemNeedsSetup() {
+  try {
+    // Try to count users - if table doesn't exist, this will throw
+    await prisma.user.count();
+    return false;
+  } catch (error) {
+    return true;
+  }
+}
 
 // Combined middleware function
 // The withAuth middleware handles protected routes and authentication
 export default withAuth(
-  function middleware(req) {
-    console.log("Auth Middleware executing for path:", req.nextUrl.pathname);
-
-    // Get the token and path
-    const token = req.nextauth.token;
+  async function middleware(req) {
     const path = req.nextUrl.pathname;
 
-    console.log("Auth state:", token ? "Authenticated" : "Not authenticated");
-    if (token) {
-      console.log("User role:", token.role);
+    // Always allow setup-related paths and static assets
+    if (
+      path === "/setup" ||
+      path === "/api/setup" ||
+      path.startsWith("/_next") ||
+      path.startsWith("/static")
+    ) {
+      return NextResponse.next();
     }
 
+    // Get the token
+    const token = req.nextauth.token;
+
     // Handle root path redirection
-    if (path === "/" && token) {
-      console.log("Authenticated user at root, redirecting to dashboard");
-      return NextResponse.redirect(new URL("/dashboard", req.url));
+    if (path === "/") {
+      if (token) {
+        return NextResponse.redirect(new URL("/dashboard", req.url));
+      }
+      return NextResponse.redirect(new URL("/setup", req.url));
     }
 
     // If the user is at /dashboard and they're authenticated with role=user,
-    // redirect them to /dashboard/reports without going through login
-    if (path === "/dashboard" && token && token.role === "user") {
-      console.log(
-        "User role 'user' at dashboard, redirecting directly to reports"
-      );
+    // redirect them to /dashboard/reports
+    if (path === "/dashboard" && token && token.role === UserRole.USER) {
       return NextResponse.redirect(new URL("/dashboard/reports", req.url));
     }
 
     // Role-based API access control
-    if (path.startsWith("/api/admin") && token?.role !== "admin") {
+    if (path.startsWith("/api/admin") && token?.role !== UserRole.ADMIN) {
       return new NextResponse(
         JSON.stringify({ error: "Unauthorized: Admin access required" }),
         { status: 403 }
@@ -41,7 +59,7 @@ export default withAuth(
 
     if (
       path.startsWith("/api/manager") &&
-      !["admin", "manager"].includes(token?.role as string)
+      ![UserRole.ADMIN, UserRole.BRANCH_MANAGER].includes(token?.role as UserRole)
     ) {
       return new NextResponse(
         JSON.stringify({ error: "Unauthorized: Manager access required" }),
@@ -51,8 +69,8 @@ export default withAuth(
 
     // Branch-specific access control
     if (path.startsWith("/api/branch/") && token?.branchId) {
-      const branchId = path.split("/")[3]; // Get branchId from URL
-      if (token.branchId !== branchId && token.role !== "admin") {
+      const branchId = path.split("/")[3];
+      if (token.branchId !== branchId && token.role !== UserRole.ADMIN) {
         return new NextResponse(
           JSON.stringify({ error: "Unauthorized: Invalid branch access" }),
           { status: 403 }
@@ -60,23 +78,6 @@ export default withAuth(
       }
     }
 
-    // Prisma Client handling - check if this is an API route that should allow database access
-    const apiRoutes = [
-      "/api/auth",
-      "/api/users",
-      "/api/reports",
-      "/api/branches",
-    ];
-    const isApiRoute = apiRoutes.some((route) => path.startsWith(route));
-
-    // If this is a client-side route, add header to indicate no Prisma should be used
-    if (!isApiRoute) {
-      const response = NextResponse.next();
-      response.headers.set("X-Prisma-Client", "disabled");
-      return response;
-    }
-
-    // For all other authenticated requests, allow access
     return NextResponse.next();
   },
   {
@@ -84,13 +85,22 @@ export default withAuth(
       authorized: ({ token, req }) => {
         const path = req.nextUrl.pathname;
 
-        // Special handling for login page when already logged in
+        // Always allow setup-related paths and static assets
+        if (
+          path === "/setup" ||
+          path === "/api/setup" ||
+          path.startsWith("/_next") ||
+          path.startsWith("/static")
+        ) {
+          return true;
+        }
+
+        // Special handling for login page
         if (path === "/login") {
-          // If user is authenticated, they shouldn't access login page
           if (token) {
-            return false; // This will trigger a redirect to dashboard
+            return false; // Redirect to dashboard if already logged in
           }
-          return true; // Allow unauthenticated users to access login
+          return true;
         }
 
         // For all other paths, require authentication
@@ -103,16 +113,17 @@ export default withAuth(
   }
 );
 
-// Comprehensive matcher configuration that combines all needs
+// Comprehensive matcher configuration
 export const config = {
   matcher: [
     // Protected routes (requiring auth)
-    "/((?!api|_next/static|_next/image|favicon.ico|public|login).*)",
+    "/((?!api|_next/static|_next/image|favicon.ico|public|login|setup).*)",
 
     // Special routes that need middleware processing but not auth
     "/login",
+    "/setup",
 
-    // API routes that need Prisma client header handling
+    // API routes that need processing
     "/api/:path*",
   ],
 };

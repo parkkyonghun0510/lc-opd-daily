@@ -1,3 +1,5 @@
+import { UserRole } from "@/lib/auth/roles";
+
 // User preference types
 export interface UserPreferences {
   notifications: {
@@ -22,7 +24,7 @@ export interface UserData {
   id: string;
   name: string;
   email: string;
-  role: string;
+  role: UserRole;
   image?: string;
   username?: string;
   isActive: boolean;

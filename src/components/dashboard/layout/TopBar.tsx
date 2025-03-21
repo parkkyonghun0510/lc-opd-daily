@@ -23,6 +23,7 @@ import {
   useUserPermissions,
 } from "@/contexts/UserDataContext";
 import { CommandPalette } from "../search/CommandPalette";
+import { Greeting } from "../greeting/Greeting";
 
 export function TopBar() {
   const router = useRouter();
@@ -54,8 +55,9 @@ export function TopBar() {
 
   return (
     <div className="h-16 px-4 border-b bg-white dark:bg-gray-800 flex items-center justify-between">
-      <div className="flex-1 flex items-center max-w-xl">
+      <div className="flex-1 flex items-center gap-2 md:gap-6">
         <CommandPalette />
+        <Greeting />
       </div>
 
       <div className="flex items-center space-x-4">

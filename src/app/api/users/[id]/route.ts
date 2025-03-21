@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import { hashPassword } from "@/lib/auth";
 import { getToken } from "next-auth/jwt";
+import { prisma } from "@/lib/prisma";
 
-const prisma = new PrismaClient();
+const prismaClient = new PrismaClient();
 
 // GET /api/users/[id] - Get a single user by ID
 export async function GET(
@@ -11,58 +12,55 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    // Verify admin permission using NextAuth
     const token = await getToken({ req: request });
 
-    // Check if user is authenticated and has admin role
-    if (!token || token.role !== "admin") {
+    if (!token) {
       return NextResponse.json(
-        { error: "Unauthorized access" },
-        { status: 403 }
+        { error: "Unauthorized - Authentication required" },
+        { status: 401 }
       );
     }
 
-    const id = params.id;
+    // Get user ID from path parameter
+    const userId = params.id;
 
-    // Get user with branch information using correct field names from schema
+    if (!userId) {
+      return NextResponse.json(
+        { error: "User ID is required" },
+        { status: 400 }
+      );
+    }
+
+    // Find the user
     const user = await prisma.user.findUnique({
-      where: { id },
-      include: {
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        username: true,
+        email: true,
+        role: true,
+        branchId: true,
         branch: {
           select: {
-            id: true,
-            code: true,
             name: true,
-          },
-        },
-        branchAssignments: {
-          include: {
-            branch: {
-              select: {
-                id: true,
-                code: true,
-                name: true,
-              },
-            },
-          },
-        },
-        userRoles: {
-          include: {
-            role: true,
           },
         },
       },
     });
 
     if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "User not found" },
+        { status: 404 }
+      );
     }
 
     return NextResponse.json(user);
   } catch (error) {
     console.error("Error fetching user:", error);
     return NextResponse.json(
-      { error: "Failed to fetch user" },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }
@@ -78,7 +76,7 @@ export async function PATCH(
     const token = await getToken({ req: request });
 
     // Check if user is authenticated and has admin role
-    if (!token || token.role !== "admin") {
+    if (!token || token.role !== "ADMIN") {
       return NextResponse.json(
         { error: "Unauthorized access" },
         { status: 403 }
@@ -90,7 +88,7 @@ export async function PATCH(
     const { username, email, name, password, role, branchId, isActive } = body;
 
     // Check if user exists
-    const existingUser = await prisma.user.findUnique({
+    const existingUser = await prismaClient.user.findUnique({
       where: { id },
     });
 
@@ -107,7 +105,7 @@ export async function PATCH(
 
     // Check if username/email is changed and already exists
     if (username && username !== existingUser.username) {
-      const usernameExists = await prisma.user.findFirst({
+      const usernameExists = await prismaClient.user.findFirst({
         where: { username },
       });
       if (usernameExists) {
@@ -120,7 +118,7 @@ export async function PATCH(
     }
 
     if (email && email !== existingUser.email) {
-      const emailExists = await prisma.user.findFirst({
+      const emailExists = await prismaClient.user.findFirst({
         where: { email },
       });
       if (emailExists) {
@@ -138,7 +136,7 @@ export async function PATCH(
     }
 
     // Update the user
-    const user = await prisma.user.update({
+    const user = await prismaClient.user.update({
       where: { id },
       data: updateData,
       select: {
@@ -173,7 +171,7 @@ export async function DELETE(
     const token = await getToken({ req: request });
 
     // Check if user is authenticated and has admin role
-    if (!token || token.role !== "admin") {
+    if (!token || token.role !== "ADMIN") {
       return NextResponse.json(
         { error: "Unauthorized access" },
         { status: 403 }
@@ -183,7 +181,7 @@ export async function DELETE(
     const id = params.id;
 
     // Check if user exists
-    const existingUser = await prisma.user.findUnique({
+    const existingUser = await prismaClient.user.findUnique({
       where: { id },
     });
 
@@ -200,7 +198,7 @@ export async function DELETE(
     }
 
     // Delete the user
-    await prisma.user.delete({
+    await prismaClient.user.delete({
       where: { id },
     });
 

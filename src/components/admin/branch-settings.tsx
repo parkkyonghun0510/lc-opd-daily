@@ -13,16 +13,26 @@ import { RoleManager } from "./RoleManager";
 import Link from "next/link";
 import BranchHierarchy from "@/components/branch-hierarchy";
 import { useState } from "react";
-import { invalidateBranchCaches } from "@/lib/cache/branch-cache";
+import { invalidateUserBranchCaches } from "@/lib/cache/branch-cache";
 import { toast } from "@/components/ui/use-toast";
+import { useSession } from "next-auth/react";
 
 export function BranchSettings() {
   const [refreshingCache, setRefreshingCache] = useState(false);
+  const { data: session } = useSession();
 
   const handleInvalidateCache = async () => {
     setRefreshingCache(true);
     try {
-      await invalidateBranchCaches();
+      if (!session?.user?.id) {
+        toast({
+          title: "Error",
+          description: "User session not found",
+          variant: "destructive",
+        });
+        return;
+      }
+      await invalidateUserBranchCaches(session.user.id);
       toast({
         title: "Cache invalidated",
         description: "Branch hierarchy caches have been refreshed",

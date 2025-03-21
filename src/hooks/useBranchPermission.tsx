@@ -50,9 +50,33 @@ export function useBranchPermission(
 
         const data = await response.json();
 
+        // Determine permission level based on user role
+        let permission = BranchAccessPermission.NONE;
+        if (data.hasAccess) {
+          switch (session.user?.role) {
+            case "admin":
+              permission = BranchAccessPermission.ADMIN;
+              break;
+            case "manager":
+              permission = BranchAccessPermission.MANAGE;
+              break;
+            case "supervisor":
+              permission = BranchAccessPermission.APPROVE;
+              break;
+            case "operator":
+              permission = BranchAccessPermission.SUBMIT;
+              break;
+            case "viewer":
+              permission = BranchAccessPermission.VIEW;
+              break;
+            default:
+              permission = BranchAccessPermission.NONE;
+          }
+        }
+
         setResult({
           hasAccess: data.hasAccess,
-          permission: data.permission,
+          permission,
           loading: false,
           error: null,
         });

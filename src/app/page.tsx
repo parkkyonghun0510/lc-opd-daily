@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { Loader2 } from "lucide-react";
 
 // System initialization check on the homepage
 export default function Home() {
@@ -14,6 +15,10 @@ export default function Home() {
     async function checkSystemStatus() {
       try {
         const response = await fetch("/api/setup");
+        if (!response.ok) {
+          throw new Error("Failed to check system status");
+        }
+        
         const data = await response.json();
 
         // If system is not set up, redirect to setup page
@@ -22,17 +27,13 @@ export default function Home() {
           return;
         }
 
-        // If user is logged in, redirect to dashboard
-        const authCookie = document.cookie.includes("auth_token=");
-        if (authCookie) {
-          router.push("/dashboard");
-          return;
-        }
-
-        // Otherwise, show the homepage
-        setLoading(false);
+        // If system is set up, redirect to login
+        router.push("/login");
       } catch (error) {
         console.error("Error checking system status:", error);
+        // On error, assume system needs setup
+        router.push("/setup");
+      } finally {
         setLoading(false);
       }
     }
@@ -44,7 +45,10 @@ export default function Home() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+          <p className="text-sm text-gray-500">Checking system status...</p>
+        </div>
       </div>
     );
   }
