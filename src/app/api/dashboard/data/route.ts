@@ -1,22 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
-import { withAuth, Role } from "@/lib/api-auth";
-import { JWT } from "next-auth/jwt";
+import { getToken } from "next-auth/jwt";
 import { prisma } from "@/lib/prisma";
+import { Permission, UserRole, hasPermission } from "@/lib/auth/roles";
 
-interface AuthToken extends JWT {
-  role: Role;
-  branchId: string | null;
-}
-
-async function handler(req: NextRequest, token: AuthToken) {
+// GET /api/dashboard/data - Get dashboard data
+export async function GET(request: NextRequest) {
   try {
+    // Authenticate user
+    const token = await getToken({ req: request });
+    if (!token) {
+      return NextResponse.json(
+        { error: "Unauthorized - Authentication required" },
+        { status: 401 }
+      );
+    }
+
     // Get user's branch ID from token
-    const branchId = token.branchId;
-    const userRole = token.role;
+    const branchId = token.branchId as string | null;
+    const userRole = token.role as UserRole;
 
     // Base query conditions
     const baseConditions =
-      userRole === "admin" ? {} : { branchId: branchId || "" };
+      userRole === "ADMIN" ? {} : { branchId: branchId || "" };
 
     // Fetch total users
     const totalUsers = await prisma.user.count({
@@ -123,7 +128,3 @@ async function handler(req: NextRequest, token: AuthToken) {
     );
   }
 }
-
-export const GET = withAuth(handler, {
-  requiredRole: ["admin", "manager", "user"],
-});

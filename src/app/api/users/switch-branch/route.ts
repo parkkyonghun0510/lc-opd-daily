@@ -7,7 +7,7 @@ export async function POST(request: NextRequest) {
   try {
     const token = await getToken({ req: request });
 
-    if (!token) {
+    if (!token || !token.sub) {
       return NextResponse.json(
         { error: "Unauthorized - Authentication required" },
         { status: 401 }
@@ -25,14 +25,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user has access to the branch
-    const branchAccess = await prisma.branchAccess.findFirst({
+    const branchAssignment = await prisma.userBranchAssignment.findFirst({
       where: {
-        userId: token.id,
+        userId: token.sub,
         branchId: branchId,
       },
     });
 
-    if (!branchAccess) {
+    if (!branchAssignment) {
       return NextResponse.json(
         { error: "You don't have access to this branch" },
         { status: 403 }
@@ -58,18 +58,24 @@ export async function POST(request: NextRequest) {
 
     // Update user's current branch
     await prisma.user.update({
-      where: { id: token.id },
+      where: { id: token.sub },
       data: {
         branchId: branchId,
       },
     });
 
     // Log the branch switch
-    await prisma.auditLog.create({
+    await prisma.userActivity.create({
       data: {
-        userId: token.id,
+        userId: token.sub,
         action: "SWITCH_BRANCH",
-        details: `Switched to branch: ${branch.name}`,
+        details: {
+          branchId: branch.id,
+          branchName: branch.name,
+          branchCode: branch.code,
+        },
+        ipAddress: request.headers.get("x-forwarded-for") || "unknown",
+        userAgent: request.headers.get("user-agent") || "unknown",
       },
     });
 

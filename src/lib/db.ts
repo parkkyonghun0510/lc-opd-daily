@@ -99,17 +99,31 @@ export async function updateUserPreferences(
   if (!userId) return null;
 
   try {
-    const updated = await prisma.userPreferences.upsert({
-      where: { userId },
-      update: {
-        [type]: preferences,
-      },
-      create: {
-        userId,
-        [type]: preferences,
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    const currentPreferences = parsePreferences(user.preferences);
+    const updatedPreferences = {
+      ...currentPreferences,
+      [type]: preferences,
+    };
+
+    const updated = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        preferences: updatedPreferences,
       },
     });
-    return updated;
+
+    return {
+      ...updated,
+      preferences: parsePreferences(updated.preferences),
+    };
   } catch (error) {
     console.error("Error updating user preferences:", error);
     throw new Error("Failed to update user preferences");

@@ -26,10 +26,11 @@ const securityUpdateSchema = z.object({
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const token = await getToken({ req: request });
+    const { id } = await params;
 
     if (!token) {
       return NextResponse.json(
@@ -39,7 +40,7 @@ export async function PATCH(
     }
 
     // Only admin can update other users' security settings
-    if (token.role !== UserRole.ADMIN && token.id !== params.id) {
+    if (token.role !== UserRole.ADMIN && token.id !== id) {
       return NextResponse.json(
         { error: "Forbidden - You can only update your own security settings" },
         { status: 403 }
@@ -51,7 +52,7 @@ export async function PATCH(
 
     // Get the user
     const user = await prisma.user.findUnique({
-      where: { id: params.id },
+      where: { id },
       select: { 
         password: true,
         isActive: true,
@@ -84,7 +85,7 @@ export async function PATCH(
     }
 
     // Verify current password if user is updating their own settings
-    if (token.id === params.id) {
+    if (token.id === id) {
       const isValidPassword = await verifyPassword(
         validatedData.currentPassword,
         user.password
@@ -100,7 +101,7 @@ export async function PATCH(
 
     // Update user security settings
     const updatedUser = await prisma.user.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         password: await hashPassword(validatedData.newPassword),
         isActive: validatedData.isActive,

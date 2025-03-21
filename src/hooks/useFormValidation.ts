@@ -6,6 +6,8 @@ import {
   UseFormReturn,
   FieldValues,
   SubmitHandler,
+  UseFormHandleSubmit,
+  DefaultValues,
 } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -13,7 +15,7 @@ import { useBeforeUnload } from "@/hooks/useBeforeUnload";
 
 interface UseFormValidationProps<T extends FieldValues> {
   schema: z.ZodSchema<T>;
-  defaultValues: T;
+  defaultValues: DefaultValues<T>;
   storageKey: string;
   onSubmit: (data: T) => Promise<void> | void;
   options?: {
@@ -21,6 +23,13 @@ interface UseFormValidationProps<T extends FieldValues> {
     confirmNavigation?: boolean;
     autoSaveInterval?: number;
   };
+}
+
+interface UseFormValidationReturn<T extends FieldValues> extends Omit<UseFormReturn<T>, 'handleSubmit'> {
+  handleSubmit: UseFormHandleSubmit<T>;
+  isDirty: boolean;
+  isSubmitting: boolean;
+  error: string | null;
 }
 
 export function useFormValidation<T extends FieldValues>({
@@ -33,18 +42,14 @@ export function useFormValidation<T extends FieldValues>({
     confirmNavigation: true,
     autoSaveInterval: 30000, // 30 seconds
   },
-}: UseFormValidationProps<T>): UseFormReturn<T> & {
-  isDirty: boolean;
-  isSubmitting: boolean;
-  error: string | null;
-} {
+}: UseFormValidationProps<T>): UseFormValidationReturn<T> {
   const [isDirty, setIsDirty] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const form = useForm<T>({
     resolver: zodResolver(schema),
-    defaultValues: defaultValues as any, // Type assertion needed due to react-hook-form limitations
+    defaultValues,
     mode: "onChange",
   });
 
@@ -109,7 +114,7 @@ export function useFormValidation<T extends FieldValues>({
 
   return {
     ...form,
-    handleSubmit: form.handleSubmit(handleSubmit),
+    handleSubmit: form.handleSubmit,
     isDirty,
     isSubmitting,
     error,

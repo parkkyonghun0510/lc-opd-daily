@@ -12,7 +12,7 @@ export interface ApiUser {
 }
 
 interface RouteHandlerContext {
-  params: Record<string, string>;
+  params: Promise<Record<string, string>>;
 }
 
 interface PermissionGuardOptions {
@@ -106,7 +106,8 @@ export function withPermissionGuard<T>(
       // Branch access check - for branch endpoints
       if (options.allowOwnBranch) {
         const { searchParams } = new URL(req.url);
-        const targetBranchId = searchParams.get("branchId") || context.params?.branchId;
+        const params = context.params ? await context.params : {};
+        const targetBranchId = searchParams.get("branchId") || params.branchId;
 
         // If requesting another branch, must have ADMIN or MANAGE_BRANCHES permission
         if (

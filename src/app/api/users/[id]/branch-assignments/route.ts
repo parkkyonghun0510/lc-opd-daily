@@ -12,10 +12,11 @@ type BranchAssignmentRequest = z.infer<typeof assignmentSchema>;
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const token = await getToken({ req: request });
+    const { id } = await params;
 
     if (!token) {
       return NextResponse.json(
@@ -24,7 +25,7 @@ export async function GET(
       );
     }
 
-    if (token.role !== UserRole.ADMIN && token.id !== params.id) {
+    if (token.role !== UserRole.ADMIN && token.id !== id) {
       return NextResponse.json(
         { error: "Forbidden - You can only view your own branch assignments" },
         { status: 403 }
@@ -33,7 +34,7 @@ export async function GET(
 
     // Get user's branch assignments
     const branchAssignments = await prisma.userBranchAssignment.findMany({
-      where: { userId: params.id },
+      where: { userId: id },
       select: {
         branch: {
           select: {
@@ -59,10 +60,11 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const token = await getToken({ req: request });
+    const { id } = await params;
 
     if (!token) {
       return NextResponse.json(
@@ -93,7 +95,7 @@ export async function POST(
 
     // Check if user exists
     const user = await prisma.user.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!user) {
@@ -105,14 +107,14 @@ export async function POST(
 
     // Delete existing assignments
     await prisma.userBranchAssignment.deleteMany({
-      where: { userId: params.id },
+      where: { userId: id },
     });
 
     // Create new assignments
     if (branchIds.length > 0) {
       await prisma.userBranchAssignment.createMany({
         data: branchIds.map((branchId) => ({
-          userId: params.id,
+          userId: id,
           branchId,
         })),
       });
@@ -120,7 +122,7 @@ export async function POST(
 
     // Get updated assignments
     const updatedAssignments = await prisma.userBranchAssignment.findMany({
-      where: { userId: params.id },
+      where: { userId: id },
       select: {
         branch: {
           select: {

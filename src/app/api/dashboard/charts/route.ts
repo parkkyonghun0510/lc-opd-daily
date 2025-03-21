@@ -2,18 +2,25 @@ import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import { redis, CACHE_TTL, CACHE_KEYS } from "@/lib/redis";
 import { recordCacheHit, recordCacheMiss } from "@/lib/cache-monitor";
+import { headers } from "next/headers";
 
 const prisma = new PrismaClient();
+
+// Configure route to be dynamic
+export const dynamic = 'force-dynamic';
 
 export const revalidate = 900; // Revalidate every 15 minutes for Next.js cache
 
 export async function GET() {
+  // Get headers for dynamic usage
+  const headersList = headers();
+
   try {
     // Try to get data from Redis cache first
     const cachedChartData = await redis.get(CACHE_KEYS.DASHBOARD_CHARTS);
-    if (cachedChartData) {
+    if (cachedChartData && typeof cachedChartData === 'string') {
       await recordCacheHit(CACHE_KEYS.DASHBOARD_CHARTS);
-      return NextResponse.json(cachedChartData);
+      return NextResponse.json(JSON.parse(cachedChartData));
     }
 
     await recordCacheMiss(CACHE_KEYS.DASHBOARD_CHARTS);
@@ -25,7 +32,7 @@ export async function GET() {
     };
 
     // Store in Redis cache
-    await redis.set(CACHE_KEYS.DASHBOARD_CHARTS, chartData, {
+    await redis.set(CACHE_KEYS.DASHBOARD_CHARTS, JSON.stringify(chartData), {
       ex: CACHE_TTL.CHARTS,
     });
 

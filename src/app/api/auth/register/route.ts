@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { NextRequest } from "next/server";
-import { createUser, logUserActivity } from "@/lib/auth";
+import { createUser } from "@/lib/auth";
+import { logUserActivity } from "@/lib/auth/log-user-activity";
 import { validatePassword } from "@/lib/utils/password-validation";
 
 // POST /api/auth/register - Register a new user

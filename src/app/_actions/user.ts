@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db/index";
 import { revalidatePath } from "next/cache";
 import { UserData, UserPreferences } from "../types";
+import { UserRole } from "@/lib/auth/roles";
 
 // Fetch user data from server
 export async function fetchUserData() {
@@ -45,8 +46,8 @@ export async function fetchUserData() {
       id: userData.id,
       name: userData.name || "",
       email: userData.email,
-      role: userData.role,
-      image: userData.image,
+      role: userData.role as UserRole,
+      image: userData.image || undefined,
       username: userData.username,
       isActive: userData.isActive,
       branch: userData.branch || undefined,
@@ -63,15 +64,19 @@ export async function fetchUserData() {
           : undefined,
       },
       permissions: {
-        canAccessAdmin: userData.role === "admin",
-        canViewAnalytics: ["admin", "manager", "analyst"].includes(
-          userData.role
+        canAccessAdmin: userData.role === "ADMIN",
+        canViewAnalytics: ["ADMIN", "BRANCH_MANAGER", "SUPERVISOR"].includes(
+          userData.role as UserRole
         ),
-        canViewAuditLogs: ["admin", "manager"].includes(userData.role),
-        canCustomizeDashboard: ["admin", "manager", "analyst"].includes(
-          userData.role
+        canViewAuditLogs: ["ADMIN", "BRANCH_MANAGER"].includes(
+          userData.role as UserRole
         ),
-        canManageSettings: ["admin", "manager"].includes(userData.role),
+        canCustomizeDashboard: ["ADMIN", "BRANCH_MANAGER", "SUPERVISOR"].includes(
+          userData.role as UserRole
+        ),
+        canManageSettings: ["ADMIN", "BRANCH_MANAGER"].includes(
+          userData.role as UserRole
+        ),
       },
       preferences: userPreferences,
     };

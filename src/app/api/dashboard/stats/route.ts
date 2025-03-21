@@ -4,13 +4,22 @@ import { redis, CACHE_TTL, CACHE_KEYS } from "@/lib/redis";
 import { recordCacheHit, recordCacheMiss } from "@/lib/cache-monitor";
 import { Permission, UserRole, hasPermission } from "@/lib/auth/roles";
 import { getServerSession } from "next-auth";
-import { authOptions, SessionUser } from "@/lib/auth";
+import { authOptions } from "@/lib/auth/options";
+import { SessionUser } from "@/lib/auth/index";
+import { headers } from "next/headers";
 
 const prisma = new PrismaClient();
 
-export const revalidate = 300; // Revalidate every 5 minutes for Next.js cache
+// Configure route to be dynamic
+export const dynamic = 'force-dynamic';
+
+// Remove revalidate since we're using dynamic data
+// export const revalidate = 300;
 
 export async function GET() {
+  // Get headers for dynamic usage
+  const headersList = headers();
+
   try {
     // Get user session
     const session = await getServerSession(authOptions);
@@ -28,9 +37,9 @@ export async function GET() {
     // Try to get data from Redis cache first
     const cacheKey = `${CACHE_KEYS.DASHBOARD_STATS}:${user.branchId || "all"}`;
     const cachedStats = await redis.get(cacheKey);
-    if (cachedStats) {
+    if (cachedStats && typeof cachedStats === 'string') {
       await recordCacheHit(cacheKey);
-      return NextResponse.json(cachedStats);
+      return NextResponse.json(JSON.parse(cachedStats));
     }
 
     await recordCacheMiss(cacheKey);
@@ -44,7 +53,7 @@ export async function GET() {
     };
 
     // Store in Redis cache
-    await redis.set(cacheKey, stats, {
+    await redis.set(cacheKey, JSON.stringify(stats), {
       ex: CACHE_TTL.STATS,
     });
 
@@ -68,9 +77,13 @@ async function getTotalUsers(user: SessionUser) {
 }
 
 async function getRevenue(user: SessionUser) {
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const thirtyDaysAgoFormatted = thirtyDaysAgo.toISOString().split('T')[0];
+
   const where = {
     date: {
-      gte: new Date(new Date().setDate(new Date().getDate() - 30)),
+      gte: thirtyDaysAgoFormatted,
     },
     ...(user.role !== UserRole.ADMIN && user.branchId
       ? { branchId: user.branchId }
@@ -92,9 +105,13 @@ async function getRevenue(user: SessionUser) {
 }
 
 async function getOrders(user: SessionUser) {
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const thirtyDaysAgoFormatted = thirtyDaysAgo.toISOString().split('T')[0];
+
   const where = {
     date: {
-      gte: new Date(new Date().setDate(new Date().getDate() - 30)),
+      gte: thirtyDaysAgoFormatted,
     },
     ...(user.role !== UserRole.ADMIN && user.branchId
       ? { branchId: user.branchId }
@@ -110,10 +127,22 @@ async function getGrowthRate(user: SessionUser) {
       ? { branchId: user.branchId }
       : {};
 
+  const currentMonthStart = new Date();
+  currentMonthStart.setDate(1);
+  const currentMonthStartFormatted = currentMonthStart.toISOString().split('T')[0];
+
+  const lastMonthStart = new Date();
+  lastMonthStart.setMonth(lastMonthStart.getMonth() - 1, 1);
+  const lastMonthStartFormatted = lastMonthStart.toISOString().split('T')[0];
+
+  const thisMonthStart = new Date();
+  thisMonthStart.setDate(1);
+  const thisMonthStartFormatted = thisMonthStart.toISOString().split('T')[0];
+
   const currentMonth = await prisma.report.aggregate({
     where: {
       date: {
-        gte: new Date(new Date().setDate(1)),
+        gte: currentMonthStartFormatted,
       },
       ...whereBase,
     },
@@ -126,8 +155,8 @@ async function getGrowthRate(user: SessionUser) {
   const lastMonth = await prisma.report.aggregate({
     where: {
       date: {
-        gte: new Date(new Date().setMonth(new Date().getMonth() - 1, 1)),
-        lt: new Date(new Date().setDate(1)),
+        gte: lastMonthStartFormatted,
+        lt: thisMonthStartFormatted,
       },
       ...whereBase,
     },
@@ -138,9 +167,9 @@ async function getGrowthRate(user: SessionUser) {
   });
 
   const currentTotal =
-    (currentMonth._sum.writeOffs || 0) + (currentMonth._sum.ninetyPlus || 0);
+    ((currentMonth._sum?.writeOffs ?? 0) + (currentMonth._sum?.ninetyPlus ?? 0));
   const lastTotal =
-    (lastMonth._sum.writeOffs || 0) + (lastMonth._sum.ninetyPlus || 0);
+    ((lastMonth._sum?.writeOffs ?? 0) + (lastMonth._sum?.ninetyPlus ?? 0));
 
   if (lastTotal === 0) return 0;
   return Math.round(((currentTotal - lastTotal) / lastTotal) * 100);
