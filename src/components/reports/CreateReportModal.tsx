@@ -31,7 +31,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { BranchSelector } from "@/components/ui/branch-selector";
 import { useUserData } from "@/contexts/UserDataContext";
 
@@ -92,50 +92,25 @@ export function CreateReportModal({
 
   const { userData } = useUserData();
 
-  // For users with only one branch, automatically select it
-  React.useEffect(() => {
-    if (userBranches.length === 1 && !formData.branchId) {
-      updateField("branchId", userBranches[0].id);
-    }
-  }, [userBranches, formData.branchId, updateField]);
-
-  // If user has no branches assigned, show error message
-  if (!userBranches || userBranches.length === 0) {
-    return (
-      <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Access Denied</DialogTitle>
-            <DialogDescription>
-              You are not assigned to any branches. Please contact your
-              administrator to get access.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button onClick={onClose}>Close</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    );
-  }
-
-  const handleTemplateSelect = (template: string) => {
-    if (template === "custom") {
-      updateField("comments", "");
-    } else {
-      updateField("comments", template);
-    }
-  };
-
-  // Get today's date at noon for consistent comparison
-  const today = new Date();
-  today.setHours(12, 0, 0, 0);
-
-  // For actual reports, show the corresponding plan data
+  // Initialize plan data state at the top level
   const [planData, setPlanData] = useState<{
     writeOffsPlan: number | null;
     ninetyPlusPlan: number | null;
   }>({ writeOffsPlan: null, ninetyPlusPlan: null });
+
+  // Get today's date at noon for consistent comparison
+  const today = useMemo(() => {
+    const date = new Date();
+    date.setHours(12, 0, 0, 0);
+    return date;
+  }, []);
+
+  // For users with only one branch, automatically select it
+  useEffect(() => {
+    if (userBranches.length === 1 && !formData.branchId) {
+      updateField("branchId", userBranches[0].id);
+    }
+  }, [userBranches, formData.branchId, updateField]);
 
   // Load plan data when creating an actual report
   useEffect(() => {
@@ -170,6 +145,34 @@ export function CreateReportModal({
       fetchPlanData();
     }
   }, [reportType, formData.date, formData.branchId]);
+
+  const handleTemplateSelect = useCallback((template: string) => {
+    if (template === "custom") {
+      updateField("comments", "");
+    } else {
+      updateField("comments", template);
+    }
+  }, [updateField]);
+
+  // If user has no branches assigned, show error message
+  if (!userBranches || userBranches.length === 0) {
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Access Denied</DialogTitle>
+            <DialogDescription>
+              You are not assigned to any branches. Please contact your
+              administrator to get access.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={onClose}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
