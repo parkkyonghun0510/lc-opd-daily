@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { PrismaClient } from "@prisma/client";
 import { z } from "zod";
@@ -10,7 +11,7 @@ const preferencesSchema = z.object({
   preferences: z.record(z.boolean()),
 });
 
-export async function PATCH(req: Request) {
+export async function PATCH(req: NextRequest) {
   try {
     const token = await getToken({ req });
 
@@ -30,7 +31,7 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    const currentPreferences = user.preferences || {
+    const defaultPreferences = {
       notifications: {
         reportUpdates: true,
         reportComments: true,
@@ -41,18 +42,19 @@ export async function PATCH(req: Request) {
       },
     };
 
-    const updatedPreferences = {
-      ...currentPreferences,
-      [validatedData.type]: {
-        ...currentPreferences[validatedData.type],
-        ...validatedData.preferences,
-      },
+    // Convert the preferences to a plain object
+    const currentPreferences = JSON.parse(JSON.stringify(user.preferences || defaultPreferences));
+
+    // Update the preferences
+    currentPreferences[validatedData.type] = {
+      ...currentPreferences[validatedData.type],
+      ...validatedData.preferences,
     };
 
     const updatedUser = await prisma.user.update({
       where: { id: token.sub },
       data: {
-        preferences: updatedPreferences,
+        preferences: currentPreferences,
       },
       select: {
         id: true,

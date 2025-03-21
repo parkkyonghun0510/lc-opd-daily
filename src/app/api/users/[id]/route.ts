@@ -9,10 +9,11 @@ const prismaClient = new PrismaClient();
 // GET /api/users/[id] - Get a single user by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const token = await getToken({ req: request });
+    const { id } = await params;
 
     if (!token) {
       return NextResponse.json(
@@ -21,19 +22,9 @@ export async function GET(
       );
     }
 
-    // Get user ID from path parameter
-    const userId = params.id;
-
-    if (!userId) {
-      return NextResponse.json(
-        { error: "User ID is required" },
-        { status: 400 }
-      );
-    }
-
     // Find the user
     const user = await prisma.user.findUnique({
-      where: { id: userId },
+      where: { id },
       select: {
         id: true,
         name: true,
@@ -69,11 +60,12 @@ export async function GET(
 // PATCH /api/users/[id] - Update a user
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Verify admin permission using NextAuth
     const token = await getToken({ req: request });
+    const { id } = await params;
 
     // Check if user is authenticated and has admin role
     if (!token || token.role !== "ADMIN") {
@@ -83,7 +75,6 @@ export async function PATCH(
       );
     }
 
-    const id = params.id;
     const body = await request.json();
     const { username, email, name, password, role, branchId, isActive } = body;
 
@@ -164,11 +155,12 @@ export async function PATCH(
 // DELETE /api/users/[id] - Delete a user
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Verify admin permission using NextAuth
     const token = await getToken({ req: request });
+    const { id } = await params;
 
     // Check if user is authenticated and has admin role
     if (!token || token.role !== "ADMIN") {
@@ -177,8 +169,6 @@ export async function DELETE(
         { status: 403 }
       );
     }
-
-    const id = params.id;
 
     // Check if user exists
     const existingUser = await prismaClient.user.findUnique({

@@ -8,7 +8,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
+import { cn, formatKHRCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,

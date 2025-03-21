@@ -28,7 +28,7 @@ interface ApiResponse<T> {
 
 // GET handler to list reports - requires VIEW_REPORTS permission
 export const GET = withPermissionGuard(
-  async (req, context, currentUser): Promise<NextResponse<ApiResponse<any>>> => {
+  async (req: NextRequest, context: {}, currentUser: any): Promise<NextResponse<ApiResponse<any>>> => {
     try {
       // Get query parameters
       const { searchParams } = new URL(req.url);
@@ -166,7 +166,7 @@ export const GET = withPermissionGuard(
 
 // POST handler to create reports - requires CREATE_REPORTS permission
 export const POST = withPermissionGuard(
-  async (req, context, currentUser): Promise<NextResponse<ApiResponse<any>>> => {
+  async (req: NextRequest, context: {}, currentUser: any): Promise<NextResponse<ApiResponse<any>>> => {
     try {
       const data = await req.json();
       
@@ -302,7 +302,7 @@ export const POST = withPermissionGuard(
 
 // PATCH handler to update reports - requires EDIT_REPORTS permission
 export const PATCH = withPermissionGuard(
-  async (req, context, currentUser): Promise<NextResponse<ApiResponse<any>>> => {
+  async (req: NextRequest, context: {}, currentUser: any): Promise<NextResponse<ApiResponse<any>>> => {
     try {
       const data = await req.json();
       

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions, SessionUser } from "@/lib/auth";
+import { authOptions } from "@/lib/auth/options";
+import { SessionUser } from "@/lib/auth/index";
 import {
   Permission,
   UserRole,
@@ -184,6 +185,9 @@ export async function POST(request: Request) {
       roleName: role.name,
       branchId: branchId || null,
       isDefault: isDefault || false,
+    }, {
+      ipAddress: "unknown",
+      userAgent: "unknown"
     });
 
     return NextResponse.json(userRole);
@@ -278,6 +282,9 @@ export async function DELETE(request: Request) {
       roleName: userRole.role.name,
       branchId: userRole.branchId,
       wasDefault: userRole.isDefault,
+    }, {
+      ipAddress: "unknown",
+      userAgent: "unknown"
     });
 
     return NextResponse.json({ success: true });
@@ -288,3 +295,4 @@ export async function DELETE(request: Request) {
       { status: 500 }
     );
   }
+}

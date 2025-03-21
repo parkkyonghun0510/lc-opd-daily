@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions, SessionUser } from "@/lib/auth";
+import { authOptions } from "@/lib/auth/options";
+import { SessionUser } from "@/lib/auth/index";
 import {
   Permission,
   UserRole,
@@ -68,7 +69,7 @@ export async function POST(request: Request) {
         const { userId, role, branchId } = update;
 
         // Validate role
-        if (!Object.values(UserRole).includes(role)) {
+        if (!Object.values(UserRole).includes(role as UserRole)) {
           return NextResponse.json(
             { error: `Invalid role: ${role}` },
             { status: 400 }
@@ -92,7 +93,7 @@ export async function POST(request: Request) {
         const updatedUser = await prisma.user.update({
           where: { id: userId },
           data: {
-            role,
+            role: role as UserRole,
             branchId: branchId || undefined,
           },
         });
@@ -104,6 +105,9 @@ export async function POST(request: Request) {
           newRole: role,
           oldBranchId: targetUser.branchId,
           newBranchId: branchId,
+        }, {
+          ipAddress: "unknown",
+          userAgent: "unknown"
         });
 
         results.push(updatedUser);
@@ -114,7 +118,7 @@ export async function POST(request: Request) {
       const { userId, role, branchId } = body;
 
       // Validate role
-      if (!Object.values(UserRole).includes(role)) {
+      if (!Object.values(UserRole).includes(role as UserRole)) {
         return NextResponse.json({ error: "Invalid role" }, { status: 400 });
       }
 
@@ -132,7 +136,7 @@ export async function POST(request: Request) {
       const updatedUser = await prisma.user.update({
         where: { id: userId },
         data: {
-          role,
+          role: role as UserRole,
           branchId: branchId || undefined,
         },
       });
@@ -144,6 +148,9 @@ export async function POST(request: Request) {
         newRole: role,
         oldBranchId: targetUser.branchId,
         newBranchId: branchId,
+      }, {
+        ipAddress: "unknown",
+        userAgent: "unknown"
       });
 
       return NextResponse.json(updatedUser);

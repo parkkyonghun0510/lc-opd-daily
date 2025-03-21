@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 // GET /api/branches/[id] - Get a specific branch by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Use NextAuth for authentication
@@ -17,7 +17,7 @@ export async function GET(
       );
     }
 
-    const id = params.id;
+    const { id } = await params;
 
     // Check if the branch exists
     const branch = await prisma.branch.findUnique({

@@ -99,11 +99,7 @@ export default function SettingsPage() {
   const [isAvatarUploading, setIsAvatarUploading] = useState(false);
   const [isProfileSaving, setIsProfileSaving] = useState(false);
   const [isPasswordSaving, setIsPasswordSaving] = useState(false);
-  const [showPassword, setShowPassword] = useState({
-    current: false,
-    new: false,
-    confirm: false,
-  });
+  const [showPassword, setShowPassword] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isAdmin = session?.user?.role === "admin";
@@ -727,32 +723,13 @@ export default function SettingsPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Current Password</FormLabel>
-                        <div className="relative">
-                          <FormControl>
-                            <Input
-                              {...field}
-                              type={showPassword.current ? "text" : "password"}
-                            />
-                          </FormControl>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="absolute right-0 top-0"
-                            onClick={() =>
-                              setShowPassword((prev) => ({
-                                ...prev,
-                                current: !prev.current,
-                              }))
-                            }
-                          >
-                            {showPassword.current ? (
-                              <EyeOff className="h-4 w-4" />
-                            ) : (
-                              <Eye className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </div>
+                        <FormControl>
+                          <Input 
+                            type="password" 
+                            autoComplete="current-password"
+                            {...field} 
+                          />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -763,68 +740,28 @@ export default function SettingsPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>New Password</FormLabel>
-                        <div className="relative">
-                          <FormControl>
+                        <FormControl>
+                          <div className="relative">
                             <Input
+                              type={showPassword ? "text" : "password"}
+                              autoComplete="new-password"
                               {...field}
-                              type={showPassword.new ? "text" : "password"}
+                              onChange={(e) => {
+                                field.onChange(e);
+                                const strength = calculatePasswordStrength(e.target.value);
+                                setPasswordStrength(strength);
+                              }}
                             />
-                          </FormControl>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="absolute right-0 top-0"
-                            onClick={() =>
-                              setShowPassword((prev) => ({
-                                ...prev,
-                                new: !prev.new,
-                              }))
-                            }
-                          >
-                            {showPassword.new ? (
-                              <EyeOff className="h-4 w-4" />
-                            ) : (
-                              <Eye className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </div>
-                        <div className="mt-2">
-                          <div className="flex justify-between text-sm mb-1">
-                            <span>Password Strength</span>
-                            <span
-                              className={cn(
-                                "font-medium",
-                                passwordStrength <= 20
-                                  ? "text-red-500"
-                                  : passwordStrength <= 40
-                                  ? "text-orange-500"
-                                  : passwordStrength <= 60
-                                  ? "text-yellow-500"
-                                  : passwordStrength <= 80
-                                  ? "text-blue-500"
-                                  : "text-green-500"
-                              )}
+                            <button
+                              type="button"
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
+                              onClick={() => setShowPassword(!showPassword)}
+                              aria-label={showPassword ? "Hide password" : "Show password"}
                             >
-                              {passwordStrength <= 20
-                                ? "Very Weak"
-                                : passwordStrength <= 40
-                                ? "Weak"
-                                : passwordStrength <= 60
-                                ? "Fair"
-                                : passwordStrength <= 80
-                                ? "Good"
-                                : "Strong"}
-                            </span>
+                              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            </button>
                           </div>
-                          <Progress
-                            value={passwordStrength}
-                            className={cn(
-                              "h-2",
-                              getStrengthColor(passwordStrength)
-                            )}
-                          />
-                        </div>
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -834,42 +771,59 @@ export default function SettingsPage() {
                     name="confirmPassword"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Confirm New Password</FormLabel>
-                        <div className="relative">
-                          <FormControl>
-                            <Input
-                              {...field}
-                              type={showPassword.confirm ? "text" : "password"}
-                            />
-                          </FormControl>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="absolute right-0 top-0"
-                            onClick={() =>
-                              setShowPassword((prev) => ({
-                                ...prev,
-                                confirm: !prev.confirm,
-                              }))
-                            }
-                          >
-                            {showPassword.confirm ? (
-                              <EyeOff className="h-4 w-4" />
-                            ) : (
-                              <Eye className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </div>
+                        <FormLabel>Confirm Password</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="password" 
+                            autoComplete="new-password"
+                            {...field} 
+                          />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
+
+                  <div className="mt-2">
+                    <div className="flex justify-between text-sm mb-1">
+                      <span>Password Strength</span>
+                      <span
+                        className={cn(
+                          "font-medium",
+                          passwordStrength <= 20
+                            ? "text-red-500"
+                            : passwordStrength <= 40
+                            ? "text-orange-500"
+                            : passwordStrength <= 60
+                            ? "text-yellow-500"
+                            : passwordStrength <= 80
+                            ? "text-blue-500"
+                            : "text-green-500"
+                        )}
+                      >
+                        {passwordStrength <= 20
+                          ? "Very Weak"
+                          : passwordStrength <= 40
+                          ? "Weak"
+                          : passwordStrength <= 60
+                          ? "Fair"
+                          : passwordStrength <= 80
+                          ? "Good"
+                          : "Strong"}
+                      </span>
+                    </div>
+                    <Progress
+                      value={passwordStrength}
+                      className={cn(
+                        "h-2",
+                        getStrengthColor(passwordStrength)
+                      )}
+                    />
+                  </div>
+
                   <Button
                     type="submit"
-                    disabled={
-                      isPasswordSaving || !passwordForm.formState.isDirty
-                    }
+                    disabled={isPasswordSaving || !passwordForm.formState.isDirty}
                   >
                     {isPasswordSaving ? (
                       <>

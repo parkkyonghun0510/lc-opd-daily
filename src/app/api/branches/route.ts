@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { NextRequest } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, Prisma } from "@prisma/client";
 import { getToken } from "next-auth/jwt";
 import { z } from "zod";
 import { UserRole } from "@/lib/auth/roles";
@@ -43,11 +43,11 @@ export async function GET(request: NextRequest) {
     const searchQuery = url.searchParams.get("search") || "";
     
     // Build the query
-    const where = searchQuery 
+    const where: Prisma.BranchWhereInput = searchQuery 
       ? {
           OR: [
-            { name: { contains: searchQuery, mode: "insensitive" } },
-            { code: { contains: searchQuery, mode: "insensitive" } },
+            { name: { contains: searchQuery, mode: Prisma.QueryMode.insensitive } },
+            { code: { contains: searchQuery, mode: Prisma.QueryMode.insensitive } },
           ],
         } 
       : {};

@@ -7,6 +7,18 @@ const prisma = new PrismaClient();
 // Validation schema for date parameter
 const dateSchema = z.string().datetime();
 
+interface DailyTotal {
+  date: string;
+  writeOffs: number;
+  ninetyPlus: number;
+}
+
+interface WeeklyTotal {
+  week: string;
+  writeOffs: number;
+  ninetyPlus: number;
+}
+
 // GET /api/consolidated - Get consolidated report by date
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -80,6 +92,10 @@ export async function GET(request: Request) {
 
     console.log(`Query date range for ${viewType} view:`, { startDate, endDate });
 
+    // Format dates to ISO string for Prisma
+    const startDateFormatted = startDate.toISOString().split('T')[0]; // YYYY-MM-DD
+    const endDateFormatted = endDate.toISOString().split('T')[0]; // YYYY-MM-DD
+
     // Get all branches
     const branches = await prisma.branch.findMany({
       where: {
@@ -94,8 +110,8 @@ export async function GET(request: Request) {
     const reports = await prisma.report.findMany({
       where: {
         date: {
-          gte: startDate,
-          lt: endDate,
+          gte: startDateFormatted,
+          lt: endDateFormatted,
         },
       },
       include: {
@@ -157,13 +173,11 @@ export async function GET(request: Request) {
     // Get previous day's data for comparison
     const previousDate = new Date(dateObj);
     previousDate.setDate(previousDate.getDate() - 1);
+    const previousDateFormatted = previousDate.toISOString().split('T')[0]; // YYYY-MM-DD
 
     const previousReports = await prisma.report.findMany({
       where: {
-        date: {
-          gte: new Date(previousDate.setHours(0, 0, 0, 0)),
-          lt: new Date(previousDate.setHours(23, 59, 59, 999)),
-        },
+        date: previousDateFormatted,
       },
     });
 
@@ -176,8 +190,8 @@ export async function GET(request: Request) {
     );
 
     // Generate time series data for weekly and monthly views
-    let dailyTotals = [];
-    let weeklyTotals = [];
+    let dailyTotals: DailyTotal[] = [];
+    let weeklyTotals: WeeklyTotal[] = [];
     
     if (viewType === "weekly") {
       // For weekly view, get daily totals
@@ -185,19 +199,12 @@ export async function GET(request: Request) {
       const currentDate = new Date(startDate);
       
       while (currentDate <= endDate) {
-        const dayStart = new Date(currentDate);
-        dayStart.setHours(0, 0, 0, 0);
-        
-        const dayEnd = new Date(currentDate);
-        dayEnd.setHours(23, 59, 59, 999);
+        const currentDateFormatted = currentDate.toISOString().split('T')[0]; // YYYY-MM-DD
         
         dailyReportsPromises.push(
           prisma.report.findMany({
             where: {
-              date: {
-                gte: dayStart,
-                lt: dayEnd,
-              },
+              date: currentDateFormatted,
             },
           })
         );
@@ -239,12 +246,15 @@ export async function GET(request: Request) {
         if (weekEnd > endDate) {
           weekEnd.setTime(endDate.getTime());
         }
+
+        const weekStartFormatted = weekStart.toISOString().split('T')[0]; // YYYY-MM-DD
+        const weekEndFormatted = weekEnd.toISOString().split('T')[0]; // YYYY-MM-DD
         
         const weekReports = await prisma.report.findMany({
           where: {
             date: {
-              gte: new Date(weekStart.setHours(0, 0, 0, 0)),
-              lt: new Date(weekEnd.setHours(23, 59, 59, 999)),
+              gte: weekStartFormatted,
+              lt: weekEndFormatted,
             },
           },
         });
@@ -331,14 +341,12 @@ export async function POST(request: Request) {
 
     const validatedDate = dateSchema.parse(date);
     const dateObj = new Date(validatedDate);
+    const formattedDate = dateObj.toISOString().split('T')[0]; // YYYY-MM-DD
 
     // Get consolidated data
     const consolidatedData = await prisma.report.findMany({
       where: {
-        date: {
-          gte: new Date(dateObj.setHours(0, 0, 0, 0)),
-          lt: new Date(dateObj.setHours(23, 59, 59, 999)),
-        },
+        date: formattedDate,
       },
       include: {
         branch: true,

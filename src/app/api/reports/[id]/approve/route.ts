@@ -7,7 +7,7 @@ import { AuditAction, createServerAuditLog } from "@/lib/audit";
 // POST /api/reports/[id]/approve - Approve or reject a report
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const token = await getToken({ req: request });
@@ -28,7 +28,7 @@ export async function POST(
       );
     }
 
-    const { id } = params;
+    const { id } = await params;
     const { status, comments, notifyUsers } = await request.json();
 
     if (!id) {

@@ -16,17 +16,20 @@ const updateReportSchema = z.object({
 // GET /api/reports/[id] - Get a specific report by ID
 export async function GET(
   request: NextRequest,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    // Access the id from the context params
-    const id = context.params.id;
-
     // Use NextAuth for authentication
     const token = await getToken({ req: request });
     if (!token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized - Authentication required" },
+        { status: 401 }
+      );
     }
+
+    // Access the id from the context params
+    const { id } = await context.params;
 
     const report = await prisma.report.findUnique({
       where: {
@@ -93,11 +96,11 @@ export async function GET(
 // PUT /api/reports/[id] - Update a specific report
 export async function PUT(
   request: NextRequest,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     // Get the report ID from the URL
-    const id = context.params.id;
+    const { id } = await context.params;
 
     // Get the user from the auth token
     const token = await getToken({ req: request });
@@ -171,11 +174,11 @@ export async function PUT(
 // DELETE /api/reports/[id] - Delete a specific report
 export async function DELETE(
   request: NextRequest,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     // Get the report ID from the URL
-    const id = context.params.id;
+    const { id } = await context.params;
 
     // Get the user from the auth token
     const token = await getToken({ req: request });

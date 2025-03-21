@@ -5,10 +5,11 @@ import { UserRole } from "@/lib/auth/roles";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const token = await getToken({ req: request });
+    const { id } = await params;
 
     if (!token) {
       return NextResponse.json(
@@ -17,11 +18,9 @@ export async function GET(
       );
     }
 
-    const userId = params.id;
-
     // Get user with their role and branch assignments
     const user = await prisma.user.findUnique({
-      where: { id: userId },
+      where: { id },
       include: {
         branchAssignments: {
           include: {

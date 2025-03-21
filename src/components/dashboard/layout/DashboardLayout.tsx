@@ -11,7 +11,7 @@ interface DashboardLayoutProps {
 }
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
-  const { selected: isCompactMode } = useCompactMode();
+  const isCompactMode = useCompactMode();
 
   return (
     <div className="flex h-screen bg-gray-50">
