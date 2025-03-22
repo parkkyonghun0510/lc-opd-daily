@@ -71,12 +71,17 @@ export function useReportForm({
     const fetchValidationRules = async () => {
       try {
         const response = await fetch("/api/validation-rules");
-        if (response.ok) {
-          const rules = await response.json();
-          setValidationRules(rules);
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.warn("Failed to fetch validation rules:", errorData);
+          // Don't throw error, just use default validation
+          return;
         }
+        const rules = await response.json();
+        setValidationRules(rules);
       } catch (error) {
         console.error("Error fetching validation rules:", error);
+        // Don't throw error, just use default validation
       }
     };
 
@@ -171,6 +176,16 @@ export function useReportForm({
 
       // Then validate against organization rules if available
       if (validationRules) {
+        // Check write-offs requirements
+        if (validationRules.writeOffs.requireApproval && dataToValidate.writeOffs > 0) {
+          errors.writeOffs = "Write-offs require approval";
+        }
+
+        // Check 90+ days requirements
+        if (validationRules.ninetyPlus.requireApproval && dataToValidate.ninetyPlus > 0) {
+          errors.ninetyPlus = "90+ days require approval";
+        }
+
         // Check comments requirements
         if (validationRules.comments.required && !dataToValidate.comments) {
           errors.comments = "Comments are required";

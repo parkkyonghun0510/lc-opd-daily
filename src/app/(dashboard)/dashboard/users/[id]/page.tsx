@@ -8,9 +8,12 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
-import { Loader2, ArrowLeft } from "lucide-react";
+import { Loader2, ArrowLeft, CheckCircle, XCircle, Pencil } from "lucide-react";
 import { BranchAssignmentManager } from "@/components/branch/BranchAssignmentManager";
 import Link from "next/link";
+import UserSecurityForm from "@/components/forms/UserSecurityForm";
+import { Badge } from "@/components/ui/badge";
+import UserProfileForm from "@/components/forms/UserProfileForm";
 
 interface User {
   id: string;
@@ -55,6 +58,74 @@ export default function UserDetailPage() {
     }
   }, [id, toast]);
 
+  const handleSecurityUpdate = async (data: any) => {
+    try {
+      const response = await fetch(`/api/users/${id}/security`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to update security settings");
+      }
+
+      setUser(prev => prev ? {...prev, isActive: result.isActive} : null);
+      toast({
+        title: "Success",
+        description: "Security settings updated successfully",
+      });
+      return result;
+    } catch (error) {
+      console.error("Error updating security settings:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to update security settings",
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
+
+  const toggleUserStatus = async () => {
+    if (!user) return;
+    
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/users/${id}/toggle-status`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        }
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to update user status");
+      }
+
+      setUser(prev => prev ? {...prev, isActive: result.isActive} : null);
+      toast({
+        title: "Success",
+        description: `User ${result.isActive ? 'activated' : 'deactivated'} successfully`,
+      });
+    } catch (error) {
+      console.error("Error toggling user status:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to update user status",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -81,16 +152,28 @@ export default function UserDetailPage() {
             </Link>
           </Button>
           <h1 className="text-2xl font-bold">{user.name}</h1>
-          <div
-            className={`ml-2 px-2 py-1 text-xs rounded-full ${
+          <Badge
+            variant={user.isActive ? "default" : "destructive"}
+            className={
               user.isActive
-                ? "bg-green-100 text-green-800"
-                : "bg-red-100 text-red-800"
-            }`}
+                ? "bg-green-100 text-green-800 hover:bg-green-200"
+                : "bg-red-100 text-red-800 hover:bg-red-200"
+            }
           >
-            {user.isActive ? "Active" : "Inactive"}
-          </div>
+            {user.isActive ? (
+              <><CheckCircle className="mr-1 h-3 w-3" /> Active</>
+            ) : (
+              <><XCircle className="mr-1 h-3 w-3" /> Inactive</>
+            )}
+          </Badge>
         </div>
+        <Button 
+          variant={user.isActive ? "destructive" : "default"}
+          onClick={toggleUserStatus}
+          disabled={loading}
+        >
+          {user.isActive ? "Deactivate User" : "Activate User"}
+        </Button>
       </div>
 
       <Tabs defaultValue="profile" className="space-y-6">
@@ -102,28 +185,21 @@ export default function UserDetailPage() {
 
         <TabsContent value="profile">
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>User Profile</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Full Name</Label>
-                  <Input id="name" value={user.name} readOnly />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="username">Username</Label>
-                  <Input id="username" value={user.username} readOnly />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input id="email" value={user.email} readOnly />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="role">Role</Label>
-                  <Input id="role" value={user.role} readOnly />
-                </div>
-              </div>
+              {user && (
+                <UserProfileForm 
+                  user={{
+                    id: user.id,
+                    username: user.username,
+                    email: user.email,
+                    name: user.name,
+                    branchId: user.branchId
+                  }} 
+                />
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -138,31 +214,11 @@ export default function UserDetailPage() {
               <CardTitle>Security Settings</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-medium">Password</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Change the user's password
-                    </p>
-                  </div>
-                  <Button variant="outline">Reset Password</Button>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-medium">Account Status</h3>
-                    <p className="text-sm text-muted-foreground">
-                      {user.isActive
-                        ? "User account is active"
-                        : "User account is inactive"}
-                    </p>
-                  </div>
-                  <Button variant={user.isActive ? "destructive" : "default"}>
-                    {user.isActive ? "Deactivate Account" : "Activate Account"}
-                  </Button>
-                </div>
-              </div>
+              <UserSecurityForm 
+                userId={user.id}
+                isActive={user.isActive}
+                onSubmit={handleSecurityUpdate}
+              />
             </CardContent>
           </Card>
         </TabsContent>

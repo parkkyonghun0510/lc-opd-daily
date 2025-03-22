@@ -13,7 +13,7 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
-          return null;
+          throw new Error("Missing email or password");
         }
 
         const prisma = await getPrisma();
@@ -35,22 +35,22 @@ export const authOptions: NextAuthOptions = {
         });
 
         if (!user) {
-          return null;
+          throw new Error("Invalid credentials");
         }
 
         if (!user.isActive) {
-          throw new Error(
-            "Account is inactive. Please contact an administrator."
-          );
+          throw new Error("Account is inactive. Please contact an administrator.");
         }
 
-        const isPasswordValid = await compare(
-          credentials.password,
-          user.password
-        );
+        // Check if user needs branch assignment
+        if (!user.branchId && user.role !== "ADMIN") {
+          throw new Error("No branch assigned. Please contact your administrator to assign a branch.");
+        }
+
+        const isPasswordValid = await compare(credentials.password, user.password);
 
         if (!isPasswordValid) {
-          return null;
+          throw new Error("Invalid credentials");
         }
 
         // Update last login
@@ -73,7 +73,7 @@ export const authOptions: NextAuthOptions = {
   ],
   pages: {
     signIn: "/login",
-    error: "/login?error=true",
+    error: "/login",
   },
   session: {
     strategy: "jwt",

@@ -2,6 +2,26 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { UserRole } from "@/lib/auth/roles";
+
+// Default validation rules
+const defaultRules = {
+  writeOffs: {
+    maxAmount: 1000,
+    requireApproval: true,
+  },
+  ninetyPlus: {
+    maxAmount: 5000,
+    requireApproval: true,
+  },
+  comments: {
+    required: true,
+    minLength: 10,
+  },
+  duplicateCheck: {
+    enabled: true,
+  },
+};
 
 export async function GET() {
   try {
@@ -11,37 +31,23 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get user's branch to determine organization
+    // Get user's role and branch
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      include: { branch: true },
+      select: {
+        role: true,
+        branch: true,
+      },
     });
 
-    if (!user?.branch) {
-      return NextResponse.json(
-        { error: "User not assigned to a branch" },
-        { status: 400 }
-      );
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Default validation rules
-    const defaultRules = {
-      writeOffs: {
-        maxAmount: 1000,
-        requireApproval: true,
-      },
-      ninetyPlus: {
-        maxAmount: 5000,
-        requireApproval: true,
-      },
-      comments: {
-        required: true,
-        minLength: 10,
-      },
-      duplicateCheck: {
-        enabled: true,
-      },
-    };
+    // If user is an admin or doesn't have a branch yet, return default rules
+    if (user.role === UserRole.ADMIN || !user.branch) {
+      return NextResponse.json(defaultRules);
+    }
 
     try {
       // Try to get organization settings
@@ -49,16 +55,14 @@ export async function GET() {
         where: { organizationId: user.branch.id },
       });
 
-      if (settings) {
+      if (settings?.validationRules) {
         return NextResponse.json(settings.validationRules);
       }
-    } catch {
-      // If the model is not available yet, return default rules
-      console.warn(
-        "OrganizationSettings model not available, using default rules"
-      );
+    } catch (error) {
+      console.warn("Error fetching organization settings:", error);
     }
 
+    // Return default rules if no specific rules found
     return NextResponse.json(defaultRules);
   } catch (error) {
     console.error("Error fetching validation rules:", error);
