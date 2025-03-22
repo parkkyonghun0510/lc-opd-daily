@@ -154,7 +154,9 @@ export function useReportForm({
     localStorage.removeItem(STORAGE_KEY);
   };
 
-  const validateForm = (): boolean => {
+  const validateForm = (): Record<string, string> => {
+    const errors: Record<string, string> = {};
+    
     try {
       // Convert numeric fields to numbers if they're strings
       const dataToValidate = {
@@ -171,36 +173,29 @@ export function useReportForm({
       if (validationRules) {
         // Check comments requirements
         if (validationRules.comments.required && !dataToValidate.comments) {
-          setErrors({ comments: "Comments are required" });
-          return false;
+          errors.comments = "Comments are required";
         }
         if (
           dataToValidate.comments &&
           dataToValidate.comments.length < validationRules.comments.minLength
         ) {
-          setErrors({
-            comments: `Comments must be at least ${validationRules.comments.minLength} characters`,
-          });
-          return false;
+          errors.comments = `Comments must be at least ${validationRules.comments.minLength} characters`;
         }
       }
 
-      setErrors({});
-      return true;
+      return errors;
     } catch (error) {
       if (error instanceof z.ZodError) {
-        const newErrors: Record<string, string> = {};
         error.errors.forEach((err) => {
           if (err.path[0]) {
             const field = err.path[0].toString();
-            newErrors[field] = err.message;
+            errors[field] = err.message;
           }
         });
-        setErrors(newErrors);
       } else if (error instanceof Error) {
-        setErrors({ general: error.message });
+        errors.general = error.message;
       }
-      return false;
+      return errors;
     }
   };
 
