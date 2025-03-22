@@ -34,6 +34,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { BranchSelector } from "@/components/ui/branch-selector";
 import { useUserData } from "@/contexts/UserDataContext";
+import { toast } from "@/components/ui/use-toast";
 
 interface CreateReportModalProps {
   isOpen: boolean;
@@ -81,6 +82,7 @@ export function CreateReportModal({
     updateField,
     handleSubmit,
     validationRules,
+    setFormData,
   } = useReportForm({
     reportType,
     userBranches,
@@ -91,12 +93,23 @@ export function CreateReportModal({
   });
 
   const { userData } = useUserData();
-
+  
   // Initialize plan data state at the top level
   const [planData, setPlanData] = useState<{
     writeOffsPlan: number | null;
     ninetyPlusPlan: number | null;
-  }>({ writeOffsPlan: null, ninetyPlusPlan: null });
+    planReportId: string | null;
+  }>({ writeOffsPlan: null, ninetyPlusPlan: null, planReportId: null });
+  
+  // Use a ref to track which combinations we've already fetched
+  const fetchedCombinations = React.useRef<Set<string>>(new Set());
+  
+  // Use a ref to track if we've initialized the form for this dialog session
+  const hasInitialized = React.useRef(false);
+
+  // Add this state variable near the top of the CreateReportModal component
+  // After the other state variables
+  const [planDataLoading, setPlanDataLoading] = useState(false);
 
   // Get today's date at noon for consistent comparison
   const today = useMemo(() => {
@@ -115,36 +128,78 @@ export function CreateReportModal({
   // Load plan data when creating an actual report
   useEffect(() => {
     if (reportType === "actual" && formData.date && formData.branchId) {
-      const fetchPlanData = async () => {
-        try {
-          const formattedDate = format(formData.date, "yyyy-MM-dd");
-          const url = `/api/reports?date=${formattedDate}&branchId=${formData.branchId}&reportType=plan`;
-          const response = await fetch(url);
-          
-          if (!response.ok) {
-            throw new Error("Failed to fetch plan data");
-          }
-          
-          const data = await response.json();
-          if (data.data && data.data.length > 0) {
-            setPlanData({
-              writeOffsPlan: data.data[0].writeOffs,
-              ninetyPlusPlan: data.data[0].ninetyPlus
-            });
-            console.log("Found plan data:", data.data[0]);
-          } else {
-            setPlanData({ writeOffsPlan: null, ninetyPlusPlan: null });
-            console.log("No plan data found for this date and branch");
-          }
-        } catch (error) {
-          console.error("Error loading plan data:", error);
-          setPlanData({ writeOffsPlan: null, ninetyPlusPlan: null });
-        }
-      };
+      // Don't allow future dates
+      const selectedDate = new Date(formData.date);
+      const currentDate = new Date();
+      selectedDate.setHours(0, 0, 0, 0);
+      currentDate.setHours(0, 0, 0, 0);
       
-      fetchPlanData();
+      if (selectedDate > currentDate) {
+        return; // Don't fetch for future dates
+      }
+      
+      const formattedDate = format(formData.date, "yyyy-MM-dd");
+      const fetchKey = `${formattedDate}-${formData.branchId}`;
+      
+      console.log("Attempting to fetch plan data for:", fetchKey);
+      
+      // Only fetch if we haven't already fetched this combination
+      if (!fetchedCombinations.current.has(fetchKey)) {
+        fetchedCombinations.current.add(fetchKey);
+        
+        // Set loading state to true before fetching
+        setPlanDataLoading(true);
+        
+        const fetchPlanData = async () => {
+          try {
+            const url = `/api/reports?date=${encodeURIComponent(formattedDate)}&branchId=${encodeURIComponent(formData.branchId)}&reportType=plan`;
+            
+            const response = await fetch(url);
+            
+            if (!response.ok) {
+              throw new Error(`Failed to fetch plan data: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            if (data.data && data.data.length > 0) {
+              const planReport = data.data[0];
+              setPlanData({
+                writeOffsPlan: planReport.writeOffs,
+                ninetyPlusPlan: planReport.ninetyPlus,
+                planReportId: planReport.id
+              });
+              // Set the planReportId in the form data as well
+              updateField("planReportId", planReport.id);
+            } else {
+              setPlanData({ writeOffsPlan: null, ninetyPlusPlan: null, planReportId: null });
+              updateField("planReportId", null);
+            }
+          } catch (error) {
+            console.error("Error loading plan data");
+            setPlanData({ writeOffsPlan: null, ninetyPlusPlan: null, planReportId: null });
+            updateField("planReportId", null);
+          } finally {
+            // Set loading state to false after fetching (regardless of success/failure)
+            setPlanDataLoading(false);
+          }
+        };
+        
+        fetchPlanData();
+      } else {
+        // If we've already fetched this combination, make sure loading is false
+        setPlanDataLoading(false);
+      }
     }
-  }, [reportType, formData.date, formData.branchId]);
+  }, [reportType, formData.date, formData.branchId, updateField]);
+
+  // Keep this separate effect to clean up when modal closes
+  useEffect(() => {
+    if (isOpen) {
+      fetchedCombinations.current.clear();
+      console.log("Modal opened, cleared fetched combinations");
+    }
+  }, [isOpen]);
 
   const handleTemplateSelect = useCallback((template: string) => {
     if (template === "custom") {
@@ -153,6 +208,70 @@ export function CreateReportModal({
       updateField("comments", template);
     }
   }, [updateField]);
+
+  // Debug date values
+  useEffect(() => {
+    if (formData.date) {
+      console.log("Current formData.date:", formData.date);
+      console.log("Formatted date:", format(formData.date, "yyyy-MM-dd"));
+    }
+  }, [formData.date]);
+
+  // Form initialization effect - Reset when modal opens
+  useEffect(() => {
+    if (isOpen && !hasInitialized.current) {
+      hasInitialized.current = true;
+      
+      // Use a batched update to minimize renders
+      const newFormData = {
+        title: `${reportType === "plan" ? "Plan" : "Actual"} Report - ${format(today, "yyyy-MM-dd")}`,
+        date: today,
+        branchId: userBranches.length === 1 ? userBranches[0].id : '',
+        writeOffs: 0,
+        ninetyPlus: 0,
+        comments: '',
+        reportType: reportType,
+        planReportId: null,
+      };
+      
+      // Set the entire form data at once
+      setFormData(newFormData);
+      
+      // Clear fetched combinations to ensure fresh data
+      fetchedCombinations.current.clear();
+      
+      // Clear plan data
+      setPlanData({ writeOffsPlan: null, ninetyPlusPlan: null, planReportId: null });
+    }
+    
+    // Reset the initialization flag when the modal closes
+    if (!isOpen) {
+      hasInitialized.current = false;
+    }
+  }, [isOpen, reportType, userBranches, today, setFormData]);
+
+  // Prevent future dates from being used
+  useEffect(() => {
+    if (formData.date) {
+      const selectedDate = new Date(formData.date);
+      const currentDate = new Date();
+      
+      // Clear the time part for accurate date comparison
+      selectedDate.setHours(0, 0, 0, 0);
+      currentDate.setHours(0, 0, 0, 0);
+      
+      if (selectedDate > currentDate) {
+        // Automatically adjust to today's date if a future date is detected
+        console.warn("Future date detected, adjusting to today's date");
+        const today = new Date();
+        updateField("date", today);
+        updateField(
+          "title", 
+          `${reportType === "plan" ? "Plan" : "Actual"} Report - ${format(today, "yyyy-MM-dd")}`
+        );
+      }
+    }
+  }, [formData.date, updateField, reportType]);
 
   // If user has no branches assigned, show error message
   if (!userBranches || userBranches.length === 0) {
@@ -249,8 +368,19 @@ export function CreateReportModal({
                   const selectedDate = new Date(date);
                   selectedDate.setHours(12, 0, 0, 0);
                   
+                  // Get today's date at noon
+                  const today = new Date();
+                  today.setHours(12, 0, 0, 0);
+                  
                   // Don't update if future date
-                  if (selectedDate > today) return;
+                  if (selectedDate > today) {
+                    toast({
+                      title: "Invalid date",
+                      description: "You cannot select a future date",
+                      variant: "destructive"
+                    });
+                    return;
+                  }
                   
                   updateField("date", selectedDate);
                   
@@ -264,7 +394,12 @@ export function CreateReportModal({
                   // Set time to noon to match the "today" variable's time
                   const compareDate = new Date(date);
                   compareDate.setHours(12, 0, 0, 0);
-                  // This should allow selecting today's date but disable future dates
+                  
+                  // Get today's date at noon
+                  const today = new Date();
+                  today.setHours(12, 0, 0, 0);
+                  
+                  // Disable future dates
                   return compareDate > today;
                 }}
                 initialFocus
@@ -353,24 +488,47 @@ export function CreateReportModal({
           {reportType === "actual" && (
             <div className="bg-muted p-4 rounded-lg mb-4">
               <h3 className="text-sm font-semibold mb-2">Morning Plan Data</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="planWriteOffs" className="text-xs">Write-offs (Plan)</Label>
-                  <p id="planWriteOffs" className="text-sm font-medium">
-                    {planData.writeOffsPlan !== null 
-                      ? formatKHRCurrency(planData.writeOffsPlan) 
-                      : "No plan data available"}
-                  </p>
+              {planDataLoading ? (
+                <div className="text-center py-2">
+                  <div className="animate-spin h-5 w-5 mx-auto border-2 border-primary rounded-full border-t-transparent"></div>
+                  <p className="text-sm mt-1">Loading plan data...</p>
                 </div>
-                <div>
-                  <Label htmlFor="planNinetyPlus" className="text-xs">90+ Days (Plan)</Label>
-                  <p id="planNinetyPlus" className="text-sm font-medium">
-                    {planData.ninetyPlusPlan !== null 
-                      ? formatKHRCurrency(planData.ninetyPlusPlan) 
-                      : "No plan data available"}
-                  </p>
+              ) : (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="planWriteOffs" className="text-xs">Write-offs (Plan)</Label>
+                    <p id="planWriteOffs" className="text-sm font-medium">
+                      {planData.writeOffsPlan !== null 
+                        ? formatKHRCurrency(planData.writeOffsPlan) 
+                        : (
+                          <span className="text-muted-foreground italic">
+                            No plan data available
+                          </span>
+                        )}
+                    </p>
+                  </div>
+                  <div>
+                    <Label htmlFor="planNinetyPlus" className="text-xs">90+ Days (Plan)</Label>
+                    <p id="planNinetyPlus" className="text-sm font-medium">
+                      {planData.ninetyPlusPlan !== null 
+                        ? formatKHRCurrency(planData.ninetyPlusPlan) 
+                        : (
+                          <span className="text-muted-foreground italic">
+                            No plan data available
+                          </span>
+                        )}
+                    </p>
+                  </div>
                 </div>
-              </div>
+              )}
+              {formData.date && !planDataLoading && planData.writeOffsPlan === null && (
+                <Alert className="mt-3 bg-amber-50 border-amber-200">
+                  <AlertCircle className="h-4 w-4 text-amber-600" />
+                  <AlertDescription className="text-amber-700 text-xs">
+                    No morning plan found for this date and branch. Please ensure a plan report is submitted first.
+                  </AlertDescription>
+                </Alert>
+              )}
             </div>
           )}
         </div>

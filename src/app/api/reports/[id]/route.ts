@@ -42,6 +42,13 @@ export async function GET(
             code: true,
             name: true,
           },
+        },
+        planReport: {
+          select: {
+            writeOffs: true,
+            ninetyPlus: true,
+            id: true
+          }
         }
       },
     });
@@ -50,26 +57,42 @@ export async function GET(
       return NextResponse.json({ error: "Report not found" }, { status: 404 });
     }
 
-    // If this is an actual report, fetch the corresponding plan report
+    // If this is an actual report, use the planReport relation
     const responseData = { ...report } as any;
 
     if (report.reportType === "actual") {
-      const planReport = await prisma.report.findFirst({
-        where: {
-          date: report.date,
-          branchId: report.branchId,
-          reportType: "plan"
-        }
-      });
-
-      if (planReport) {
+      if (report.planReport) {
         // Add plan data with proper type conversion
-        responseData.writeOffsPlan = typeof planReport.writeOffs === 'number' ? planReport.writeOffs : 0;
-        responseData.ninetyPlusPlan = typeof planReport.ninetyPlus === 'number' ? planReport.ninetyPlus : 0;
+        responseData.writeOffsPlan = typeof report.planReport.writeOffs === 'number' ? report.planReport.writeOffs : 0;
+        responseData.ninetyPlusPlan = typeof report.planReport.ninetyPlus === 'number' ? report.planReport.ninetyPlus : 0;
+        responseData.planReportId = report.planReport.id;
       } else {
-        // Set to null if no plan report found
-        responseData.writeOffsPlan = null;
-        responseData.ninetyPlusPlan = null;
+        // If no plan report is linked, try to find one (for backwards compatibility)
+        const planReport = await prisma.report.findFirst({
+          where: {
+            date: report.date,
+            branchId: report.branchId,
+            reportType: "plan"
+          }
+        });
+
+        if (planReport) {
+          // Add plan data with proper type conversion
+          responseData.writeOffsPlan = typeof planReport.writeOffs === 'number' ? planReport.writeOffs : 0;
+          responseData.ninetyPlusPlan = typeof planReport.ninetyPlus === 'number' ? planReport.ninetyPlus : 0;
+          responseData.planReportId = planReport.id;
+          
+          // Update the actual report to link it to the plan report
+          await prisma.report.update({
+            where: { id: report.id },
+            data: { planReportId: planReport.id }
+          });
+        } else {
+          // Set to null if no plan report found
+          responseData.writeOffsPlan = null;
+          responseData.ninetyPlusPlan = null;
+          responseData.planReportId = null;
+        }
       }
     }
 

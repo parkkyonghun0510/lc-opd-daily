@@ -17,6 +17,8 @@ export interface Report {
   submittedBy: string;
   submittedAt: string;
   comments?: string;
+  planReportId?: string | null;
+  planReport?: Report;
 }
 
 export interface Branch {
@@ -32,6 +34,7 @@ export interface CreateReportData {
   ninetyPlus: number;
   comments?: string;
   reportType: ReportType;
+  planReportId?: string | null;
 }
 
 export interface PaginationInfo {

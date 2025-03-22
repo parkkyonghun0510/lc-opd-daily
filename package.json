@@ -19,7 +19,8 @@
     "db:reset": "prisma migrate reset",
     "test": "jest",
     "prepare": "husky install",
-    "prisma:seed": "npx prisma db seed"
+    "prisma:seed": "npx prisma db seed",
+    "link-reports": "node scripts/link-plan-actual-reports.mjs"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.8.0",

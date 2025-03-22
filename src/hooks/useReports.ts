@@ -40,6 +40,8 @@ export function useReports({
   // Fetch reports
   const fetchReports = async () => {
     setIsLoading(true);
+    // Clear existing reports before fetching new ones to avoid displaying incorrect data
+    setReports([]);
     try {
       let url = `/api/reports?page=${pagination.page}&limit=${pagination.limit}`;
 
@@ -54,8 +56,6 @@ export function useReports({
       // Add report type to the query params
       url += `&reportType=${reportType}`;
       
-      console.log("Fetching reports with URL:", url);
-
       const response = await fetch(url);
 
       if (!response.ok) {
@@ -64,7 +64,6 @@ export function useReports({
       }
 
       const data = await response.json();
-      console.log("Reports received:", data.data ? data.data.length : 0);
       setReports(data.data ?? []);
       setPagination(
         data.pagination ?? {
@@ -75,7 +74,6 @@ export function useReports({
         }
       );
     } catch (error) {
-      console.error("Error fetching reports:", error);
       toast({
         title: "Error Loading Reports",
         description:

@@ -65,7 +65,6 @@ export const GET = withPermissionGuard(
       const reportType = searchParams.get("reportType");
       if (reportType && (reportType === "plan" || reportType === "actual")) {
         filters.reportType = reportType;
-        console.log(`Filtering by reportType: ${reportType}`);
       }
 
       // Get total count for pagination
@@ -75,62 +74,49 @@ export const GET = withPermissionGuard(
 
       // Fetch reports with pagination
       const reports = await prisma.report.findMany({
-        where: filters,
+        where: {
+          ...(date ? { date: date } : {}),
+          ...(branchId ? { branchId: branchId } : {}),
+          ...(reportType ? { reportType: reportType } : {}),
+        },
         include: {
           branch: {
             select: {
+              id: true,
+              code: true,
               name: true,
-              code: true
-            }
-          }
+            },
+          },
+          planReport: reportType === "actual", // Include plan report relation for actual reports
         },
-        skip,
+        orderBy: [
+          { date: "desc" },
+          { createdAt: "desc" },
+        ],
+        skip: skip,
         take: limit,
-        orderBy: {
-          createdAt: 'desc'
-        }
       });
 
-      // For actual reports, fetch the corresponding plan data for the same day and branch
-      const reportsWithPlanData = await Promise.all(
-        reports.map(async (report) => {
-          // Clone the report as a new object that we'll extend
-          const reportWithExtras = { ...report } as any;
+      // For actual reports, process the plan data
+      const reportsWithPlanData = reports.map(report => {
+        // Clone the report as a new object that we'll extend
+        const reportWithExtras = { ...report } as any;
 
-          // Only process this for actual reports
-          if (report.reportType === "actual") {
-            // Format the date consistently
-            const formattedDate = new Date(report.date).toISOString().split('T')[0];
-            console.log(`Processing actual report for date ${formattedDate}, branch ${report.branchId}`);
-            
-            // Find the corresponding plan report for the same date and branch
-            const planReport = await prisma.report.findFirst({
-              where: {
-                date: formattedDate,
-                branchId: report.branchId,
-                reportType: "plan"
-              }
-            });
-
-            console.log(`Plan report found: ${!!planReport}`);
-            console.log(`Looking for plan with date=${formattedDate}, branchId=${report.branchId}`);
-            
-            if (planReport) {
-              console.log(`Found plan report with ID: ${planReport.id}`);
-              // Add plan data properties - ensure they're properly converted to numbers
-              reportWithExtras.writeOffsPlan = typeof planReport.writeOffs === 'number' ? planReport.writeOffs : 0;
-              reportWithExtras.ninetyPlusPlan = typeof planReport.ninetyPlus === 'number' ? planReport.ninetyPlus : 0;
-            } else {
-              // No plan report found, set plan values to null
-              reportWithExtras.writeOffsPlan = null;
-              reportWithExtras.ninetyPlusPlan = null;
-              console.warn(`No plan report found for date=${formattedDate}, branchId=${report.branchId}`);
-            }
+        // Only process this for actual reports
+        if (report.reportType === "actual") {
+          if (report.planReport) {
+            // Add plan data properties - ensure they're properly converted to numbers
+            reportWithExtras.writeOffsPlan = typeof report.planReport.writeOffs === 'number' ? report.planReport.writeOffs : 0;
+            reportWithExtras.ninetyPlusPlan = typeof report.planReport.ninetyPlus === 'number' ? report.planReport.ninetyPlus : 0;
+          } else {
+            // No plan report found, set plan values to null
+            reportWithExtras.writeOffsPlan = null;
+            reportWithExtras.ninetyPlusPlan = null;
           }
-          
-          return reportWithExtras;
-        })
-      );
+        }
+        
+        return reportWithExtras;
+      });
 
       // Log the final data being sent to client
       console.log("Reports with plan data:", JSON.stringify(reportsWithPlanData.map(r => ({
@@ -231,25 +217,26 @@ export const POST = withPermissionGuard(
         );
       }
 
-      // Format date consistently
-      const formattedDate = new Date(date).toISOString().split('T')[0]; // Store as YYYY-MM-DD
-      
-      // Check for duplicate reports
+      // Find existing report for the same date, branch, and report type
       const existingReport = await prisma.report.findFirst({
         where: {
-          date: formattedDate,
-          branchId,
-          reportType
-        }
+          date: date,
+          branchId: branchId,
+          reportType: reportType
+        },
       });
 
       if (existingReport) {
+        console.log("Existing report found:", existingReport);
         return NextResponse.json(
-          { error: "A report of this type already exists for this date and branch" },
+          { error: `A report of this type already exists for this date and branch` },
           { status: 400 }
         );
       }
 
+      // Format date consistently
+      const formattedDate = new Date(date).toISOString().split('T')[0]; // Store as YYYY-MM-DD
+      
       // For actual reports, find and validate corresponding plan report
       if (reportType === "actual") {
         const planReport = await prisma.report.findFirst({
@@ -266,11 +253,40 @@ export const POST = withPermissionGuard(
             { status: 400 }
           );
         }
+        
+        // Check if the plan report is approved
+        if (planReport.status !== "approved") {
+          return NextResponse.json(
+            { error: "Cannot create actual report because the plan report has not been approved yet" },
+            { status: 400 }
+          );
+        }
 
         console.log(`Found matching plan report: ${planReport.id} for actual report creation`);
+        
+        // Create report with reference to the plan report
+        const report = await prisma.report.create({
+          data: {
+            date: formattedDate,
+            branchId,
+            writeOffs: writeOffs || 0,
+            ninetyPlus: ninetyPlus || 0,
+            reportType,
+            status: "pending",
+            submittedBy: currentUser.id,
+            submittedAt: new Date().toISOString(),
+            comments: content || null,
+            planReportId: planReport.id // Link to the corresponding plan report
+          }
+        });
+        
+        return NextResponse.json({ 
+          message: "Actual report created successfully with link to plan", 
+          report 
+        });
       }
       
-      // Create report
+      // Create plan report (or other report types)
       const report = await prisma.report.create({
         data: {
           date: formattedDate,

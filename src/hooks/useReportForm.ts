@@ -32,6 +32,7 @@ const reportFormSchema = z.object({
   comments: z.string().optional(),
   reportType: z.enum(["plan", "actual"]),
   title: z.string().min(1, "Title is required"),
+  planReportId: z.string().nullable().optional(),
 });
 
 type ReportFormData = z.infer<typeof reportFormSchema>;
@@ -57,6 +58,7 @@ export function useReportForm({
     comments: "",
     reportType,
     title: `${reportType === "plan" ? "Plan" : "Actual"} Report - ${format(new Date(), "yyyy-MM-dd")}`,
+    planReportId: null,
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -92,21 +94,16 @@ export function useReportForm({
         const response = await fetch(
           `/api/reports/check-duplicate?date=${formattedDate}&branchId=${formData.branchId}&reportType=${formData.reportType}`
         );
-        const data = await response.json();
-
-        if (data.isDuplicate) {
-          setErrors((prev) => ({
-            ...prev,
-            general: `A report for ${formData.branchId} on ${formattedDate} already exists.`,
-          }));
-        } else {
-          setErrors((prev) => {
-            const { general, ...rest } = prev;
-            return rest;
-          });
+        
+        if (!response.ok) {
+          throw new Error("Failed to check for duplicate reports");
         }
+        
+        const data = await response.json();
+        return data.exists;
       } catch (error) {
-        console.error("Error checking for duplicate report:", error);
+        console.error("Error checking for duplicate:", error);
+        return false;
       } finally {
         setIsCheckingDuplicate(false);
       }
@@ -208,46 +205,28 @@ export function useReportForm({
   };
 
   const handleSubmit = async () => {
-    // Clear any existing errors
-    setErrors({});
-    
-    // Make sure title is set
-    if (!formData.title) {
-      updateField("title", `${reportType === "plan" ? "Plan" : "Actual"} Report - ${format(new Date(), "yyyy-MM-dd")}`);
-    }
-
     // Validate form data
-    if (!validateForm()) {
-      const errorMessages = Object.entries(errors)
-        .map(([field, message]) => `${field}: ${message}`)
-        .join(", ");
-      
-      toast({
-        title: "Validation Error",
-        description: errorMessages || "Please check the form for errors",
-        variant: "destructive",
-      });
+    const validationErrors = validateForm();
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
       return;
     }
 
     setIsSubmitting(true);
+    
     try {
-      // Prepare data for submission
-      const submitData = {
+      // Ensure report type is set correctly
+      const dataToSubmit = {
         ...formData,
-        writeOffs: Number(formData.writeOffs),
-        ninetyPlus: Number(formData.ninetyPlus),
-        content: formData.comments, // Map comments to content for API
-        // Format date in YYYY-MM-DD to preserve the local date regardless of timezone
-        date: format(formData.date, "yyyy-MM-dd"),
+        reportType: reportType, // Explicitly set from props
       };
-
+      
       const response = await fetch("/api/reports", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(submitData),
+        body: JSON.stringify(dataToSubmit),
       });
 
       const data = await response.json();
@@ -330,6 +309,20 @@ export function useReportForm({
     }
   };
 
+  const resetForm = () => {
+    setFormData({
+      title: '',
+      date: new Date(),
+      branchId: '',
+      writeOffs: 0,
+      ninetyPlus: 0,
+      comments: '',
+      reportType: reportType,
+      planReportId: null,
+    });
+    setErrors({});
+  };
+
   return {
     formData,
     errors,
@@ -338,5 +331,6 @@ export function useReportForm({
     updateField,
     handleSubmit,
     validationRules,
+    setFormData,
   };
 }
