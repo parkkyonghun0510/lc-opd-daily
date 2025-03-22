@@ -198,27 +198,48 @@ export function ViewReports() {
     }
   };
 
-  const handleCreateClick = (type: "plan" | "actual") => {
-    // For actual reports, check if plan exists
+  const handleCreateClick = async (type: "plan" | "actual") => {
     if (type === "actual" && date) {
-      const planExists = reports.some(
-        (report) =>
-          report.reportType === "plan" &&
-          report.date === format(date, "yyyy-MM-dd") &&
-          report.branch.id === selectedBranchId
-      );
-
-      if (!planExists) {
+      setIsSubmitting(true);
+      try {
+        const formattedDate = format(date, "yyyy-MM-dd");
+        const response = await fetch(
+          `/api/reports?date=${formattedDate}&branchId=${selectedBranchId}&reportType=plan`
+        );
+        
+        if (!response.ok) {
+          throw new Error("Failed to verify plan report");
+        }
+        
+        const data = await response.json();
+        const planExists = data.data && data.data.length > 0;
+        
+        if (!planExists) {
+          toast({
+            title: "Plan Report Required",
+            description: "You need to create a Morning Plan report before creating an Evening Actual report for the same day and branch.",
+            variant: "destructive",
+          });
+          
+          // Automatically switch to Plan tab to help user create a Plan first
+          setReportType("plan");
+          
+          setIsSubmitting(false);
+          return;
+        }
+      } catch (error) {
+        console.error("Error checking for plan report");
         toast({
-          title: "Cannot Create Actual Report",
-          description:
-            "Morning plan must be submitted before evening actual report",
+          title: "Error",
+          description: "Failed to verify plan report existence. Please try again.",
           variant: "destructive",
         });
+        setIsSubmitting(false);
         return;
       }
+      setIsSubmitting(false);
     }
-
+    
     setCreateReportType(type);
     setIsCreateModalOpen(true);
   };
@@ -264,8 +285,8 @@ export function ViewReports() {
                 onValueChange={(value: string) => {
                   if (value === "plan" || value === "actual") {
                     setReportType(value);
-                    // Apply filters immediately when changing report type
-                    setTimeout(() => handleFilter(), 0);
+                    // No need to manually call handleFilter here as the useEffect in useReports 
+                    // will handle fetching when reportType changes
                   }
                 }}
               >
@@ -302,10 +323,15 @@ export function ViewReports() {
                   : "bg-green-600 hover:bg-green-700"
               )}
               title={`Create a new ${reportType} report`}
+              disabled={isSubmitting}
             >
-              <PlusIcon className="h-5 w-5 mr-2" />
+              {isSubmitting ? (
+                <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+              ) : (
+                <PlusIcon className="h-5 w-5 mr-2" />
+              )}
               <span className="font-medium">
-                Create {reportType === "plan" ? "Plan" : "Actual"}
+                {isSubmitting ? "Checking..." : `Create ${reportType === "plan" ? "Plan" : "Actual"}`}
               </span>
             </Button>
           </div>

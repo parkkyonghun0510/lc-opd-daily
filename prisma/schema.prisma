@@ -12,7 +12,7 @@ model User {
   email               String                 @unique
   name                String
   password            String
-  role                String                 @default("user") // Legacy field, kept for backward compatibility
+  role                String                 @default("user")
   branchId            String?
   isActive            Boolean                @default(true)
   lastLogin           DateTime?
@@ -21,18 +21,17 @@ model User {
   failedLoginAttempts Int                    @default(0)
   lockedUntil         DateTime?
   username            String                 @unique
-  image               String?                // Profile picture URL
-  preferences         Json?                  // User preferences for notifications and appearance
+  image               String?
+  preferences         Json?
   activityLogs        ActivityLog[]
   branch              Branch?                @relation(fields: [branchId], references: [id])
+  activities          UserActivity[]
   branchAssignments   UserBranchAssignment[]
   userRoles           UserRole[]
-  activities          UserActivity[]
 
   @@index([branchId])
 }
 
-// For UserBranchAssignment
 model UserBranchAssignment {
   id        String   @id @default(cuid())
   userId    String
@@ -40,8 +39,8 @@ model UserBranchAssignment {
   isDefault Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   branch    Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, branchId])
   @@index([userId])
@@ -64,23 +63,21 @@ model Branch {
 }
 
 model Report {
-  id          String   @id @default(cuid())
-  date        String // Store as YYYY-MM-DD
-  branch      Branch   @relation(fields: [branchId], references: [id])
-  branchId    String
-  writeOffs   Float
-  ninetyPlus  Float
-  reportType  String   @default("actual") // 'plan' or 'actual'
-  status      String   @default("pending") // 'pending', 'approved', 'rejected'
-  submittedBy String
-  submittedAt String
-  comments    String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  // Self-relation for plan/actual reports
-  planReportId String?
-  planReport   Report?  @relation("PlanActualRelation", fields: [planReportId], references: [id])
+  id            String   @id @default(cuid())
+  date          String
+  branchId      String
+  writeOffs     Float
+  ninetyPlus    Float
+  reportType    String   @default("actual")
+  status        String   @default("pending")
+  submittedBy   String
+  submittedAt   String
+  comments      String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  planReportId  String?
+  branch        Branch   @relation(fields: [branchId], references: [id])
+  planReport    Report?  @relation("PlanActualRelation", fields: [planReportId], references: [id])
   actualReports Report[] @relation("PlanActualRelation")
 
   @@unique([date, branchId, reportType])
@@ -115,9 +112,9 @@ model UserRole {
   isDefault Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role      Role     @relation(fields: [roleId], references: [id])
   branch    Branch?  @relation(fields: [branchId], references: [id])
+  role      Role     @relation(fields: [roleId], references: [id])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, roleId, branchId])
   @@index([userId])
@@ -141,7 +138,7 @@ model UserActivity {
 model OrganizationSettings {
   id              String   @id @default(cuid())
   organizationId  String   @unique
-  validationRules Json     @default("{\"writeOffs\": {\"maxAmount\": 1000, \"requireApproval\": true}, \"ninetyPlus\": {\"maxAmount\": 5000, \"requireApproval\": true}, \"comments\": {\"required\": true, \"minLength\": 10}, \"duplicateCheck\": {\"enabled\": true}}")
+  validationRules Json     @default("{\"comments\": {\"required\": true, \"minLength\": 10}, \"writeOffs\": {\"maxAmount\": 1000, \"requireApproval\": true}, \"ninetyPlus\": {\"maxAmount\": 5000, \"requireApproval\": true}, \"duplicateCheck\": {\"enabled\": true}}")
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
