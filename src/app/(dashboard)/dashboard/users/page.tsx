@@ -619,29 +619,27 @@ export default function UsersPage() {
           {/* Pagination for advanced view */}
           {advancedView && meta.pages > 1 && (
             <div className="flex justify-center mt-4">
-              <Pagination>
-                <div className="flex items-center gap-6">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handlePageChange(meta.page - 1)}
-                    disabled={meta.page === 1 || loading}
-                  >
-                    Previous
-                  </Button>
-                  <span className="text-sm">
-                    Page {meta.page} of {meta.pages}
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handlePageChange(meta.page + 1)}
-                    disabled={meta.page === meta.pages || loading}
-                  >
-                    Next
-                  </Button>
-                </div>
-              </Pagination>
+              <div className="flex items-center gap-6">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(meta.page - 1)}
+                  disabled={meta.page === 1 || loading}
+                >
+                  Previous
+                </Button>
+                <span className="text-sm">
+                  Page {meta.page} of {meta.pages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(meta.page + 1)}
+                  disabled={meta.page === meta.pages || loading}
+                >
+                  Next
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>

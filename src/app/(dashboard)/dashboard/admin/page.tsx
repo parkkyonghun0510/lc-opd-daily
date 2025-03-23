@@ -21,9 +21,23 @@ export default function AdminDashboard() {
   // Dummy stats until API is fully implemented
   const dummyStats = {
     totalUsers: 25,
+    activeUsers: 22,
     adminUsers: 3,
     totalBranches: 8,
+    pendingReports: 12,
     systemStatus: "Active",
+    recentActivity: [
+      {
+        type: "user",
+        user: "admin",
+        action: "Login",
+        timestamp: new Date(),
+      },
+    ],
+    storageUsage: {
+      used: 2.5,
+      total: 10,
+    },
   };
 
   return (

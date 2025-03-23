@@ -14,11 +14,12 @@ const profileUpdateSchema = z.object({
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const token = await getToken({ req: request });
-    const userId = params.id;
+    const { id } = await params;
+    const userId = id;
 
     if (!token) {
       return NextResponse.json(
