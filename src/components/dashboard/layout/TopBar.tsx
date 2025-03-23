@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { Bell, LogOut, Settings, User, Loader2 } from "lucide-react";
+import { Bell, LogOut, Settings, User, Loader2, Sun, Moon } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -24,21 +24,27 @@ import {
 } from "@/contexts/UserDataContext";
 import { CommandPalette } from "../search/CommandPalette";
 import { Greeting } from "../greeting/Greeting";
+import { useTheme } from "next-themes";
 
 export function TopBar() {
   const router = useRouter();
-  const { userData, isLoading } = useUserData();
+  const { userData, isLoading, setIsLoading } = useUserData();
   const userInitials = useUserInitials();
   const permissions = useUserPermissions();
+  const { theme, setTheme } = useTheme();
 
   const handleLogout = async () => {
     try {
-      await signOut({ redirect: false });
+      setIsLoading(true);
+      await signOut({ 
+        redirect: true,
+        callbackUrl: '/login'
+      });
       toast.success("Logged out successfully");
-      router.push("/login");
     } catch (error) {
       console.error("Logout error:", error);
       toast.error("Failed to logout. Please try again.");
+      setIsLoading(false);
     }
   };
 
@@ -53,6 +59,11 @@ export function TopBar() {
     [userData?.computedFields, userData?.image]
   );
 
+  // Toggle theme handler
+  const toggleTheme = () => {
+    setTheme(theme === "dark" ? "light" : "dark");
+  };
+
   return (
     <div className="h-16 px-4 border-b bg-white dark:bg-gray-800 flex items-center justify-between">
       <div className="flex-1 flex items-center gap-2 md:gap-6">
@@ -61,11 +72,28 @@ export function TopBar() {
       </div>
 
       <div className="flex items-center space-x-4">
+        {/* Theme Toggle Button */}
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          onClick={toggleTheme}
+          title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+        >
+          {theme === "dark" ? (
+            <Sun size={18} className="text-gray-600 dark:text-gray-400" />
+          ) : (
+            <Moon size={18} className="text-gray-600 dark:text-gray-400" />
+          )}
+        </Button>
+
         {isLoading ? (
-          <>
-            <Skeleton className="h-9 w-9 rounded-full" />
-            <Skeleton className="h-9 w-32" />
-          </>
+          <div className="flex items-center space-x-4">
+            <Skeleton className="h-8 w-8 rounded-full" />
+            <div className="space-y-2 hidden md:block">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-3 w-16" />
+            </div>
+          </div>
         ) : (
           <>
             {permissions?.canViewAuditLogs && (
@@ -92,11 +120,7 @@ export function TopBar() {
                         alt={profileData.displayName}
                       />
                       <AvatarFallback>
-                        {isLoading ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          userInitials
-                        )}
+                        {userInitials}
                       </AvatarFallback>
                     </Avatar>
                     <div className="hidden md:block text-left">

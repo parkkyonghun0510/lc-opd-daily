@@ -108,7 +108,7 @@ export async function GET(request: NextRequest) {
     );
 
     // Return simplified array of reports
-    return NextResponse.json(reportsWithUsers);
+    return NextResponse.json({ reports: reportsWithUsers });
   } catch (error) {
     console.error("Error fetching pending reports:", error);
     return NextResponse.json(

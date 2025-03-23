@@ -16,7 +16,7 @@ interface BranchPermissionResult {
 export function useBranchPermission(
   branchId: string | null | undefined
 ): BranchPermissionResult {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const [result, setResult] = useState<BranchPermissionResult>({
     hasAccess: false,
     permission: BranchAccessPermission.NONE,
@@ -25,22 +25,47 @@ export function useBranchPermission(
   });
 
   useEffect(() => {
+    // If session is loading, wait
+    if (status === 'loading') {
+      return;
+    }
+
+    // Debug log
+    console.log("useBranchPermission checking for branchId:", branchId);
+    console.log("User session:", session?.user);
+
     // Reset if branchId changes
     setResult((prev) => ({ ...prev, loading: true, error: null }));
 
+    // Special case for admins - they should always have access
+    if (session?.user?.role === 'ADMIN') {
+      console.log("Admin user detected - granting full access regardless of branch");
+      setResult({
+        hasAccess: true,
+        permission: BranchAccessPermission.ADMIN,
+        loading: false,
+        error: null,
+      });
+      return;
+    }
+
     // Don't check if no branchId or no session
     if (!branchId || !session) {
+      const errorMsg = !session ? "Not authenticated" : "No branch ID provided";
+      console.log("Branch permission error:", errorMsg);
+      
       setResult({
         hasAccess: false,
         permission: BranchAccessPermission.NONE,
         loading: false,
-        error: !session ? "Not authenticated" : "No branch ID provided",
+        error: errorMsg,
       });
       return;
     }
 
     const checkBranchAccess = async () => {
       try {
+        console.log("Fetching branch access for:", branchId);
         const response = await fetch(`/api/branch-access?branchId=${branchId}`);
 
         if (!response.ok) {
@@ -49,31 +74,30 @@ export function useBranchPermission(
         }
 
         const data = await response.json();
+        console.log("Branch access response:", data);
 
         // Determine permission level based on user role
         let permission = BranchAccessPermission.NONE;
         if (data.hasAccess) {
           switch (session.user?.role) {
-            case "admin":
+            case "ADMIN":
               permission = BranchAccessPermission.ADMIN;
               break;
-            case "manager":
+            case "BRANCH_MANAGER":
               permission = BranchAccessPermission.MANAGE;
               break;
-            case "supervisor":
+            case "SUPERVISOR":
               permission = BranchAccessPermission.APPROVE;
               break;
-            case "operator":
+            case "USER":
               permission = BranchAccessPermission.SUBMIT;
-              break;
-            case "viewer":
-              permission = BranchAccessPermission.VIEW;
               break;
             default:
               permission = BranchAccessPermission.NONE;
           }
         }
 
+        console.log("Final branch permission:", permission);
         setResult({
           hasAccess: data.hasAccess,
           permission,
@@ -94,8 +118,40 @@ export function useBranchPermission(
       }
     };
 
+    // For users with assigned branch matching the current branch, 
+    // grant access without API call
+    if (session.user?.branchId === branchId) {
+      console.log("User's assigned branch matches requested branch - granting access");
+      
+      let permission = BranchAccessPermission.NONE;
+      switch (session.user?.role) {
+        case "ADMIN":
+          permission = BranchAccessPermission.ADMIN;
+          break;
+        case "BRANCH_MANAGER":
+          permission = BranchAccessPermission.MANAGE;
+          break;
+        case "SUPERVISOR":
+          permission = BranchAccessPermission.APPROVE;
+          break;
+        case "USER":
+          permission = BranchAccessPermission.SUBMIT;
+          break;
+        default:
+          permission = BranchAccessPermission.NONE;
+      }
+      
+      setResult({
+        hasAccess: true,
+        permission,
+        loading: false,
+        error: null,
+      });
+      return;
+    }
+
     checkBranchAccess();
-  }, [branchId, session]);
+  }, [branchId, session, status]);
 
   return result;
 }

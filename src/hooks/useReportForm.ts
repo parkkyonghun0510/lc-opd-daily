@@ -71,12 +71,17 @@ export function useReportForm({
     const fetchValidationRules = async () => {
       try {
         const response = await fetch("/api/validation-rules");
-        if (response.ok) {
-          const rules = await response.json();
-          setValidationRules(rules);
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.warn("Failed to fetch validation rules:", errorData);
+          // Don't throw error, just use default validation
+          return;
         }
+        const rules = await response.json();
+        setValidationRules(rules);
       } catch (error) {
         console.error("Error fetching validation rules:", error);
+        // Don't throw error, just use default validation
       }
     };
 
@@ -154,7 +159,9 @@ export function useReportForm({
     localStorage.removeItem(STORAGE_KEY);
   };
 
-  const validateForm = (): boolean => {
+  const validateForm = (): Record<string, string> => {
+    const errors: Record<string, string> = {};
+    
     try {
       // Convert numeric fields to numbers if they're strings
       const dataToValidate = {
@@ -169,38 +176,41 @@ export function useReportForm({
 
       // Then validate against organization rules if available
       if (validationRules) {
+        // Check write-offs requirements
+        if (validationRules.writeOffs.requireApproval && dataToValidate.writeOffs > 0) {
+          errors.writeOffs = "Write-offs require approval";
+        }
+
+        // Check 90+ days requirements
+        if (validationRules.ninetyPlus.requireApproval && dataToValidate.ninetyPlus > 0) {
+          errors.ninetyPlus = "90+ days require approval";
+        }
+
         // Check comments requirements
         if (validationRules.comments.required && !dataToValidate.comments) {
-          setErrors({ comments: "Comments are required" });
-          return false;
+          errors.comments = "Comments are required";
         }
         if (
           dataToValidate.comments &&
           dataToValidate.comments.length < validationRules.comments.minLength
         ) {
-          setErrors({
-            comments: `Comments must be at least ${validationRules.comments.minLength} characters`,
-          });
-          return false;
+          errors.comments = `Comments must be at least ${validationRules.comments.minLength} characters`;
         }
       }
 
-      setErrors({});
-      return true;
+      return errors;
     } catch (error) {
       if (error instanceof z.ZodError) {
-        const newErrors: Record<string, string> = {};
         error.errors.forEach((err) => {
           if (err.path[0]) {
             const field = err.path[0].toString();
-            newErrors[field] = err.message;
+            errors[field] = err.message;
           }
         });
-        setErrors(newErrors);
       } else if (error instanceof Error) {
-        setErrors({ general: error.message });
+        errors.general = error.message;
       }
-      return false;
+      return errors;
     }
   };
 

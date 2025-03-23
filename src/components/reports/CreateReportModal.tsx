@@ -35,6 +35,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { BranchSelector } from "@/components/ui/branch-selector";
 import { useUserData } from "@/contexts/UserDataContext";
 import { toast } from "@/components/ui/use-toast";
+import { Badge } from "@/components/ui/badge";
 
 interface CreateReportModalProps {
   isOpen: boolean;
@@ -427,6 +428,11 @@ export function CreateReportModal({
           <div className="grid gap-2">
             <div className="flex items-center justify-between">
               <Label htmlFor="writeOffs">Write-offs</Label>
+              {validationRules?.writeOffs.requireApproval && (
+                <Badge variant="secondary" className="text-xs">
+                  Requires approval
+                </Badge>
+              )}
             </div>
             <KHCurrencyInput
               id="writeOffs"
@@ -441,6 +447,11 @@ export function CreateReportModal({
           <div className="grid gap-2">
             <div className="flex items-center justify-between">
               <Label htmlFor="ninetyPlus">90+ Days</Label>
+              {validationRules?.ninetyPlus.requireApproval && (
+                <Badge variant="secondary" className="text-xs">
+                  Requires approval
+                </Badge>
+              )}
             </div>
             <KHCurrencyInput
               id="ninetyPlus"
@@ -454,7 +465,12 @@ export function CreateReportModal({
 
           <div className="grid gap-2">
             <div className="flex items-center justify-between">
-              <Label htmlFor="comments">Comments</Label>
+              <Label htmlFor="comments">
+                Comments
+                {validationRules?.comments.required && (
+                  <span className="text-red-500 ml-1">*</span>
+                )}
+              </Label>
               <Select onValueChange={handleTemplateSelect} defaultValue="">
                 <SelectTrigger className="w-[200px]">
                   <SelectValue placeholder="Use template" />
@@ -481,6 +497,11 @@ export function CreateReportModal({
             />
             {errors.comments && (
               <p className="text-sm text-red-500">{errors.comments}</p>
+            )}
+            {validationRules?.comments.required && (
+              <p className="text-xs text-muted-foreground">
+                {formData.comments.length}/{validationRules.comments.minLength} characters minimum
+              </p>
             )}
           </div>
 
