@@ -498,7 +498,7 @@ export function CreateReportModal({
             {errors.comments && (
               <p className="text-sm text-red-500">{errors.comments}</p>
             )}
-            {validationRules?.comments.required && (
+            {validationRules?.comments.required && formData.comments !== undefined && (
               <p className="text-xs text-muted-foreground">
                 {formData.comments.length}/{validationRules.comments.minLength} characters minimum
               </p>

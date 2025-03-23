@@ -391,8 +391,8 @@ export function Sidebar() {
       return {
         hasPermission: (permission: Permission) => {
           if (!userData?.permissions) return false;
-          const permStr = Permission[permission];
-          const permKey = `can${permStr.charAt(0).toUpperCase() + permStr.slice(1).toLowerCase()}`;
+          const permStr = permission.toString().toLowerCase().replace(/_/g, '');
+          const permKey = `can${permStr.charAt(0).toUpperCase() + permStr.slice(1)}`;
           return userData.permissions[permKey as keyof typeof userData.permissions] === true;
         },
         hasRole: (role: UserRole) => {

@@ -95,12 +95,12 @@ export function AdminOverview({ stats }: AdminOverviewProps) {
       if ((stats.storageUsage.used / stats.storageUsage.total) > 0.8) {
         tasks.push({
           task: 'Storage usage is high',
-          urgency: (stats.storageUsage.used / stats.storageUsage.total) > 0.9 ? 'high' : 'medium',
+          urgency: (stats.storageUsage.used / stats.storageUsage.total) > 0.9 ? 'high' : 'medium' as const,
           link: '/dashboard/admin/storage'
         });
       }
       
-      setPrioritizedTasks(tasks);
+      setPrioritizedTasks(tasks as {task: string; urgency: 'high' | 'medium' | 'low'; link: string}[]);
     }
     
     // Don't poll too frequently to avoid excess API calls
