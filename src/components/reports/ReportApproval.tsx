@@ -133,7 +133,7 @@ export function ReportApproval({
   };
 
   // Only render if the report is in pending status
-  if (report.status !== "pending") {
+  if (report.status !== "pending" && report.status !== "pending_approval") {
     return (
       <div className="flex items-center space-x-2">
         <Badge

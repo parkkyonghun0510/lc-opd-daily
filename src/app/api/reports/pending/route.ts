@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
 
     // Create base query condition
     let whereCondition: any = {
-      status: "pending",
+      status: { in: ["pending", "pending_approval"] },
     };
 
     // Add reportType filter if provided

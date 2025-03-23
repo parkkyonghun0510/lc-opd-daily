@@ -442,6 +442,11 @@ export function CreateReportModal({
             {errors.writeOffs && (
               <p className="text-sm text-red-500">{errors.writeOffs}</p>
             )}
+            {validationRules?.writeOffs.requireApproval && formData.writeOffs > 0 && (
+              <p className="text-xs text-amber-600">
+                Write-offs require approval and will be sent to the approval queue
+              </p>
+            )}
           </div>
 
           <div className="grid gap-2">
@@ -460,6 +465,11 @@ export function CreateReportModal({
             />
             {errors.ninetyPlus && (
               <p className="text-sm text-red-500">{errors.ninetyPlus}</p>
+            )}
+            {validationRules?.ninetyPlus.requireApproval && formData.ninetyPlus > 0 && (
+              <p className="text-xs text-amber-600">
+                90+ days require approval and will be sent to the approval queue
+              </p>
             )}
           </div>
 

@@ -176,17 +176,10 @@ export function useReportForm({
 
       // Then validate against organization rules if available
       if (validationRules) {
-        // Check write-offs requirements
-        if (validationRules.writeOffs.requireApproval && dataToValidate.writeOffs > 0) {
-          errors.writeOffs = "Write-offs require approval";
-        }
-
-        // Check 90+ days requirements
-        if (validationRules.ninetyPlus.requireApproval && dataToValidate.ninetyPlus > 0) {
-          errors.ninetyPlus = "90+ days require approval";
-        }
-
-        // Check comments requirements
+        // NOTE: We show approval warnings but don't block submission
+        // These will be handled during the approval workflow
+        
+        // Check comments requirements only - these are required regardless of approval
         if (validationRules.comments.required && !dataToValidate.comments) {
           errors.comments = "Comments are required";
         }

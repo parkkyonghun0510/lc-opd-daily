@@ -1,0 +1,144 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+      NEXTAUTH_URL: ${{ secrets.NEXTAUTH_URL }}
+      REDIS_URL: ${{ secrets.REDIS_URL }}
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run linter
+        run: npm run lint
+        
+      - name: Check TypeScript types
+        run: npm run typecheck
+        
+      - name: Build project
+        run: npm run build
+      
+      - name: Cache build output
+        uses: actions/cache@v3
+        with:
+          path: .next
+          key: ${{ runner.os }}-nextjs-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-nextjs-
+  
+  deploy:
+    needs: test-and-build
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    runs-on: ubuntu-latest
+    
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+      NEXTAUTH_URL: ${{ secrets.NEXTAUTH_URL }}
+      REDIS_URL: ${{ secrets.REDIS_URL }}
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Restore cached build
+        uses: actions/cache@v3
+        with:
+          path: .next
+          key: ${{ runner.os }}-nextjs-${{ github.sha }}
+      
+      # Create package files for AWS Lightsail deployment
+      - name: Create deployment package
+        run: |
+          # Create a deployment package
+          mkdir -p deployment
+          cp -r .next deployment/
+          cp -r public deployment/
+          cp package.json deployment/
+          cp next.config.js deployment/
+          cp package-lock.json deployment/
+          
+          # Create environment file from secrets
+          echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" > deployment/.env
+          echo "NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}" >> deployment/.env
+          echo "NEXTAUTH_URL=${{ secrets.NEXTAUTH_URL }}" >> deployment/.env
+          echo "REDIS_URL=${{ secrets.REDIS_URL }}" >> deployment/.env
+          
+          # Create archive
+          tar -czf deployment.tar.gz deployment
+
+      # Deploy to AWS Lightsail using SSH
+      - name: Install SSH key
+        uses: shimataro/ssh-key-action@v2
+        with:
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          known_hosts: ${{ secrets.KNOWN_HOSTS }}
+      
+      - name: Deploy to AWS Lightsail
+        run: |
+          # Upload the deployment package
+          scp deployment.tar.gz ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/
+          
+          # Execute deployment commands on the server
+          ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'ENDSSH'
+            # Stop the current application (adjust service name if needed)
+            sudo systemctl stop lc-report || true
+            
+            # Extract new deployment to Apache web directory
+            DEPLOY_DIR=/var/www/html/lc-report
+            sudo mkdir -p $DEPLOY_DIR
+            sudo rm -rf $DEPLOY_DIR/*
+            
+            # Extract the new files
+            tar -xzf deployment.tar.gz
+            sudo cp -r deployment/* $DEPLOY_DIR/
+            sudo chown -R www-data:www-data $DEPLOY_DIR
+            
+            # Install production dependencies
+            cd $DEPLOY_DIR
+            npm ci --omit=dev
+            
+            # Start the Next.js app with PM2
+            cd $DEPLOY_DIR
+            
+            # If using PM2
+            if command -v pm2 &> /dev/null; then
+              pm2 stop lc-report || true
+              pm2 delete lc-report || true
+              pm2 start npm --name "lc-report" -- start
+              pm2 save
+              sudo systemctl restart pm2-${{ secrets.SSH_USER }} || true
+            fi
+            
+            # Clean up
+            rm ~/deployment.tar.gz
+            
+            echo "Deployment completed at $(date)"
+          ENDSSH 

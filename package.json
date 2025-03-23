@@ -20,7 +20,8 @@
     "test": "jest",
     "prepare": "husky install",
     "prisma:seed": "npx prisma db seed",
-    "link-reports": "node scripts/link-plan-actual-reports.mjs"
+    "link-reports": "node scripts/link-plan-actual-reports.mjs",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.8.0",
