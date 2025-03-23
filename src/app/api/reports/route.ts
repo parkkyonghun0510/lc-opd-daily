@@ -237,6 +237,25 @@ export const POST = withPermissionGuard(
       // Format date consistently
       const formattedDate = new Date(date).toISOString().split('T')[0]; // Store as YYYY-MM-DD
       
+      // Get validation rules to check if approval is needed
+      const validationRules = await prisma.organizationSettings.findUnique({
+        where: { organizationId: 'default' },
+        select: { validationRules: true }
+      });
+
+      // Determine report status based on validation rules
+      let reportStatus = "pending";
+      
+      if (validationRules?.validationRules) {
+        const rules = validationRules.validationRules as any;
+        
+        // Check if write-offs or 90+ days require approval
+        if ((rules.writeOffs?.requireApproval && writeOffs > 0) || 
+            (rules.ninetyPlus?.requireApproval && ninetyPlus > 0)) {
+          reportStatus = "pending_approval";
+        }
+      }
+      
       // For actual reports, find and validate corresponding plan report
       if (reportType === "actual") {
         const planReport = await prisma.report.findFirst({
@@ -272,7 +291,7 @@ export const POST = withPermissionGuard(
             writeOffs: writeOffs || 0,
             ninetyPlus: ninetyPlus || 0,
             reportType,
-            status: "pending",
+            status: reportStatus,
             submittedBy: currentUser.id,
             submittedAt: new Date().toISOString(),
             comments: content || null,
@@ -294,7 +313,7 @@ export const POST = withPermissionGuard(
           writeOffs: writeOffs || 0,
           ninetyPlus: ninetyPlus || 0,
           reportType,
-          status: "pending",
+          status: reportStatus,
           submittedBy: currentUser.id,
           submittedAt: new Date().toISOString(),
           comments: content || null

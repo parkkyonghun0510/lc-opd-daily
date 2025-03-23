@@ -69,7 +69,7 @@ export async function POST(
     }
 
     // Only allow pending reports to be approved/rejected
-    if (report.status !== "pending") {
+    if (report.status !== "pending" && report.status !== "pending_approval") {
       return NextResponse.json(
         { 
           error: `Report cannot be ${status}. Current status is: ${report.status}` 
