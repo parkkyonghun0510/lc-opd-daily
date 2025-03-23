@@ -37,7 +37,8 @@ export async function fetchPendingReports(type?: string): Promise<Report[]> {
       throw new Error(error.error || 'Failed to fetch pending reports');
     }
     
-    return await response.json();
+    const data = await response.json();
+    return data.reports || [];
   } catch (error) {
     console.error('Error fetching pending reports:', error);
     throw error;

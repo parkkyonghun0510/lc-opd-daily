@@ -27,9 +27,18 @@ function LoginForm() {
     // Display error message if present in URL
     const error = searchParams.get("error");
     if (error) {
-      toast.error(
-        error === "Invalid credentials" ? "Invalid username or password" : error
-      );
+      let errorMessage = "An error occurred during sign in";
+      
+      // Handle specific error messages
+      if (error.includes("No branch assigned")) {
+        errorMessage = "Your account has no branch assigned. Please contact your administrator.";
+      } else if (error.includes("Account is inactive")) {
+        errorMessage = "Your account is inactive. Please contact your administrator.";
+      } else if (error.includes("Invalid credentials")) {
+        errorMessage = "Invalid email or password";
+      }
+      
+      toast.error(errorMessage);
     }
   }, [status, callbackUrl, router, searchParams]);
 
@@ -58,7 +67,18 @@ function LoginForm() {
       });
 
       if (!result?.ok) {
-        toast.error(result?.error || "Failed to sign in");
+        let errorMessage = "Failed to sign in";
+        
+        // Handle specific error messages
+        if (result?.error?.includes("No branch assigned")) {
+          errorMessage = "Your account has no branch assigned. Please contact your administrator.";
+        } else if (result?.error?.includes("Account is inactive")) {
+          errorMessage = "Your account is inactive. Please contact your administrator.";
+        } else if (result?.error?.includes("Invalid credentials")) {
+          errorMessage = "Invalid email or password";
+        }
+        
+        toast.error(errorMessage);
         setIsLoading(false);
         return;
       }
@@ -66,8 +86,6 @@ function LoginForm() {
       // Success! Manual redirect
       toast.success("Signed in successfully");
       console.log("Login successful, redirecting to:", callbackUrl);
-
-      // Force a hard navigation instead of client-side routing
       window.location.href = callbackUrl;
     } catch (error) {
       console.error("Login error:", error);

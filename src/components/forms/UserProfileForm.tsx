@@ -2,12 +2,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import {
-  Form,
   FormControl,
   FormField,
   FormItem,
@@ -103,7 +102,7 @@ export default function UserProfileForm({ user }: UserProfileFormProps) {
   const onSubmit = async (data: ProfileFormValues) => {
     try {
       setIsLoading(true);
-      const response = await fetch(`/api/users/${user.id}`, {
+      const response = await fetch(`/api/users/${user.id}/profile`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -111,15 +110,19 @@ export default function UserProfileForm({ user }: UserProfileFormProps) {
         body: JSON.stringify(data),
       });
 
+      const result = await response.json();
+
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to update profile");
+        throw new Error(result.error || "Failed to update profile");
       }
 
       toast({
         title: "Success",
         description: "Profile updated successfully",
       });
+      
+      // Refresh the page to show updated data
+      window.location.reload();
     } catch (error) {
       console.error("Error updating profile:", error);
       toast({
@@ -133,7 +136,7 @@ export default function UserProfileForm({ user }: UserProfileFormProps) {
   };
 
   return (
-    <Form {...form}>
+    <FormProvider {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <FormField
           control={form.control}
@@ -203,6 +206,6 @@ export default function UserProfileForm({ user }: UserProfileFormProps) {
           {isLoading ? "Updating..." : "Update Profile"}
         </Button>
       </form>
-    </Form>
+    </FormProvider>
   );
 }

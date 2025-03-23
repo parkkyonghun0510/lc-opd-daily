@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -193,7 +193,7 @@ export function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
   const isCompactMode = useCompactMode();
-  const { userData } = useUserData();
+  const { userData, isLoading } = useUserData();
   const branchPermission = useBranchPermission(userData?.branch?.id);
 
   // Close mobile menu when route changes
@@ -301,52 +301,26 @@ export function Sidebar() {
           "hover:bg-gray-100 dark:hover:bg-gray-700",
           "border border-gray-200 dark:border-gray-700",
           "focus:outline-none focus:ring-2 focus:ring-blue-500",
-          "transition-transform duration-200",
-          "hover:scale-105 active:scale-95"
+          "transition-colors duration-200"
         )}
         aria-label={mobileOpen ? "Close menu" : "Open menu"}
         aria-expanded={mobileOpen}
         type="button"
       >
-        <AnimatedDiv style={menuIconSpring}>
-          {mobileOpen ? <X size={24} /> : <Menu size={24} />}
-        </AnimatedDiv>
+        {mobileOpen ? <X size={24} /> : <Menu size={24} />}
       </button>
     </div>
   );
 
-  // Enhanced CompanyLogo component with smooth image scaling
+  // Enhanced CompanyLogo component
   const CompanyLogo = () => {
-    const logoSpring = useSpring({
-      to: {
-        width:
-          collapsed && !isMobile ? "2rem" : isCompactMode ? "2rem" : "2.5rem",
-        height:
-          collapsed && !isMobile ? "2rem" : isCompactMode ? "2rem" : "2.5rem",
-      },
-      config: SPRING_CONFIG,
-    });
-
-    const textSpring = useSpring({
-      to: {
-        opacity: !collapsed || isMobile ? 1 : 0,
-        transform:
-          !collapsed || isMobile ? "translateX(0)" : "translateX(-20px)",
-      },
-      config: SPRING_CONFIG,
-    });
-
-    const collapseIconSpring = useSpring({
-      to: {
-        transform: collapsed ? "rotate(0deg)" : "rotate(180deg)",
-      },
-      config: SPRING_CONFIG,
-    });
-
     return (
       <div className="flex items-center justify-between px-3 py-4 border-b border-gray-200 dark:border-gray-700">
         <Link href="/dashboard" className="flex items-center flex-1">
-          <AnimatedDiv style={logoSpring} className="relative flex-shrink-0">
+          <div className={cn(
+            "relative flex-shrink-0 transition-all duration-200",
+            collapsed && !isMobile ? "w-8 h-8" : isCompactMode ? "w-8 h-8" : "w-10 h-10"
+          )}>
             <Image
               src="https://bhr.vectoranet.com/assets/images/logo/lc_logo.svg"
               alt="LC Logo"
@@ -354,15 +328,20 @@ export function Sidebar() {
               className="object-contain"
               priority
             />
-          </AnimatedDiv>
-          <AnimatedDiv style={textSpring} className="flex flex-col ml-3">
+          </div>
+          <div 
+            className={cn(
+              "flex flex-col ml-3 transition-opacity duration-200", 
+              collapsed && !isMobile ? "opacity-0" : "opacity-100"
+            )}
+          >
             <span className="text-lg font-semibold text-gray-900 dark:text-white">
               LC
             </span>
             <span className="text-xs text-gray-600 dark:text-gray-400">
               Daily Reports
             </span>
-          </AnimatedDiv>
+          </div>
         </Link>
         {!isMobile && (
           <button
@@ -370,13 +349,11 @@ export function Sidebar() {
             className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 ml-2 transition-colors duration-200"
             title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
-            <AnimatedDiv style={collapseIconSpring}>
-              {collapsed ? (
-                <ChevronRight size={20} />
-              ) : (
-                <ChevronLeft size={20} />
-              )}
-            </AnimatedDiv>
+            {collapsed ? (
+              <ChevronRight size={20} />
+            ) : (
+              <ChevronLeft size={20} />
+            )}
           </button>
         )}
       </div>
@@ -385,19 +362,44 @@ export function Sidebar() {
 
   const SidebarContent = () => {
     const isCompactMode = useCompactMode();
-    const { userData } = useUserData();
+    const { userData, isLoading } = useUserData();
     const branchPermission = useBranchPermission(userData?.branch?.id);
     const pathname = usePathname();
 
-    // Function to get current path segments
-    const getPathSegments = () => {
-      const segments = pathname.split('/').filter(Boolean);
-      return segments.map((segment, index) => {
-        const href = '/' + segments.slice(0, index + 1).join('/');
-        const label = segment.charAt(0).toUpperCase() + segment.slice(1);
-        return { href, label };
-      });
-    };
+    // If data is still loading, show skeleton UI
+    if (isLoading) {
+      return (
+        <div className="flex flex-col h-full">
+          <CompanyLogo />
+          <div className="p-3 border-b border-gray-200 dark:border-gray-700">
+            <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded-md animate-pulse"></div>
+          </div>
+          <div className="flex-1 p-3 space-y-4">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="flex items-center space-x-3">
+                <div className="w-5 h-5 bg-gray-200 dark:bg-gray-700 rounded-md animate-pulse"></div>
+                <div className="h-4 w-24 bg-gray-200 dark:bg-gray-700 rounded-md animate-pulse"></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    // Memoize visible navigation items to avoid redundant calculations
+    const visibleNavItems = useMemo(() => {
+      return {
+        hasPermission: (permission: Permission) => {
+          if (!userData?.permissions) return false;
+          const permStr = Permission[permission];
+          const permKey = `can${permStr.charAt(0).toUpperCase() + permStr.slice(1).toLowerCase()}`;
+          return userData.permissions[permKey as keyof typeof userData.permissions] === true;
+        },
+        hasRole: (role: UserRole) => {
+          return userData?.role === role;
+        }
+      };
+    }, [userData]);
 
     return (
       <div
@@ -411,29 +413,6 @@ export function Sidebar() {
         {/* Add BranchSwitcher */}
         <BranchSwitcher />
         
-        {/* Add path display */}
-        <div className="px-3 py-2 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center space-x-1 text-sm text-gray-500 dark:text-gray-400">
-            <Link href="/dashboard" className="hover:text-gray-700 dark:hover:text-gray-200">
-              Home
-            </Link>
-            {getPathSegments().map((segment, index) => (
-              <div key={segment.href} className="flex items-center">
-                <span className="mx-1">/</span>
-                <Link
-                  href={segment.href}
-                  className={cn(
-                    "hover:text-gray-700 dark:hover:text-gray-200",
-                    index === getPathSegments().length - 1 && "font-medium text-gray-900 dark:text-white"
-                  )}
-                >
-                  {segment.label}
-                </Link>
-              </div>
-            ))}
-          </div>
-        </div>
-
         <nav className="flex-1 overflow-y-auto">
           <RoleBasedNavigation>
             {({ hasPermission, hasRole }) => (
@@ -467,7 +446,7 @@ export function Sidebar() {
                       <Link
                         href={item.href}
                         className={cn(
-                          "flex items-center gap-2 px-3 py-2 rounded-md text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800",
+                          "flex items-center gap-2 rounded-md text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800",
                           isCompactMode ? "px-2 py-1.5" : "px-3 py-2",
                           (isActive || hasActiveChild) &&
                             "bg-gray-100 dark:bg-gray-800"
@@ -475,20 +454,20 @@ export function Sidebar() {
                       >
                         <item.icon
                           className={cn(
-                            "h-5 w-5",
                             isCompactMode ? "h-4 w-4" : "h-5 w-5"
                           )}
                         />
                         <span
                           className={cn(
-                            "font-medium",
-                            isCompactMode ? "text-sm" : "text-base"
+                            "font-medium transition-opacity duration-200",
+                            isCompactMode ? "text-sm" : "text-base",
+                            collapsed && !isMobile ? "opacity-0 w-0" : "opacity-100"
                           )}
                         >
                           {item.name}
                         </span>
                       </Link>
-                      {item.children && (
+                      {item.children && !collapsed && (
                         <ul
                           className={cn(
                             "ml-4 mt-1 space-y-1",
@@ -519,7 +498,7 @@ export function Sidebar() {
                                 <Link
                                   href={child.href}
                                   className={cn(
-                                    "flex items-center gap-2 px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800",
+                                    "flex items-center gap-2 rounded-md text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800",
                                     isCompactMode ? "px-2 py-1.5" : "px-3 py-2",
                                     isChildActive &&
                                       "bg-gray-100 dark:bg-gray-800"
@@ -527,7 +506,6 @@ export function Sidebar() {
                                 >
                                   <CircleDot
                                     className={cn(
-                                      "h-4 w-4",
                                       isCompactMode ? "h-3 w-3" : "h-4 w-4"
                                     )}
                                   />
@@ -548,13 +526,30 @@ export function Sidebar() {
                     </li>
                   );
                 })}
+                
+                {/* Fallback when no items are available */}
+                {navigationItems.length > 0 && navigationItems.every(item => {
+                  const hasAccess = item.permissions.some((p) => hasPermission(p));
+                  const hasRoleAccess = item.roles
+                    ? item.roles.some((role) => hasRole(role))
+                    : true;
+                  const hasBranchAccessForItem = item.branchSpecific
+                    ? branchPermission.hasAccess
+                    : true;
+                  return !hasAccess || !hasRoleAccess || !hasBranchAccessForItem;
+                }) && (
+                  <li className="p-3 text-center text-gray-500 dark:text-gray-400">
+                    <p>No menu items available for your role.</p>
+                    <p className="text-xs mt-1">Please contact an administrator.</p>
+                  </li>
+                )}
               </ul>
             )}
           </RoleBasedNavigation>
         </nav>
         <div
           className={cn(
-            "border-t border-gray-200 dark:border-gray-700 p-4 space-y-2",
+            "border-t border-gray-200 dark:border-gray-700 space-y-2",
             isCompactMode ? "p-2" : "p-4"
           )}
         >
@@ -565,46 +560,39 @@ export function Sidebar() {
     );
   };
 
+  // Simplified sidebar render logic
   return (
-    <div {...swipeHandlers}>
+    <>
       {isMobile && <MobileMenuButton />}
 
-      <AnimatedDiv
-        style={{
-          ...sidebarSpring,
-          display: isMobile ? "none" : "flex",
-        }}
-        className="md:flex flex-col h-screen bg-white dark:bg-gray-800 text-gray-900 dark:text-white border-r border-gray-200 dark:border-gray-700"
+      <div
+        className={cn(
+          "md:flex flex-col h-screen bg-white dark:bg-gray-800 text-gray-900 dark:text-white border-r border-gray-200 dark:border-gray-700 transition-all duration-200",
+          collapsed ? "md:w-16" : isCompactMode ? "md:w-56" : "md:w-64",
+          isMobile ? "hidden" : "flex"
+        )}
       >
         <SidebarContent />
-      </AnimatedDiv>
+      </div>
 
-      {transitions(
-        (style, item) =>
-          item && (
-            <>
-              <AnimatedDiv
-                style={{
-                  ...style,
-                  opacity: style.opacity,
-                  backdropFilter: style.filter,
-                }}
-                className="fixed inset-0 z-40 bg-gray-600/75 dark:bg-gray-900/75"
-                onClick={() => setMobileOpen(false)}
-                aria-hidden="true"
-              />
+      {/* Mobile overlay */}
+      {isMobile && mobileOpen && (
+        <>
+          <div 
+            className="fixed inset-0 z-40 bg-gray-600/75 dark:bg-gray-900/75 backdrop-blur-sm transition-opacity duration-200"
+            onClick={() => setMobileOpen(false)}
+            aria-hidden="true"
+          />
 
-              <AnimatedDiv
-                style={style}
-                className="fixed inset-y-0 left-0 z-40 flex flex-col w-64 bg-white dark:bg-gray-800 text-gray-900 dark:text-white border-r border-gray-200 dark:border-gray-700"
-              >
-                <div className="h-full">
-                  <SidebarContent />
-                </div>
-              </AnimatedDiv>
-            </>
-          )
+          <div 
+            className="fixed inset-y-0 left-0 z-40 flex flex-col w-64 bg-white dark:bg-gray-800 text-gray-900 dark:text-white border-r border-gray-200 dark:border-gray-700 transition-transform duration-200"
+          >
+            <div className="h-full">
+              <SidebarContent />
+            </div>
+          </div>
+        </>
       )}
-    </div>
+    </>
   );
 }

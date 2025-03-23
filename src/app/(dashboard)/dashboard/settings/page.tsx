@@ -4,7 +4,7 @@ import { useRef, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { useForm, FormProvider } from "react-hook-form";
 import * as z from "zod";
 import { toast } from "sonner";
 import {
@@ -15,7 +15,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
-  Form,
   FormControl,
   FormField,
   FormItem,
@@ -410,7 +409,7 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              <Form {...profileForm}>
+              <FormProvider {...profileForm}>
                 <form
                   onSubmit={profileForm.handleSubmit(onProfileSubmit)}
                   className="space-y-4"
@@ -468,7 +467,7 @@ export default function SettingsPage() {
                     )}
                   </Button>
                 </form>
-              </Form>
+              </FormProvider>
             </CardContent>
           </Card>
         </TabsContent>
@@ -712,7 +711,7 @@ export default function SettingsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Form {...passwordForm}>
+              <FormProvider {...passwordForm}>
                 <form
                   onSubmit={passwordForm.handleSubmit(onPasswordSubmit)}
                   className="space-y-4"
@@ -835,7 +834,7 @@ export default function SettingsPage() {
                     )}
                   </Button>
                 </form>
-              </Form>
+              </FormProvider>
             </CardContent>
           </Card>
         </TabsContent>

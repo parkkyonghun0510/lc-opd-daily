@@ -176,7 +176,7 @@ export function RoleBasedDashboard() {
           value={pendingReports || 0}
           icon={<Clock size={20} />}
           description="Reports awaiting approval"
-          onClick={() => router.push("/dashboard/reports/pending")}
+          onClick={() => router.push("/dashboard/approvals")}
           isLoading={isLoading}
         />
         <StatCard
@@ -229,8 +229,8 @@ export function RoleBasedDashboard() {
           title="Pending Reports"
           value={pendingReports || 0}
           icon={<Clock size={20} />}
-          description="Reports awaiting your approval"
-          onClick={() => router.push("/dashboard/reports/pending")}
+          description="Reports awaiting approval"
+          onClick={() => router.push("/dashboard/approvals")}
           isLoading={isLoading}
         />
         <StatCard
