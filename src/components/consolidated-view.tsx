@@ -50,12 +50,12 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   BarChart,
   Bar,
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
+  Tooltip as RechartsTooltip,
+  LineChart,
+  Line,
   Legend,
   ResponsiveContainer,
 } from "recharts";
@@ -67,6 +67,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useRouter } from "next/navigation";
 
 // Define proper types for our data
 interface Branch {
@@ -324,6 +325,155 @@ function MetricCardSkeleton() {
   );
 }
 
+// Add a simple interface for the branch dialog props
+interface BranchDetailDialogProps {
+  selectedBranch: string | null;
+  selectedBranchData: any;
+  onClose: () => void;
+}
+
+// Add this dialog component for branch details
+const BranchDetailDialog = ({ selectedBranch, selectedBranchData, onClose }: BranchDetailDialogProps) => {
+  const mockReports = [
+    { date: "2023-05-01", amount: 12500000, status: "Approved" },
+    { date: "2023-05-10", amount: 8750000, status: "Pending" },
+    { date: "2023-05-15", amount: 15000000, status: "Rejected" },
+    { date: "2023-05-22", amount: 9800000, status: "Approved" },
+  ];
+
+  return (
+    <Dialog open={!!selectedBranch} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[800px] dark:bg-gray-800 dark:border-gray-700 w-[95vw] max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="text-xl dark:text-gray-100">
+            {selectedBranch} Details
+          </DialogTitle>
+          <DialogDescription className="dark:text-gray-400">
+            Detailed metrics and reports for this branch.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Card className="dark:bg-gray-900 dark:border-gray-700">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium dark:text-gray-200">
+                  Write-offs
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold dark:text-gray-100">
+                  {formatKHRCurrency(selectedBranchData?.writeOffs || 0)}
+                </div>
+                <div className="text-xs text-muted-foreground dark:text-gray-400 flex items-center mt-1">
+                  {(selectedBranchData?.writeOffsTrend || 0) > 0 ? (
+                    <TrendingUp className="text-red-500 h-4 w-4 mr-1" />
+                  ) : (selectedBranchData?.writeOffsTrend || 0) < 0 ? (
+                    <TrendingDown className="text-green-500 h-4 w-4 mr-1" />
+                  ) : (
+                    <Minus className="text-yellow-500 h-4 w-4 mr-1" />
+                  )}
+                  <span className={cn(
+                    (selectedBranchData?.writeOffsTrend || 0) > 0 ? "text-red-500" : 
+                    (selectedBranchData?.writeOffsTrend || 0) < 0 ? "text-green-500" : "text-yellow-500"
+                  )}>
+                    {(selectedBranchData?.writeOffsTrend || 0) !== 0 
+                      ? `${Math.abs(selectedBranchData?.writeOffsTrend || 0)}% ${
+                        (selectedBranchData?.writeOffsTrend || 0) > 0 ? "increase" : "decrease"
+                      }` 
+                      : "No change"}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          
+            <Card className="dark:bg-gray-900 dark:border-gray-700">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium dark:text-gray-200">
+                  90+ Days Outstanding
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold dark:text-gray-100">
+                  {formatKHRCurrency(selectedBranchData?.ninetyPlus || 0)}
+                </div>
+                <div className="text-xs text-muted-foreground dark:text-gray-400 flex items-center mt-1">
+                  {(selectedBranchData?.ninetyPlusTrend || 0) > 0 ? (
+                    <TrendingUp className="text-red-500 h-4 w-4 mr-1" />
+                  ) : (selectedBranchData?.ninetyPlusTrend || 0) < 0 ? (
+                    <TrendingDown className="text-green-500 h-4 w-4 mr-1" />
+                  ) : (
+                    <Minus className="text-yellow-500 h-4 w-4 mr-1" />
+                  )}
+                  <span className={cn(
+                    (selectedBranchData?.ninetyPlusTrend || 0) > 0 ? "text-red-500" : 
+                    (selectedBranchData?.ninetyPlusTrend || 0) < 0 ? "text-green-500" : "text-yellow-500"
+                  )}>
+                    {(selectedBranchData?.ninetyPlusTrend || 0) !== 0 
+                      ? `${Math.abs(selectedBranchData?.ninetyPlusTrend || 0)}% ${
+                        (selectedBranchData?.ninetyPlusTrend || 0) > 0 ? "increase" : "decrease"
+                      }` 
+                      : "No change"}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+          
+          <div className="overflow-x-auto">
+            <Table className="border dark:border-gray-700 rounded-md">
+              <TableHeader className="bg-muted/50 dark:bg-gray-900">
+                <TableRow>
+                  <TableHead className="font-semibold dark:text-gray-300 w-[100px]">Date</TableHead>
+                  <TableHead className="font-semibold dark:text-gray-300 w-[140px] text-right">Amount</TableHead>
+                  <TableHead className="font-semibold dark:text-gray-300 text-right">Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {mockReports.map((report, i) => (
+                  <TableRow key={i} className="dark:hover:bg-gray-900/60">
+                    <TableCell className="dark:text-gray-300 font-medium">
+                      {report.date}
+                    </TableCell>
+                    <TableCell className="dark:text-gray-300 text-right">
+                      {formatKHRCurrency(report.amount)}
+                    </TableCell>
+                    <TableCell className="dark:text-gray-300 text-right">
+                      <Badge 
+                        variant={report.status === 'Approved' ? 'success' : report.status === 'Pending' ? 'warning' : 'destructive'}
+                        className="ml-auto"
+                      >
+                        {report.status}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          
+          <div className="flex justify-end gap-2 mt-4">
+            <Button 
+              variant="outline" 
+              size="sm"
+              className="dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+              onClick={onClose}
+            >
+              Close
+            </Button>
+            <Button 
+              size="sm"
+              className="dark:bg-blue-600 dark:hover:bg-blue-700"
+            >
+              <FileSpreadsheetIcon className="h-4 w-4 mr-1" />
+              Export Data
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 export default function ConsolidatedView() {
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [period, setPeriod] = useState<"day" | "week" | "month">("day");
@@ -347,6 +497,7 @@ export default function ConsolidatedView() {
   });
   const [showYearOverYear, setShowYearOverYear] = useState(false);
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+  const [selectedBranch, setSelectedBranch] = useState<string | null>(null);
 
   // Scroll references for animations
   const chartRefs = {
@@ -354,6 +505,8 @@ export default function ConsolidatedView() {
     timeSeries: useRef<HTMLDivElement>(null),
     trendAnalysis: useRef<HTMLDivElement>(null),
   };
+
+  const router = useRouter();
 
   useEffect(() => {
     // Initialize with current date if not set
@@ -876,9 +1029,10 @@ export default function ConsolidatedView() {
         variant={visibleMetrics.writeOffs ? "default" : "outline"}
         size="sm"
         onClick={() => toggleMetricVisibility("writeOffs")}
-        className={
+        className={cn(
+          "h-9 text-sm flex-1 sm:flex-initial",
           visibleMetrics.writeOffs ? "bg-blue-600 hover:bg-blue-700" : ""
-        }
+        )}
       >
         {visibleMetrics.writeOffs ? (
           <Eye className="h-4 w-4 mr-1" />
@@ -891,9 +1045,10 @@ export default function ConsolidatedView() {
         variant={visibleMetrics.ninetyPlus ? "default" : "outline"}
         size="sm"
         onClick={() => toggleMetricVisibility("ninetyPlus")}
-        className={
+        className={cn(
+          "h-9 text-sm flex-1 sm:flex-initial",
           visibleMetrics.ninetyPlus ? "bg-green-600 hover:bg-green-700" : ""
-        }
+        )}
       >
         {visibleMetrics.ninetyPlus ? (
           <Eye className="h-4 w-4 mr-1" />
@@ -906,7 +1061,10 @@ export default function ConsolidatedView() {
         variant={showYearOverYear ? "default" : "outline"}
         size="sm"
         onClick={() => setShowYearOverYear(!showYearOverYear)}
-        className={showYearOverYear ? "bg-purple-600 hover:bg-purple-700" : ""}
+        className={cn(
+          "h-9 text-sm flex-1 sm:flex-initial",
+          showYearOverYear ? "bg-purple-600 hover:bg-purple-700" : ""
+        )}
       >
         <BarChart2 className="h-4 w-4 mr-1" />
         Year-over-Year
@@ -1131,6 +1289,11 @@ export default function ConsolidatedView() {
     );
   };
 
+  // Handle closing the branch detail dialog
+  const handleCloseDialog = () => {
+    setSelectedBranch(null);
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -1141,111 +1304,89 @@ export default function ConsolidatedView() {
       </CardHeader>
       <CardContent>
         <div className="space-y-6">
-          {/* Enhanced Period Selection with Animated Transitions */}
-          <div className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-4 sm:space-y-0">
-            <div className="space-y-2">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                Consolidated Performance
-              </h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                {consolidatedData
-                  ? `Data for ${
-                      period === "day"
-                        ? "daily"
-                        : period === "week"
-                        ? "weekly"
-                        : "monthly"
-                    } period ${format(date || new Date(), "MMMM d, yyyy")}`
-                  : "Select a date and period to view data"}
-              </p>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b dark:border-gray-700">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">Consolidated Reports</h1>
+              <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 mt-1">Comprehensive view of branch data</p>
             </div>
-
-            <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 w-full sm:w-auto">
+            
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full sm:w-auto mt-2 sm:mt-0">
+              <Button
+                variant="outline"
+                className="w-full sm:w-auto dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200 text-sm"
+                onClick={() => router.push("/dashboard")}
+              >
+                <ArrowRight className="mr-2 h-4 w-4 rotate-180" />
+                Back to Dashboard
+              </Button>
+              
+              <div className="flex items-center w-full sm:w-auto mt-3 sm:mt-0">
+                <Tabs defaultValue={reportType} onValueChange={(v) => handleReportTypeChange(v as "plan" | "actual")} className="w-full sm:w-auto">
+                  <TabsList className="w-full sm:w-auto dark:bg-gray-800">
+                    <TabsTrigger value="plan" className="flex-1 dark:data-[state=active]:bg-gray-700">Plan</TabsTrigger>
+                    <TabsTrigger value="actual" className="flex-1 dark:data-[state=active]:bg-gray-700">Actual</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              </div>
+            </div>
+          </div>
+          
+          {/* Period Selection */}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full sm:w-auto">
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-0">View by:</span>
               <Tabs
                 value={period}
                 onValueChange={(value: string) => {
-                  if (
-                    value === "day" ||
-                    value === "week" ||
-                    value === "month"
-                  ) {
-                    // Add a transition effect when changing periods
-                    const content = document.getElementById(
-                      "consolidated-content"
-                    );
-                    if (content) {
-                      content.classList.add("opacity-0", "scale-95");
-                      setTimeout(() => {
-                        setPeriod(value as "day" | "week" | "month");
-                        setTimeout(() => {
-                          content.classList.remove("opacity-0", "scale-95");
-                        }, 50);
-                      }, 150);
-                    } else {
-                      setPeriod(value as "day" | "week" | "month");
-                    }
+                  if (value === "day" || value === "week" || value === "month") {
+                    setPeriod(value as "day" | "week" | "month");
                   }
                 }}
                 className="w-full sm:w-auto"
               >
-                <TabsList className="grid grid-cols-3 w-full">
-                  <TabsTrigger
-                    value="day"
-                    className="data-[state=active]:bg-blue-600 data-[state=active]:text-white"
+                <TabsList className="w-full sm:w-auto dark:bg-gray-800">
+                  <TabsTrigger 
+                    value="day" 
+                    className="flex-1 dark:data-[state=active]:bg-gray-700"
                   >
                     Daily
                   </TabsTrigger>
-                  <TabsTrigger
+                  <TabsTrigger 
                     value="week"
-                    className="data-[state=active]:bg-blue-600 data-[state=active]:text-white"
+                    className="flex-1 dark:data-[state=active]:bg-gray-700" 
                   >
                     Weekly
                   </TabsTrigger>
-                  <TabsTrigger
+                  <TabsTrigger 
                     value="month"
-                    className="data-[state=active]:bg-blue-600 data-[state=active]:text-white"
+                    className="flex-1 dark:data-[state=active]:bg-gray-700"
                   >
                     Monthly
                   </TabsTrigger>
                 </TabsList>
               </Tabs>
-
-              <Tabs
-                value={reportType}
-                onValueChange={(value) =>
-                  handleReportTypeChange(value as "plan" | "actual")
-                }
-                className="w-full sm:w-auto"
-              >
-                <TabsList className="grid grid-cols-2 w-full">
-                  <TabsTrigger
-                    value="plan"
-                    className="data-[state=active]:bg-blue-600 data-[state=active]:text-white"
-                  >
-                    Plan
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="actual"
-                    className="data-[state=active]:bg-green-600 data-[state=active]:text-white"
-                  >
-                    Actual
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
             </div>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              {consolidatedData
+                ? `Data for ${
+                    period === "day"
+                      ? "daily"
+                      : period === "week"
+                      ? "weekly"
+                      : "monthly"
+                  } period ${format(date || new Date(), "MMMM d, yyyy")}`
+                : "Select a date and period to view data"}
+            </p>
           </div>
-
+          
           {/* Date Selection and Action Buttons */}
-          <div className="flex flex-col md:flex-row justify-between mb-6 space-y-4 md:space-y-0">
-            <div className="flex items-center">
+          <div className="flex flex-col sm:flex-row justify-between gap-4 mb-6">
+            <div className="flex items-center w-full sm:w-auto">
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
                     variant={"outline"}
-                    className={cn(
-                      "w-full md:w-[240px] justify-start text-left font-normal",
-                      !date && "text-muted-foreground"
-                    )}
+                    className="w-full sm:w-[240px] justify-start text-left font-normal"
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {date ? format(date, "PPP") : <span>Pick a date</span>}
@@ -1265,11 +1406,11 @@ export default function ConsolidatedView() {
               </Popover>
             </div>
 
-            <div className="flex space-x-2">
+            <div className="flex flex-wrap gap-2 w-full sm:w-auto justify-between sm:justify-end">
               <Button
                 onClick={handleGenerateReport}
                 disabled={!date || isLoading}
-                className="w-32"
+                className="flex-1 sm:flex-none sm:w-32"
               >
                 {isLoading ? (
                   <>
@@ -1280,26 +1421,28 @@ export default function ConsolidatedView() {
                   "Generate"
                 )}
               </Button>
-              <Button
-                onClick={handleExportCSV}
-                variant="outline"
-                className="flex items-center"
-                disabled={!consolidatedData}
-              >
-                <FileSpreadsheetIcon className="mr-2 h-4 w-4" />
-                <span className="hidden md:inline">Export CSV</span>
-                <span className="md:hidden">CSV</span>
-              </Button>
-              <Button
-                onClick={handleExportPDF}
-                variant="outline"
-                className="flex items-center"
-                disabled={!consolidatedData}
-              >
-                <FileIcon className="mr-2 h-4 w-4" />
-                <span className="hidden md:inline">Export PDF</span>
-                <span className="md:hidden">PDF</span>
-              </Button>
+              <div className="flex gap-2 flex-1 sm:flex-none">
+                <Button
+                  onClick={handleExportCSV}
+                  variant="outline"
+                  className="flex-1 sm:flex-none flex items-center justify-center"
+                  disabled={!consolidatedData}
+                >
+                  <FileSpreadsheetIcon className="mr-2 h-4 w-4" />
+                  <span className="hidden md:inline">Export CSV</span>
+                  <span className="md:hidden">CSV</span>
+                </Button>
+                <Button
+                  onClick={handleExportPDF}
+                  variant="outline"
+                  className="flex-1 sm:flex-none flex items-center justify-center"
+                  disabled={!consolidatedData}
+                >
+                  <FileIcon className="mr-2 h-4 w-4" />
+                  <span className="hidden md:inline">Export PDF</span>
+                  <span className="md:hidden">PDF</span>
+                </Button>
+              </div>
             </div>
           </div>
 
@@ -1565,14 +1708,31 @@ export default function ConsolidatedView() {
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart
                           data={getChartData()}
-                          margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                          margin={{ top: 20, right: 20, left: 0, bottom: 5 }}
                           onClick={handleChartClick}
                         >
                           <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="name" />
-                          <YAxis />
-                          <Tooltip content={<CustomBranchTooltip />} />
-                          <Legend />
+                          <XAxis 
+                            dataKey="name" 
+                            tick={{fontSize: 10}}
+                            height={40}
+                            interval={0}
+                            angle={-45}
+                            textAnchor="end"
+                          />
+                          <YAxis 
+                            width={55}
+                            tick={{fontSize: 10}}
+                            tickFormatter={(value) => 
+                              value >= 1000000
+                                ? `${(value / 1000000).toFixed(1)}M`
+                                : value >= 1000
+                                ? `${(value / 1000).toFixed(1)}K`
+                                : value
+                            }
+                          />
+                          <RechartsTooltip content={<CustomBranchTooltip />} />
+                          <Legend wrapperStyle={{fontSize: "12px"}} />
                           {visibleMetrics.writeOffs && (
                             <Bar
                               dataKey="writeOffs"
@@ -1657,7 +1817,7 @@ export default function ConsolidatedView() {
                               <CartesianGrid strokeDasharray="3 3" />
                               <XAxis dataKey="date" />
                               <YAxis />
-                              <Tooltip content={<CustomTimeTooltip />} />
+                              <RechartsTooltip content={<CustomTimeTooltip />} />
                               <Legend />
                               {visibleMetrics.writeOffs && (
                                 <Bar
@@ -1749,7 +1909,7 @@ export default function ConsolidatedView() {
                               <CartesianGrid strokeDasharray="3 3" />
                               <XAxis dataKey="date" />
                               <YAxis />
-                              <Tooltip
+                              <RechartsTooltip
                                 contentStyle={{
                                   backgroundColor: "rgba(255, 255, 255, 0.9)",
                                   border: "1px solid #ccc",
@@ -1907,7 +2067,7 @@ export default function ConsolidatedView() {
                           <CartesianGrid strokeDasharray="3 3" />
                           <XAxis dataKey="branch" />
                           <YAxis />
-                          <Tooltip
+                          <RechartsTooltip
                             formatter={(value) =>
                               formatKHRCurrency(value as number)
                             }
@@ -2082,6 +2242,14 @@ export default function ConsolidatedView() {
         onClose={() => setDetailsModalOpen(false)}
         branchId={selectedBranchId}
       />
+      {/* Branch detail dialog */}
+      {selectedBranch && (
+        <BranchDetailDialog 
+          selectedBranch={selectedBranch} 
+          selectedBranchData={consolidatedData?.branchData.find(item => item.branchCode === selectedBranch || item.branchName === selectedBranch)} 
+          onClose={handleCloseDialog} 
+        />
+      )}
     </Card>
   );
 }

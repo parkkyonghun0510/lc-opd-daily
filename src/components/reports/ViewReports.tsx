@@ -264,8 +264,8 @@ export function ViewReports() {
   };
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="border-0 shadow-md dark:bg-gray-800 dark:shadow-lg">
+      <CardHeader className="pb-2">
         <CardTitle>View Reports</CardTitle>
         <CardDescription>
           Browse and filter{" "}
@@ -276,11 +276,11 @@ export function ViewReports() {
         {/* Responsive filter controls with enhanced visual design */}
         <div className="flex flex-col space-y-4 mb-6">
           {/* Report type and create controls in one row */}
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             {/* Enhanced tabs with larger clickable area */}
-            <div className="flex-1">
+            <div className="w-full">
               <Tabs
-                className="w-full max-w-md"
+                className="w-full"
                 value={reportType}
                 onValueChange={(value: string) => {
                   if (value === "plan" || value === "actual") {
@@ -290,11 +290,12 @@ export function ViewReports() {
                   }
                 }}
               >
-                <TabsList className="w-full grid grid-cols-2 p-1 h-12">
+                <TabsList className="w-full grid grid-cols-2 p-1 h-12 dark:bg-gray-800">
                   <TabsTrigger
                     value="plan"
                     className={cn(
                       "flex items-center justify-center gap-1 py-3 data-[state=active]:text-white",
+                      "data-[state=inactive]:dark:text-gray-300",
                       "data-[state=active]:bg-blue-600 data-[state=active]:shadow"
                     )}
                   >
@@ -304,6 +305,7 @@ export function ViewReports() {
                     value="actual"
                     className={cn(
                       "flex items-center justify-center gap-1 py-3 data-[state=active]:text-white",
+                      "data-[state=inactive]:dark:text-gray-300",
                       "data-[state=active]:bg-green-600 data-[state=active]:shadow"
                     )}
                   >
@@ -317,10 +319,10 @@ export function ViewReports() {
             <Button
               onClick={() => handleCreateClick(reportType)}
               className={cn(
-                "ml-4 flex items-center shadow transition-all duration-200 h-12 px-6",
+                "w-full sm:w-auto flex items-center justify-center shadow transition-all duration-200 h-12 px-4 sm:px-6",
                 reportType === "plan"
-                  ? "bg-blue-600 hover:bg-blue-700"
-                  : "bg-green-600 hover:bg-green-700"
+                  ? "bg-blue-600 hover:bg-blue-700 text-white"
+                  : "bg-green-600 hover:bg-green-700 text-white"
               )}
               title={`Create a new ${reportType} report`}
               disabled={isSubmitting}
@@ -339,26 +341,27 @@ export function ViewReports() {
           {/* Filters in one row */}
           <div className="flex flex-wrap items-center gap-3">
             {/* Date selector with clearer label */}
-            <div className="flex items-center">
+            <div className="flex items-center w-full sm:w-auto">
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
                     variant={"outline"}
                     className={cn(
-                      "w-full md:w-auto justify-start text-left font-normal border-gray-300 dark:border-gray-600 h-10",
-                      !date && "text-muted-foreground"
+                      "w-full justify-start text-left font-normal border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 h-10",
+                      !date && "text-muted-foreground dark:text-gray-400"
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {date ? format(date, "PPP") : <span>Select a date</span>}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
+                <PopoverContent className="w-auto p-0 dark:bg-gray-800 dark:border-gray-700">
                   <Calendar
                     mode="single"
                     selected={date}
                     onSelect={setDate}
                     initialFocus
+                    className="dark:bg-gray-800"
                   />
                 </PopoverContent>
               </Popover>
@@ -366,54 +369,56 @@ export function ViewReports() {
 
             {/* Branch selector for admin users or users with multiple branches */}
             {userBranches.length > 1 && (
-              <Select
-                value={selectedBranchId}
-                onValueChange={setSelectedBranchId}
-              >
-                <SelectTrigger className="w-[200px]">
-                  <SelectValue placeholder="Select branch" />
-                </SelectTrigger>
-                <SelectContent>
-                  {userBranches.map((branch) => (
-                    <SelectItem key={branch.id} value={branch.id}>
-                      {branch.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="w-full sm:w-auto">
+                <Select
+                  value={selectedBranchId}
+                  onValueChange={setSelectedBranchId}
+                >
+                  <SelectTrigger className="w-full sm:w-[200px] dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200">
+                    <SelectValue placeholder="Select branch" />
+                  </SelectTrigger>
+                  <SelectContent className="dark:bg-gray-800 dark:border-gray-700">
+                    {userBranches.map((branch) => (
+                      <SelectItem key={branch.id} value={branch.id}>
+                        {branch.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             )}
           </div>
         </div>
 
         {/* Reports table */}
-        <div className="rounded-md border">
+        <div className="rounded-md border border-gray-200 dark:border-gray-700 overflow-hidden">
           <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Branch</TableHead>
-                <TableHead>
+            <TableHeader className="bg-gray-50 dark:bg-gray-800">
+              <TableRow className="hover:bg-gray-100 dark:hover:bg-gray-700 border-b dark:border-gray-700">
+                <TableHead className="font-semibold text-gray-700 dark:text-gray-200">Date</TableHead>
+                <TableHead className="font-semibold text-gray-700 dark:text-gray-200">Branch</TableHead>
+                <TableHead className="font-semibold text-gray-700 dark:text-gray-200">
                   {reportType === "actual" ? "Write-offs (Actual)" : "Write-offs"}
                 </TableHead>
                 {reportType === "actual" && (
-                  <TableHead className="text-blue-600">Write-offs (Plan)</TableHead>
+                  <TableHead className="font-semibold text-blue-600 dark:text-blue-400">Write-offs (Plan)</TableHead>
                 )}
-                <TableHead>
+                <TableHead className="font-semibold text-gray-700 dark:text-gray-200">
                   {reportType === "actual" ? "90+ Days (Actual)" : "90+ Days"}
                 </TableHead>
                 {reportType === "actual" && (
-                  <TableHead className="text-blue-600">90+ Days (Plan)</TableHead>
+                  <TableHead className="font-semibold text-blue-600 dark:text-blue-400">90+ Days (Plan)</TableHead>
                 )}
-                <TableHead>Comments</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Submitted By</TableHead>
-                <TableHead>Actions</TableHead>
+                <TableHead className="font-semibold text-gray-700 dark:text-gray-200">Comments</TableHead>
+                <TableHead className="font-semibold text-gray-700 dark:text-gray-200">Status</TableHead>
+                <TableHead className="font-semibold text-gray-700 dark:text-gray-200">Submitted By</TableHead>
+                <TableHead className="font-semibold text-gray-700 dark:text-gray-200">Actions</TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody>
+            <TableBody className="bg-white dark:bg-gray-800">
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={reportType === "actual" ? 10 : 8} className="text-center py-8">
+                  <TableCell colSpan={reportType === "actual" ? 10 : 8} className="text-center py-8 dark:text-gray-300">
                     <div className="flex items-center justify-center">
                       <Loader2 className="h-6 w-6 animate-spin" />
                     </div>
@@ -421,36 +426,36 @@ export function ViewReports() {
                 </TableRow>
               ) : reports.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={reportType === "actual" ? 10 : 8} className="text-center py-8">
+                  <TableCell colSpan={reportType === "actual" ? 10 : 8} className="text-center py-8 dark:text-gray-300">
                     No reports found for the selected filters
                   </TableCell>
                 </TableRow>
               ) : (
                 reports.map((report) => (
-                  <TableRow key={report.id}>
-                    <TableCell>{formatDate(report.date)}</TableCell>
-                    <TableCell>{report.branch.name}</TableCell>
-                    <TableCell className={reportType === "actual" ? "font-medium" : ""}>
+                  <TableRow key={report.id} className="hover:bg-gray-50 dark:hover:bg-gray-800 dark:border-gray-700">
+                    <TableCell className="dark:text-gray-300">{formatDate(report.date)}</TableCell>
+                    <TableCell className="dark:text-gray-300">{report.branch.name}</TableCell>
+                    <TableCell className={cn("dark:text-gray-300", reportType === "actual" ? "font-medium" : "")}>
                       {formatCurrency(report.writeOffs)}
                     </TableCell>
                     {reportType === "actual" && (
-                      <TableCell className="text-blue-600">
+                      <TableCell className="text-blue-600 dark:text-blue-400">
                         {report.writeOffsPlan !== null && report.writeOffsPlan !== undefined
                           ? formatCurrency(report.writeOffsPlan)
                           : "-"}
                       </TableCell>
                     )}
-                    <TableCell className={reportType === "actual" ? "font-medium" : ""}>
+                    <TableCell className={cn("dark:text-gray-300", reportType === "actual" ? "font-medium" : "")}>
                       {formatCurrency(report.ninetyPlus)}
                     </TableCell>
                     {reportType === "actual" && (
-                      <TableCell className="text-blue-600">
+                      <TableCell className="text-blue-600 dark:text-blue-400">
                         {report.ninetyPlusPlan !== null && report.ninetyPlusPlan !== undefined
                           ? formatCurrency(report.ninetyPlusPlan)
                           : "-"}
                       </TableCell>
                     )}
-                    <TableCell className="max-w-[200px] truncate">
+                    <TableCell className="max-w-[200px] truncate dark:text-gray-300">
                       {report.comments || "-"}
                     </TableCell>
                     <TableCell>
@@ -463,7 +468,7 @@ export function ViewReports() {
                         {report.status}
                       </Badge>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="dark:text-gray-300">
                       <UserDisplayName userId={report.submittedBy} />
                     </TableCell>
                     <TableCell>
@@ -475,8 +480,9 @@ export function ViewReports() {
                           session?.user?.role !== "admin" &&
                           session?.user?.branchId !== report.branch.id
                         }
+                        className="hover:bg-gray-100 dark:hover:bg-gray-800"
                       >
-                        <PencilIcon className="h-4 w-4" />
+                        <PencilIcon className="h-4 w-4 dark:text-gray-300" />
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -489,7 +495,7 @@ export function ViewReports() {
         {/* Pagination */}
         {pagination && pagination.totalPages > 1 && (
           <div className="flex items-center justify-between mt-4">
-            <div className="text-sm text-muted-foreground">
+            <div className="text-sm text-muted-foreground dark:text-gray-400">
               Showing {pagination.page} of {pagination.totalPages} pages
             </div>
             <div className="flex items-center gap-2">
@@ -498,6 +504,7 @@ export function ViewReports() {
                 size="sm"
                 onClick={() => handlePageChange(pagination.page - 1)}
                 disabled={pagination.page === 1}
+                className="dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300"
               >
                 <ChevronLeftIcon className="h-4 w-4" />
               </Button>
@@ -506,6 +513,7 @@ export function ViewReports() {
                 size="sm"
                 onClick={() => handlePageChange(pagination.page + 1)}
                 disabled={pagination.page === pagination.totalPages}
+                className="dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300"
               >
                 <ChevronRightIcon className="h-4 w-4" />
               </Button>

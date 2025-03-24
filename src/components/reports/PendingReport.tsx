@@ -38,112 +38,103 @@ export function PendingReport({
   onApprovalComplete,
 }: PendingReportProps) {
   return (
-    <Card className="overflow-hidden">
+    <Card className="overflow-hidden dark:bg-gray-800 dark:border-gray-700">
       <CardContent className="p-0">
         <div className="p-4">
           <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
             <div className="flex items-center">
-              <h3 className="text-lg font-medium">{branchName}</h3>
+              <h3 className="text-lg font-medium dark:text-gray-100">{branchName}</h3>
               <Badge
                 variant="outline"
                 className={cn(
                   "ml-2 capitalize",
-                  report.reportType === "plan" ? "bg-blue-50 text-blue-700" : "bg-green-50 text-green-700"
+                  report.reportType === "plan"
+                    ? "text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20"
+                    : "text-green-600 dark:text-green-400 border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20"
                 )}
               >
                 {report.reportType}
               </Badge>
+              <Badge
+                className={cn(
+                  "ml-2 text-white",
+                  report.status === "pending"
+                    ? "bg-yellow-500"
+                    : report.status === "approved"
+                    ? "bg-green-500"
+                    : "bg-red-500"
+                )}
+              >
+                {report.status}
+              </Badge>
             </div>
-            
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-500">
+            <div className="flex items-center space-x-4">
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <div className="flex items-center">
-                      <Calendar className="h-3.5 w-3.5 mr-1.5" />
-                      <span>
-                        {format(new Date(report.date), "MMM d, yyyy")}
-                      </span>
+                    <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
+                      <Calendar className="h-4 w-4 mr-1" />
+                      <span>{format(new Date(report.date), "MMM d, yyyy")}</span>
                     </div>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>Report date</p>
+                    <p className="dark:text-gray-200">Report Date</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
-              
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <div className="flex items-center">
-                      <User className="h-3.5 w-3.5 mr-1.5" />
+                    <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
+                      <Clock className="h-4 w-4 mr-1" />
                       <span>
-                        {report.submittedBy ? (
-                          <UserDisplayName userId={report.submittedBy} />
-                        ) : (
-                          report.user?.name || report.user?.username || "Unknown user"
-                        )}
+                        {format(new Date(report.createdAt), "h:mm a")}
                       </span>
                     </div>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>Submitted by</p>
+                    <p className="dark:text-gray-200">Submission Time</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
-              
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <div className="flex items-center">
-                      <Clock className="h-3.5 w-3.5 mr-1.5" />
-                      <span>
-                        {format(new Date(report.createdAt), "MMM d, h:mm a")}
-                      </span>
+                    <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
+                      <User className="h-4 w-4 mr-1" />
+                      <UserDisplayName userId={report.submittedBy || ""} className="dark:text-gray-400" />
                     </div>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>Submission time</p>
+                    <p className="dark:text-gray-200">Submitted By</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
             </div>
           </div>
-          
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 my-3">
-            <div className="space-y-1">
-              <div className="text-sm text-gray-500">Write-offs</div>
-              <div className="font-mono font-medium text-lg">
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+            <div>
+              <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Write-offs</h4>
+              <p className="text-2xl font-semibold dark:text-gray-200">
                 {formatKHRCurrency(report.writeOffs)}
-              </div>
+              </p>
             </div>
-            
-            <div className="space-y-1">
-              <div className="text-sm text-gray-500">90+ Days</div>
-              <div className="font-mono font-medium text-lg">
+            <div>
+              <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">90+ Days</h4>
+              <p className="text-2xl font-semibold dark:text-gray-200">
                 {formatKHRCurrency(report.ninetyPlus)}
-              </div>
-            </div>
-            
-            <div className="col-span-2 sm:col-span-1 flex sm:justify-end items-end">
-              <ReportApproval
-                report={report}
-                onApprovalComplete={onApprovalComplete}
-                branchName={branchName}
-              />
+              </p>
             </div>
           </div>
-          
-          {report.content && (
-            <div className="mt-3 pt-3 border-t">
-              <div className="text-sm font-medium text-gray-600 mb-1">
-                Comments:
-              </div>
-              <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-md">
-                {report.content}
-              </div>
-            </div>
-          )}
+        </div>
+
+        <div className="border-t border-gray-200 dark:border-gray-700 p-3 bg-gray-50 dark:bg-gray-800">
+          <ReportApproval
+            report={report}
+            branchName={branchName}
+            onApprovalComplete={onApprovalComplete}
+          />
         </div>
       </CardContent>
     </Card>

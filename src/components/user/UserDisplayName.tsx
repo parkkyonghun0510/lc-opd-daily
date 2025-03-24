@@ -18,13 +18,15 @@ interface UserDisplayNameProps {
   showAvatar?: boolean;
   avatarSize?: number;
   className?: string;
+  fallback?: string;
 }
 
 export function UserDisplayName({ 
   userId, 
   showAvatar = false, 
   avatarSize = 24, 
-  className 
+  className,
+  fallback
 }: UserDisplayNameProps) {
   const [userData, setUserData] = useState<UserData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -70,7 +72,7 @@ export function UserDisplayName({
     return <Skeleton className="h-4 w-24" />;
   }
 
-  // If there's an error or no data, show a formatted version of the ID
+  // If there's an error or no data, show a formatted version of the ID or the fallback
   if (error || !userData) {
     return (
       <span className={cn("text-muted-foreground", className)}>
@@ -81,13 +83,13 @@ export function UserDisplayName({
             </AvatarFallback>
           </Avatar>
         )}
-        {formatUserId(userId)}
+        {fallback || formatUserId(userId)}
       </span>
     );
   }
 
   // Display user's name or username, preferring name if available
-  const displayName = userData.name || userData.username || formatUserId(userId);
+  const displayName = userData.name || userData.username || fallback || formatUserId(userId);
   
   return (
     <span className={className}>
