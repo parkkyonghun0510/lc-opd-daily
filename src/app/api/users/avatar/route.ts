@@ -2,21 +2,20 @@ import { NextResponse } from "next/server";
 import { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { PrismaClient } from "@prisma/client";
-import { writeFile, mkdir, unlink } from "fs/promises";
-import { join } from "path";
-import { v4 as uuidv4 } from "uuid";
-import { existsSync } from "fs";
+import { uploadToS3, deleteFromS3, getKeyFromUrl } from "@/lib/s3";
+import fs from 'fs';
+import path from 'path';
+import { mkdir } from 'fs/promises';
 
 const prisma = new PrismaClient();
 
-const UPLOAD_DIR = join(process.cwd(), "public", "uploads", "avatars");
+// Feature flag for S3 usage
+const USE_S3_STORAGE = process.env.USE_S3_STORAGE === "true";
+const IS_DEVELOPMENT = process.env.NODE_ENV === "development";
+const BASE_URL = IS_DEVELOPMENT ? "http://localhost:3000" : "https://reports.lchelpdesk.com";
 
-// Ensure upload directory exists
-if (!existsSync(UPLOAD_DIR)) {
-  mkdir(UPLOAD_DIR, { recursive: true }).catch((error) => {
-    console.error("Failed to create upload directory:", error);
-  });
-}
+// Local file storage setup
+const UPLOAD_DIR = path.join(process.cwd(), 'public/uploads/avatars');
 
 export async function POST(request: NextRequest) {
   try {
@@ -53,57 +52,95 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate unique filename with original extension
-    const fileExt = file.name.split(".").pop()?.toLowerCase() || "jpg";
-    const fileName = `${uuidv4()}.${fileExt}`;
-    const filePath = join(UPLOAD_DIR, fileName);
+    // Get user record to check if they have an existing avatar
+    const user = await prisma.user.findUnique({
+      where: { id: token.sub },
+      select: { image: true },
+    });
 
-    try {
-      // Write file to disk
-      const bytes = await file.arrayBuffer();
-      const buffer = Buffer.from(bytes);
-      await writeFile(filePath, buffer);
-    } catch (error) {
-      console.error("Failed to write file:", error);
-      return NextResponse.json(
-        { error: "Failed to save the uploaded file" },
-        { status: 500 }
-      );
-    }
+    // Convert file to buffer for upload
+    const bytes = await file.arrayBuffer();
+    const buffer = Buffer.from(bytes);
 
-    try {
-      // Update user's avatar URL in database
-      const avatarUrl = `/uploads/avatars/${fileName}`;
-      const updatedUser = await prisma.user.update({
-        where: { id: token.sub },
-        data: {
-          image: avatarUrl,
-          updatedAt: new Date(),
-        },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          image: true,
-          role: true,
-          username: true,
-        },
-      });
+    let avatarUrl = "";
+    if (USE_S3_STORAGE) {
+      // Upload to S3
+      const { url } = await uploadToS3(buffer, file.type);
+      avatarUrl = url;
 
-      return NextResponse.json({
-        message: "Avatar uploaded successfully",
-        avatarUrl,
-        user: updatedUser,
-      });
-    } catch (error) {
-      // If database update fails, try to clean up the uploaded file
-      try {
-        await unlink(filePath);
-      } catch (unlinkError) {
-        console.error("Failed to clean up file after db error:", unlinkError);
+      // If user has an existing S3 avatar, delete it
+      if (user?.image && user.image.includes('.amazonaws.com/')) {
+        const existingKey = getKeyFromUrl(user.image);
+        if (existingKey) {
+          try {
+            await deleteFromS3(existingKey);
+          } catch (error) {
+            console.warn("Failed to delete old avatar:", error);
+            // Continue with the update even if deletion fails
+          }
+        }
       }
-      throw error;
+    } else {
+      // For development/testing without S3, save files locally
+      // Create directory if it doesn't exist
+      try {
+        await mkdir(UPLOAD_DIR, { recursive: true });
+        
+        // Generate a unique filename
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}.${file.type.split('/')[1]}`;
+        const filePath = path.join(UPLOAD_DIR, fileName);
+        
+        // Write file to disk
+        fs.writeFileSync(filePath, buffer);
+        
+        // Set the URL for the avatar
+        avatarUrl = `${BASE_URL}/uploads/avatars/${fileName}`;
+        
+        // Delete old avatar file if it exists
+        if (user?.image) {
+          try {
+            const oldFileName = user.image.split('/').pop();
+            if (oldFileName) {
+              const oldFilePath = path.join(UPLOAD_DIR, oldFileName);
+              if (fs.existsSync(oldFilePath)) {
+                fs.unlinkSync(oldFilePath);
+              }
+            }
+          } catch (error) {
+            console.warn("Failed to delete old avatar file:", error);
+          }
+        }
+      } catch (error) {
+        console.error("Error saving avatar file locally:", error);
+        return NextResponse.json(
+          { error: "Failed to save avatar file" },
+          { status: 500 }
+        );
+      }
     }
+
+    // Update user's avatar URL in database
+    const updatedUser = await prisma.user.update({
+      where: { id: token.sub },
+      data: {
+        image: avatarUrl,
+        updatedAt: new Date(),
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        image: true,
+        role: true,
+        username: true,
+      },
+    });
+
+    return NextResponse.json({
+      message: "Avatar uploaded successfully",
+      avatarUrl,
+      user: updatedUser,
+    });
   } catch (error) {
     console.error("Avatar upload error:", error);
     return NextResponse.json(

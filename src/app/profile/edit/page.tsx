@@ -98,6 +98,7 @@ export default function EditProfilePage() {
   } | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const form = useForm<ProfileFormData>({
     resolver: zodResolver(profileFormSchema),
@@ -156,6 +157,27 @@ export default function EditProfilePage() {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Validate file type
+      if (!file.type.startsWith("image/")) {
+        toast({
+          title: "Invalid file type",
+          description: "Please upload an image file",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Validate file size (5MB max)
+      const maxSize = 5 * 1024 * 1024;
+      if (file.size > maxSize) {
+        toast({
+          title: "File too large",
+          description: "Image size should be less than 5MB",
+          variant: "destructive",
+        });
+        return;
+      }
+
       setImageFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -165,14 +187,55 @@ export default function EditProfilePage() {
     }
   };
 
+  const handleImageUpload = async () => {
+    if (!imageFile) return;
+
+    try {
+      setUploadingImage(true);
+      const formData = new FormData();
+      formData.append("avatar", imageFile);
+
+      const response = await fetch("/api/users/avatar", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to upload image");
+      }
+
+      const data = await response.json();
+      
+      // Update user data
+      setUser(prev => prev ? { ...prev, image: data.avatarUrl } : null);
+      
+      toast({
+        title: "Success",
+        description: "Profile picture updated successfully",
+      });
+      
+      // Clear file input
+      setImageFile(null);
+    } catch (error) {
+      console.error("Error uploading profile picture:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to upload profile picture",
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
   async function onSubmit(data: ProfileFormData) {
     try {
       setSaving(true);
 
-      // Handle image upload if there's a new image
+      // If there's a new image, upload it first
       if (imageFile) {
-        // TODO: Implement image upload logic
-        console.log("Image upload to be implemented");
+        await handleImageUpload();
       }
 
       const result = await updateUserProfile(data);
@@ -294,13 +357,30 @@ export default function EditProfilePage() {
                 <div className="flex flex-col items-center space-y-4">
                   <div className="relative group">
                     <Avatar className="h-24 w-24 transition-transform duration-200 group-hover:scale-105">
-                      <AvatarImage src={imagePreview || user?.image} />
+                      {uploadingImage && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full z-10">
+                          <Loader2 className="h-6 w-6 text-white animate-spin" />
+                        </div>
+                      )}
+                      <AvatarImage 
+                        src={imagePreview || user?.image} 
+                        referrerPolicy="no-referrer"
+                        crossOrigin="anonymous"
+                        onError={(e) => {
+                          // If image fails to load, hide it and let the fallback show
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          console.error("Image failed to load:", user?.image);
+                        }}
+                      />
                       <AvatarFallback className="bg-primary/10 text-lg">
                         {user?.name
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")
-                          .toUpperCase()}
+                          ? user.name
+                              .split(" ")
+                              .map((n) => n[0])
+                              .join("")
+                              .toUpperCase()
+                          : "U"}
                       </AvatarFallback>
                     </Avatar>
                     <input
@@ -317,9 +397,38 @@ export default function EditProfilePage() {
                       <Camera className="h-4 w-4" />
                     </Label>
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    Click to upload new photo
-                  </p>
+                  <div className="flex flex-col items-center space-y-2">
+                    <p className="text-sm text-muted-foreground">
+                      Click to upload new photo
+                    </p>
+                    {imageFile && (
+                      <div className="flex space-x-2">
+                        <Button 
+                          size="sm" 
+                          onClick={handleImageUpload}
+                          disabled={uploadingImage}
+                        >
+                          {uploadingImage ? (
+                            <>
+                              <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                              Uploading...
+                            </>
+                          ) : "Upload Now"}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setImageFile(null);
+                            setImagePreview(null);
+                          }}
+                          disabled={uploadingImage}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex-1">

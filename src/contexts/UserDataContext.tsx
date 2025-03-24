@@ -28,6 +28,21 @@ const UserDataContext = createContext<UserDataContextType | undefined>(
   undefined
 );
 
+// Add this helper function to fix legacy avatar URLs that point to the production domain in development
+export function fixAvatarUrl(url: string | null | undefined): string | undefined {
+  if (!url) return undefined;
+  
+  // If we're in development and the URL points to the production domain
+  if (process.env.NODE_ENV === 'development' && url.includes('reports.lchelpdesk.com/uploads/avatars')) {
+    // Extract the filename from the URL
+    const filename = url.split('/').pop();
+    // Generate a placeholder avatar instead
+    return `https://api.dicebear.com/7.x/initials/svg?seed=${filename}&backgroundColor=4f46e5`;
+  }
+  
+  return url;
+}
+
 export function UserDataProvider({ children }: { children: React.ReactNode }) {
   const { status } = useSession();
   const router = useRouter();
@@ -144,6 +159,22 @@ export function UserDataProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(false);
     }
   }, []);
+
+  // Fix avatar URLs in development environment
+  useEffect(() => {
+    if (userData && userData.image) {
+      const fixedImageUrl = fixAvatarUrl(userData.image);
+      if (fixedImageUrl !== userData.image) {
+        setUserData(prev => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            image: fixedImageUrl
+          };
+        });
+      }
+    }
+  }, [userData?.image]);
 
   // Memoize the context value to prevent unnecessary re-renders
   const contextValue = useMemo(() => ({

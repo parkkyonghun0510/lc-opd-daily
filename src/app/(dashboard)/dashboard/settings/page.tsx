@@ -379,7 +379,17 @@ export default function SettingsPage() {
                           <Loader2 className="h-6 w-6 text-white animate-spin" />
                         </div>
                       )}
-                      <AvatarImage src={userData?.image || ""} />
+                      <AvatarImage 
+                        src={userData?.image || ""} 
+                        referrerPolicy="no-referrer"
+                        crossOrigin="anonymous"
+                        onError={(e) => {
+                          // If image fails to load, hide it and let the fallback show
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          console.error("Image failed to load:", userData?.image);
+                        }}
+                      />
                       <AvatarFallback className="bg-primary/10">
                         {userData?.name
                           ?.split(" ")

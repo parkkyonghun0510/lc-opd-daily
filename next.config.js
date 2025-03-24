@@ -2,7 +2,17 @@
 const nextConfig = {
   reactStrictMode: false,
   images: {
-    domains: ["bhr.vectoranet.com", "localhost", "cloudinary.com"],
+    domains: ["bhr.vectoranet.com", "localhost", "cloudinary.com", "reports.lchelpdesk.com", "s3.amazonaws.com"],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '**.amazonaws.com'
+      },
+      {
+        protocol: 'https',
+        hostname: 'api.dicebear.com'
+      }
+    ]
   },
   webpack: (config, { isServer }) => {
     // Don't bundle Prisma in client-side code
@@ -20,6 +30,9 @@ const nextConfig = {
     }
 
     return config;
+  },
+  experimental: {
+    // Add any existing experimental options here
   },
 };
 

@@ -2,6 +2,7 @@ import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import { UserRole } from "@/lib/auth/roles";
+import type { NextRequest } from 'next/server';
 
 const prisma = new PrismaClient();
 
@@ -125,5 +126,35 @@ export const config = {
 
     // API routes that need processing
     "/api/:path*",
+
+    // Add avatar path matcher
+    '/uploads/avatars/:path*',
+  ],
+};
+
+export function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // Only run this middleware for avatar URLs in development
+  if (process.env.NODE_ENV === 'development' && 
+      pathname.startsWith('/uploads/avatars/') && 
+      !pathname.includes('.well-known')) {
+    
+    // Extract the filename from the URL
+    const filename = pathname.split('/').pop();
+    
+    // Create a fallback URL for avatars that may not exist
+    return NextResponse.rewrite(
+      new URL(`https://api.dicebear.com/7.x/initials/svg?seed=${filename}&backgroundColor=4f46e5`, request.url)
+    );
+  }
+
+  return NextResponse.next();
+}
+
+// Configure the middleware to run only for specific paths
+export const avatarConfig = {
+  matcher: [
+    '/uploads/avatars/:path*',
   ],
 };
