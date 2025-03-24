@@ -60,6 +60,21 @@ export async function GET(request: NextRequest) {
         name: true,
         code: true,
         parentId: true,
+        isActive: true,
+        parent: {
+          select: {
+            id: true,
+            code: true,
+            name: true,
+          }
+        },
+        _count: {
+          select: {
+            users: true,
+            reports: true,
+            children: true,
+          }
+        }
       },
       orderBy: { name: "asc" },
     });
@@ -150,7 +165,15 @@ export async function PATCH(request: NextRequest) {
   try {
     // Use NextAuth for authentication
     const token = await getToken({ req: request });
-    if (!token || token.role !== "admin") {
+    if (!token) {
+      return NextResponse.json(
+        { error: "Unauthorized - Authentication required" },
+        { status: 401 }
+      );
+    }
+
+    // Check if user has admin role
+    if (token.role !== UserRole.ADMIN) {
       return NextResponse.json(
         { error: "Unauthorized - Admin access required" },
         { status: 403 }
@@ -206,8 +229,16 @@ export async function PATCH(request: NextRequest) {
             select: {
               users: true,
               reports: true,
+              children: true,
             },
           },
+          parent: {
+            select: {
+              id: true,
+              code: true,
+              name: true,
+            }
+          }
         },
       });
 

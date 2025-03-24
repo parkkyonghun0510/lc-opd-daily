@@ -16,7 +16,8 @@ import {
   XCircle, 
   AlertTriangle, 
   Info,
-  User
+  User,
+  RefreshCw
 } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { formatKHRCurrency, cn } from "@/lib/utils";
@@ -75,26 +76,30 @@ export function ReportApproval({
     setIsSubmitting(true);
 
     try {
-      const approvalAction = isApproveDialogOpen ? "approve" : "reject";
+      const status = isApproveDialogOpen ? "approved" : "rejected";
       
-      const response = await fetch(`/api/reports/${report.id}/${approvalAction}`, {
+      const response = await fetch(`/api/reports/${report.id}/approve`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          remarks: remarks.trim(),
+          status,
+          comments: remarks.trim(),
+          notifyUsers: true
         }),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || `Failed to ${approvalAction} report`);
+        throw new Error(errorData.error || `Failed to ${status} report`);
       }
+
+      const result = await response.json();
 
       toast({
         title: "Success",
-        description: `Report ${isApproveDialogOpen ? "approved" : "rejected"} successfully`,
+        description: result.message || `Report ${status} successfully`,
       });
 
       setIsApproveDialogOpen(false);
@@ -138,6 +143,20 @@ export function ReportApproval({
         >
           {report.status}
         </Badge>
+        {report.status === "rejected" && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              // Navigate to edit page with the report ID
+              window.location.href = `/dashboard/reports/${report.id}/edit`;
+            }}
+            className="ml-2 bg-blue-500 hover:bg-blue-600 text-white"
+          >
+            <RefreshCw className="mr-1 h-4 w-4" />
+            Resubmit Report
+          </Button>
+        )}
       </div>
     );
   }
@@ -150,7 +169,7 @@ export function ReportApproval({
             className="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600 text-white"
             size="sm"
             onClick={openApproveDialog}
-            disabled={report.status !== "pending"}
+            disabled={report.status !== "pending" && report.status !== "pending_approval"}
           >
             <CheckCircle className="mr-1 h-4 w-4" />
             Approve
@@ -160,7 +179,7 @@ export function ReportApproval({
             size="sm"
             className="dark:bg-red-700 dark:hover:bg-red-600"
             onClick={openRejectDialog}
-            disabled={report.status !== "pending"}
+            disabled={report.status !== "pending" && report.status !== "pending_approval"}
           >
             <XCircle className="mr-1 h-4 w-4" />
             Reject

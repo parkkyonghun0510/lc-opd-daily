@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { withPermissionGuard } from "@/middleware/api-permission-guard";
 import { Permission } from "@/lib/auth/roles";
 import { prisma } from "@/lib/prisma";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
 
 type ReportType = "plan" | "actual";
 
@@ -339,64 +341,102 @@ export const POST = withPermissionGuard(
 export const PATCH = withPermissionGuard(
   async (req: NextRequest, context: {}, currentUser: any): Promise<NextResponse<ApiResponse<any>>> => {
     try {
-      const data = await req.json();
-      
-      // Extract report data
-      const {
-        id,
-        title,
-        date,
-        writeOffs,
-        ninetyPlus,
-        content,
-        attachments
-      } = data;
-      
-      // Validate required fields
+      const session = await getServerSession(authOptions);
+      if (!session?.user) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+
+      const body = await req.json();
+      const { id, writeOffs, ninetyPlus, content } = body;
+
       if (!id) {
         return NextResponse.json(
           { error: "Report ID is required" },
           { status: 400 }
         );
       }
-      
-      // Get existing report to check permissions
+
+      // Get the existing report
       const existingReport = await prisma.report.findUnique({
-        where: { id }
+        where: { id },
+        include: {
+          branch: true,
+        },
       });
-      
+
       if (!existingReport) {
         return NextResponse.json(
           { error: "Report not found" },
           { status: 404 }
         );
       }
-      
-      // Check if user has permission to edit reports for this branch
-      if (currentUser.role !== "ADMIN" && 
-          currentUser.branchId !== existingReport.branchId && 
-          !currentUser.assignedBranchIds?.includes(existingReport.branchId)) {
+
+      // Check if user has permission to edit this report
+      if (
+        session.user.role !== "ADMIN" &&
+        session.user.branchId !== existingReport.branchId
+      ) {
         return NextResponse.json(
-          { error: "You don't have permission to edit reports for this branch" },
+          { error: "You can only edit reports for your assigned branch" },
           { status: 403 }
         );
       }
-      
-      // Update report
+
+      // Check if the report is from today
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const reportDate = new Date(existingReport.date);
+      reportDate.setHours(0, 0, 0, 0);
+
+      // Only restrict by date for rejected reports that need resubmission
+      if (existingReport.status === "rejected" && reportDate.getTime() !== today.getTime()) {
+        return NextResponse.json(
+          { error: "You can only resubmit rejected reports from today's session" },
+          { status: 403 }
+        );
+      }
+
+      // Get validation rules
+      const orgSettings = await prisma.organizationSettings.findUnique({
+        where: { id: "1" },
+      });
+
+      // Determine new status based on validation rules and current status
+      let newStatus = existingReport.status;
+      if (existingReport.status === "rejected") {
+        // If report was rejected, set to pending_approval when resubmitted
+        newStatus = "pending_approval";
+      } else if (orgSettings && typeof orgSettings.validationRules === 'object' && orgSettings.validationRules !== null) {
+        const rules = orgSettings.validationRules as any;
+        // Check if approval is required based on validation rules
+        if (rules.requireApproval) {
+          newStatus = "pending_approval";
+        } else {
+          newStatus = "approved";
+        }
+      } else {
+        // Default to pending_approval if no settings found
+        newStatus = "pending_approval";
+      }
+
+      // Update the report
       const updatedReport = await prisma.report.update({
         where: { id },
         data: {
-          date: date ? new Date(date).toISOString().split('T')[0] : undefined,
-          writeOffs: writeOffs !== undefined ? writeOffs : undefined,
-          ninetyPlus: ninetyPlus !== undefined ? ninetyPlus : undefined,
-          comments: content || undefined,
-          updatedAt: new Date()
-        }
+          date: existingReport.date,
+          writeOffs: writeOffs || 0,
+          ninetyPlus: ninetyPlus || 0,
+          comments: content,
+          status: newStatus,
+          updatedAt: new Date(),
+        },
       });
-      
-      return NextResponse.json({ 
-        message: "Report updated successfully", 
-        report: updatedReport 
+
+      return NextResponse.json({
+        data: updatedReport,
+        message: existingReport.status === "rejected" 
+          ? "Report resubmitted successfully" 
+          : "Report updated successfully"
       });
     } catch (error) {
       console.error("Error updating report:", error);
