@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -93,6 +95,9 @@ type Meta = {
 };
 
 export default function BranchesPage() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+
   // State for branch list and pagination
   const [branches, setBranches] = useState<Branch[]>([]);
   const [meta, setMeta] = useState<Meta>({
@@ -143,7 +148,9 @@ export default function BranchesPage() {
           activeFilter === "active" ? "true" : "false"
         );
 
-      const response = await fetch(`/api/branches?${queryParams.toString()}`);
+      const response = await fetch(`/api/branches?${queryParams.toString()}`, {
+        credentials: "include",
+      });
 
       if (!response.ok) {
         throw new Error("Failed to fetch branches");
@@ -161,21 +168,6 @@ export default function BranchesPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  // Initial data load
-  useEffect(() => {
-    fetchBranches();
-  }, []);
-
-  // Handle filter changes
-  useEffect(() => {
-    fetchBranches(1); // Reset to first page on filter change
-  }, [search, activeFilter]);
-
-  // Handle page change
-  const handlePageChange = (page: number) => {
-    fetchBranches(page);
   };
 
   // Handle form input changes
@@ -236,6 +228,7 @@ export default function BranchesPage() {
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: "include",
         body: JSON.stringify(formData),
       });
 
@@ -277,6 +270,7 @@ export default function BranchesPage() {
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: "include",
         body: JSON.stringify({
           id: selectedBranch.id,
           ...formData,
@@ -315,6 +309,7 @@ export default function BranchesPage() {
     try {
       const response = await fetch(`/api/branches?id=${selectedBranch.id}`, {
         method: "DELETE",
+        credentials: "include",
       });
 
       if (!response.ok) {
@@ -331,30 +326,72 @@ export default function BranchesPage() {
     }
   };
 
+  // Handle page change
+  const handlePageChange = (page: number) => {
+    fetchBranches(page);
+  };
+
+  // Redirect if not authenticated or not admin
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/login");
+    } else if (status === "authenticated" && session?.user?.role !== "ADMIN") {
+      router.push("/dashboard");
+    }
+  }, [status, session, router]);
+
+  // Initial data load - only if admin
+  useEffect(() => {
+    if (status === "authenticated" && session?.user?.role === "ADMIN") {
+      fetchBranches();
+    }
+  }, [status, session]);
+
+  // Handle filter changes - only if admin
+  useEffect(() => {
+    if (status === "authenticated" && session?.user?.role === "ADMIN") {
+      fetchBranches(1); // Reset to first page on filter change
+    }
+  }, [search, activeFilter, status, session]);
+
+  // Show loading state while checking auth
+  if (status === "loading") {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
+  // Don't render if not admin
+  if (status !== "authenticated" || session?.user?.role !== "ADMIN") {
+    return null;
+  }
+
   return (
-    <div className="container mx-auto py-8 px-4">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Branch Management</h1>
+    <div className="container px-2 sm:px-4 py-4 sm:py-8 mx-auto">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+        <h1 className="text-2xl sm:text-3xl font-bold">Branch Management</h1>
         <Button onClick={openCreateDialog}>
           <Plus className="mr-2 h-4 w-4" /> Add New Branch
         </Button>
       </div>
 
-      <Card className="mb-8">
-        <CardHeader>
+      <Card className="mb-8 overflow-hidden">
+        <CardHeader className="p-4 sm:p-6">
           <CardTitle>Branches</CardTitle>
           <CardDescription>
             Manage branch locations and their operational status
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-3 sm:p-6">
           {/* Filters */}
-          <div className="flex flex-col md:flex-row gap-4 mb-6">
+          <div className="flex flex-col md:flex-row gap-3 mb-4 sm:mb-6">
             <div className="relative flex-grow">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 type="search"
-                placeholder="Search branches by code or name..."
+                placeholder="Search branches..."
                 className="pl-8"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -365,7 +402,7 @@ export default function BranchesPage() {
               value={activeFilter}
               onValueChange={(value) => setActiveFilter(value)}
             >
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-full md:w-[180px]">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
@@ -378,7 +415,7 @@ export default function BranchesPage() {
 
           {/* Error message */}
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-800 p-4 rounded-md mb-4">
+            <div className="bg-red-50 border border-red-200 text-red-800 p-3 rounded-md mb-4 text-sm">
               {error}
             </div>
           )}
@@ -390,8 +427,8 @@ export default function BranchesPage() {
             </div>
           ) : (
             <>
-              {/* Branch table */}
-              <div className="rounded-md border">
+              {/* Branch table - desktop view */}
+              <div className="rounded-md border overflow-auto hidden md:block">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -402,7 +439,7 @@ export default function BranchesPage() {
                       <TableHead>Status</TableHead>
                       <TableHead>Users</TableHead>
                       <TableHead>Reports</TableHead>
-                      <TableHead>Actions</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -430,9 +467,9 @@ export default function BranchesPage() {
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1">
-                              {branch._count.children > 0 ? (
+                              {(branch._count?.children ?? 0) > 0 ? (
                                 <Badge variant="outline" className="bg-blue-50 text-blue-800 border-blue-200">
-                                  {branch._count.children} Sub-branches
+                                  {branch._count?.children ?? 0} Sub-branches
                                 </Badge>
                               ) : branch.parentId ? (
                                 <Badge variant="outline" className="bg-gray-50 text-gray-800 border-gray-200">
@@ -468,7 +505,7 @@ export default function BranchesPage() {
                               className="flex items-center"
                             >
                               <Users className="mr-1 h-3 w-3" />{" "}
-                              {branch._count.users}
+                              {branch._count?.users ?? 0}
                             </Badge>
                           </TableCell>
                           <TableCell>
@@ -477,11 +514,11 @@ export default function BranchesPage() {
                               className="flex items-center"
                             >
                               <FileText className="mr-1 h-3 w-3" />{" "}
-                              {branch._count.reports}
+                              {branch._count?.reports ?? 0}
                             </Badge>
                           </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-2">
                               <Button
                                 variant="ghost"
                                 size="icon"
@@ -517,6 +554,102 @@ export default function BranchesPage() {
                 </Table>
               </div>
 
+              {/* Mobile card view for branches */}
+              <div className="space-y-4 md:hidden">
+                {branches.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No branches found
+                  </div>
+                ) : (
+                  branches.map((branch) => (
+                    <Card key={branch.id} className="overflow-hidden">
+                      <CardHeader className="p-4 pb-2">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <CardTitle className="text-base flex items-center gap-2">
+                              <span>{branch.code}</span>
+                              {branch.isActive ? (
+                                <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs">
+                                  Active
+                                </Badge>
+                              ) : (
+                                <Badge variant="destructive" className="text-xs">
+                                  Inactive
+                                </Badge>
+                              )}
+                            </CardTitle>
+                            <CardDescription className="text-sm mt-1">
+                              {branch.name}
+                            </CardDescription>
+                          </div>
+                          <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              onClick={() => openEditDialog(branch)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              onClick={() => openDeleteDialog(branch)}
+                              disabled={
+                                branch._count.users > 0 ||
+                                branch._count.reports > 0 ||
+                                branch._count.children > 0
+                              }
+                            >
+                              <Trash className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="p-4 pt-0">
+                        <div className="grid grid-cols-2 gap-2 text-sm">
+                          <div>
+                            <p className="text-muted-foreground">Parent</p>
+                            <p>
+                              {branch.parent 
+                                ? `${branch.parent.code} - ${branch.parent.name}`
+                                : "None"
+                              }
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">Type</p>
+                            <p>
+                              {(branch._count?.children ?? 0) > 0
+                                ? `${branch._count?.children} Sub-branches`
+                                : branch.parentId
+                                ? "Sub-branch"
+                                : "Main Branch"
+                              }
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">Users</p>
+                            <p className="flex items-center">
+                              <Users className="mr-1 h-3 w-3" />
+                              {branch._count?.users ?? 0}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">Reports</p>
+                            <p className="flex items-center">
+                              <FileText className="mr-1 h-3 w-3" />
+                              {branch._count?.reports ?? 0}
+                            </p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+                )}
+              </div>
+
               {/* Pagination */}
               {meta.pages > 1 && (
                 <div className="flex justify-center mt-4">
@@ -539,7 +672,7 @@ export default function BranchesPage() {
 
       {/* Create Branch Dialog */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[500px] w-[calc(100%-32px)] p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Create New Branch</DialogTitle>
             <DialogDescription>
@@ -555,45 +688,46 @@ export default function BranchesPage() {
           )}
 
           <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="code" className="text-right">
+            <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-2 sm:gap-4">
+              <Label htmlFor="code" className="sm:text-right">
                 Branch Code
               </Label>
-              <Input
-                id="code"
-                name="code"
-                placeholder="BR01"
-                className="col-span-3"
-                value={formData.code}
-                onChange={handleInputChange}
-                disabled={formSubmitting}
-                autoCapitalize="characters"
-              />
-              <div className="col-span-3 col-start-2 text-xs text-muted-foreground">
-                Code must contain only uppercase letters and numbers
+              <div className="sm:col-span-3">
+                <Input
+                  id="code"
+                  name="code"
+                  placeholder="BR01"
+                  value={formData.code}
+                  onChange={handleInputChange}
+                  disabled={formSubmitting}
+                  autoCapitalize="characters"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Code must contain only uppercase letters and numbers
+                </p>
               </div>
             </div>
 
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="name" className="text-right">
+            <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-2 sm:gap-4">
+              <Label htmlFor="name" className="sm:text-right">
                 Branch Name
               </Label>
               <Input
                 id="name"
                 name="name"
                 placeholder="Main Branch"
-                className="col-span-3"
+                className="sm:col-span-3"
                 value={formData.name}
                 onChange={handleInputChange}
                 disabled={formSubmitting}
               />
             </div>
 
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="parentId" className="text-right">
+            <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-2 sm:gap-4">
+              <Label htmlFor="parentId" className="sm:text-right">
                 Parent Branch
               </Label>
-              <div className="col-span-3">
+              <div className="sm:col-span-3">
                 <Select
                   value={formData.parentId || "none"}
                   onValueChange={(value) => {
@@ -621,11 +755,11 @@ export default function BranchesPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="isActive" className="text-right">
+            <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-2 sm:gap-4">
+              <Label htmlFor="isActive" className="sm:text-right">
                 Active
               </Label>
-              <div className="flex items-center space-x-2 col-span-3">
+              <div className="flex items-center space-x-2 sm:col-span-3">
                 <Checkbox
                   id="isActive"
                   checked={formData.isActive}
@@ -644,15 +778,20 @@ export default function BranchesPage() {
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
             <Button
               variant="outline"
               onClick={() => setCreateDialogOpen(false)}
               disabled={formSubmitting}
+              className="w-full sm:w-auto"
             >
               Cancel
             </Button>
-            <Button onClick={createBranch} disabled={formSubmitting}>
+            <Button 
+              onClick={createBranch} 
+              disabled={formSubmitting}
+              className="w-full sm:w-auto"
+            >
               {formSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating...
@@ -665,9 +804,9 @@ export default function BranchesPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Branch Dialog */}
+      {/* Edit Branch Dialog - use the same mobile optimizations as for Create dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[500px] w-[calc(100%-32px)] p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Branch</DialogTitle>
             <DialogDescription>
@@ -682,45 +821,46 @@ export default function BranchesPage() {
           )}
 
           <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="code" className="text-right">
+            <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-2 sm:gap-4">
+              <Label htmlFor="code" className="sm:text-right">
                 Branch Code
               </Label>
-              <Input
-                id="code"
-                name="code"
-                placeholder="BR01"
-                className="col-span-3"
-                value={formData.code}
-                onChange={handleInputChange}
-                disabled={formSubmitting}
-                autoCapitalize="characters"
-              />
-              <div className="col-span-3 col-start-2 text-xs text-muted-foreground">
-                Code must contain only uppercase letters and numbers
+              <div className="sm:col-span-3">
+                <Input
+                  id="code"
+                  name="code"
+                  placeholder="BR01"
+                  value={formData.code}
+                  onChange={handleInputChange}
+                  disabled={formSubmitting}
+                  autoCapitalize="characters"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Code must contain only uppercase letters and numbers
+                </p>
               </div>
             </div>
 
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="name" className="text-right">
+            <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-2 sm:gap-4">
+              <Label htmlFor="name" className="sm:text-right">
                 Branch Name
               </Label>
               <Input
                 id="name"
                 name="name"
                 placeholder="Main Branch"
-                className="col-span-3"
+                className="sm:col-span-3"
                 value={formData.name}
                 onChange={handleInputChange}
                 disabled={formSubmitting}
               />
             </div>
 
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="parentId" className="text-right">
+            <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-2 sm:gap-4">
+              <Label htmlFor="parentId" className="sm:text-right">
                 Parent Branch
               </Label>
-              <div className="col-span-3">
+              <div className="sm:col-span-3">
                 <Select
                   value={formData.parentId || "none"}
                   onValueChange={(value) => {
@@ -748,11 +888,11 @@ export default function BranchesPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="isActive" className="text-right">
+            <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-2 sm:gap-4">
+              <Label htmlFor="isActive" className="sm:text-right">
                 Active
               </Label>
-              <div className="flex items-center space-x-2 col-span-3">
+              <div className="flex items-center space-x-2 sm:col-span-3">
                 <Checkbox
                   id="isActive"
                   checked={formData.isActive}
@@ -771,15 +911,20 @@ export default function BranchesPage() {
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
             <Button
               variant="outline"
               onClick={() => setEditDialogOpen(false)}
               disabled={formSubmitting}
+              className="w-full sm:w-auto"
             >
               Cancel
             </Button>
-            <Button onClick={updateBranch} disabled={formSubmitting}>
+            <Button 
+              onClick={updateBranch} 
+              disabled={formSubmitting}
+              className="w-full sm:w-auto"
+            >
               {formSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Updating...
@@ -794,7 +939,7 @@ export default function BranchesPage() {
 
       {/* Delete Branch Confirmation */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="w-[calc(100%-32px)] p-4 sm:p-6">
           <AlertDialogHeader>
             <AlertDialogTitle>Confirm Deletion</AlertDialogTitle>
             <AlertDialogDescription>
@@ -803,9 +948,14 @@ export default function BranchesPage() {
               cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={deleteBranch}>Delete</AlertDialogAction>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogCancel className="w-full sm:w-auto">Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={deleteBranch}
+              className="w-full sm:w-auto"
+            >
+              Delete
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

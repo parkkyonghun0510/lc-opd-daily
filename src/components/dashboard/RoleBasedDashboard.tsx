@@ -276,7 +276,7 @@ export function RoleBasedDashboard() {
           <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 mt-1">Your personal reporting workspace</p>
         </div>
         <Button
-          onClick={() => router.push("/dashboard/reports/create")}
+          onClick={() => router.push("/dashboard/reports")}
           className="w-full sm:w-auto bg-black hover:bg-gray-800 dark:bg-gray-800 dark:hover:bg-gray-700 flex items-center justify-center sm:justify-start gap-2 mt-2 sm:mt-0 text-white"
         >
           <PlusIcon className="h-4 w-4" />

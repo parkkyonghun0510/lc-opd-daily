@@ -122,6 +122,24 @@ export function ViewReports() {
   }
 
   const handleEditClick = (report: Report) => {
+    // Only check date for rejected reports that need resubmission
+    if (report.status === "rejected") {
+      // Check if the report is from today
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const reportDate = new Date(report.date);
+      reportDate.setHours(0, 0, 0, 0);
+
+      if (reportDate.getTime() !== today.getTime()) {
+        toast({
+          title: "Cannot Edit Report",
+          description: "You can only edit rejected reports from today's session.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     // Only allow editing if user has access to the branch
     if (
       session?.user?.role !== "ADMIN" &&
@@ -133,6 +151,15 @@ export function ViewReports() {
         variant: "destructive",
       });
       return;
+    }
+
+    // If report is rejected, show rejection comments
+    if (report.status === "rejected") {
+      toast({
+        title: "Report Rejected",
+        description: report.comments || "This report was rejected. Please make the necessary corrections and resubmit.",
+        variant: "destructive",
+      });
     }
 
     setEditingReport(report);
@@ -168,29 +195,44 @@ export function ViewReports() {
     }
 
     setIsSubmitting(true);
+
     try {
-      const updateData: Partial<CreateReportData> = {
-        date: editingReport.date,
-        branchId: editingReport.branch.id,
-        reportType: editingReport.reportType,
-        writeOffs: writeOffsNum,
-        ninetyPlus: ninetyPlusNum,
-        comments: editComments
-      };
+      const response = await fetch(`/api/reports`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id: editingReport.id,
+          writeOffs: writeOffsNum,
+          ninetyPlus: ninetyPlusNum,
+          content: editComments,
+        }),
+      });
 
-      const success = await updateReport(editingReport.id, updateData);
-
-      if (success) {
-        setIsEditModalOpen(false);
-        toast({
-          title: "Success",
-          description: "Report updated successfully",
-        });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to update report");
       }
-    } catch {
+
+      const result = await response.json();
+
+      toast({
+        title: "Success",
+        description: editingReport.status === "rejected" 
+          ? "Report resubmitted successfully. Waiting for approval."
+          : "Report updated successfully",
+      });
+
+      setIsEditModalOpen(false);
+      setEditingReport(null);
+      // Refresh the reports list
+      handleFilter();
+    } catch (error) {
+      console.error("Error updating report:", error);
       toast({
         title: "Error",
-        description: "Failed to update report. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to update report",
         variant: "destructive",
       });
     } finally {
@@ -477,7 +519,7 @@ export function ViewReports() {
                         size="icon"
                         onClick={() => handleEditClick(report)}
                         disabled={
-                          session?.user?.role !== "admin" &&
+                          session?.user?.role !== "ADMIN" &&
                           session?.user?.branchId !== report.branch.id
                         }
                         className="hover:bg-gray-100 dark:hover:bg-gray-800"
