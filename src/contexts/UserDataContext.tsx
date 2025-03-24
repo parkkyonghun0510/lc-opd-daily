@@ -32,12 +32,15 @@ const UserDataContext = createContext<UserDataContextType | undefined>(
 export function fixAvatarUrl(url: string | null | undefined): string | undefined {
   if (!url) return undefined;
   
-  // If we're in development and the URL points to the production domain
-  if (process.env.NODE_ENV === 'development' && url.includes('reports.lchelpdesk.com/uploads/avatars')) {
-    // Extract the filename from the URL
-    const filename = url.split('/').pop();
-    // Generate a placeholder avatar instead
-    return `https://api.dicebear.com/7.x/initials/svg?seed=${filename}&backgroundColor=4f46e5`;
+  // If we're in development and S3 URLs might not work correctly
+  if (process.env.NODE_ENV === 'development') {
+    // If it's an S3 URL or a production URL
+    if (url.includes('.amazonaws.com/') || url.includes('reports.lchelpdesk.com/uploads/avatars')) {
+      // Extract a unique identifier from the URL
+      const filename = url.split('/').pop() || 'default';
+      // Use our placeholder API
+      return `/api/placeholder/avatar?seed=${filename}`;
+    }
   }
   
   return url;

@@ -122,7 +122,7 @@ export function TopBar() {
                   <div className="flex items-center space-x-3">
                     <Avatar className="h-8 w-8">
                       <AvatarImage
-                        src={avatarError ? `https://api.dicebear.com/7.x/initials/svg?seed=${profileData.displayName}&backgroundColor=4f46e5` : profileData.image}
+                        src={avatarError ? `/api/placeholder/avatar?seed=${encodeURIComponent(profileData.displayName)}` : profileData.image}
                         alt={profileData.displayName}
                         referrerPolicy="no-referrer"
                         crossOrigin="anonymous"
