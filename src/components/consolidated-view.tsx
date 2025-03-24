@@ -439,7 +439,7 @@ const BranchDetailDialog = ({ selectedBranch, selectedBranchData, onClose }: Bra
                     </TableCell>
                     <TableCell className="dark:text-gray-300 text-right">
                       <Badge 
-                        variant={report.status === 'Approved' ? 'success' : report.status === 'Pending' ? 'warning' : 'destructive'}
+                        variant={report.status === 'Approved' ? 'success' : report.status === 'Pending' ? 'secondary' : 'default'}
                         className="ml-auto"
                       >
                         {report.status}
