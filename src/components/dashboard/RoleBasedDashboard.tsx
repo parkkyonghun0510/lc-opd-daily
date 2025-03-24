@@ -12,6 +12,7 @@ import {
   ChevronLeft,
   Loader2,
   Shield,
+  PlusIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
@@ -147,10 +148,17 @@ export function RoleBasedDashboard() {
 
   const AdminDashboard = () => (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Admin Dashboard</h2>
-        <Button onClick={() => router.push("/dashboard/reports/consolidated")}>
-          View Consolidated Reports
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b dark:border-gray-700">
+        <div>
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">Admin Dashboard</h2>
+          <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 mt-1">Consolidated overview of all branch operations</p>
+        </div>
+        <Button 
+          onClick={() => router.push("/dashboard/reports/consolidated")}
+          className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600 flex items-center justify-center sm:justify-start gap-2 mt-2 sm:mt-0"
+        >
+          <BarChart size={18} />
+          <span>Consolidated View</span>
         </Button>
       </div>
 
@@ -209,10 +217,17 @@ export function RoleBasedDashboard() {
 
   const ManagerDashboard = () => (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Branch Manager Dashboard</h2>
-        <Button onClick={() => router.push("/dashboard/reports/create")}>
-          Create Report
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b dark:border-gray-700">
+        <div>
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">Branch Manager Dashboard</h2>
+          <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 mt-1">Manage your branch operations and reports</p>
+        </div>
+        <Button 
+          onClick={() => router.push("/dashboard/reports/create")}
+          className="w-full sm:w-auto bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600 flex items-center justify-center sm:justify-start gap-2 mt-2 sm:mt-0"
+        >
+          <PlusIcon className="h-4 w-4" />
+          <span>Create Report</span>
         </Button>
       </div>
 
@@ -255,22 +270,17 @@ export function RoleBasedDashboard() {
 
   const UserDashboard = () => (
     <div className="space-y-6">
-      <div className="flex items-center justify-between mb-8">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" className="lg:hidden">
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <div>
-            <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
-              My Dashboard
-            </h1>
-          </div>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b dark:border-gray-700">
+        <div>
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">My Dashboard</h2>
+          <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 mt-1">Your personal reporting workspace</p>
         </div>
         <Button
           onClick={() => router.push("/dashboard/reports/create")}
-          className="bg-black text-white hover:bg-gray-800"
+          className="w-full sm:w-auto bg-black hover:bg-gray-800 dark:bg-gray-800 dark:hover:bg-gray-700 flex items-center justify-center sm:justify-start gap-2 mt-2 sm:mt-0 text-white"
         >
-          Create Report
+          <PlusIcon className="h-4 w-4" />
+          <span>Create Report</span>
         </Button>
       </div>
 
@@ -305,8 +315,11 @@ export function RoleBasedDashboard() {
 
   const ReadOnlyDashboard = () => (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Reports Overview</h2>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b dark:border-gray-700">
+        <div>
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">Reports Overview</h2>
+          <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 mt-1">View and analyze branch reports</p>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

@@ -13,6 +13,7 @@ import { DatePickerWithRange } from "@/components/ui/date-range-picker";
 import { toast } from "@/components/ui/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { UserDisplayName } from "@/components/user/UserDisplayName";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 // Initial empty state
 const INITIAL_DATA = {
@@ -230,321 +231,389 @@ export default function AnalyticsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b dark:border-gray-700">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Analytics Dashboard</h2>
-          <p className="text-muted-foreground">
+          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">Analytics Dashboard</h2>
+          <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 mt-1">
             View and analyze report data across all branches
           </p>
         </div>
         
-        <div className="flex flex-col sm:flex-row gap-2">
-          <DatePickerWithRange
-            date={{
-              from: new Date(dateRange.from),
-              to: new Date(dateRange.to)
-            }}
-            setDate={(newDate) => {
-              if (newDate?.from && newDate.to) {
-                setDateRange({
-                  from: newDate.from,
-                  to: newDate.to
-                });
-              }
-            }}
-            className="max-w-[300px]"
-          />
-          <Select value={selectedBranch} onValueChange={setSelectedBranch}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Select Branch" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Branches</SelectItem>
-              {analyticsData.branchPerformance?.map(branch => (
-                <SelectItem key={branch.id} value={branch.id}>
-                  {branch.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={timeRange} onValueChange={setTimeRange}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Select Time Range" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="week">Last Week</SelectItem>
-              <SelectItem value="month">Last Month</SelectItem>
-              <SelectItem value="quarter">Last Quarter</SelectItem>
-              <SelectItem value="year">Last Year</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button onClick={handleRetry} disabled={loading}>
-            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Refresh
+        <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+          <div className="w-full sm:w-auto">
+            <DatePickerWithRange
+              date={{
+                from: new Date(dateRange.from),
+                to: new Date(dateRange.to)
+              }}
+              setDate={(newDate) => {
+                if (newDate?.from && newDate.to) {
+                  setDateRange({
+                    from: newDate.from,
+                    to: newDate.to,
+                  });
+                }
+              }}
+              className="w-full"
+            />
+          </div>
+          
+          <Button 
+            variant="outline" 
+            onClick={handleDownloadCSV}
+            disabled={loading}
+            className="w-full sm:w-auto h-10 flex items-center justify-center gap-2"
+          >
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+            <span className="sm:hidden">Export</span>
+            <span className="hidden sm:inline">Export CSV</span>
           </Button>
         </div>
       </div>
-      
+
       {error && (
         <Alert variant="destructive" className="mb-4">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Error</AlertTitle>
           <AlertDescription>
             {error}
-            <Button variant="outline" size="sm" className="ml-2" onClick={handleRetry}>
-              Retry
+            <Button onClick={handleRetry} variant="link" className="p-0 h-auto font-normal">
+              Try again
             </Button>
           </AlertDescription>
         </Alert>
       )}
-      
-      {loading ? (
-        <div className="h-96 flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      ) : (
-        <>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Patients</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{getTotalPatients()}</div>
-                <p className="text-xs text-muted-foreground">
-                  Across {getTotalReports()} reports
-                </p>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Average Daily Patients</CardTitle>
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{getAveragePatients()}</div>
-                <p className="text-xs text-muted-foreground">
-                  Per report during selected period
-                </p>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Reports</CardTitle>
-                <FileText className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{getTotalReports()}</div>
-                <p className="text-xs text-muted-foreground">
-                  From {getBranchCount()} branches
-                </p>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Approval Rate</CardTitle>
-                <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{getApprovalRate()}%</div>
-                <p className="text-xs text-muted-foreground">
-                  Report approval rate for selected period
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-          
-          <Tabs defaultValue="trends" className="space-y-4" onValueChange={setActiveTab}>
-            <div className="flex justify-between items-center">
-              <TabsList>
-                <TabsTrigger value="trends">Patient Trends</TabsTrigger>
-                <TabsTrigger value="branches">Branch Analytics</TabsTrigger>
-                <TabsTrigger value="categories">Patient Categories</TabsTrigger>
-                <TabsTrigger value="reports">Recent Reports</TabsTrigger>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Card className="shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between py-2">
+            <CardTitle className="text-xs sm:text-sm font-medium">Total Patients</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent className="py-2">
+            <div className="text-xl sm:text-2xl font-bold">
+              {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : getTotalPatients().toLocaleString()}
+            </div>
+            <p className="text-xs text-muted-foreground">+{getAveragePatients().toFixed(2)} avg per report</p>
+          </CardContent>
+        </Card>
+        <Card className="shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between py-2">
+            <CardTitle className="text-xs sm:text-sm font-medium">Total Reports</CardTitle>
+            <FileText className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent className="py-2">
+            <div className="text-xl sm:text-2xl font-bold">
+              {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : getTotalReports().toLocaleString()}
+            </div>
+            <p className="text-xs text-muted-foreground">From {getBranchCount()} branches</p>
+          </CardContent>
+        </Card>
+        <Card className="shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between py-2">
+            <CardTitle className="text-xs sm:text-sm font-medium">Approval Rate</CardTitle>
+            <FileText className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent className="py-2">
+            <div className="text-xl sm:text-2xl font-bold">
+              {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : `${getApprovalRate().toFixed(1)}%`}
+            </div>
+            <p className="text-xs text-muted-foreground">From total submitted reports</p>
+          </CardContent>
+        </Card>
+        <Card className="shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between py-2">
+            <CardTitle className="text-xs sm:text-sm font-medium">Date Range</CardTitle>
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent className="py-2">
+            <div className="text-sm sm:text-md font-bold">
+              {loading ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <>
+                  {format(new Date(dateRange.from), "MMM dd")} - {format(new Date(dateRange.to), "MMM dd, yyyy")}
+                </>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">Custom date range</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="space-y-4">
+        <div className="flex flex-col gap-4">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <div className="flex flex-col space-y-4">
+              <TabsList className="w-full grid grid-cols-2 md:grid-cols-4 gap-1">
+                <TabsTrigger value="trends" className="px-2 py-1.5 text-sm">Trends</TabsTrigger>
+                <TabsTrigger value="branches" className="px-2 py-1.5 text-sm">Branches</TabsTrigger>
+                <TabsTrigger value="categories" className="px-2 py-1.5 text-sm">Categories</TabsTrigger>
+                <TabsTrigger value="reports" className="px-2 py-1.5 text-sm">Reports</TabsTrigger>
               </TabsList>
               
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={handleDownloadCSV}
-                disabled={
-                  (activeTab === "trends" && !analyticsData.dailyTrends?.length) ||
-                  (activeTab === "branches" && !analyticsData.branchPerformance?.length) ||
-                  (activeTab === "categories" && !analyticsData.patientCategories?.length) ||
-                  (activeTab === "reports" && !analyticsData.recentReports?.length)
-                }
-              >
-                <Download className="h-4 w-4 mr-2" />
-                Export
-              </Button>
+              <div className="flex flex-col sm:flex-row gap-3 w-full" style={{ marginTop: "20px" }}>
+                <Select 
+                  value={timeRange} 
+                  onValueChange={setTimeRange}
+                >
+                  <SelectTrigger className="w-full h-9 text-sm">
+                    <SelectValue placeholder="Select Time Range" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="week">Week</SelectItem>
+                    <SelectItem value="month">Month</SelectItem>
+                    <SelectItem value="quarter">Quarter</SelectItem>
+                    <SelectItem value="year">Year</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                <Select 
+                  value={selectedBranch} 
+                  onValueChange={setSelectedBranch}
+                >
+                  <SelectTrigger className="w-full h-9 text-sm">
+                    <SelectValue placeholder="Select Branch" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Branches</SelectItem>
+                    {analyticsData.branchPerformance?.map((branch) => (
+                      <SelectItem key={branch.id} value={branch.id}>
+                        {branch.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            
-            <TabsContent value="trends" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Daily Patient Trend</CardTitle>
-                  <CardDescription>
-                    Patient visits and reports over the selected time period
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="pt-2">
-                  <div className="h-[400px]">
-                    {analyticsData.dailyTrends?.length > 0 ? (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={analyticsData.dailyTrends}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="date" />
-                          <YAxis yAxisId="left" orientation="left" stroke="#8884d8" />
-                          <YAxis yAxisId="right" orientation="right" stroke="#82ca9d" />
-                          <Tooltip />
-                          <Legend />
-                          <Line yAxisId="left" type="monotone" dataKey="patients" stroke="#8884d8" activeDot={{ r: 8 }} name="Patients" />
-                          <Line yAxisId="right" type="monotone" dataKey="reports" stroke="#82ca9d" name="Reports" />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    ) : (
-                      <div className="h-full flex items-center justify-center text-muted-foreground">
-                        No data available for selected time period
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-            
-            <TabsContent value="branches" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Branch Performance Comparison</CardTitle>
-                  <CardDescription>
-                    Total patients and reports by branch
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="pt-2">
-                  <div className="h-[400px]">
-                    {analyticsData.branchPerformance?.length > 0 ? (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={analyticsData.branchPerformance}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="name" />
-                          <YAxis />
-                          <Tooltip />
-                          <Legend />
-                          <Bar dataKey="patients" name="Total Patients" fill="#8884d8" />
-                          <Bar dataKey="reports" name="Reports Submitted" fill="#82ca9d" />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    ) : (
-                      <div className="h-full flex items-center justify-center text-muted-foreground">
-                        No branch data available for selected time period
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-            
-            <TabsContent value="categories" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Patient Category Distribution</CardTitle>
-                  <CardDescription>
-                    Breakdown of patients by medical category
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="pt-2">
-                  <div className="h-[400px] flex items-center justify-center">
-                    {analyticsData.patientCategories?.length > 0 ? (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie
-                            data={analyticsData.patientCategories}
-                            cx="50%"
-                            cy="50%"
-                            labelLine={true}
-                            label={({name, percent}) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                            outerRadius={150}
-                            fill="#8884d8"
-                            dataKey="value"
+        
+            {loading ? (
+              <div className="h-96 flex items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : (
+              <>
+                <TabsContent value="trends" className="space-y-4">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Patient Trends Over Time</CardTitle>
+                      <CardDescription>
+                        Daily patient count and report submissions
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="h-[300px] sm:h-[400px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart
+                            data={analyticsData.dailyTrends}
+                            margin={{ top: 5, right: 10, left: 10, bottom: 5 }}
                           >
-                            {analyticsData.patientCategories.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                            ))}
-                          </Pie>
-                          <Tooltip formatter={(value) => [`${value} patients`, 'Count']} />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    ) : (
-                      <div className="text-muted-foreground">
-                        No category data available for selected time period
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis 
+                              dataKey="date" 
+                              tickFormatter={(date) => format(new Date(date), "MMM d")}
+                              tick={{ fontSize: 12 }}
+                              angle={-45}
+                              textAnchor="end"
+                              height={60}
+                            />
+                            <YAxis tick={{ fontSize: 12 }} />
+                            <Tooltip
+                              formatter={(value) => [`${value}`, ""]}
+                              labelFormatter={(date) => format(new Date(date), "MMMM d, yyyy")}
+                            />
+                            <Legend 
+                              verticalAlign="top" 
+                              height={36} 
+                              wrapperStyle={{ 
+                                paddingTop: "10px", 
+                                fontSize: "12px" 
+                              }}
+                            />
+                            <Line
+                              type="monotone"
+                              dataKey="patients"
+                              stroke="#3498db"
+                              name="Patients"
+                              strokeWidth={2}
+                              dot={{ r: 3 }}
+                              activeDot={{ r: 5 }}
+                            />
+                            <Line
+                              type="monotone"
+                              dataKey="reports"
+                              stroke="#2ecc71"
+                              name="Reports"
+                              strokeWidth={2}
+                              dot={{ r: 3 }}
+                              activeDot={{ r: 5 }}
+                            />
+                          </LineChart>
+                        </ResponsiveContainer>
                       </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-            
-            <TabsContent value="reports" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Recent Reports</CardTitle>
-                  <CardDescription>
-                    Last 5 reports submitted in the system
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {analyticsData.recentReports?.length > 0 ? (
-                    <div className="rounded-md border">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b bg-muted/50 font-medium">
-                            <th className="p-3 text-left">Date</th>
-                            <th className="p-3 text-left">Branch</th>
-                            <th className="p-3 text-left">Patients</th>
-                            <th className="p-3 text-left">Status</th>
-                            <th className="p-3 text-left">Submitted By</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {analyticsData.recentReports.map((report) => (
-                            <tr key={report.id} className="border-b">
-                              <td className="p-3">{format(new Date(report.date), 'MMM dd, yyyy')}</td>
-                              <td className="p-3">{report.branch}</td>
-                              <td className="p-3">{report.patients}</td>
-                              <td className="p-3">
-                                <Badge 
-                                  variant={
-                                    report.status === "Approved" ? "success" : 
-                                    report.status === "Pending" ? "outline" : 
-                                    "destructive"
-                                  }
-                                >
-                                  {report.status}
-                                </Badge>
-                              </td>
-                              <td className="p-3">
-                                <UserDisplayName userId={report.submittedBy} />
-                              </td>
-                            </tr>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+                
+                <TabsContent value="branches" className="space-y-4">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Branch Performance</CardTitle>
+                      <CardDescription>
+                        Patient count and report submissions by branch
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="h-[300px] sm:h-[400px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart
+                            data={analyticsData.branchPerformance}
+                            margin={{ top: 5, right: 10, left: 10, bottom: 50 }}
+                          >
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis 
+                              dataKey="name" 
+                              tick={{ fontSize: 11 }}
+                              angle={-45}
+                              textAnchor="end"
+                              height={70}
+                              interval={0}
+                            />
+                            <YAxis tick={{ fontSize: 12 }} />
+                            <Tooltip
+                              formatter={(value) => [`${value}`, ""]}
+                            />
+                            <Legend 
+                              verticalAlign="top" 
+                              height={36} 
+                              wrapperStyle={{ 
+                                paddingTop: "10px", 
+                                fontSize: "12px" 
+                              }}
+                            />
+                            <Bar
+                              dataKey="patients"
+                              fill="#3498db"
+                              name="Patients"
+                              radius={[4, 4, 0, 0]}
+                            />
+                            <Bar
+                              dataKey="reports"
+                              fill="#2ecc71"
+                              name="Reports"
+                              radius={[4, 4, 0, 0]}
+                            />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+                
+                <TabsContent value="categories" className="space-y-4">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Patient Categories</CardTitle>
+                      <CardDescription>
+                        Distribution of patients by category
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="h-[300px] sm:h-[400px] flex flex-col md:flex-row">
+                        <div className="w-full md:w-2/3 h-[250px] sm:h-full">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                              <Pie
+                                data={analyticsData.patientCategories}
+                                cx="50%"
+                                cy="50%"
+                                labelLine={false}
+                                outerRadius={80}
+                                fill="#8884d8"
+                                dataKey="value"
+                                nameKey="name"
+                                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                              >
+                                {analyticsData.patientCategories.map((entry, index) => (
+                                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                ))}
+                              </Pie>
+                              <Tooltip
+                                formatter={(value) => [`${value}`, ""]}
+                              />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        </div>
+                        <div className="w-full md:w-1/3 flex flex-wrap justify-center items-center mt-4 md:mt-0">
+                          {analyticsData.patientCategories.map((category, index) => (
+                            <div key={index} className="flex items-center mr-4 mb-2">
+                              <div
+                                className="w-3 h-3 mr-1 rounded-sm"
+                                style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                              />
+                              <span className="text-xs sm:text-sm font-medium dark:text-gray-300">
+                                {category.name}: {category.value}
+                              </span>
+                            </div>
                           ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : (
-                    <div className="h-24 flex items-center justify-center text-muted-foreground">
-                      No reports available for selected time period
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+                
+                <TabsContent value="reports" className="space-y-4">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Recent Reports</CardTitle>
+                      <CardDescription>
+                        Latest submitted reports across branches
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="overflow-x-auto -mx-6 px-6">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-[100px]">Date</TableHead>
+                              <TableHead className="w-[140px]">Branch</TableHead>
+                              <TableHead className="w-[80px] text-right">Patients</TableHead>
+                              <TableHead className="w-[100px]">Status</TableHead>
+                              <TableHead className="hidden sm:table-cell">Submitted By</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {analyticsData.recentReports.map((report) => (
+                              <TableRow key={report.id}>
+                                <TableCell className="font-medium">
+                                  {format(new Date(report.date), "MMM d, yyyy")}
+                                </TableCell>
+                                <TableCell>{report.branch}</TableCell>
+                                <TableCell className="text-right">{report.patients}</TableCell>
+                                <TableCell>
+                                  <Badge variant={
+                                    report.status === "Approved" ? "success" :
+                                    report.status === "Pending" ? "outline" : "destructive"
+                                  }>
+                                    {report.status}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="hidden sm:table-cell">
+                                  <UserDisplayName userId={report.submittedBy} />
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              </>
+            )}
           </Tabs>
-        </>
-      )}
+        </div>
+      </div>
     </div>
   );
 } 

@@ -41,7 +41,8 @@ import {
   DialogDescription, 
   DialogHeader, 
   DialogTitle, 
-  DialogTrigger 
+  DialogTrigger, 
+  DialogFooter 
 } from "@/components/ui/dialog";
 import { 
   Sheet, 
@@ -340,6 +341,10 @@ export default function AuditPage() {
 
   // Format action name for display
   const formatActionName = (action: string) => {
+    if (!action || typeof action !== 'string') {
+      return 'Unknown Action';
+    }
+    
     return action
       .replace(/_/g, " ")
       .split(" ")
@@ -349,25 +354,29 @@ export default function AuditPage() {
 
   // Get badge color based on action type
   const getActionBadgeColor = (action: string, type: string) => {
+    if (!action || typeof action !== 'string') {
+      return "default";
+    }
+    
     const actionLower = action.toLowerCase();
     
     if (actionLower.includes("create") || actionLower.includes("add")) {
-      return "bg-green-500 hover:bg-green-600";
+      return "success";
     }
     
     if (actionLower.includes("update") || actionLower.includes("edit") || actionLower.includes("modify")) {
-      return "bg-blue-500 hover:bg-blue-600";
+      return "default";
     }
     
     if (actionLower.includes("delete") || actionLower.includes("remove")) {
-      return "bg-red-500 hover:bg-red-600";
+      return "destructive";
     }
     
     if (actionLower.includes("login") || actionLower.includes("auth")) {
-      return "bg-purple-500 hover:bg-purple-600";
+      return "secondary";
     }
     
-    return "bg-gray-500 hover:bg-gray-600";
+    return "outline";
   };
 
   // If user doesn't have permission, show access denied
@@ -398,343 +407,348 @@ export default function AuditPage() {
       fallback={<div>Loading...</div>}
     >
       <div className="space-y-6">
-        <div className="flex flex-col lg:flex-row justify-between gap-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b dark:border-gray-700">
           <div>
-            <h2 className="text-3xl font-bold tracking-tight">Audit Logs</h2>
-            <p className="text-muted-foreground">
-              View and search system activity and user actions
+            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">Audit Logs</h2>
+            <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 mt-1">
+              View system and user activity logs
             </p>
           </div>
           
-          <div className="flex flex-wrap items-center gap-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={fetchAuditLogs}
-              disabled={loading}
-            >
-              <RefreshCw className={cn("h-4 w-4 mr-2", loading && "animate-spin")} />
-              Refresh
-            </Button>
-            
-            <PermissionGate permissions={[Permission.EXPORT_AUDIT_LOGS]}>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={handleExport}
-                disabled={loading || !auditLogs.length}
-              >
-                <Download className="h-4 w-4 mr-2" />
-                Export
-              </Button>
-            </PermissionGate>
-          </div>
+          <Button 
+            onClick={handleExport} 
+            disabled={loading || !auditLogs.length}
+            className="w-full sm:w-auto flex items-center justify-center gap-2 mt-2 sm:mt-0"
+          >
+            <Download className="h-4 w-4" /> 
+            <span>Export Logs</span>
+          </Button>
         </div>
-        
-        {/* Filters and search section */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg">Filters</CardTitle>
-            <CardDescription>
-              Filter audit logs by type, action, user, and date
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSearch} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="space-y-2">
-                  <label htmlFor="search" className="text-sm font-medium">
-                    Search
-                  </label>
-                  <div className="relative">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="search"
-                      placeholder="Search in logs..."
-                      className="pl-8"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                    />
+
+        {error && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>
+              {error}
+              <Button onClick={fetchAuditLogs} variant="link" className="p-0 h-auto font-normal ml-2">
+                Try again
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        <div className="space-y-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle>Filter Logs</CardTitle>
+              <CardDescription>Refine the audit logs based on various criteria</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSearch} className="space-y-4">
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <div className="w-full sm:w-2/3">
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500 dark:text-gray-400" />
+                      <Input
+                        type="search"
+                        placeholder="Search by user, action, or details..."
+                        className="pl-8 w-full"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-1/3">
+                    <Button type="submit" className="w-full sm:w-1/2">
+                      Search
+                    </Button>
+                    <Button type="button" variant="outline" onClick={clearFilters} className="w-full sm:w-1/2">
+                      Clear
+                    </Button>
                   </div>
                 </div>
                 
-                <div className="space-y-2">
-                  <label htmlFor="logType" className="text-sm font-medium">
-                    Log Type
-                  </label>
-                  <Select value={logType} onValueChange={setLogType}>
-                    <SelectTrigger id="logType">
-                      <SelectValue placeholder="Select type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Logs</SelectItem>
-                      <SelectItem value="activity">Activity Logs</SelectItem>
-                      <SelectItem value="userActivity">User Activity</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div className="space-y-2">
-                  <label htmlFor="action" className="text-sm font-medium">
-                    Action
-                  </label>
-                  <Select value={selectedAction} onValueChange={setSelectedAction}>
-                    <SelectTrigger id="action">
-                      <SelectValue placeholder="Select action" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Actions</SelectItem>
-                      {meta?.actions && Array.isArray(meta.actions) && meta.actions.map((action: any) => (
-                        action.action && action.action.trim() !== "" ? (
-                          <SelectItem key={action.action} value={action.action}>
-                            {formatActionName(action.action)}
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Log Type</label>
+                    <Select value={logType} onValueChange={setLogType}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select log type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Types</SelectItem>
+                        <SelectItem value="activity">System Activity</SelectItem>
+                        <SelectItem value="userActivity">User Activity</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Action</label>
+                    <Select value={selectedAction} onValueChange={setSelectedAction}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select action" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Actions</SelectItem>
+                        {meta?.actions.map((action) => (
+                          <SelectItem key={action} value={action}>
+                            {formatActionName(action)}
                           </SelectItem>
-                        ) : null
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Date Range</label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start text-left font-normal"
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {dateRange?.from ? (
+                            dateRange.to ? (
+                              <>
+                                {format(dateRange.from, "LLL dd, y")} - {format(dateRange.to, "LLL dd, y")}
+                              </>
+                            ) : (
+                              format(dateRange.from, "LLL dd, y")
+                            )
+                          ) : (
+                            <span>Pick a date range</span>
+                          )}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          initialFocus
+                          mode="range"
+                          defaultMonth={dateRange?.from}
+                          selected={dateRange}
+                          onSelect={setDateRange}
+                          numberOfMonths={1}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Sort By</label>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" className="w-full justify-between">
+                          {sortBy === "timestamp" ? "Date" : sortBy === "action" ? "Action" : "User"}
+                          {sortOrder === "asc" ? (
+                            <ArrowUp className="ml-2 h-4 w-4" />
+                          ) : (
+                            <ArrowDown className="ml-2 h-4 w-4" />
+                          )}
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Sort Options</DropdownMenuLabel>
+                        <DropdownMenuItem onClick={() => { setSortBy("timestamp"); setSortOrder("desc"); }}>
+                          Date (Newest First)
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => { setSortBy("timestamp"); setSortOrder("asc"); }}>
+                          Date (Oldest First)
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => { setSortBy("action"); setSortOrder("asc"); }}>
+                          Action (A-Z)
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => { setSortBy("action"); setSortOrder("desc"); }}>
+                          Action (Z-A)
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => { setSortBy("user"); setSortOrder("asc"); }}>
+                          User (A-Z)
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => { setSortBy("user"); setSortOrder("desc"); }}>
+                          User (Z-A)
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle>Audit Results</CardTitle>
+              <CardDescription>
+                {loading
+                  ? "Loading audit logs..."
+                  : auditLogs.length === 0
+                  ? "No audit logs found matching your criteria."
+                  : `Showing ${auditLogs.length} of ${meta?.total || 0} logs`}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="h-96 flex items-center justify-center">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : auditLogs.length === 0 ? (
+                <div className="h-40 flex flex-col items-center justify-center text-center px-4">
+                  <AlertCircle className="h-8 w-8 text-gray-400 dark:text-gray-600 mb-2" />
+                  <p className="text-gray-500 dark:text-gray-400 mb-2">No audit logs found</p>
+                  <Button variant="outline" onClick={clearFilters}>
+                    Clear Filters
+                  </Button>
+                </div>
+              ) : (
+                <div className="overflow-x-auto -mx-6 px-6">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[100px] sm:w-[180px]">Date & Time</TableHead>
+                        <TableHead className="w-[80px] sm:w-[120px]">User</TableHead>
+                        <TableHead className="w-[100px] sm:w-[150px]">Action</TableHead>
+                        <TableHead className="hidden sm:table-cell">Details</TableHead>
+                        <TableHead className="w-[60px] sm:w-[80px]">View</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {auditLogs.map((log) => (
+                        <TableRow key={log.id} className="group">
+                          <TableCell className="font-mono text-xs whitespace-nowrap">
+                            {formatTimestamp(log.timestamp)}
+                          </TableCell>
+                          <TableCell className="truncate max-w-[80px] sm:max-w-[120px]">
+                            <UserDisplayName userId={log.userId} fallback={log.user?.username || "System"} />
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={getActionBadgeColor(log.action, log.type)}
+                              className="whitespace-nowrap"
+                            >
+                              {formatActionName(log.action)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="hidden sm:table-cell max-w-[300px] truncate">
+                            {formatDetails(log.details, log.action)}
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => viewLogDetails(log)}
+                              className="opacity-70 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
                       ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">
-                    Date Range
-                  </label>
-                  <DatePickerWithRange 
-                    date={dateRange}
-                    setDate={(date) => setDateRange(date)}
-                  />
-                </div>
-              </div>
-              
-              <div className="flex justify-between items-center pt-2">
-                <Button 
-                  type="button" 
-                  variant="ghost" 
-                  onClick={clearFilters}
-                  disabled={!searchQuery && logType === "all" && selectedAction === "all" && !dateRange?.from && !dateRange?.to}
-                >
-                  Clear Filters
-                </Button>
-                <Button type="submit" disabled={loading}>
-                  {loading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Loading...
-                    </>
-                  ) : (
-                    <>
-                      <Filter className="mr-2 h-4 w-4" />
-                      Apply Filters
-                    </>
-                  )}
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-        
-        {/* Logs table */}
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex justify-between items-center">
-              <CardTitle className="text-lg">Audit Log Results</CardTitle>
-              {meta && (
-                <div className="text-sm text-muted-foreground">
-                  Showing {auditLogs.length} of {meta.total} entries
+                    </TableBody>
+                  </Table>
                 </div>
               )}
-            </div>
-          </CardHeader>
-          <CardContent>
-            {error ? (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Error</AlertTitle>
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            ) : loading ? (
-              <div className="h-96 flex items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              </div>
-            ) : auditLogs.length === 0 ? (
-              <div className="h-32 flex items-center justify-center border rounded-md">
-                <p className="text-muted-foreground">No audit logs found. Try adjusting your filters.</p>
-              </div>
-            ) : (
-              <div className="relative overflow-x-auto rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[180px]">Timestamp</TableHead>
-                      <TableHead className="w-[150px]">User</TableHead>
-                      <TableHead className="w-[200px]">Action</TableHead>
-                      <TableHead>Details</TableHead>
-                      <TableHead className="w-[100px]">Type</TableHead>
-                      <TableHead className="w-[80px] text-right">View</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {auditLogs.map((log) => (
-                      <TableRow key={log.id} className="group">
-                        <TableCell className="font-mono text-xs">
-                          {formatTimestamp(log.timestamp)}
-                        </TableCell>
-                        <TableCell>
-                          <UserDisplayName 
-                            userId={log.userId} 
-                            showAvatar
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={cn("text-white font-normal", getActionBadgeColor(log.action, log.type))}>
-                            {formatActionName(log.action)}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="max-w-[300px] truncate">
-                          {typeof log.details === 'string' 
-                            ? (log.details || '-') 
-                            : '[Complex Data]'}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className={cn(
-                            log.type === "activity" 
-                              ? "bg-blue-50 text-blue-700 hover:bg-blue-100" 
-                              : "bg-green-50 text-green-700 hover:bg-green-100"
-                          )}>
-                            {log.type === "activity" ? "Activity" : "User Action"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button 
-                            variant="ghost" 
-                            size="icon"
-                            onClick={() => viewLogDetails(log)}
-                            className="opacity-70 group-hover:opacity-100"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
+            </CardContent>
             
             {/* Pagination */}
             {meta && meta.totalPages > 1 && (
-              <div className="mt-4 flex justify-between items-center">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => setPage(Math.max(1, page - 1))}
-                  disabled={page <= 1}
-                >
-                  <ChevronLeft className="h-4 w-4 mr-2" />
-                  Previous
-                </Button>
-                <div className="text-sm">
-                  Page {page} of {meta.totalPages}
+              <div className="flex items-center justify-between px-6 py-4 border-t dark:border-gray-700">
+                <div className="text-sm text-gray-500 dark:text-gray-400">
+                  Page {meta.page} of {meta.totalPages}
                 </div>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => setPage(Math.min(meta.totalPages, page + 1))}
-                  disabled={page >= meta.totalPages}
-                >
-                  Next
-                  <ChevronRight className="h-4 w-4 ml-2" />
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage(page > 1 ? page - 1 : 1)}
+                    disabled={page <= 1}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    <span className="sr-only sm:not-sr-only sm:ml-2">Previous</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage(page < meta.totalPages ? page + 1 : meta.totalPages)}
+                    disabled={page >= meta.totalPages}
+                  >
+                    <span className="sr-only sm:not-sr-only sm:mr-2">Next</span>
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             )}
-          </CardContent>
-        </Card>
-        
-        {/* Log detail modal */}
-        {selectedLog && (
-          <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
-            <DialogContent className="max-w-3xl">
-              <DialogHeader>
-                <DialogTitle>Audit Log Details</DialogTitle>
-                <DialogDescription>
-                  Detailed information about this activity
-                </DialogDescription>
-              </DialogHeader>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
-                <div className="space-y-2">
-                  <h4 className="font-semibold text-sm">ID</h4>
-                  <p className="text-sm font-mono bg-muted p-2 rounded">{selectedLog.id}</p>
-                </div>
-                
-                <div className="space-y-2">
-                  <h4 className="font-semibold text-sm">Timestamp</h4>
-                  <p className="text-sm font-mono bg-muted p-2 rounded">
-                    {formatTimestamp(selectedLog.timestamp)}
-                  </p>
-                </div>
-                
-                <div className="space-y-2">
-                  <h4 className="font-semibold text-sm">User</h4>
-                  <div className="text-sm bg-muted p-2 rounded flex items-center">
-                    <UserDisplayName userId={selectedLog.userId} showAvatar />
+          </Card>
+        </div>
+
+        {/* Log Details Dialog */}
+        <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Audit Log Details</DialogTitle>
+              <DialogDescription>
+                Complete information about the selected audit log
+              </DialogDescription>
+            </DialogHeader>
+            
+            {selectedLog && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Timestamp</h4>
+                    <p className="mt-1 text-sm font-mono dark:text-gray-300">{formatTimestamp(selectedLog.timestamp)}</p>
                   </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <h4 className="font-semibold text-sm">Action</h4>
-                  <div className="text-sm bg-muted p-2 rounded">
-                    <Badge className={cn("text-white", getActionBadgeColor(selectedLog.action, selectedLog.type))}>
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">User</h4>
+                    <p className="mt-1 text-sm dark:text-gray-300">
+                      <UserDisplayName userId={selectedLog.userId} fallback={selectedLog.user?.username || "System"} />
+                    </p>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Action</h4>
+                    <Badge
+                      variant={getActionBadgeColor(selectedLog.action, selectedLog.type)}
+                      className="mt-1"
+                    >
                       {formatActionName(selectedLog.action)}
                     </Badge>
                   </div>
                 </div>
                 
-                <div className="space-y-2">
-                  <h4 className="font-semibold text-sm">IP Address</h4>
-                  <p className="text-sm font-mono bg-muted p-2 rounded">
-                    {selectedLog.ipAddress || "Unknown"}
-                  </p>
+                <div>
+                  <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Details</h4>
+                  <Card className="mt-1 p-3 bg-gray-50 dark:bg-gray-800 overflow-auto">
+                    <pre className="text-xs font-mono whitespace-pre-wrap text-gray-800 dark:text-gray-200">
+                      {JSON.stringify(selectedLog.details, null, 2)}
+                    </pre>
+                  </Card>
                 </div>
                 
-                <div className="space-y-2">
-                  <h4 className="font-semibold text-sm">Log Type</h4>
-                  <p className="text-sm bg-muted p-2 rounded">
-                    <Badge variant="outline" className={cn(
-                      selectedLog.type === "activity" 
-                        ? "bg-blue-50 text-blue-700" 
-                        : "bg-green-50 text-green-700"
-                    )}>
-                      {selectedLog.type === "activity" ? "System Activity" : "User Activity"}
-                    </Badge>
-                  </p>
-                </div>
-                
-                <div className="col-span-1 md:col-span-2 space-y-2">
-                  <h4 className="font-semibold text-sm">User Agent</h4>
-                  <p className="text-xs font-mono bg-muted p-2 rounded-md overflow-x-auto whitespace-pre-wrap">
-                    {selectedLog.userAgent || "Unknown"}
-                  </p>
-                </div>
-                
-                <div className="col-span-1 md:col-span-2 space-y-2">
-                  <h4 className="font-semibold text-sm">Details</h4>
-                  <pre className="text-xs font-mono bg-muted p-3 rounded-md overflow-x-auto whitespace-pre-wrap max-h-64 overflow-y-auto">
-                    {typeof selectedLog.details === 'string' 
-                      ? (selectedLog.details || 'No details provided') 
-                      : JSON.stringify(selectedLog.details, null, 2)}
-                  </pre>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">IP Address</h4>
+                    <p className="mt-1 text-sm font-mono dark:text-gray-300">
+                      {selectedLog.ipAddress || "Not available"}
+                    </p>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">User Agent</h4>
+                    <p className="mt-1 text-sm text-gray-800 dark:text-gray-300 overflow-hidden text-ellipsis">
+                      {selectedLog.userAgent || "Not available"}
+                    </p>
+                  </div>
                 </div>
               </div>
-              
-              <div className="flex justify-end">
-                <Button variant="outline" onClick={() => setIsDetailOpen(false)}>
-                  Close
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-        )}
+            )}
+            
+            <DialogFooter>
+              <Button onClick={() => setIsDetailOpen(false)}>Close</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </PermissionGate>
   );

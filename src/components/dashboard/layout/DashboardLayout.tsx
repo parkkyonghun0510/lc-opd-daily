@@ -14,13 +14,13 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const isCompactMode = useCompactMode();
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         <TopBar />
         <main
           className={cn(
-            "flex-1 overflow-x-hidden overflow-y-auto bg-gray-50",
+            "flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 dark:bg-gray-900",
             isCompactMode ? "p-3" : "p-6"
           )}
         >

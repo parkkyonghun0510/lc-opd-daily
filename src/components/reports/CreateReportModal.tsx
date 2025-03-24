@@ -296,10 +296,10 @@ export function CreateReportModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px] dark:bg-gray-800 dark:border-gray-700">
         <DialogHeader>
-          <DialogTitle>Create New Report</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="dark:text-gray-100">Create New Report</DialogTitle>
+          <DialogDescription className="dark:text-gray-400">
             Select a branch and fill in the report details.
           </DialogDescription>
         </DialogHeader>
@@ -323,16 +323,16 @@ export function CreateReportModal({
           )}
 
           <div className="grid gap-2">
-            <Label htmlFor="date">Date</Label>
+            <Label htmlFor="date" className="dark:text-gray-200">Date</Label>
             <div className="flex items-center gap-2">
               {isCheckingDuplicate && (
-                <span className="text-sm text-muted-foreground animate-pulse">
+                <span className="text-sm text-muted-foreground animate-pulse dark:text-gray-400">
                   Checking for duplicates...
                 </span>
               )}
-              <Alert className="py-1 bg-blue-50 border-blue-200">
-                <Info className="h-4 w-4 text-blue-600" />
-                <AlertDescription className="text-blue-700">
+              <Alert className="py-1 bg-blue-50 border-blue-200 dark:bg-blue-900/30 dark:border-blue-800">
+                <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                <AlertDescription className="text-blue-700 dark:text-blue-300">
                   {reportType === "plan"
                     ? "Morning plan must be submitted before evening actual report"
                     : "Only today's entries are allowed"}
@@ -346,8 +346,8 @@ export function CreateReportModal({
                 id="date"
                 variant="outline"
                 className={cn(
-                  "w-full justify-start text-left font-normal",
-                  !formData.date && "text-muted-foreground"
+                  "w-full justify-start text-left font-normal dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200",
+                  !formData.date && "text-muted-foreground dark:text-gray-400"
                 )}
               >
                 <CalendarIcon className="mr-2 h-4 w-4" />
@@ -358,7 +358,7 @@ export function CreateReportModal({
                 )}
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0">
+            <PopoverContent className="w-auto p-0 dark:bg-gray-800 dark:border-gray-700">
               <Calendar
                 mode="single"
                 selected={formData.date}
@@ -404,6 +404,7 @@ export function CreateReportModal({
                   return compareDate > today;
                 }}
                 initialFocus
+                className="dark:bg-gray-800 dark:text-gray-200"
               />
             </PopoverContent>
           </Popover>
@@ -412,7 +413,7 @@ export function CreateReportModal({
           )}
 
           <div className="grid gap-2">
-            <Label htmlFor="branch">Branch</Label>
+            <Label htmlFor="branch" className="dark:text-gray-200">Branch</Label>
             <BranchSelector
               id="branch"
               userId={userData?.id || ""}
@@ -427,9 +428,9 @@ export function CreateReportModal({
 
           <div className="grid gap-2">
             <div className="flex items-center justify-between">
-              <Label htmlFor="writeOffs">Write-offs</Label>
+              <Label htmlFor="writeOffs" className="dark:text-gray-200">Write-offs</Label>
               {validationRules?.writeOffs.requireApproval && (
-                <Badge variant="secondary" className="text-xs">
+                <Badge variant="secondary" className="text-xs dark:bg-gray-700 dark:text-gray-300">
                   Requires approval
                 </Badge>
               )}
@@ -438,12 +439,13 @@ export function CreateReportModal({
               id="writeOffs"
               value={formData.writeOffs}
               onValueChange={(value) => updateField("writeOffs", Number(value))}
+              className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
             />
             {errors.writeOffs && (
               <p className="text-sm text-red-500">{errors.writeOffs}</p>
             )}
             {validationRules?.writeOffs.requireApproval && formData.writeOffs > 0 && (
-              <p className="text-xs text-amber-600">
+              <p className="text-xs text-amber-600 dark:text-amber-400">
                 Write-offs require approval and will be sent to the approval queue
               </p>
             )}
@@ -451,9 +453,9 @@ export function CreateReportModal({
 
           <div className="grid gap-2">
             <div className="flex items-center justify-between">
-              <Label htmlFor="ninetyPlus">90+ Days</Label>
+              <Label htmlFor="ninetyPlus" className="dark:text-gray-200">90+ Days</Label>
               {validationRules?.ninetyPlus.requireApproval && (
-                <Badge variant="secondary" className="text-xs">
+                <Badge variant="secondary" className="text-xs dark:bg-gray-700 dark:text-gray-300">
                   Requires approval
                 </Badge>
               )}
@@ -462,12 +464,13 @@ export function CreateReportModal({
               id="ninetyPlus"
               value={formData.ninetyPlus}
               onValueChange={(value) => updateField("ninetyPlus", Number(value))}
+              className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
             />
             {errors.ninetyPlus && (
               <p className="text-sm text-red-500">{errors.ninetyPlus}</p>
             )}
             {validationRules?.ninetyPlus.requireApproval && formData.ninetyPlus > 0 && (
-              <p className="text-xs text-amber-600">
+              <p className="text-xs text-amber-600 dark:text-amber-400">
                 90+ days require approval and will be sent to the approval queue
               </p>
             )}
@@ -475,19 +478,19 @@ export function CreateReportModal({
 
           <div className="grid gap-2">
             <div className="flex items-center justify-between">
-              <Label htmlFor="comments">
+              <Label htmlFor="comments" className="dark:text-gray-200">
                 Comments
                 {validationRules?.comments.required && (
                   <span className="text-red-500 ml-1">*</span>
                 )}
               </Label>
               <Select onValueChange={handleTemplateSelect} defaultValue="">
-                <SelectTrigger className="w-[200px]">
+                <SelectTrigger className="w-[200px] dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200">
                   <SelectValue placeholder="Use template" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="dark:bg-gray-800 dark:border-gray-700">
                   {COMMENT_TEMPLATES.map((template) => (
-                    <SelectItem key={template.label} value={template.value}>
+                    <SelectItem key={template.label} value={template.value} className="dark:text-gray-200 dark:focus:bg-gray-700">
                       {template.label}
                     </SelectItem>
                   ))}
@@ -503,13 +506,13 @@ export function CreateReportModal({
                   ? ` (Minimum ${validationRules.comments.minLength} characters)`
                   : ""
               }`}
-              className="min-h-[100px]"
+              className="min-h-[100px] dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 dark:placeholder:text-gray-400"
             />
             {errors.comments && (
               <p className="text-sm text-red-500">{errors.comments}</p>
             )}
             {validationRules?.comments.required && formData.comments !== undefined && (
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground dark:text-gray-400">
                 {formData.comments.length}/{validationRules.comments.minLength} characters minimum
               </p>
             )}
@@ -517,34 +520,34 @@ export function CreateReportModal({
 
           {/* Display plan data if available when creating an actual report */}
           {reportType === "actual" && (
-            <div className="bg-muted p-4 rounded-lg mb-4">
-              <h3 className="text-sm font-semibold mb-2">Morning Plan Data</h3>
+            <div className="bg-muted p-4 rounded-lg mb-4 dark:bg-gray-700">
+              <h3 className="text-sm font-semibold mb-2 dark:text-gray-200">Morning Plan Data</h3>
               {planDataLoading ? (
                 <div className="text-center py-2">
-                  <div className="animate-spin h-5 w-5 mx-auto border-2 border-primary rounded-full border-t-transparent"></div>
-                  <p className="text-sm mt-1">Loading plan data...</p>
+                  <div className="animate-spin h-5 w-5 mx-auto border-2 border-primary rounded-full border-t-transparent dark:border-gray-300 dark:border-t-transparent"></div>
+                  <p className="text-sm mt-1 dark:text-gray-300">Loading plan data...</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="planWriteOffs" className="text-xs">Write-offs (Plan)</Label>
-                    <p id="planWriteOffs" className="text-sm font-medium">
+                    <Label htmlFor="planWriteOffs" className="text-xs dark:text-gray-300">Write-offs (Plan)</Label>
+                    <p id="planWriteOffs" className="text-sm font-medium dark:text-gray-200">
                       {planData.writeOffsPlan !== null 
                         ? formatKHRCurrency(planData.writeOffsPlan) 
                         : (
-                          <span className="text-muted-foreground italic">
+                          <span className="text-muted-foreground italic dark:text-gray-400">
                             No plan data available
                           </span>
                         )}
                     </p>
                   </div>
                   <div>
-                    <Label htmlFor="planNinetyPlus" className="text-xs">90+ Days (Plan)</Label>
-                    <p id="planNinetyPlus" className="text-sm font-medium">
+                    <Label htmlFor="planNinetyPlus" className="text-xs dark:text-gray-300">90+ Days (Plan)</Label>
+                    <p id="planNinetyPlus" className="text-sm font-medium dark:text-gray-200">
                       {planData.ninetyPlusPlan !== null 
                         ? formatKHRCurrency(planData.ninetyPlusPlan) 
                         : (
-                          <span className="text-muted-foreground italic">
+                          <span className="text-muted-foreground italic dark:text-gray-400">
                             No plan data available
                           </span>
                         )}
@@ -553,9 +556,9 @@ export function CreateReportModal({
                 </div>
               )}
               {formData.date && !planDataLoading && planData.writeOffsPlan === null && (
-                <Alert className="mt-3 bg-amber-50 border-amber-200">
-                  <AlertCircle className="h-4 w-4 text-amber-600" />
-                  <AlertDescription className="text-amber-700 text-xs">
+                <Alert className="mt-3 bg-amber-50 border-amber-200 dark:bg-amber-900/30 dark:border-amber-800">
+                  <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                  <AlertDescription className="text-amber-700 text-xs dark:text-amber-300">
                     No morning plan found for this date and branch. Please ensure a plan report is submitted first.
                   </AlertDescription>
                 </Alert>
@@ -564,10 +567,10 @@ export function CreateReportModal({
           )}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={onClose} className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200">
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={isSubmitting}>
+          <Button onClick={handleSubmit} disabled={isSubmitting} className="dark:bg-blue-700 dark:hover:bg-blue-600">
             {isSubmitting ? "Creating..." : "Create Report"}
           </Button>
         </DialogFooter>
