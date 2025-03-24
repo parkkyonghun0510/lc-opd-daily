@@ -252,7 +252,17 @@ export default function ProfilePage() {
               <div className="flex flex-col items-center space-y-4">
                 <div className="relative group">
                   <Avatar className="h-24 w-24 transition-transform duration-200 group-hover:scale-105">
-                    <AvatarImage src={user.image} />
+                    <AvatarImage 
+                      src={user.image} 
+                      referrerPolicy="no-referrer"
+                      crossOrigin="anonymous"
+                      onError={(e) => {
+                        // If image fails to load, hide it and let the fallback show
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = 'none';
+                        console.error("Image failed to load:", user.image);
+                      }}
+                    />
                     <AvatarFallback className="bg-primary/10 text-lg">
                       {user.name
                         .split(" ")

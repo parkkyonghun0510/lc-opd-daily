@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useEffect, useState } from "react";
 import { Bell, LogOut, Settings, User, Loader2, Sun, Moon } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -32,6 +32,7 @@ export function TopBar() {
   const userInitials = useUserInitials();
   const permissions = useUserPermissions();
   const { theme, setTheme } = useTheme();
+  const [avatarError, setAvatarError] = useState(false);
 
   const handleLogout = async () => {
     try {
@@ -58,6 +59,11 @@ export function TopBar() {
     }),
     [userData?.computedFields, userData?.image]
   );
+
+  // Reset avatar error state if image URL changes
+  useEffect(() => {
+    setAvatarError(false);
+  }, [profileData.image]);
 
   // Toggle theme handler
   const toggleTheme = () => {
@@ -116,8 +122,17 @@ export function TopBar() {
                   <div className="flex items-center space-x-3">
                     <Avatar className="h-8 w-8">
                       <AvatarImage
-                        src={profileData.image}
+                        src={avatarError ? `https://api.dicebear.com/7.x/initials/svg?seed=${profileData.displayName}&backgroundColor=4f46e5` : profileData.image}
                         alt={profileData.displayName}
+                        referrerPolicy="no-referrer"
+                        crossOrigin="anonymous"
+                        onError={(e) => {
+                          // If image fails to load, set error state to true and hide the image
+                          setAvatarError(true);
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          console.log("Image failed to load:", profileData.image);
+                        }}
                       />
                       <AvatarFallback>
                         {userInitials}
