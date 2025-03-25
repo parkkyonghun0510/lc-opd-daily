@@ -14,7 +14,8 @@
     "@next/next/no-img-element": "warn",
     "prefer-const": "warn",
     "no-var": "warn",
-    "@typescript-eslint/no-empty-interface": "off"
+    "@typescript-eslint/no-empty-interface": "off",
+    "react-hooks/rules-of-hooks": "warn"
   },
   "ignorePatterns": [
     "node_modules/",
