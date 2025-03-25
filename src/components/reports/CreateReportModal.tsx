@@ -296,16 +296,16 @@ export function CreateReportModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px] dark:bg-gray-800 dark:border-gray-700">
-        <DialogHeader>
-          <DialogTitle className="dark:text-gray-100">Create New Report</DialogTitle>
-          <DialogDescription className="dark:text-gray-400">
+      <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto dark:bg-gray-800 dark:border-gray-700">
+        <DialogHeader className="sticky top-0 bg-background dark:bg-gray-800 z-10 pb-2">
+          <DialogTitle className="dark:text-gray-100 text-lg">Create New Report</DialogTitle>
+          <DialogDescription className="dark:text-gray-400 text-sm">
             Select a branch and fill in the report details.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
           {errors.general && (
-            <Alert variant="destructive">
+            <Alert variant="destructive" className="text-sm">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>{errors.general}</AlertDescription>
             </Alert>
@@ -323,16 +323,16 @@ export function CreateReportModal({
           )}
 
           <div className="grid gap-2">
-            <Label htmlFor="date" className="dark:text-gray-200">Date</Label>
-            <div className="flex items-center gap-2">
+            <Label htmlFor="date" className="dark:text-gray-200 text-sm">Date</Label>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
               {isCheckingDuplicate && (
                 <span className="text-sm text-muted-foreground animate-pulse dark:text-gray-400">
                   Checking for duplicates...
                 </span>
               )}
-              <Alert className="py-1 bg-blue-50 border-blue-200 dark:bg-blue-900/30 dark:border-blue-800">
+              <Alert className="py-1 bg-blue-50 border-blue-200 dark:bg-blue-900/30 dark:border-blue-800 w-full">
                 <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                <AlertDescription className="text-blue-700 dark:text-blue-300">
+                <AlertDescription className="text-blue-700 dark:text-blue-300 text-xs">
                   {reportType === "plan"
                     ? "Morning plan must be submitted before evening actual report"
                     : "Only today's entries are allowed"}
@@ -346,7 +346,7 @@ export function CreateReportModal({
                 id="date"
                 variant="outline"
                 className={cn(
-                  "w-full justify-start text-left font-normal dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200",
+                  "w-full justify-start text-left font-normal dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 text-sm",
                   !formData.date && "text-muted-foreground dark:text-gray-400"
                 )}
               >
@@ -358,7 +358,7 @@ export function CreateReportModal({
                 )}
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0 dark:bg-gray-800 dark:border-gray-700">
+            <PopoverContent className="w-auto p-0 dark:bg-gray-800 dark:border-gray-700" align="start">
               <Calendar
                 mode="single"
                 selected={formData.date}
@@ -413,7 +413,7 @@ export function CreateReportModal({
           )}
 
           <div className="grid gap-2">
-            <Label htmlFor="branch" className="dark:text-gray-200">Branch</Label>
+            <Label htmlFor="branch" className="dark:text-gray-200 text-sm">Branch</Label>
             <BranchSelector
               id="branch"
               userId={userData?.id || ""}
@@ -428,7 +428,7 @@ export function CreateReportModal({
 
           <div className="grid gap-2">
             <div className="flex items-center justify-between">
-              <Label htmlFor="writeOffs" className="dark:text-gray-200">Write-offs</Label>
+              <Label htmlFor="writeOffs" className="dark:text-gray-200 text-sm">Write-offs</Label>
               {validationRules?.writeOffs.requireApproval && (
                 <Badge variant="secondary" className="text-xs dark:bg-gray-700 dark:text-gray-300">
                   Requires approval
@@ -439,7 +439,7 @@ export function CreateReportModal({
               id="writeOffs"
               value={formData.writeOffs}
               onValueChange={(value) => updateField("writeOffs", Number(value))}
-              className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+              className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 text-sm"
             />
             {errors.writeOffs && (
               <p className="text-sm text-red-500">{errors.writeOffs}</p>
@@ -453,7 +453,7 @@ export function CreateReportModal({
 
           <div className="grid gap-2">
             <div className="flex items-center justify-between">
-              <Label htmlFor="ninetyPlus" className="dark:text-gray-200">90+ Days</Label>
+              <Label htmlFor="ninetyPlus" className="dark:text-gray-200 text-sm">90+ Days</Label>
               {validationRules?.ninetyPlus.requireApproval && (
                 <Badge variant="secondary" className="text-xs dark:bg-gray-700 dark:text-gray-300">
                   Requires approval
@@ -464,7 +464,7 @@ export function CreateReportModal({
               id="ninetyPlus"
               value={formData.ninetyPlus}
               onValueChange={(value) => updateField("ninetyPlus", Number(value))}
-              className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+              className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 text-sm"
             />
             {errors.ninetyPlus && (
               <p className="text-sm text-red-500">{errors.ninetyPlus}</p>
@@ -477,20 +477,20 @@ export function CreateReportModal({
           </div>
 
           <div className="grid gap-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="comments" className="dark:text-gray-200">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <Label htmlFor="comments" className="dark:text-gray-200 text-sm">
                 Comments
                 {validationRules?.comments.required && (
                   <span className="text-red-500 ml-1">*</span>
                 )}
               </Label>
               <Select onValueChange={handleTemplateSelect} defaultValue="">
-                <SelectTrigger className="w-[200px] dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200">
+                <SelectTrigger className="w-full sm:w-[200px] dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 text-sm">
                   <SelectValue placeholder="Use template" />
                 </SelectTrigger>
                 <SelectContent className="dark:bg-gray-800 dark:border-gray-700">
                   {COMMENT_TEMPLATES.map((template) => (
-                    <SelectItem key={template.label} value={template.value} className="dark:text-gray-200 dark:focus:bg-gray-700">
+                    <SelectItem key={template.label} value={template.value} className="dark:text-gray-200 dark:focus:bg-gray-700 text-sm">
                       {template.label}
                     </SelectItem>
                   ))}
@@ -506,7 +506,7 @@ export function CreateReportModal({
                   ? ` (Minimum ${validationRules.comments.minLength} characters)`
                   : ""
               }`}
-              className="min-h-[100px] dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 dark:placeholder:text-gray-400"
+              className="min-h-[100px] dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 dark:placeholder:text-gray-400 text-sm"
             />
             {errors.comments && (
               <p className="text-sm text-red-500">{errors.comments}</p>
@@ -528,7 +528,7 @@ export function CreateReportModal({
                   <p className="text-sm mt-1 dark:text-gray-300">Loading plan data...</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="planWriteOffs" className="text-xs dark:text-gray-300">Write-offs (Plan)</Label>
                     <p id="planWriteOffs" className="text-sm font-medium dark:text-gray-200">
@@ -566,11 +566,11 @@ export function CreateReportModal({
             </div>
           )}
         </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose} className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200">
+        <DialogFooter className="sticky bottom-0 bg-background dark:bg-gray-800 z-10 pt-4 border-t dark:border-gray-700">
+          <Button variant="outline" onClick={onClose} className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 text-sm">
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={isSubmitting} className="dark:bg-blue-700 dark:hover:bg-blue-600">
+          <Button onClick={handleSubmit} disabled={isSubmitting} className="dark:bg-blue-700 dark:hover:bg-blue-600 text-sm">
             {isSubmitting ? "Creating..." : "Create Report"}
           </Button>
         </DialogFooter>
