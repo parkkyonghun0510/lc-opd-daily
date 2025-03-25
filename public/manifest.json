@@ -1,11 +1,11 @@
 {
   "name": "LC OPD Daily Report",
-  "short_name": "LC Report",
-  "description": "Daily OPD Report Management System",
+  "short_name": "LC OPD",
+  "description": "Daily report management system for LC OPD",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#000000",
+  "theme_color": "#1a1a1a",
   "orientation": "portrait",
   "icons": [
     {
@@ -56,5 +56,48 @@
       "type": "image/png",
       "purpose": "any maskable"
     }
-  ]
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshots/home.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "platform": "narrow",
+      "label": "Home Screen"
+    },
+    {
+      "src": "/screenshots/reports.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "platform": "narrow",
+      "label": "Reports Screen"
+    },
+    {
+      "src": "/screenshots/create-report.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "platform": "narrow",
+      "label": "Create Report Screen"
+    }
+  ],
+  "categories": ["business", "productivity"],
+  "prefer_related_applications": false,
+  "shortcuts": [
+    {
+      "name": "Create New Report",
+      "short_name": "New Report",
+      "description": "Create a new daily report",
+      "url": "/dashboard/reports/create",
+      "icons": [{ "src": "/icons/new-report.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "View Reports",
+      "short_name": "Reports",
+      "description": "View all reports",
+      "url": "/dashboard/reports",
+      "icons": [{ "src": "/icons/reports.png", "sizes": "192x192" }]
+    }
+  ],
+  "related_applications": [],
+  "iarc_rating_id": "e84b072d-71b3-4d3e-86ae-31a8ce4e53b7"
 } 
