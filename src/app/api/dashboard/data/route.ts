@@ -48,6 +48,7 @@ export async function GET(request: NextRequest) {
       where: {
         ...baseConditions,
         status: "approved",
+        reportType: "actual",
         date: {
           gte: thirtyDaysAgoStr, // Last 30 days
         },
