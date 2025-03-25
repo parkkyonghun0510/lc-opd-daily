@@ -238,8 +238,8 @@ const CustomTimeTooltip = ({
                 (data.writeOffsChange || 0) > 0
                   ? "text-red-600 dark:text-red-400"
                   : (data.writeOffsChange || 0) < 0
-                  ? "text-green-600 dark:text-green-400"
-                  : "text-gray-500"
+                    ? "text-green-600 dark:text-green-400"
+                    : "text-gray-500"
               )}
             >
               {(data.writeOffsChange || 0) > 0 && (
@@ -265,8 +265,8 @@ const CustomTimeTooltip = ({
                   (data.ninetyPlusChange || 0) > 0
                     ? "text-red-600 dark:text-red-400"
                     : (data.ninetyPlusChange || 0) < 0
-                    ? "text-green-600 dark:text-green-400"
-                    : "text-gray-500"
+                      ? "text-green-600 dark:text-green-400"
+                      : "text-gray-500"
                 )}
               >
                 {(data.ninetyPlusChange || 0) > 0 && (
@@ -328,12 +328,17 @@ function MetricCardSkeleton() {
 // Add a simple interface for the branch dialog props
 interface BranchDetailDialogProps {
   selectedBranch: string | null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   selectedBranchData: any;
   onClose: () => void;
 }
 
 // Add this dialog component for branch details
-const BranchDetailDialog = ({ selectedBranch, selectedBranchData, onClose }: BranchDetailDialogProps) => {
+const BranchDetailDialog = ({
+  selectedBranch,
+  selectedBranchData,
+  onClose,
+}: BranchDetailDialogProps) => {
   const mockReports = [
     { date: "2023-05-01", amount: 12500000, status: "Approved" },
     { date: "2023-05-10", amount: 8750000, status: "Pending" },
@@ -372,20 +377,27 @@ const BranchDetailDialog = ({ selectedBranch, selectedBranchData, onClose }: Bra
                   ) : (
                     <Minus className="text-yellow-500 h-4 w-4 mr-1" />
                   )}
-                  <span className={cn(
-                    (selectedBranchData?.writeOffsTrend || 0) > 0 ? "text-red-500" : 
-                    (selectedBranchData?.writeOffsTrend || 0) < 0 ? "text-green-500" : "text-yellow-500"
-                  )}>
-                    {(selectedBranchData?.writeOffsTrend || 0) !== 0 
+                  <span
+                    className={cn(
+                      (selectedBranchData?.writeOffsTrend || 0) > 0
+                        ? "text-red-500"
+                        : (selectedBranchData?.writeOffsTrend || 0) < 0
+                          ? "text-green-500"
+                          : "text-yellow-500"
+                    )}
+                  >
+                    {(selectedBranchData?.writeOffsTrend || 0) !== 0
                       ? `${Math.abs(selectedBranchData?.writeOffsTrend || 0)}% ${
-                        (selectedBranchData?.writeOffsTrend || 0) > 0 ? "increase" : "decrease"
-                      }` 
+                          (selectedBranchData?.writeOffsTrend || 0) > 0
+                            ? "increase"
+                            : "decrease"
+                        }`
                       : "No change"}
                   </span>
                 </div>
               </CardContent>
             </Card>
-          
+
             <Card className="dark:bg-gray-900 dark:border-gray-700">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium dark:text-gray-200">
@@ -404,28 +416,41 @@ const BranchDetailDialog = ({ selectedBranch, selectedBranchData, onClose }: Bra
                   ) : (
                     <Minus className="text-yellow-500 h-4 w-4 mr-1" />
                   )}
-                  <span className={cn(
-                    (selectedBranchData?.ninetyPlusTrend || 0) > 0 ? "text-red-500" : 
-                    (selectedBranchData?.ninetyPlusTrend || 0) < 0 ? "text-green-500" : "text-yellow-500"
-                  )}>
-                    {(selectedBranchData?.ninetyPlusTrend || 0) !== 0 
+                  <span
+                    className={cn(
+                      (selectedBranchData?.ninetyPlusTrend || 0) > 0
+                        ? "text-red-500"
+                        : (selectedBranchData?.ninetyPlusTrend || 0) < 0
+                          ? "text-green-500"
+                          : "text-yellow-500"
+                    )}
+                  >
+                    {(selectedBranchData?.ninetyPlusTrend || 0) !== 0
                       ? `${Math.abs(selectedBranchData?.ninetyPlusTrend || 0)}% ${
-                        (selectedBranchData?.ninetyPlusTrend || 0) > 0 ? "increase" : "decrease"
-                      }` 
+                          (selectedBranchData?.ninetyPlusTrend || 0) > 0
+                            ? "increase"
+                            : "decrease"
+                        }`
                       : "No change"}
                   </span>
                 </div>
               </CardContent>
             </Card>
           </div>
-          
+
           <div className="overflow-x-auto">
             <Table className="border dark:border-gray-700 rounded-md">
               <TableHeader className="bg-muted/50 dark:bg-gray-900">
                 <TableRow>
-                  <TableHead className="font-semibold dark:text-gray-300 w-[100px]">Date</TableHead>
-                  <TableHead className="font-semibold dark:text-gray-300 w-[140px] text-right">Amount</TableHead>
-                  <TableHead className="font-semibold dark:text-gray-300 text-right">Status</TableHead>
+                  <TableHead className="font-semibold dark:text-gray-300 w-[100px]">
+                    Date
+                  </TableHead>
+                  <TableHead className="font-semibold dark:text-gray-300 w-[140px] text-right">
+                    Amount
+                  </TableHead>
+                  <TableHead className="font-semibold dark:text-gray-300 text-right">
+                    Status
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -438,8 +463,14 @@ const BranchDetailDialog = ({ selectedBranch, selectedBranchData, onClose }: Bra
                       {formatKHRCurrency(report.amount)}
                     </TableCell>
                     <TableCell className="dark:text-gray-300 text-right">
-                      <Badge 
-                        variant={report.status === 'Approved' ? 'success' : report.status === 'Pending' ? 'secondary' : 'default'}
+                      <Badge
+                        variant={
+                          report.status === "Approved"
+                            ? "success"
+                            : report.status === "Pending"
+                              ? "secondary"
+                              : "default"
+                        }
                         className="ml-auto"
                       >
                         {report.status}
@@ -450,17 +481,17 @@ const BranchDetailDialog = ({ selectedBranch, selectedBranchData, onClose }: Bra
               </TableBody>
             </Table>
           </div>
-          
+
           <div className="flex justify-end gap-2 mt-4">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="sm"
               className="dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
               onClick={onClose}
             >
               Close
             </Button>
-            <Button 
+            <Button
               size="sm"
               className="dark:bg-blue-600 dark:hover:bg-blue-700"
             >
@@ -561,7 +592,7 @@ export default function ConsolidatedView() {
     setError("");
 
     try {
-      const formattedDate = format(date, "yyyy-MM-dd");
+      const formattedDate = `${date.getUTCFullYear()}-${(date.getUTCMonth() + 1).toString().padStart(2, "0")}-${date.getUTCDate().toString().padStart(2, "0")}`;
       const url = `/api/reports/consolidated?date=${formattedDate}&period=${period}&type=${reportType}`;
 
       const response = await fetch(url);
@@ -580,8 +611,8 @@ export default function ConsolidatedView() {
             try {
               if (!item.date || typeof item.date !== "string") return false;
               // Try to parse the date to validate it
-              parseISO(item.date);
-              return true;
+              const parsedDate = parseISO(item.date);
+              return !isNaN(parsedDate.getTime());
             } catch {
               console.warn("Filtered out item with invalid date:", item);
               return false;
@@ -610,7 +641,7 @@ export default function ConsolidatedView() {
     }
 
     try {
-      const formattedDate = format(date, "yyyy-MM-dd");
+      const formattedDate = `${date.getUTCFullYear()}-${(date.getUTCMonth() + 1).toString().padStart(2, "0")}-${date.getUTCDate().toString().padStart(2, "0")}`;
       const url = `/api/reports/consolidated?date=${formattedDate}&period=${period}&type=plan`;
 
       const response = await fetch(url);
@@ -630,8 +661,8 @@ export default function ConsolidatedView() {
             try {
               if (!item.date || typeof item.date !== "string") return false;
               // Try to parse the date to validate it
-              parseISO(item.date);
-              return true;
+              const parsedDate = parseISO(item.date);
+              return !isNaN(parsedDate.getTime());
             } catch {
               console.warn("Filtered out plan item with invalid date:", item);
               return false;
@@ -864,7 +895,9 @@ export default function ConsolidatedView() {
       try {
         // Check if item.date is a valid string before parsing
         if (item.date && typeof item.date === "string") {
-          rawDate = parseISO(item.date);
+          const [startDate] = item.date.split(" - ");
+          rawDate = parseISO(startDate);
+          if (isNaN(rawDate.getTime())) throw new Error("Invalid date");
           formattedDate = format(rawDate, "MMM dd");
         }
       } catch (error) {
@@ -1306,10 +1339,14 @@ export default function ConsolidatedView() {
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b dark:border-gray-700">
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">Consolidated Reports</h1>
-              <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 mt-1">Comprehensive view of branch data</p>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">
+                Consolidated Reports
+              </h1>
+              <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 mt-1">
+                Comprehensive view of branch data
+              </p>
             </div>
-            
+
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full sm:w-auto mt-2 sm:mt-0">
               <Button
                 variant="outline"
@@ -1319,45 +1356,67 @@ export default function ConsolidatedView() {
                 <ArrowRight className="mr-2 h-4 w-4 rotate-180" />
                 Back to Dashboard
               </Button>
-              
+
               <div className="flex items-center w-full sm:w-auto mt-3 sm:mt-0">
-                <Tabs defaultValue={reportType} onValueChange={(v) => handleReportTypeChange(v as "plan" | "actual")} className="w-full sm:w-auto">
+                <Tabs
+                  defaultValue={reportType}
+                  onValueChange={(v) =>
+                    handleReportTypeChange(v as "plan" | "actual")
+                  }
+                  className="w-full sm:w-auto"
+                >
                   <TabsList className="w-full sm:w-auto dark:bg-gray-800">
-                    <TabsTrigger value="plan" className="flex-1 dark:data-[state=active]:bg-gray-700">Plan</TabsTrigger>
-                    <TabsTrigger value="actual" className="flex-1 dark:data-[state=active]:bg-gray-700">Actual</TabsTrigger>
+                    <TabsTrigger
+                      value="plan"
+                      className="flex-1 dark:data-[state=active]:bg-gray-700"
+                    >
+                      Plan
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="actual"
+                      className="flex-1 dark:data-[state=active]:bg-gray-700"
+                    >
+                      Actual
+                    </TabsTrigger>
                   </TabsList>
                 </Tabs>
               </div>
             </div>
           </div>
-          
+
           {/* Period Selection */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full sm:w-auto">
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-0">View by:</span>
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-0">
+                View by:
+              </span>
               <Tabs
                 value={period}
                 onValueChange={(value: string) => {
-                  if (value === "day" || value === "week" || value === "month") {
+                  if (
+                    value === "day" ||
+                    value === "week" ||
+                    value === "month"
+                  ) {
                     setPeriod(value as "day" | "week" | "month");
                   }
                 }}
                 className="w-full sm:w-auto"
               >
                 <TabsList className="w-full sm:w-auto dark:bg-gray-800">
-                  <TabsTrigger 
-                    value="day" 
+                  <TabsTrigger
+                    value="day"
                     className="flex-1 dark:data-[state=active]:bg-gray-700"
                   >
                     Daily
                   </TabsTrigger>
-                  <TabsTrigger 
+                  <TabsTrigger
                     value="week"
-                    className="flex-1 dark:data-[state=active]:bg-gray-700" 
+                    className="flex-1 dark:data-[state=active]:bg-gray-700"
                   >
                     Weekly
                   </TabsTrigger>
-                  <TabsTrigger 
+                  <TabsTrigger
                     value="month"
                     className="flex-1 dark:data-[state=active]:bg-gray-700"
                   >
@@ -1372,13 +1431,13 @@ export default function ConsolidatedView() {
                     period === "day"
                       ? "daily"
                       : period === "week"
-                      ? "weekly"
-                      : "monthly"
+                        ? "weekly"
+                        : "monthly"
                   } period ${format(date || new Date(), "MMMM d, yyyy")}`
                 : "Select a date and period to view data"}
             </p>
           </div>
-          
+
           {/* Date Selection and Action Buttons */}
           <div className="flex flex-col sm:flex-row justify-between gap-4 mb-6">
             <div className="flex items-center w-full sm:w-auto">
@@ -1595,9 +1654,9 @@ export default function ConsolidatedView() {
                                 80
                                   ? "#10b981" // green for good coverage
                                   : consolidatedData.metrics
-                                      .coveragePercentage >= 50
-                                  ? "#f59e0b" // amber for medium coverage
-                                  : "#ef4444", // red for poor coverage
+                                        .coveragePercentage >= 50
+                                    ? "#f59e0b" // amber for medium coverage
+                                    : "#ef4444", // red for poor coverage
                             }}
                           />
 
@@ -1624,17 +1683,17 @@ export default function ConsolidatedView() {
                               consolidatedData.metrics.coveragePercentage >= 80
                                 ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
                                 : consolidatedData.metrics.coveragePercentage >=
-                                  50
-                                ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
-                                : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
+                                    50
+                                  ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
+                                  : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
                             )}
                           >
                             {consolidatedData.metrics.coveragePercentage >= 80
                               ? "Good"
                               : consolidatedData.metrics.coveragePercentage >=
-                                50
-                              ? "Average"
-                              : "Poor"}
+                                  50
+                                ? "Average"
+                                : "Poor"}
                           </span>
                         </div>
                       </div>
@@ -1712,27 +1771,27 @@ export default function ConsolidatedView() {
                           onClick={handleChartClick}
                         >
                           <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis 
-                            dataKey="name" 
-                            tick={{fontSize: 10}}
+                          <XAxis
+                            dataKey="name"
+                            tick={{ fontSize: 10 }}
                             height={40}
                             interval={0}
                             angle={-45}
                             textAnchor="end"
                           />
-                          <YAxis 
+                          <YAxis
                             width={55}
-                            tick={{fontSize: 10}}
-                            tickFormatter={(value) => 
+                            tick={{ fontSize: 10 }}
+                            tickFormatter={(value) =>
                               value >= 1000000
                                 ? `${(value / 1000000).toFixed(1)}M`
                                 : value >= 1000
-                                ? `${(value / 1000).toFixed(1)}K`
-                                : value
+                                  ? `${(value / 1000).toFixed(1)}K`
+                                  : value
                             }
                           />
                           <RechartsTooltip content={<CustomBranchTooltip />} />
-                          <Legend wrapperStyle={{fontSize: "12px"}} />
+                          <Legend wrapperStyle={{ fontSize: "12px" }} />
                           {visibleMetrics.writeOffs && (
                             <Bar
                               dataKey="writeOffs"
@@ -1770,8 +1829,8 @@ export default function ConsolidatedView() {
                           {period === "day"
                             ? "Daily Trends"
                             : period === "week"
-                            ? "Weekly Trends"
-                            : "Monthly Trends"}
+                              ? "Weekly Trends"
+                              : "Monthly Trends"}
                         </h3>
                         <Button
                           variant="ghost"
@@ -1817,7 +1876,9 @@ export default function ConsolidatedView() {
                               <CartesianGrid strokeDasharray="3 3" />
                               <XAxis dataKey="date" />
                               <YAxis />
-                              <RechartsTooltip content={<CustomTimeTooltip />} />
+                              <RechartsTooltip
+                                content={<CustomTimeTooltip />}
+                              />
                               <Legend />
                               {visibleMetrics.writeOffs && (
                                 <Bar
@@ -2176,8 +2237,8 @@ export default function ConsolidatedView() {
                                         writeOffsAchievement >= 100
                                           ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
                                           : writeOffsAchievement >= 80
-                                          ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
-                                          : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
+                                            ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
+                                            : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
                                       )}
                                     >
                                       {writeOffsAchievement.toFixed(1)}%
@@ -2200,8 +2261,8 @@ export default function ConsolidatedView() {
                                         ninetyPlusAchievement >= 100
                                           ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
                                           : ninetyPlusAchievement >= 80
-                                          ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
-                                          : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
+                                            ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
+                                            : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
                                       )}
                                     >
                                       {ninetyPlusAchievement.toFixed(1)}%
@@ -2244,10 +2305,14 @@ export default function ConsolidatedView() {
       />
       {/* Branch detail dialog */}
       {selectedBranch && (
-        <BranchDetailDialog 
-          selectedBranch={selectedBranch} 
-          selectedBranchData={consolidatedData?.branchData.find(item => item.branchCode === selectedBranch || item.branchName === selectedBranch)} 
-          onClose={handleCloseDialog} 
+        <BranchDetailDialog
+          selectedBranch={selectedBranch}
+          selectedBranchData={consolidatedData?.branchData.find(
+            (item) =>
+              item.branchCode === selectedBranch ||
+              item.branchName === selectedBranch
+          )}
+          onClose={handleCloseDialog}
         />
       )}
     </Card>

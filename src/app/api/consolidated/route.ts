@@ -58,19 +58,19 @@ export async function GET(request: Request) {
 
     // Create start and end dates for the query based on view type
     let startDate, endDate;
-    
+
     if (viewType === "daily") {
       // Daily view - just use the selected date
       startDate = new Date(dateObj);
       startDate.setHours(0, 0, 0, 0);
-      
+
       endDate = new Date(dateObj);
       endDate.setHours(23, 59, 59, 999);
     } else if (viewType === "weekly") {
       // Weekly view - start from the selected date and include 7 days
       startDate = new Date(dateObj);
       startDate.setHours(0, 0, 0, 0);
-      
+
       endDate = new Date(dateObj);
       endDate.setDate(endDate.getDate() + 6); // 7 days total (including start date)
       endDate.setHours(23, 59, 59, 999);
@@ -78,23 +78,26 @@ export async function GET(request: Request) {
       // Monthly view - start from the 1st of the month and go to the last day
       startDate = new Date(dateObj.getFullYear(), dateObj.getMonth(), 1);
       startDate.setHours(0, 0, 0, 0);
-      
+
       endDate = new Date(dateObj.getFullYear(), dateObj.getMonth() + 1, 0); // Last day of the month
       endDate.setHours(23, 59, 59, 999);
     } else {
       // Default to daily view if invalid view type
       startDate = new Date(dateObj);
       startDate.setHours(0, 0, 0, 0);
-      
+
       endDate = new Date(dateObj);
       endDate.setHours(23, 59, 59, 999);
     }
 
-    console.log(`Query date range for ${viewType} view:`, { startDate, endDate });
+    console.log(`Query date range for ${viewType} view:`, {
+      startDate,
+      endDate,
+    });
 
     // Format dates to ISO string for Prisma
-    const startDateFormatted = startDate.toISOString().split('T')[0]; // YYYY-MM-DD
-    const endDateFormatted = endDate.toISOString().split('T')[0]; // YYYY-MM-DD
+    const startDateFormatted = `${startDate.getUTCFullYear()}-${(startDate.getUTCMonth() + 1).toString().padStart(2, "0")}-${startDate.getUTCDate().toString().padStart(2, "0")}`;
+    const endDateFormatted = `${endDate.getUTCFullYear()}-${(endDate.getUTCMonth() + 1).toString().padStart(2, "0")}-${endDate.getUTCDate().toString().padStart(2, "0")}`;
 
     // Get all branches
     const branches = await prisma.branch.findMany({
@@ -173,7 +176,7 @@ export async function GET(request: Request) {
     // Get previous day's data for comparison
     const previousDate = new Date(dateObj);
     previousDate.setDate(previousDate.getDate() - 1);
-    const previousDateFormatted = previousDate.toISOString().split('T')[0]; // YYYY-MM-DD
+    const previousDateFormatted = previousDate.toISOString().split("T")[0]; // YYYY-MM-DD
 
     const previousReports = await prisma.report.findMany({
       where: {
@@ -191,16 +194,17 @@ export async function GET(request: Request) {
 
     // Generate time series data for weekly and monthly views
     let dailyTotals: DailyTotal[] = [];
+    // eslint-disable-next-line prefer-const
     let weeklyTotals: WeeklyTotal[] = [];
-    
+
     if (viewType === "weekly") {
       // For weekly view, get daily totals
       const dailyReportsPromises = [];
       const currentDate = new Date(startDate);
-      
+
       while (currentDate <= endDate) {
-        const currentDateFormatted = currentDate.toISOString().split('T')[0]; // YYYY-MM-DD
-        
+        const currentDateFormatted = currentDate.toISOString().split("T")[0]; // YYYY-MM-DD
+
         dailyReportsPromises.push(
           prisma.report.findMany({
             where: {
@@ -208,16 +212,16 @@ export async function GET(request: Request) {
             },
           })
         );
-        
+
         currentDate.setDate(currentDate.getDate() + 1);
       }
-      
+
       const dailyReportsResults = await Promise.all(dailyReportsPromises);
-      
+
       dailyTotals = dailyReportsResults.map((dayReports, index) => {
         const dayDate = new Date(startDate);
         dayDate.setDate(dayDate.getDate() + index);
-        
+
         const dayTotals = dayReports.reduce(
           (acc, report) => ({
             writeOffs: acc.writeOffs + report.writeOffs,
@@ -225,9 +229,9 @@ export async function GET(request: Request) {
           }),
           { writeOffs: 0, ninetyPlus: 0 }
         );
-        
+
         return {
-          date: dayDate.toISOString().split('T')[0],
+          date: dayDate.toISOString().split("T")[0],
           writeOffs: dayTotals.writeOffs,
           ninetyPlus: dayTotals.ninetyPlus,
         };
@@ -235,11 +239,11 @@ export async function GET(request: Request) {
     } else if (viewType === "monthly") {
       // For monthly view, get weekly totals
       const weeksInMonth = Math.ceil(endDate.getDate() / 7);
-      
+
       for (let weekNum = 0; weekNum < weeksInMonth; weekNum++) {
         const weekStart = new Date(startDate);
-        weekStart.setDate(weekStart.getDate() + (weekNum * 7));
-        
+        weekStart.setDate(weekStart.getDate() + weekNum * 7);
+
         const weekEnd = new Date(weekStart);
         weekEnd.setDate(weekEnd.getDate() + 6);
         // Ensure we don't go beyond the month
@@ -247,9 +251,9 @@ export async function GET(request: Request) {
           weekEnd.setTime(endDate.getTime());
         }
 
-        const weekStartFormatted = weekStart.toISOString().split('T')[0]; // YYYY-MM-DD
-        const weekEndFormatted = weekEnd.toISOString().split('T')[0]; // YYYY-MM-DD
-        
+        const weekStartFormatted = weekStart.toISOString().split("T")[0]; // YYYY-MM-DD
+        const weekEndFormatted = weekEnd.toISOString().split("T")[0]; // YYYY-MM-DD
+
         const weekReports = await prisma.report.findMany({
           where: {
             date: {
@@ -258,7 +262,7 @@ export async function GET(request: Request) {
             },
           },
         });
-        
+
         const weekTotals = weekReports.reduce(
           (acc, report) => ({
             writeOffs: acc.writeOffs + report.writeOffs,
@@ -266,7 +270,7 @@ export async function GET(request: Request) {
           }),
           { writeOffs: 0, ninetyPlus: 0 }
         );
-        
+
         weeklyTotals.push({
           week: `Week ${weekNum + 1}`,
           writeOffs: weekTotals.writeOffs,
@@ -274,7 +278,7 @@ export async function GET(request: Request) {
         });
       }
     }
-    
+
     const consolidatedData = {
       date: date,
       statistics,
@@ -296,12 +300,12 @@ export async function GET(request: Request) {
       ...(viewType === "weekly" && { dailyTotals }),
       ...(viewType === "monthly" && { weeklyTotals }),
       // Add date range information for weekly and monthly views
-      ...(viewType === "weekly" && { 
-        startDate: startDate.toISOString().split('T')[0],
-        endDate: endDate.toISOString().split('T')[0]
+      ...(viewType === "weekly" && {
+        startDate: startDate.toISOString().split("T")[0],
+        endDate: endDate.toISOString().split("T")[0],
       }),
-      ...(viewType === "monthly" && { 
-        month: `${dateObj.toLocaleString('default', { month: 'long' })} ${dateObj.getFullYear()}`
+      ...(viewType === "monthly" && {
+        month: `${dateObj.toLocaleString("default", { month: "long" })} ${dateObj.getFullYear()}`,
       }),
     };
 
@@ -341,7 +345,7 @@ export async function POST(request: Request) {
 
     const validatedDate = dateSchema.parse(date);
     const dateObj = new Date(validatedDate);
-    const formattedDate = dateObj.toISOString().split('T')[0]; // YYYY-MM-DD
+    const formattedDate = dateObj.toISOString().split("T")[0]; // YYYY-MM-DD
 
     // Get consolidated data
     const consolidatedData = await prisma.report.findMany({
