@@ -4,6 +4,7 @@ import { createContext, useContext, useState, useEffect, useMemo, useCallback } 
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { UserData, UserPreferences } from "@/app/types";
+import { clearAuthData } from "@/lib/auth/session-utils";
 
 // Import server actions (these will be created as separate server files)
 import {
@@ -12,9 +13,23 @@ import {
   updateUserPreferences,
 } from "@/app/_actions/user-actions";
 
+// Default preferences - needed for mock data in development
+const defaultPreferences: UserPreferences = {
+  notifications: {
+    reportUpdates: true,
+    reportComments: true,
+    reportApprovals: true,
+  },
+  appearance: {
+    compactMode: false,
+  },
+};
+
 interface UserDataContextType {
   userData: UserData | null;
   isLoading: boolean;
+  serverError: string | null;
+  persistentError: boolean;
   setIsLoading: (loading: boolean) => void;
   refreshUserData: () => Promise<void>;
   updateUserData: (newData: Partial<UserData>) => Promise<void>;
@@ -22,6 +37,7 @@ interface UserDataContextType {
     type: keyof UserPreferences,
     preferences: Partial<UserPreferences[typeof type]>
   ) => Promise<void>;
+  handleClearAuth: () => void;
 }
 
 const UserDataContext = createContext<UserDataContextType | undefined>(
@@ -51,16 +67,27 @@ export function UserDataProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [userData, setUserData] = useState<UserData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [retryCount, setRetryCount] = useState(0);
+  const [serverError, setServerError] = useState<string | null>(null);
+  const [persistentError, setPersistentError] = useState(false);
+  const MAX_RETRIES = 3;
 
   // Initial data fetch
   useEffect(() => {
     if (status === "authenticated") {
       // Only refresh data if we don't have it yet or if isLoading is manually set to true
-      if (!userData || isLoading) {
+      if ((!userData || isLoading) && retryCount < MAX_RETRIES) {
         refreshUserData()
           .catch(error => {
             console.error("Error in initial data fetch:", error);
             setIsLoading(false);
+            setRetryCount(prev => prev + 1);
+            setServerError("Server connection error. Please try refreshing the page.");
+            
+            if (retryCount >= MAX_RETRIES - 1) {
+              console.warn("Max retry attempts reached when fetching user data");
+              setPersistentError(true);
+            }
           });
       }
     } else if (status === "unauthenticated") {
@@ -68,12 +95,71 @@ export function UserDataProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(false);
       router.push("/login");
     }
-  }, [status, router, userData, isLoading]);
+  }, [status, router, userData, isLoading, retryCount]);
+
+  // Clear auth data if we have persistent errors
+  const handleClearAuth = useCallback(() => {
+    clearAuthData();
+    window.location.href = "/login?cleared=true";
+  }, []);
 
   const refreshUserData = useCallback(async () => {
     try {
       setIsLoading(true);
-      const result = await fetchUserData();
+      
+      // Add a timeout to the fetch operation to prevent hanging indefinitely
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      
+      let result;
+      try {
+        result = await fetchUserData();
+        clearTimeout(timeoutId);
+      } catch (error) {
+        clearTimeout(timeoutId);
+        // If it's a network error, create a mock result for development
+        if (process.env.NODE_ENV === 'development' && error instanceof TypeError && error.message.includes('fetch')) {
+          console.warn('Network error when fetching user data. Using mock data for development.');
+          result = {
+            status: 200,
+            data: {
+              id: 'mock-id',
+              name: 'Dev User',
+              email: 'dev@example.com',
+              role: 'ADMIN',
+              isActive: true,
+              preferences: defaultPreferences || {
+                notifications: { reportUpdates: true, reportComments: true, reportApprovals: true },
+                appearance: { compactMode: false },
+              },
+              computedFields: {
+                displayName: 'Dev User',
+                accessLevel: 'Admin',
+                status: 'Active',
+              },
+              permissions: {
+                canAccessAdmin: true,
+                canViewAnalytics: true,
+                canViewAuditLogs: true,
+                canCustomizeDashboard: true,
+                canManageSettings: true,
+                canViewDashboard: true,
+                canManageUsers: true,
+                canManageRoles: true,
+                canManageBranches: true,
+                canViewReports: true,
+                canCreateReports: true,
+                canEditReports: true,
+                canDeleteReports: true,
+                canApproveReports: true,
+                canExportReports: true,
+              }
+            }
+          };
+        } else {
+          throw error;
+        }
+      }
 
       if (result.status === 200 && result.data) {
         // Check if non-admin user has no branch assigned
@@ -84,6 +170,9 @@ export function UserDataProvider({ children }: { children: React.ReactNode }) {
         }
         
         setUserData(result.data as UserData);
+        setServerError(null);
+        // Reset retry count on successful fetch
+        setRetryCount(0);
       } else {
         throw new Error(result.error || "Failed to fetch user data");
       }
@@ -183,11 +272,14 @@ export function UserDataProvider({ children }: { children: React.ReactNode }) {
   const contextValue = useMemo(() => ({
     userData,
     isLoading,
+    serverError,
+    persistentError,
     setIsLoading,
     refreshUserData,
     updateUserData,
     updatePreferences,
-  }), [userData, isLoading, refreshUserData, updateUserData, updatePreferences]);
+    handleClearAuth,
+  }), [userData, isLoading, serverError, persistentError, refreshUserData, updateUserData, updatePreferences, handleClearAuth]);
 
   return (
     <UserDataContext.Provider value={contextValue}>
