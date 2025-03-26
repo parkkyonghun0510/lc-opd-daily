@@ -84,4 +84,43 @@ function updateCache(request, response) {
   return caches.open(CACHE).then(function (cache) {
     return cache.put(request, response);
   });
-} 
+}
+
+self.addEventListener('push', function(event) {
+  const options = {
+    body: event.data.text(),
+    icon: '/icon-192x192.png',
+    badge: '/badge-72x72.png',
+    vibrate: [100, 50, 100],
+    data: {
+      dateOfArrival: Date.now(),
+      primaryKey: 1
+    },
+    actions: [
+      {
+        action: 'explore',
+        title: 'View Details',
+        icon: '/checkmark.png'
+      },
+      {
+        action: 'close',
+        title: 'Close',
+        icon: '/xmark.png'
+      }
+    ]
+  };
+
+  event.waitUntil(
+    self.registration.showNotification('LC Report Notification', options)
+  );
+});
+
+self.addEventListener('notificationclick', function(event) {
+  event.notification.close();
+
+  if (event.action === 'explore') {
+    event.waitUntil(
+      clients.openWindow('/')
+    );
+  }
+}); 

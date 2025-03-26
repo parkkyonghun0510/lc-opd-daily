@@ -8,6 +8,7 @@ import { ServerErrorBoundary } from "@/components/ui/ServerErrorBoundary";
 import { useEffect } from "react";
 import { warmCacheAction } from "@/app/_actions/cache-actions";
 import { Toaster as SonnerToaster } from "sonner";
+import { PushNotificationButton } from "@/components/PushNotificationButton";
 
 // Separate component to use the useUserData hook
 function AppContent({ children }: { children: React.ReactNode }) {
@@ -22,6 +23,9 @@ function AppContent({ children }: { children: React.ReactNode }) {
     <>
       <div className="relative flex min-h-screen flex-col">
         <div className="flex-1">{children}</div>
+      </div>
+      <div className="fixed bottom-4 right-4 z-50">
+        <PushNotificationButton />
       </div>
       <ServerErrorBoundary 
         error={serverError} 
