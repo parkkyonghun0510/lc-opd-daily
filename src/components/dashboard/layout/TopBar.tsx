@@ -25,6 +25,7 @@ import {
 import { CommandPalette } from "../search/CommandPalette";
 import { Greeting } from "../greeting/Greeting";
 import { useTheme } from "next-themes";
+import { NotificationBell } from '@/components/notifications/NotificationBell';
 
 export function TopBar() {
   const router = useRouter();
@@ -102,18 +103,8 @@ export function TopBar() {
           </div>
         ) : (
           <>
-            {permissions?.canViewAuditLogs && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="relative"
-                onClick={() => router.push("/dashboard/notifications")}
-              >
-                <Bell size={18} className="text-gray-600 dark:text-gray-400" />
-                {permissions?.canAccessAdmin && (
-                  <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
-                )}
-              </Button>
+            {permissions?.canViewDashboard && (
+              <NotificationBell />
             )}
 
             <DropdownMenu>

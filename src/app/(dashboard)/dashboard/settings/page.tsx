@@ -43,6 +43,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUserData } from "@/contexts/UserDataContext";
+import { NotificationSubscription } from "@/components/pwa/NotificationSubscription";
 
 const profileFormSchema = z.object({
   name: z
@@ -620,6 +621,11 @@ export default function SettingsPage() {
                   }}
                 />
               </div>
+              <Separator />
+              <div className="md:col-span-3">
+                  <NotificationSubscription />
+              </div>
+              
             </CardContent>
           </Card>
         </TabsContent>

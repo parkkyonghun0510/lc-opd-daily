@@ -76,7 +76,20 @@ export async function approveReport(
       throw new Error(error.error || `Failed to ${status} report`);
     }
     
-    return await response.json();
+    const result = await response.json();
+    
+    // Show success confirmation to the user
+    if (typeof window !== 'undefined') {
+      const actionName = status === 'approved' ? 'approved' : 'rejected';
+      const message = document.createElement('div');
+      message.textContent = `Report ${actionName} successfully.`;
+      
+      if (notifyUsers) {
+        message.textContent += ` Notifications sent.`;
+      }
+    }
+    
+    return result;
   } catch (error) {
     console.error(`Error ${status === 'approved' ? 'approving' : 'rejecting'} report:`, error);
     throw error;
@@ -106,15 +119,22 @@ export async function fetchReportById(id: string): Promise<Report> {
 /**
  * Create a new report
  * @param reportData Report data to create
+ * @param sendNotifications Whether to send notifications about the report (default: true)
  */
-export async function createReport(reportData: Omit<Report, 'id' | 'createdAt' | 'updatedAt' | 'status'>): Promise<Report> {
+export async function createReport(
+  reportData: Omit<Report, 'id' | 'createdAt' | 'updatedAt' | 'status'>,
+  sendNotifications: boolean = true
+): Promise<Report> {
   try {
     const response = await fetch('/api/reports', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(reportData),
+      body: JSON.stringify({
+        ...reportData,
+        sendNotifications
+      }),
     });
     
     if (!response.ok) {

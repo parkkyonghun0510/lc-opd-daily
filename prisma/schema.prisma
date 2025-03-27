@@ -28,6 +28,8 @@ model User {
   activities          UserActivity[]
   branchAssignments   UserBranchAssignment[]
   userRoles           UserRole[]
+  pushSubscriptions   PushSubscription[]
+  notifications       InAppNotification[]
 
   @@index([branchId])
 }
@@ -150,6 +152,28 @@ model PushSubscription {
   auth      String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([endpoint])
+  @@index([userId])
+}
+
+model InAppNotification {
+  id          String    @id @default(cuid())
+  userId      String
+  title       String
+  body        String
+  type        String    // Same as NotificationType in notificationTemplates.ts
+  data        Json?     // Additional data for the notification
+  isRead      Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  readAt      DateTime?
+  actionUrl   String?   // URL to navigate to when clicked
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([type])
+  @@index([createdAt])
+  @@index([isRead])
 }

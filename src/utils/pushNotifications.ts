@@ -1,7 +1,30 @@
-function urlBase64ToUint8Array(base64String: string) {
-  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+/**
+ * Cross-platform push notification utilities with better error handling
+ * Supports web push for browsers and PWAs
+ */
+
+// Check if push notifications are supported in this browser
+export function isPushSupported(): boolean {
+  return (
+    'serviceWorker' in navigator &&
+    'PushManager' in window &&
+    'Notification' in window
+  );
+}
+
+// Get current permission status
+export function getNotificationPermission(): NotificationPermission | null {
+  if (!('Notification' in window)) {
+    return null;
+  }
+  return Notification.permission;
+}
+
+// Convert base64 string to Uint8Array
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding)
-    .replace(/\-/g, '+')
+    .replace(/-/g, '+')
     .replace(/_/g, '/');
 
   const rawData = window.atob(base64);
@@ -13,64 +36,191 @@ function urlBase64ToUint8Array(base64String: string) {
   return outputArray;
 }
 
-export async function subscribeToPushNotifications() {
+// Request permission and subscribe to push notifications
+export async function requestNotificationPermission(): Promise<PushSubscription | null> {
   try {
-    console.log('Starting push notification subscription process...');
-    const registration = await navigator.serviceWorker.ready;
-    console.log('Service Worker is ready:', registration);
-    
-    const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-    console.log('VAPID Public Key available:', !!vapidPublicKey);
-    
-    if (!vapidPublicKey) {
-      throw new Error('VAPID public key not found');
+    if (!isPushSupported()) {
+      console.error('Push notifications not supported');
+      return null;
     }
 
-    console.log('Subscribing to push notifications...');
-    const subscription = await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
-    });
-    console.log('Push subscription created:', subscription);
+    // Request notification permission
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') {
+      console.log('Notification permission not granted');
+      return null;
+    }
+
+    // Get service worker registration
+    const registration = await navigator.serviceWorker.ready;
+    if (!registration || !registration.pushManager) {
+      console.error('Push manager not available');
+      return null;
+    }
+
+    // Get VAPID public key
+    const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+    if (!vapidPublicKey) {
+      console.error('VAPID public key not available');
+      return null;
+    }
+
+    // Convert the VAPID key to the format expected by the push manager
+    const convertedVapidKey = urlBase64ToUint8Array(vapidPublicKey);
+
+    // Try to use existing subscription or create a new one
+    let subscription = await registration.pushManager.getSubscription();
     
-    // Send subscription to the server
-    console.log('Sending subscription to server...');
+    // If subscription exists but has changed (e.g. different key), unsubscribe first
+    if (subscription) {
+      const existingKey = JSON.stringify(subscription);
+      if (!existingKey.includes(vapidPublicKey.substring(0, 10))) {
+        await subscription.unsubscribe();
+        subscription = null;
+      }
+    }
+    
+    // If no subscription exists, create one
+    if (!subscription) {
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: convertedVapidKey
+      });
+    }
+
+    // Save subscription to server
+    await saveSubscriptionToServer(subscription);
+    
+    return subscription;
+  } catch (error) {
+    console.error('Error requesting notification permission:', error);
+    // Try to provide more helpful error messages based on error type
+    if (error instanceof DOMException && error.name === 'NotAllowedError') {
+      console.error('Permission request was denied by the user');
+    } else if (error instanceof DOMException && error.name === 'AbortError') {
+      console.error('Push subscription failed - browser might be in private browsing mode');
+    }
+    return null;
+  }
+}
+
+// Save subscription to server
+async function saveSubscriptionToServer(subscription: PushSubscription): Promise<boolean> {
+  try {
     const response = await fetch('/api/push/subscribe', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(subscription),
+      body: JSON.stringify({
+        endpoint: subscription.endpoint,
+        keys: {
+          p256dh: btoa(String.fromCharCode.apply(null, Array.from(new Uint8Array(subscription.getKey('p256dh') as ArrayBuffer)))),
+          auth: btoa(String.fromCharCode.apply(null, Array.from(new Uint8Array(subscription.getKey('auth') as ArrayBuffer)))),
+        },
+      }),
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Server response error:', errorText);
-      throw new Error('Failed to save subscription');
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to save subscription');
     }
-    
-    console.log('Subscription saved successfully');
-    return subscription;
+
+    return true;
   } catch (error) {
-    console.error('Error in subscribeToPushNotifications:', error);
-    throw error;
+    console.error('Error saving subscription to server:', error);
+    return false;
   }
 }
 
-export async function requestNotificationPermission() {
+// Check if user is already subscribed
+export async function checkSubscription(): Promise<boolean> {
   try {
-    console.log('Requesting notification permission...');
-    const permission = await Notification.requestPermission();
-    console.log('Notification permission result:', permission);
-    
-    if (permission === 'granted') {
-      console.log('Permission granted, proceeding with subscription...');
-      return await subscribeToPushNotifications();
+    if (!isPushSupported()) {
+      return false;
     }
-    console.log('Permission not granted');
-    return null;
+
+    // Wait for service worker to be ready
+    const registration = await navigator.serviceWorker.ready;
+    if (!registration?.pushManager) {
+      return false;
+    }
+
+    // Check if subscription exists
+    const subscription = await registration.pushManager.getSubscription();
+    return !!subscription;
   } catch (error) {
-    console.error('Error in requestNotificationPermission:', error);
-    throw error;
+    console.error('Error checking subscription:', error);
+    return false;
   }
+}
+
+// Unsubscribe from push notifications
+export async function unsubscribeFromPushNotifications(): Promise<boolean> {
+  try {
+    if (!isPushSupported()) {
+      return false;
+    }
+
+    const registration = await navigator.serviceWorker.ready;
+    if (!registration?.pushManager) {
+      return false;
+    }
+
+    const subscription = await registration.pushManager.getSubscription();
+    if (!subscription) {
+      return true; // Already unsubscribed
+    }
+
+    // Delete subscription from server
+    await fetch('/api/push/unsubscribe', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        endpoint: subscription.endpoint,
+      }),
+    });
+
+    // Unsubscribe locally
+    const result = await subscription.unsubscribe();
+    return result;
+  } catch (error) {
+    console.error('Error unsubscribing from push notifications:', error);
+    return false;
+  }
+}
+
+// Send a test notification to verify everything works
+export async function sendTestNotification(): Promise<boolean> {
+  try {
+    const response = await fetch('/api/push/test', {
+      method: 'POST',
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to send test notification');
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error sending test notification:', error);
+    return false;
+  }
+}
+
+// Check for support and permissions at once
+export function getNotificationStatus(): { 
+  isSupported: boolean; 
+  permission: NotificationPermission | null;
+  isGranted: boolean;
+} {
+  const isSupported = isPushSupported();
+  const permission = getNotificationPermission();
+  return {
+    isSupported,
+    permission,
+    isGranted: permission === 'granted'
+  };
 } 

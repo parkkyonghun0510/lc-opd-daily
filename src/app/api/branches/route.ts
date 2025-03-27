@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
   try {
     // Use NextAuth for authentication
     const token = await getToken({ req: request });
-    if (!token || token.role !== "admin") {
+    if (!token || token.role !== "ADMIN") {
       return NextResponse.json(
         { error: "Unauthorized - Admin access required" },
         { status: 403 }
@@ -173,7 +173,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Check if user has admin role
-    if (token.role !== UserRole.ADMIN) {
+    if (token.role !== "ADMIN") {
       return NextResponse.json(
         { error: "Unauthorized - Admin access required" },
         { status: 403 }
@@ -275,7 +275,7 @@ export async function DELETE(request: NextRequest) {
   try {
     // Use NextAuth for authentication
     const token = await getToken({ req: request });
-    if (!token || token.role !== "admin") {
+    if (!token || token.role !== "ADMIN") {
       return NextResponse.json(
         { error: "Unauthorized - Admin access required" },
         { status: 403 }

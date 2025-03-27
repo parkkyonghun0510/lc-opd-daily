@@ -9,6 +9,7 @@ import { useEffect } from "react";
 import { warmCacheAction } from "@/app/_actions/cache-actions";
 import { Toaster as SonnerToaster } from "sonner";
 import { PushNotificationButton } from "@/components/PushNotificationButton";
+import { NotificationProvider } from "@/contexts/NotificationContext";
 
 // Separate component to use the useUserData hook
 function AppContent({ children }: { children: React.ReactNode }) {
@@ -41,18 +42,20 @@ function AppContent({ children }: { children: React.ReactNode }) {
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <SessionProvider>
-      <UserDataProvider>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <NextAuthProvider>
-            <AppContent>{children}</AppContent>
-          </NextAuthProvider>
-        </ThemeProvider>
-      </UserDataProvider>
+      <ThemeProvider
+        attribute="class"
+        defaultTheme="system"
+        enableSystem
+        disableTransitionOnChange
+      >
+        <UserDataProvider>
+          <NotificationProvider>
+            <NextAuthProvider>
+              <AppContent>{children}</AppContent>
+            </NextAuthProvider>
+          </NotificationProvider>
+        </UserDataProvider>
+      </ThemeProvider>
     </SessionProvider>
   );
 } 
