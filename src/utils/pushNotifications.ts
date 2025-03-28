@@ -104,6 +104,103 @@ export async function requestNotificationPermission(): Promise<PushSubscription 
   }
 }
 
+// Key for caching subscription status
+const SUBSCRIPTION_STATUS_KEY = 'push_subscription_status';
+const SUBSCRIPTION_STATUS_TIMESTAMP_KEY = 'push_subscription_status_timestamp';
+const CACHE_TIMEOUT_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+// Check if user is already subscribed
+export async function checkSubscription(): Promise<boolean> {
+  try {
+    if (!isPushSupported()) {
+      return false;
+    }
+
+    // First check localStorage cache to avoid unnecessary API calls
+    try {
+      const cachedStatus = localStorage.getItem(SUBSCRIPTION_STATUS_KEY);
+      const cachedTimestamp = localStorage.getItem(SUBSCRIPTION_STATUS_TIMESTAMP_KEY);
+      
+      if (cachedStatus && cachedTimestamp) {
+        const timestamp = parseInt(cachedTimestamp, 10);
+        const now = Date.now();
+        
+        // If cache is fresh (less than 24 hours old), use it
+        if (now - timestamp < CACHE_TIMEOUT_MS) {
+          return cachedStatus === 'true';
+        }
+      }
+    } catch (error) {
+      console.error('Error reading from localStorage:', error);
+      // Continue with normal flow if localStorage fails
+    }
+
+    // Wait for service worker to be ready
+    const registration = await navigator.serviceWorker.ready;
+    if (!registration?.pushManager) {
+      return false;
+    }
+
+    // Check if subscription exists
+    const subscription = await registration.pushManager.getSubscription();
+    if (!subscription) {
+      // Cache the result
+      try {
+        localStorage.setItem(SUBSCRIPTION_STATUS_KEY, 'false');
+        localStorage.setItem(SUBSCRIPTION_STATUS_TIMESTAMP_KEY, Date.now().toString());
+      } catch (error) {
+        console.error('Error writing to localStorage:', error);
+      }
+      return false;
+    }
+    
+    // Verify the subscription with the server
+    try {
+      const response = await fetch('/api/push/validate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          endpoint: subscription.endpoint,
+        }),
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        const isValid = result.valid === true;
+        
+        // Cache the result
+        try {
+          localStorage.setItem(SUBSCRIPTION_STATUS_KEY, isValid.toString());
+          localStorage.setItem(SUBSCRIPTION_STATUS_TIMESTAMP_KEY, Date.now().toString());
+        } catch (error) {
+          console.error('Error writing to localStorage:', error);
+        }
+        
+        return isValid;
+      }
+    } catch (error) {
+      console.error('Error validating subscription with server:', error);
+      // If server validation fails, fall back to local check
+    }
+    
+    // If server validation failed or wasn't available, just check locally
+    // Cache the result that we have a subscription
+    try {
+      localStorage.setItem(SUBSCRIPTION_STATUS_KEY, 'true');
+      localStorage.setItem(SUBSCRIPTION_STATUS_TIMESTAMP_KEY, Date.now().toString());
+    } catch (error) {
+      console.error('Error writing to localStorage:', error);
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error checking subscription:', error);
+    return false;
+  }
+}
+
 // Save subscription to server
 async function saveSubscriptionToServer(subscription: PushSubscription): Promise<boolean> {
   try {
@@ -125,32 +222,18 @@ async function saveSubscriptionToServer(subscription: PushSubscription): Promise
       const error = await response.json();
       throw new Error(error.message || 'Failed to save subscription');
     }
+    
+    // Update local cache after successful server save
+    try {
+      localStorage.setItem(SUBSCRIPTION_STATUS_KEY, 'true');
+      localStorage.setItem(SUBSCRIPTION_STATUS_TIMESTAMP_KEY, Date.now().toString());
+    } catch (error) {
+      console.error('Error writing to localStorage:', error);
+    }
 
     return true;
   } catch (error) {
     console.error('Error saving subscription to server:', error);
-    return false;
-  }
-}
-
-// Check if user is already subscribed
-export async function checkSubscription(): Promise<boolean> {
-  try {
-    if (!isPushSupported()) {
-      return false;
-    }
-
-    // Wait for service worker to be ready
-    const registration = await navigator.serviceWorker.ready;
-    if (!registration?.pushManager) {
-      return false;
-    }
-
-    // Check if subscription exists
-    const subscription = await registration.pushManager.getSubscription();
-    return !!subscription;
-  } catch (error) {
-    console.error('Error checking subscription:', error);
     return false;
   }
 }
@@ -169,6 +252,13 @@ export async function unsubscribeFromPushNotifications(): Promise<boolean> {
 
     const subscription = await registration.pushManager.getSubscription();
     if (!subscription) {
+      // Already unsubscribed, update cache
+      try {
+        localStorage.setItem(SUBSCRIPTION_STATUS_KEY, 'false');
+        localStorage.setItem(SUBSCRIPTION_STATUS_TIMESTAMP_KEY, Date.now().toString());
+      } catch (error) {
+        console.error('Error writing to localStorage:', error);
+      }
       return true; // Already unsubscribed
     }
 
@@ -185,6 +275,15 @@ export async function unsubscribeFromPushNotifications(): Promise<boolean> {
 
     // Unsubscribe locally
     const result = await subscription.unsubscribe();
+    
+    // Update local cache after unsubscription
+    try {
+      localStorage.setItem(SUBSCRIPTION_STATUS_KEY, 'false');
+      localStorage.setItem(SUBSCRIPTION_STATUS_TIMESTAMP_KEY, Date.now().toString());
+    } catch (error) {
+      console.error('Error writing to localStorage:', error);
+    }
+    
     return result;
   } catch (error) {
     console.error('Error unsubscribing from push notifications:', error);

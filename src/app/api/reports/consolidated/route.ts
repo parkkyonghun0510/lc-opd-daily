@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { NextRequest } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import { getToken } from "next-auth/jwt";
-import { startOfDay, endOfDay, startOfWeek, endOfWeek, format } from "date-fns";
+import { startOfDay, endOfDay, startOfWeek, endOfWeek, format, subDays } from "date-fns";
 
 const prisma = new PrismaClient();
 
@@ -19,13 +19,33 @@ export async function GET(request: NextRequest) {
 
     // Parse date parameters
     const dateParam = searchParams.get("date");
+    const fromDateParam = searchParams.get("fromDate");
+    const toDateParam = searchParams.get("toDate");
     const periodParam = searchParams.get("period") || "day"; // 'day', 'week', 'month'
 
     let startDate: Date;
     let endDate: Date;
+    let periodType: "day" | "week" | "month" = "day";
 
-    if (dateParam) {
+    // Check if we have a date range (fromDate and toDate)
+    if (fromDateParam && toDateParam) {
+      startDate = startOfDay(new Date(fromDateParam));
+      endDate = endOfDay(new Date(toDateParam));
+      
+      // Determine period type based on date range
+      const daysInRange = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+      if (daysInRange > 60) {
+        periodType = "month";
+      } else if (daysInRange > 10) {
+        periodType = "week";
+      } else {
+        periodType = "day";
+      }
+    }
+    // Otherwise use single date + period
+    else if (dateParam) {
       const date = new Date(dateParam);
+      periodType = periodParam as "day" | "week" | "month";
 
       if (periodParam === "week") {
         startDate = startOfWeek(date, { weekStartsOn: 1 }); // Week starts on Monday
@@ -43,6 +63,7 @@ export async function GET(request: NextRequest) {
       const today = new Date();
       startDate = startOfDay(today);
       endDate = endOfDay(today);
+      periodType = "day";
     }
 
     // Get all branches for counting
@@ -100,13 +121,15 @@ export async function GET(request: NextRequest) {
         name: branch.name,
       }));
 
-    // Get historical data for trends (last 7 periods)
+    // Get historical data for trends
     const historicalData = [];
-
-    if (periodParam === "day") {
-      // Get daily data for the past 7 days
-      for (let i = 0; i < 7; i++) {
-        const currentDate = new Date(startDate);
+    
+    const numDataPoints = 7; // Number of historical data points to fetch
+    
+    if (periodType === "day") {
+      // Get daily data for the past N days
+      for (let i = 0; i < numDataPoints; i++) {
+        const currentDate = new Date(endDate);
         currentDate.setDate(currentDate.getDate() - i);
 
         const dayStart = startOfDay(currentDate);
@@ -140,10 +163,10 @@ export async function GET(request: NextRequest) {
           count: dayReports.length,
         });
       }
-    } else if (periodParam === "week") {
-      // Get weekly data for the past 7 weeks
-      for (let i = 0; i < 7; i++) {
-        const currentWeekStart = new Date(startDate);
+    } else if (periodType === "week") {
+      // Get weekly data for the past N weeks
+      for (let i = 0; i < numDataPoints; i++) {
+        const currentWeekStart = new Date(endDate);
         currentWeekStart.setDate(currentWeekStart.getDate() - i * 7);
 
         const weekStart = startOfWeek(currentWeekStart, { weekStartsOn: 1 });
@@ -180,10 +203,10 @@ export async function GET(request: NextRequest) {
           count: weekReports.length,
         });
       }
-    } else if (periodParam === "month") {
-      // Get monthly data for the past 7 months
-      for (let i = 0; i < 7; i++) {
-        const currentMonth = new Date(startDate);
+    } else if (periodType === "month") {
+      // Get monthly data for the past N months
+      for (let i = 0; i < numDataPoints; i++) {
+        const currentMonth = new Date(endDate);
         currentMonth.setMonth(currentMonth.getMonth() - i);
 
         const monthStart = new Date(
@@ -252,11 +275,15 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    return NextResponse.json({
+    // Sort branches by write-offs amount (descending)
+    branchData.sort((a, b) => b.writeOffs - a.writeOffs);
+
+    // Generate the final response
+    const response = {
       period: {
         start: startDate.toISOString(),
         end: endDate.toISOString(),
-        type: periodParam,
+        type: periodType,
       },
       metrics: {
         totalWriteOffs,
@@ -268,11 +295,13 @@ export async function GET(request: NextRequest) {
       missingBranches: missingBranchIds,
       branchData,
       historicalData,
-    });
+    };
+
+    return NextResponse.json(response);
   } catch (error) {
-    console.error("Error fetching consolidated report data:", error);
+    console.error("Error generating consolidated report:", error);
     return NextResponse.json(
-      { error: "Failed to fetch consolidated report data" },
+      { error: "Failed to generate consolidated report" },
       { status: 500 }
     );
   }

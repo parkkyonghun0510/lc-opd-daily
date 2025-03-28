@@ -507,6 +507,14 @@ const BranchDetailDialog = ({
 
 export default function ConsolidatedView() {
   const [date, setDate] = useState<Date | undefined>(new Date());
+  const [dateRange, setDateRange] = useState<{
+    from: Date | undefined;
+    to: Date | undefined;
+  }>({
+    from: new Date(),
+    to: new Date(),
+  });
+  const [filterType, setFilterType] = useState<"single" | "range">("single");
   const [period, setPeriod] = useState<"day" | "week" | "month">("day");
   const [reportType, setReportType] = useState<"plan" | "actual">("actual");
   const [isLoading, setIsLoading] = useState(false);
@@ -544,6 +552,14 @@ export default function ConsolidatedView() {
     if (!date || isNaN(date.getTime())) {
       setDate(new Date());
     }
+
+    if (!dateRange.from || isNaN(dateRange.from.getTime())) {
+      setDateRange((prev) => ({ ...prev, from: new Date() }));
+    }
+
+    if (!dateRange.to || isNaN(dateRange.to.getTime())) {
+      setDateRange((prev) => ({ ...prev, to: new Date() }));
+    }
   }, []);
 
   useEffect(() => {
@@ -554,7 +570,7 @@ export default function ConsolidatedView() {
     } else {
       setPlanData(null);
     }
-  }, [date, period, reportType]);
+  }, [date, dateRange, filterType, reportType]);
 
   // Animation effect when period changes
   useEffect(() => {
@@ -580,20 +596,40 @@ export default function ConsolidatedView() {
   }, [period]);
 
   const fetchConsolidatedData = async () => {
-    if (!date) return;
+    if ((filterType === "single" && !date) || 
+        (filterType === "range" && (!dateRange.from || !dateRange.to))) {
+      return;
+    }
 
     // Check if date is valid before proceeding
-    if (!(date instanceof Date) || isNaN(date.getTime())) {
+    if (filterType === "single" && (!(date instanceof Date) || isNaN(date.getTime()))) {
       setError("Invalid date selected. Please select a valid date.");
       return;
+    }
+
+    // Check if date range is valid
+    if (filterType === "range") {
+      if (!(dateRange.from instanceof Date) || isNaN(dateRange.from.getTime()) ||
+          !(dateRange.to instanceof Date) || isNaN(dateRange.to.getTime())) {
+        setError("Invalid date range selected. Please select valid dates.");
+        return;
+      }
     }
 
     setIsLoading(true);
     setError("");
 
     try {
-      const formattedDate = `${date.getUTCFullYear()}-${(date.getUTCMonth() + 1).toString().padStart(2, "0")}-${date.getUTCDate().toString().padStart(2, "0")}`;
-      const url = `/api/reports/consolidated?date=${formattedDate}&period=${period}&type=${reportType}`;
+      let url = "";
+      
+      if (filterType === "single") {
+        const formattedDate = `${date!.getUTCFullYear()}-${(date!.getUTCMonth() + 1).toString().padStart(2, "0")}-${date!.getUTCDate().toString().padStart(2, "0")}`;
+        url = `/api/reports/consolidated?date=${formattedDate}&type=${reportType}`;
+      } else {
+        const formattedFromDate = `${dateRange.from!.getUTCFullYear()}-${(dateRange.from!.getUTCMonth() + 1).toString().padStart(2, "0")}-${dateRange.from!.getUTCDate().toString().padStart(2, "0")}`;
+        const formattedToDate = `${dateRange.to!.getUTCFullYear()}-${(dateRange.to!.getUTCMonth() + 1).toString().padStart(2, "0")}-${dateRange.to!.getUTCDate().toString().padStart(2, "0")}`;
+        url = `/api/reports/consolidated?fromDate=${formattedFromDate}&toDate=${formattedToDate}&type=${reportType}`;
+      }
 
       const response = await fetch(url);
 
@@ -632,17 +668,30 @@ export default function ConsolidatedView() {
   };
 
   const fetchPlanDataForComparison = async () => {
-    if (!date) return;
+    if ((filterType === "single" && !date) || 
+        (filterType === "range" && (!dateRange.from || !dateRange.to))) {
+      return;
+    }
 
     // Validate date
-    if (!(date instanceof Date) || isNaN(date.getTime())) {
+    if ((filterType === "single" && (!(date instanceof Date) || isNaN(date.getTime()))) ||
+        (filterType === "range" && (!(dateRange.from instanceof Date) || isNaN(dateRange.from.getTime()) ||
+                                    !(dateRange.to instanceof Date) || isNaN(dateRange.to.getTime())))) {
       console.error("Invalid date for plan data comparison");
       return;
     }
 
     try {
-      const formattedDate = `${date.getUTCFullYear()}-${(date.getUTCMonth() + 1).toString().padStart(2, "0")}-${date.getUTCDate().toString().padStart(2, "0")}`;
-      const url = `/api/reports/consolidated?date=${formattedDate}&period=${period}&type=plan`;
+      let url = "";
+      
+      if (filterType === "single") {
+        const formattedDate = `${date!.getUTCFullYear()}-${(date!.getUTCMonth() + 1).toString().padStart(2, "0")}-${date!.getUTCDate().toString().padStart(2, "0")}`;
+        url = `/api/reports/consolidated?date=${formattedDate}&type=plan`;
+      } else {
+        const formattedFromDate = `${dateRange.from!.getUTCFullYear()}-${(dateRange.from!.getUTCMonth() + 1).toString().padStart(2, "0")}-${dateRange.from!.getUTCDate().toString().padStart(2, "0")}`;
+        const formattedToDate = `${dateRange.to!.getUTCFullYear()}-${(dateRange.to!.getUTCMonth() + 1).toString().padStart(2, "0")}-${dateRange.to!.getUTCDate().toString().padStart(2, "0")}`;
+        url = `/api/reports/consolidated?fromDate=${formattedFromDate}&toDate=${formattedToDate}&type=plan`;
+      }
 
       const response = await fetch(url);
 
@@ -698,8 +747,31 @@ export default function ConsolidatedView() {
     }
 
     try {
-      // Create CSV header
-      let csvContent = "Branch,Write-Offs (KHR),90+ Days (KHR),Reported\n";
+      // Get date range information for header
+      const reportStartDate = new Date(consolidatedData.period.start);
+      const reportEndDate = new Date(consolidatedData.period.end);
+      const startDateStr = format(reportStartDate, "yyyy-MM-dd");
+      const endDateStr = format(reportEndDate, "yyyy-MM-dd");
+      
+      // Format period type for header
+      const periodTypeStr = consolidatedData.period.type.charAt(0).toUpperCase() + consolidatedData.period.type.slice(1);
+      
+      // Create date range string based on period type
+      let dateRangeStr = "";
+      if (filterType === "single") {
+        dateRangeStr = `Date: ${format(date || new Date(), "PPP")}`;
+      } else {
+        dateRangeStr = `Date Range: ${dateRange.from ? format(dateRange.from, "PPP") : ''} to ${dateRange.to ? format(dateRange.to, "PPP") : ''}`;
+      }
+      
+      // Create CSV metadata header
+      let csvContent = "LC OPD Daily Report System\n";
+      csvContent += `Report Type: ${reportType.charAt(0).toUpperCase() + reportType.slice(1)}\n`;
+      csvContent += `${dateRangeStr}\n`;
+      csvContent += `Period Type: ${periodTypeStr}\n\n`;
+      
+      // Create CSV data header
+      csvContent += "Branch,Write-Offs (KHR),90+ Days (KHR),Reported\n";
 
       // Add data rows
       consolidatedData.branchData.forEach((branch) => {
@@ -717,15 +789,17 @@ export default function ConsolidatedView() {
       const link = document.createElement("a");
 
       // Format the current date for the filename
-      const reportDate = new Date(consolidatedData.period.start);
-      const formattedDate = reportDate.toISOString().split("T")[0];
+      const formattedDate = format(reportStartDate, "yyyy-MM-dd");
+      const formattedEndDate = format(reportEndDate, "yyyy-MM-dd");
+      
+      // Create filename with date range if using range filter
+      const filename = filterType === "range" 
+        ? `consolidated_report_${reportType}_${formattedDate}_to_${formattedEndDate}.csv`
+        : `consolidated_report_${reportType}_${formattedDate}.csv`;
 
       // Set link properties and trigger download
       link.setAttribute("href", url);
-      link.setAttribute(
-        "download",
-        `consolidated_report_${period}_${formattedDate}.csv`
-      );
+      link.setAttribute("download", filename);
       link.style.visibility = "hidden";
       document.body.appendChild(link);
       link.click();
@@ -762,42 +836,81 @@ export default function ConsolidatedView() {
         throw new Error("Could not open print window");
       }
 
-      // Format the date
-      const reportDate = new Date(consolidatedData.period.start);
-      const formattedDate = reportDate.toISOString().split("T")[0];
+      // Format dates
+      const reportStartDate = new Date(consolidatedData.period.start);
+      const reportEndDate = new Date(consolidatedData.period.end);
+      const startDateStr = format(reportStartDate, "PPP");
+      const endDateStr = format(reportEndDate, "PPP");
+      
+      // Create date range string based on filter type
+      let dateRangeStr = "";
+      if (filterType === "single") {
+        dateRangeStr = `Date: ${format(date || new Date(), "PPP")}`;
+      } else {
+        dateRangeStr = `Date Range: ${dateRange.from ? format(dateRange.from, "PPP") : ''} to ${dateRange.to ? format(dateRange.to, "PPP") : ''}`;
+      }
+      
+      // Get logo URL (adjust path as needed)
+      const logoUrl = window.location.origin + "/lc-logo.png";
+      
+      // Format period type for title
+      const periodTypeStr = consolidatedData.period.type.charAt(0).toUpperCase() + consolidatedData.period.type.slice(1);
 
       // Create the HTML content
       printWindow.document.write(`
         <html>
           <head>
-            <title>Consolidated Report ${
-              period.charAt(0).toUpperCase() + period.slice(1)
-            } - ${formattedDate}</title>
+            <title>Consolidated Report ${reportType} - ${startDateStr}</title>
             <style>
               body { font-family: Arial, sans-serif; margin: 20px; }
-              h1 { color: #333; }
+              .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+              .logo { max-height: 60px; }
+              .report-title { text-align: right; }
+              h1 { color: #333; margin: 0; }
+              .report-meta { color: #666; margin-top: 5px; }
+              .date-range { font-weight: bold; }
               table { border-collapse: collapse; width: 100%; margin-top: 20px; }
               th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
               th { background-color: #f2f2f2; }
               .summary { margin-top: 30px; font-weight: bold; }
               .footer { margin-top: 50px; font-size: 12px; color: #666; }
+              .metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin: 20px 0; }
+              .metric-card { border: 1px solid #ddd; padding: 15px; border-radius: 5px; }
+              .metric-title { font-size: 14px; color: #666; margin: 0; }
+              .metric-value { font-size: 22px; font-weight: bold; margin: 10px 0 0 0; }
             </style>
           </head>
           <body>
-            <h1>Consolidated ${
-              period.charAt(0).toUpperCase() + period.slice(1)
-            } Report - ${formattedDate}</h1>
+            <div class="header">
+              <img src="${logoUrl}" class="logo" alt="Company Logo">
+              <div class="report-title">
+                <h1>Consolidated ${periodTypeStr} Report</h1>
+                <div class="report-meta">
+                  <p>Report Type: ${reportType.charAt(0).toUpperCase() + reportType.slice(1)}</p>
+                  <p class="date-range">${dateRangeStr}</p>
+                </div>
+              </div>
+            </div>
             
-            <div>
-              <p><strong>Total Write-Offs:</strong> ${formatKHRCurrency(
-                consolidatedData?.metrics.totalWriteOffs || 0.0
-              )}</p>
-              <p><strong>Total 90+ Days:</strong> ${formatKHRCurrency(
-                consolidatedData?.metrics.totalNinetyPlus || 0.0
-              )}</p>
-              <p><strong>Branches Reported:</strong> ${
-                consolidatedData?.metrics.reportedBranches || 0.0
-              } of ${consolidatedData?.metrics.totalBranches || 0.0}</p>
+            <div class="metrics">
+              <div class="metric-card">
+                <p class="metric-title">Total Write-Offs</p>
+                <p class="metric-value">${formatKHRCurrency(
+                  consolidatedData?.metrics.totalWriteOffs || 0.0
+                )}</p>
+              </div>
+              <div class="metric-card">
+                <p class="metric-title">Total 90+ Days</p>
+                <p class="metric-value">${formatKHRCurrency(
+                  consolidatedData?.metrics.totalNinetyPlus || 0.0
+                )}</p>
+              </div>
+              <div class="metric-card">
+                <p class="metric-title">Branches Reported</p>
+                <p class="metric-value">${
+                  consolidatedData?.metrics.reportedBranches || 0.0
+                } of ${consolidatedData?.metrics.totalBranches || 0.0}</p>
+              </div>
             </div>
             
             <table>
@@ -835,14 +948,14 @@ export default function ConsolidatedView() {
       printWindow.document.close();
       printWindow.focus();
 
-      // Delay printing to ensure content is loaded
+      // Delay printing to ensure content is loaded and logo is rendered
       setTimeout(() => {
         printWindow.print();
         toast({
           title: "Success",
           description: "PDF export initiated",
         });
-      }, 500);
+      }, 1000);
     } catch (error) {
       console.error("Error exporting PDF:", error);
       toast({
@@ -1384,91 +1497,121 @@ export default function ConsolidatedView() {
             </div>
           </div>
 
-          {/* Period Selection */}
+          {/* Filter Type Selection */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full sm:w-auto">
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-0">
-                View by:
+                Filter by:
               </span>
               <Tabs
-                value={period}
+                value={filterType}
                 onValueChange={(value: string) => {
-                  if (
-                    value === "day" ||
-                    value === "week" ||
-                    value === "month"
-                  ) {
-                    setPeriod(value as "day" | "week" | "month");
+                  if (value === "single" || value === "range") {
+                    setFilterType(value as "single" | "range");
                   }
                 }}
                 className="w-full sm:w-auto"
               >
                 <TabsList className="w-full sm:w-auto dark:bg-gray-800">
                   <TabsTrigger
-                    value="day"
+                    value="single"
                     className="flex-1 dark:data-[state=active]:bg-gray-700"
                   >
-                    Daily
+                    Single Date
                   </TabsTrigger>
                   <TabsTrigger
-                    value="week"
+                    value="range"
                     className="flex-1 dark:data-[state=active]:bg-gray-700"
                   >
-                    Weekly
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="month"
-                    className="flex-1 dark:data-[state=active]:bg-gray-700"
-                  >
-                    Monthly
+                    Date Range
                   </TabsTrigger>
                 </TabsList>
               </Tabs>
             </div>
             <p className="text-sm text-gray-500 dark:text-gray-400">
               {consolidatedData
-                ? `Data for ${
-                    period === "day"
-                      ? "daily"
-                      : period === "week"
-                        ? "weekly"
-                        : "monthly"
-                  } period ${format(date || new Date(), "MMMM d, yyyy")}`
-                : "Select a date and period to view data"}
+                ? filterType === "single"
+                  ? `Data for ${format(date || new Date(), "MMMM d, yyyy")}`
+                  : `Data from ${format(dateRange.from || new Date(), "MMMM d, yyyy")} to ${format(dateRange.to || new Date(), "MMMM d, yyyy")}`
+                : "Select date(s) to view data"}
             </p>
           </div>
 
           {/* Date Selection and Action Buttons */}
           <div className="flex flex-col sm:flex-row justify-between gap-4 mb-6">
             <div className="flex items-center w-full sm:w-auto">
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant={"outline"}
-                    className="w-full sm:w-[240px] justify-start text-left font-normal"
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {date ? format(date, "PPP") : <span>Pick a date</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar
-                    mode="single"
-                    selected={date}
-                    onSelect={(newDate) => {
-                      // Ensure we set a valid date or fallback to today
-                      setDate(newDate || new Date());
-                    }}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
+              {filterType === "single" ? (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant={"outline"}
+                      className="w-full sm:w-[240px] justify-start text-left font-normal"
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {date ? format(date, "PPP") : <span>Pick a date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={date}
+                      onSelect={(newDate) => {
+                        // Ensure we set a valid date or fallback to today
+                        setDate(newDate || new Date());
+                      }}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              ) : (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant={"outline"}
+                      className="w-full sm:w-[300px] justify-start text-left font-normal"
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {dateRange.from ? (
+                        dateRange.to ? (
+                          <>
+                            {format(dateRange.from, "LLL dd, y")} -{" "}
+                            {format(dateRange.to, "LLL dd, y")}
+                          </>
+                        ) : (
+                          format(dateRange.from, "LLL dd, y")
+                        )
+                      ) : (
+                        <span>Pick a date range</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="range"
+                      selected={{
+                        from: dateRange.from,
+                        to: dateRange.to,
+                      }}
+                      onSelect={(range) => {
+                        setDateRange({
+                          from: range?.from,
+                          to: range?.to,
+                        });
+                      }}
+                      numberOfMonths={2}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              )}
             </div>
 
             <div className="flex flex-wrap gap-2 w-full sm:w-auto justify-between sm:justify-end">
               <Button
                 onClick={handleGenerateReport}
-                disabled={!date || isLoading}
+                disabled={(filterType === "single" && !date) || 
+                         (filterType === "range" && (!dateRange.from || !dateRange.to)) || 
+                         isLoading}
                 className="flex-1 sm:flex-none sm:w-32"
               >
                 {isLoading ? (
@@ -2007,7 +2150,7 @@ export default function ConsolidatedView() {
                   )}
 
                 {/* Plan vs Actual Comparison (only show when viewing actual data and plan data is available) */}
-                {reportType === "actual" && planData && (
+                {reportType === "actual" && planData && consolidatedData && (
                   <div className="mt-6">
                     <h3 className="text-lg font-medium mb-4">
                       Plan vs. Actual Comparison
@@ -2167,132 +2310,134 @@ export default function ConsolidatedView() {
                 )}
 
                 {/* Branch Status Table */}
-                <div className="mt-6">
-                  <h3 className="text-lg font-medium mb-4">Branch Status</h3>
-                  <div className="rounded-md border overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="whitespace-nowrap">
-                            Branch
-                          </TableHead>
-                          <TableHead className="whitespace-nowrap text-right">
-                            Write-offs
-                          </TableHead>
-                          {reportType === "actual" && planData && (
-                            <TableHead className="whitespace-nowrap text-center">
-                              Achievement
+                {consolidatedData && (
+                  <div className="mt-6">
+                    <h3 className="text-lg font-medium mb-4">Branch Status</h3>
+                    <div className="rounded-md border overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="whitespace-nowrap">
+                              Branch
                             </TableHead>
-                          )}
-                          <TableHead className="whitespace-nowrap text-right">
-                            90+ Days
-                          </TableHead>
-                          {reportType === "actual" && planData && (
-                            <TableHead className="whitespace-nowrap text-center">
-                              Achievement
+                            <TableHead className="whitespace-nowrap text-right">
+                              Write-offs
                             </TableHead>
-                          )}
-                          <TableHead className="whitespace-nowrap text-center">
-                            Status
-                          </TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {consolidatedData.branchData.map((branch: Branch) => {
-                          // Find corresponding plan data for this branch when in actual view
-                          const planBranch =
-                            reportType === "actual" && planData
-                              ? planData.branchData.find(
-                                  (plan) => plan.branchId === branch.branchId
-                                )
-                              : null;
+                            {reportType === "actual" && planData && (
+                              <TableHead className="whitespace-nowrap text-center">
+                                Achievement
+                              </TableHead>
+                            )}
+                            <TableHead className="whitespace-nowrap text-right">
+                              90+ Days
+                            </TableHead>
+                            {reportType === "actual" && planData && (
+                              <TableHead className="whitespace-nowrap text-center">
+                                Achievement
+                              </TableHead>
+                            )}
+                            <TableHead className="whitespace-nowrap text-center">
+                              Status
+                            </TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {consolidatedData.branchData.map((branch: Branch) => {
+                            // Find corresponding plan data for this branch when in actual view
+                            const planBranch =
+                              reportType === "actual" && planData
+                                ? planData.branchData.find(
+                                    (plan) => plan.branchId === branch.branchId
+                                  )
+                                : null;
 
-                          // Calculate achievement percentages
-                          const writeOffsAchievement =
-                            planBranch?.writeOffs && planBranch.writeOffs > 0
-                              ? (branch.writeOffs / planBranch.writeOffs) * 100
-                              : 0;
+                            // Calculate achievement percentages
+                            const writeOffsAchievement =
+                              planBranch?.writeOffs && planBranch.writeOffs > 0
+                                ? (branch.writeOffs / planBranch.writeOffs) * 100
+                                : 0;
 
-                          const ninetyPlusAchievement =
-                            planBranch?.ninetyPlus && planBranch.ninetyPlus > 0
-                              ? (branch.ninetyPlus / planBranch.ninetyPlus) *
-                                100
-                              : 0;
+                            const ninetyPlusAchievement =
+                              planBranch?.ninetyPlus && planBranch.ninetyPlus > 0
+                                ? (branch.ninetyPlus / planBranch.ninetyPlus) *
+                                  100
+                                : 0;
 
-                          return (
-                            <TableRow key={branch.branchId}>
-                              <TableCell className="whitespace-nowrap font-medium">
-                                {branch.branchCode}
-                              </TableCell>
-                              <TableCell className="whitespace-nowrap text-right">
-                                {formatKHRCurrency(branch.writeOffs)}
-                              </TableCell>
-                              {reportType === "actual" && planData && (
-                                <TableCell className="whitespace-nowrap text-center">
-                                  {planBranch?.writeOffs &&
-                                  planBranch.writeOffs > 0 ? (
-                                    <Badge
-                                      className={cn(
-                                        "font-medium",
-                                        writeOffsAchievement >= 100
-                                          ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-                                          : writeOffsAchievement >= 80
-                                            ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
-                                            : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
-                                      )}
-                                    >
-                                      {writeOffsAchievement.toFixed(1)}%
-                                    </Badge>
-                                  ) : (
-                                    <span className="text-gray-400">N/A</span>
-                                  )}
+                            return (
+                              <TableRow key={branch.branchId}>
+                                <TableCell className="whitespace-nowrap font-medium">
+                                  {branch.branchCode}
                                 </TableCell>
-                              )}
-                              <TableCell className="whitespace-nowrap text-right">
-                                {formatKHRCurrency(branch.ninetyPlus)}
-                              </TableCell>
-                              {reportType === "actual" && planData && (
-                                <TableCell className="whitespace-nowrap text-center">
-                                  {planBranch?.ninetyPlus &&
-                                  planBranch.ninetyPlus > 0 ? (
-                                    <Badge
-                                      className={cn(
-                                        "font-medium",
-                                        ninetyPlusAchievement >= 100
-                                          ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-                                          : ninetyPlusAchievement >= 80
-                                            ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
-                                            : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
-                                      )}
-                                    >
-                                      {ninetyPlusAchievement.toFixed(1)}%
-                                    </Badge>
-                                  ) : (
-                                    <span className="text-gray-400">N/A</span>
-                                  )}
+                                <TableCell className="whitespace-nowrap text-right">
+                                  {formatKHRCurrency(branch.writeOffs)}
                                 </TableCell>
-                              )}
-                              <TableCell className="whitespace-nowrap text-center">
-                                {branch.hasReports ? (
-                                  <Badge className="bg-green-500">
-                                    Reported
-                                  </Badge>
-                                ) : (
-                                  <Badge
-                                    variant="outline"
-                                    className="border-yellow-500 text-yellow-500"
-                                  >
-                                    Missing
-                                  </Badge>
+                                {reportType === "actual" && planData && (
+                                  <TableCell className="whitespace-nowrap text-center">
+                                    {planBranch?.writeOffs &&
+                                    planBranch.writeOffs > 0 ? (
+                                      <Badge
+                                        className={cn(
+                                          "font-medium",
+                                          writeOffsAchievement >= 100
+                                            ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+                                            : writeOffsAchievement >= 80
+                                              ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
+                                              : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
+                                          )}
+                                        >
+                                          {writeOffsAchievement.toFixed(1)}%
+                                        </Badge>
+                                      ) : (
+                                        <span className="text-gray-400">N/A</span>
+                                      )}
+                                  </TableCell>
                                 )}
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
+                                <TableCell className="whitespace-nowrap text-right">
+                                  {formatKHRCurrency(branch.ninetyPlus)}
+                                </TableCell>
+                                {reportType === "actual" && planData && (
+                                  <TableCell className="whitespace-nowrap text-center">
+                                    {planBranch?.ninetyPlus &&
+                                    planBranch.ninetyPlus > 0 ? (
+                                      <Badge
+                                        className={cn(
+                                          "font-medium",
+                                          ninetyPlusAchievement >= 100
+                                            ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+                                            : ninetyPlusAchievement >= 80
+                                              ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
+                                              : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
+                                          )}
+                                        >
+                                          {ninetyPlusAchievement.toFixed(1)}%
+                                        </Badge>
+                                      ) : (
+                                        <span className="text-gray-400">N/A</span>
+                                      )}
+                                  </TableCell>
+                                )}
+                                <TableCell className="whitespace-nowrap text-center">
+                                  {branch.hasReports ? (
+                                    <Badge className="bg-green-500">
+                                      Reported
+                                    </Badge>
+                                  ) : (
+                                    <Badge
+                                      variant="outline"
+                                      className="border-yellow-500 text-yellow-500"
+                                    >
+                                      Missing
+                                    </Badge>
+                                  )}
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
                   </div>
-                </div>
+                )}
               </>
             )}
           </div>
