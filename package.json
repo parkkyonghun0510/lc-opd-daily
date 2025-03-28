@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "build:production": "NODE_ENV=production next build -- --no-lint",
+    "build:production": "NODE_ENV=production next build --no-lint",
     "deploy": "bash scripts/deploy-lightsail.sh",
     "build:deploy": "npm run build:production && npm run deploy",
     "build:deploy:no-lint": "NODE_ENV=production next build --no-lint && npm run deploy",
