@@ -24,6 +24,7 @@ export async function PUT(
     const userId = session.user.id;
     
     // Find the notification
+    // Fix the model name to match your Prisma schema
     const notification = await prisma.inAppNotification.findUnique({
       where: { id },
     });
@@ -63,4 +64,4 @@ export async function PUT(
       { status: 500 }
     );
   }
-} 
+}
