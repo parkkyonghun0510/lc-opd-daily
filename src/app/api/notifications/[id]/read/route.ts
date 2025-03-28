@@ -7,10 +7,10 @@ import { NextRequest } from "next/server";
 // Mark notification as read
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+  { params }: { params: Promise<{ id: string }> }
+): Promise<NextResponse> {
   try {
-    const id = params.id;
+    const { id } = await params;
     
     // Get the current user from the session
     const session = await getServerSession(authOptions);

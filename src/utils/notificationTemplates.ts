@@ -4,7 +4,10 @@ export enum NotificationType {
   REPORT_REJECTED = 'REPORT_REJECTED',
   REPORT_REMINDER = 'REPORT_REMINDER',
   REPORT_OVERDUE = 'REPORT_OVERDUE',
-  SYSTEM_NOTIFICATION = 'SYSTEM_NOTIFICATION'
+  SYSTEM_NOTIFICATION = 'SYSTEM_NOTIFICATION',
+  REPORT_NEEDS_REVISION = 'REPORT_NEEDS_REVISION',
+  APPROVAL_PENDING = 'APPROVAL_PENDING',
+  COMMENT_ADDED = 'COMMENT_ADDED'
 }
 
 interface NotificationContent {
@@ -78,6 +81,27 @@ export function generateNotificationContent(
       if (!data.title) defaultContent.title = 'System Notification';
       if (!data.url) defaultContent.url = '/dashboard';
       defaultContent.icon = '/icons/system-notification.png';
+      break;
+
+    case NotificationType.REPORT_NEEDS_REVISION:
+      if (!data.title) defaultContent.title = 'Report Needs Revision';
+      if (!data.body) defaultContent.body = `Your report requires some revisions before it can be approved.`;
+      if (!data.url) defaultContent.url = `/reports/${data.reportId || ''}`;
+      defaultContent.icon = '/icons/report-rejected.png';
+      break;
+
+    case NotificationType.APPROVAL_PENDING:
+      if (!data.title) defaultContent.title = 'Reports Pending Approval';
+      if (!data.body) defaultContent.body = `There are ${data.count || 'several'} reports waiting for your approval.`;
+      if (!data.url) defaultContent.url = '/reports/pending';
+      defaultContent.icon = '/icons/report-submitted.png';
+      break;
+
+    case NotificationType.COMMENT_ADDED:
+      if (!data.title) defaultContent.title = 'New Comment';
+      if (!data.body) defaultContent.body = `${data.commenter || 'Someone'} commented on a report.`;
+      if (!data.url) defaultContent.url = `/reports/${data.reportId || ''}`;
+      defaultContent.icon = '/icons/comment.png';
       break;
   }
 

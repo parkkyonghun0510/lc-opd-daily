@@ -140,7 +140,7 @@ export function TestPushNotification() {
               </div>
             </div>
             <Button 
-              onClick={() => sendNotification('REPORT_SUBMITTED', reportSubmitted)}
+              onClick={() => sendNotification(NotificationType.REPORT_SUBMITTED, reportSubmitted)}
               disabled={isLoading}
               className="w-full mt-4"
             >
@@ -172,21 +172,21 @@ export function TestPushNotification() {
             </div>
             <div className="grid grid-cols-3 gap-4 mt-4">
               <Button 
-                onClick={() => sendNotification('REPORT_APPROVED', reportStatus)}
+                onClick={() => sendNotification(NotificationType.REPORT_APPROVED, reportStatus)}
                 disabled={isLoading}
                 variant="outline"
               >
                 Approved
               </Button>
               <Button 
-                onClick={() => sendNotification('REPORT_REJECTED', reportStatus)}
+                onClick={() => sendNotification(NotificationType.REPORT_REJECTED, reportStatus)}
                 disabled={isLoading}
                 variant="outline"
               >
                 Rejected
               </Button>
               <Button 
-                onClick={() => sendNotification('REPORT_NEEDS_REVISION', reportStatus)}
+                onClick={() => sendNotification(NotificationType.REPORT_NEEDS_REVISION, reportStatus)}
                 disabled={isLoading}
                 variant="outline"
               >
@@ -209,7 +209,7 @@ export function TestPushNotification() {
               />
             </div>
             <Button 
-              onClick={() => sendNotification('APPROVAL_PENDING', approvalPending)}
+              onClick={() => sendNotification(NotificationType.APPROVAL_PENDING, approvalPending)}
               disabled={isLoading}
               className="w-full mt-4"
             >
@@ -256,7 +256,7 @@ export function TestPushNotification() {
               </div>
             </div>
             <Button 
-              onClick={() => sendNotification('COMMENT_ADDED', commentAdded)}
+              onClick={() => sendNotification(NotificationType.COMMENT_ADDED, commentAdded)}
               disabled={isLoading}
               className="w-full mt-4"
             >
