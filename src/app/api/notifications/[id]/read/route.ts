@@ -1,19 +1,16 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/prisma";
-import { authOptions } from "@/lib/auth";
-import { NextRequest } from "next/server";
 
-// Mark notification as read
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-): Promise<NextResponse> {
+// POST /api/notifications/[id]/read - Mark a notification as read
+export async function POST(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
-    const { id } = await params;
-    
-    // Get the current user from the session
     const session = await getServerSession(authOptions);
+
     if (!session?.user?.id) {
       return NextResponse.json(
         { error: "Unauthorized" },
@@ -21,41 +18,67 @@ export async function PUT(
       );
     }
 
-    const userId = session.user.id;
+    const { id } = params;
     
-    // Find the notification
-    // Fix the model name to match your Prisma schema
+    if (!id) {
+      return NextResponse.json(
+        { error: "Notification ID is required" },
+        { status: 400 }
+      );
+    }
+
+    // Get the notification to check ownership
     const notification = await prisma.inAppNotification.findUnique({
-      where: { id },
+      where: { id }
     });
-    
-    // Check if notification exists and belongs to user
+
     if (!notification) {
       return NextResponse.json(
         { error: "Notification not found" },
         { status: 404 }
       );
     }
-    
-    if (notification.userId !== userId) {
+
+    // Verify notification belongs to the user
+    if (notification.userId !== session.user.id) {
       return NextResponse.json(
-        { error: "Unauthorized" },
+        { error: "You don't have permission to access this notification" },
         { status: 403 }
       );
     }
-    
-    // Mark as read
+
+    // Already read, no need to update
+    if (notification.isRead) {
+      return NextResponse.json({
+        message: "Notification already marked as read"
+      });
+    }
+
+    // Update notification status
     const updatedNotification = await prisma.inAppNotification.update({
       where: { id },
       data: {
         isRead: true,
         readAt: new Date(),
-      },
+      }
     });
-    
+
+    // Create a "READ" event for the notification
+    await prisma.notificationEvent.create({
+      data: {
+        notificationId: id,
+        event: "READ",
+        metadata: {
+          readAt: new Date().toISOString(),
+          method: "api"
+        }
+      }
+    });
+
     return NextResponse.json({
       success: true,
       notification: updatedNotification,
+      message: "Notification marked as read"
     });
   } catch (error) {
     console.error("Error marking notification as read:", error);

@@ -1,14 +1,13 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/prisma";
-import { authOptions } from "@/lib/auth";
-import { getAccessibleBranches } from "@/lib/auth/branch-access";
 
-// Get notifications for the current user
-export async function GET(request: Request) {
+// GET /api/notifications - Get user notifications
+export async function GET(req: NextRequest) {
   try {
-    // Get the current user from the session
     const session = await getServerSession(authOptions);
+
     if (!session?.user?.id) {
       return NextResponse.json(
         { error: "Unauthorized" },
@@ -16,79 +15,69 @@ export async function GET(request: Request) {
       );
     }
 
-    const userId = session.user.id;
-    
-    // Parse URL to get query parameters
-    const { searchParams } = new URL(request.url);
-    const limit = parseInt(searchParams.get("limit") || "20");
-    const offset = parseInt(searchParams.get("offset") || "0");
-    const unreadOnly = searchParams.get("unread") === "true";
-    
-    // Get accessible branches for the user
-    const accessibleBranches = await getAccessibleBranches(userId);
-    const accessibleBranchIds = accessibleBranches.map(branch => branch.id);
-    
-    // Create base filter conditions
-    const where = {
-      userId,
-      ...(unreadOnly ? { isRead: false } : {}),
+    // Get query parameters
+    const url = new URL(req.url);
+    const limit = parseInt(url.searchParams.get("limit") || "20");
+    const offset = parseInt(url.searchParams.get("offset") || "0");
+    const showAll = url.searchParams.get("all") === "true";
+    const unreadOnly = url.searchParams.get("unread") === "true";
+
+    // Create filter based on parameters
+    const filter: any = {
+      userId: session.user.id,
     };
-    
-    // Get all notifications for the user first
-    const allNotifications = await prisma.inAppNotification.findMany({
-      where,
+
+    if (unreadOnly) {
+      filter.isRead = false;
+    }
+
+    // Get notifications with pagination
+    const notifications = await prisma.inAppNotification.findMany({
+      where: filter,
+      include: {
+        events: {
+          orderBy: {
+            timestamp: "desc"
+          },
+          take: 5
+        }
+      },
       orderBy: {
-        createdAt: "desc",
+        createdAt: "desc"
       },
       skip: offset,
-      take: limit,
+      take: limit
     });
 
-    // Filter notifications based on branch access
-    const filteredNotifications = allNotifications.filter(notification => {
-      // Always include system notifications
-      if (notification.type === 'SYSTEM_NOTIFICATION') {
-        return true;
-      }
-
-      // Parse the notification data
-      const data = notification.data as any;
-      
-      // If there's no branchId in the data, include it
-      if (!data?.branchId) {
-        return true;
-      }
-
-      // Check if the branchId is in the accessible branches
-      return accessibleBranchIds.includes(data.branchId);
-    });
-    
-    // Get total count for pagination
-    const totalCount = await prisma.inAppNotification.count({
-      where,
-    });
-    
-    // Count unread for badge
+    // Count unread notifications
     const unreadCount = await prisma.inAppNotification.count({
       where: {
-        userId,
-        isRead: false,
-      },
+        userId: session.user.id,
+        isRead: false
+      }
     });
-    
+
+    // Count total notifications
+    const totalCount = await prisma.inAppNotification.count({
+      where: {
+        userId: session.user.id
+      }
+    });
+
     return NextResponse.json({
-      notifications: filteredNotifications,
-      pagination: {
-        total: totalCount,
-        offset,
-        limit,
-      },
+      notifications,
       unreadCount,
+      totalCount,
+      pagination: {
+        limit,
+        offset,
+        hasMore: offset + notifications.length < totalCount
+      }
     });
   } catch (error) {
-    console.error("Error retrieving notifications:", error);
+    console.error("Error fetching notifications:", error);
     return NextResponse.json(
-      { error: "Failed to retrieve notifications" },
+      { error: "Failed to fetch notifications" },
       { status: 500 }
     );
   }

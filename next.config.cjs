@@ -35,6 +35,7 @@ const nextConfig = {
   },
   experimental: {
     // Add any existing experimental options here
+    outputStandalone: true,
   },
 };
 

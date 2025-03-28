@@ -1,65 +1,117 @@
-export const notificationTemplates = {
-    REPORT_SUBMITTED: {
-        title: 'New Report Submitted',
-        body: (data) => `A new report has been submitted by ${data.submitterName || 'a user'} and requires review.`,
-        icon: '/icons/report.png',
-        url: (data) => `/reports/${data.reportId}`,
-    },
-    REPORT_APPROVED: {
-        title: 'Report Approved',
-        body: (data) => `Your report has been approved by ${data.approverName || 'a manager'}.`,
-        icon: '/icons/approved.png',
-        url: (data) => `/reports/${data.reportId}`,
-    },
-    REPORT_REJECTED: {
-        title: 'Report Rejected',
-        body: (data) => `Your report has been rejected by ${data.approverName || 'a manager'}. Please review the feedback.`,
-        icon: '/icons/rejected.png',
-        url: (data) => `/reports/${data.reportId}`,
-    },
-    REPORT_NEEDS_REVISION: {
-        title: 'Report Needs Revision',
-        body: (data) => `Your report requires revisions as requested by ${data.requesterName || 'a manager'}.`,
-        icon: '/icons/revision.png',
-        url: (data) => `/reports/${data.reportId}`,
-    },
-    APPROVAL_PENDING: {
-        title: 'Approval Required',
-        body: (data) => `A report is awaiting your approval.`,
-        icon: '/icons/pending.png',
-        url: (data) => `/reports/${data.reportId}`,
-    },
-    COMMENT_ADDED: {
-        title: 'New Comment Added',
-        body: (data) => `${data.commenterName || 'Someone'} added a comment to a report you're involved with.`,
-        icon: '/icons/comment.png',
-        url: (data) => `/reports/${data.reportId}`,
-    },
-    GENERAL_ANNOUNCEMENT: {
-        title: 'Announcement',
-        body: (data) => data.message || 'Important announcement from the system.',
-        icon: '/icons/announcement.png',
-        url: (data) => data.url || '/',
-    },
-    TEST_NOTIFICATION: {
-        title: 'Test Notification',
-        body: (data) => data.message || 'This is a test notification.',
-        icon: '/icons/test.png',
-        url: (data) => '/',
-    }
-};
+export var NotificationType;
+(function (NotificationType) {
+    NotificationType["REPORT_SUBMITTED"] = "REPORT_SUBMITTED";
+    NotificationType["REPORT_APPROVED"] = "REPORT_APPROVED";
+    NotificationType["REPORT_REJECTED"] = "REPORT_REJECTED";
+    NotificationType["REPORT_REMINDER"] = "REPORT_REMINDER";
+    NotificationType["REPORT_OVERDUE"] = "REPORT_OVERDUE";
+    NotificationType["SYSTEM_NOTIFICATION"] = "SYSTEM_NOTIFICATION";
+    NotificationType["REPORT_NEEDS_REVISION"] = "REPORT_NEEDS_REVISION";
+    NotificationType["APPROVAL_PENDING"] = "APPROVAL_PENDING";
+    NotificationType["COMMENT_ADDED"] = "COMMENT_ADDED";
+})(NotificationType || (NotificationType = {}));
 /**
  * Generate notification content based on type and data
  */
-export function generateNotificationContent(type, data) {
-    const template = notificationTemplates[type];
-    if (!template) {
-        throw new Error(`No template found for notification type: ${type}`);
-    }
-    return {
-        title: template.title,
-        body: template.body(data),
-        icon: template.icon || '/icons/default.png',
-        url: template.url ? template.url(data) : '/',
+export function generateNotificationContent(type, data = {}) {
+    // Default notification content
+    const defaultContent = {
+        title: 'Notification',
+        body: 'You have a new notification',
+        icon: '/icons/default.png',
+        url: '/',
+        data: {}
     };
+    // Override with provided data
+    if (data.title)
+        defaultContent.title = data.title;
+    if (data.body)
+        defaultContent.body = data.body;
+    if (data.icon)
+        defaultContent.icon = data.icon;
+    if (data.url)
+        defaultContent.url = data.url;
+    // Type-specific content
+    switch (type) {
+        case NotificationType.REPORT_SUBMITTED:
+            if (!data.title)
+                defaultContent.title = 'New Report Submitted';
+            if (!data.body)
+                defaultContent.body = `A new report has been submitted by ${data.submitterName || 'a user'} and requires review.`;
+            if (!data.url)
+                defaultContent.url = `/reports/${data.reportId || ''}`;
+            defaultContent.icon = '/icons/report-submitted.png';
+            break;
+        case NotificationType.REPORT_APPROVED:
+            if (!data.title)
+                defaultContent.title = 'Report Approved';
+            if (!data.body)
+                defaultContent.body = `Your report has been approved by ${data.approverName || 'a manager'}.`;
+            if (!data.url)
+                defaultContent.url = `/reports/${data.reportId || ''}`;
+            defaultContent.icon = '/icons/report-approved.png';
+            break;
+        case NotificationType.REPORT_REJECTED:
+            if (!data.title)
+                defaultContent.title = 'Report Rejected';
+            if (!data.body)
+                defaultContent.body = `Your report has been rejected by ${data.approverName || 'a manager'}.`;
+            if (!data.url)
+                defaultContent.url = `/reports/${data.reportId || ''}`;
+            defaultContent.icon = '/icons/report-rejected.png';
+            break;
+        case NotificationType.REPORT_REMINDER:
+            if (!data.title)
+                defaultContent.title = 'Report Reminder';
+            if (!data.body)
+                defaultContent.body = `You have reports due for ${data.date || 'today'}.`;
+            if (!data.url)
+                defaultContent.url = '/reports/create';
+            defaultContent.icon = '/icons/report-reminder.png';
+            break;
+        case NotificationType.REPORT_OVERDUE:
+            if (!data.title)
+                defaultContent.title = 'Report Overdue';
+            if (!data.body)
+                defaultContent.body = `Your report for ${data.date || 'a recent date'} is now overdue.`;
+            if (!data.url)
+                defaultContent.url = '/reports/create';
+            defaultContent.icon = '/icons/report-overdue.png';
+            break;
+        case NotificationType.SYSTEM_NOTIFICATION:
+            if (!data.title)
+                defaultContent.title = 'System Notification';
+            if (!data.url)
+                defaultContent.url = '/dashboard';
+            defaultContent.icon = '/icons/system-notification.png';
+            break;
+        case NotificationType.REPORT_NEEDS_REVISION:
+            if (!data.title)
+                defaultContent.title = 'Report Needs Revision';
+            if (!data.body)
+                defaultContent.body = `Your report requires some revisions before it can be approved.`;
+            if (!data.url)
+                defaultContent.url = `/reports/${data.reportId || ''}`;
+            defaultContent.icon = '/icons/report-rejected.png';
+            break;
+        case NotificationType.APPROVAL_PENDING:
+            if (!data.title)
+                defaultContent.title = 'Reports Pending Approval';
+            if (!data.body)
+                defaultContent.body = `There are ${data.count || 'several'} reports waiting for your approval.`;
+            if (!data.url)
+                defaultContent.url = '/reports/pending';
+            defaultContent.icon = '/icons/report-submitted.png';
+            break;
+        case NotificationType.COMMENT_ADDED:
+            if (!data.title)
+                defaultContent.title = 'New Comment';
+            if (!data.body)
+                defaultContent.body = `${data.commenter || 'Someone'} commented on a report.`;
+            if (!data.url)
+                defaultContent.url = `/reports/${data.reportId || ''}`;
+            defaultContent.icon = '/icons/comment.png';
+            break;
+    }
+    return defaultContent;
 }
