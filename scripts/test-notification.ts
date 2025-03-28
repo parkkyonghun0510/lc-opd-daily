@@ -21,7 +21,7 @@ async function testNotificationFlow() {
     console.log("✅ Successfully created notification in database:", notification.id);
     
     // Create event for the notification
-    const event = await prisma.notificationEvent.create({
+    const event = await (prisma as any).notificationEvent.create({
       data: {
         notificationId: notification.id,
         event: "DELIVERED",
