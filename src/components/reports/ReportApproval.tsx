@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Label } from "@/components/ui/label";
 import { UserDisplayName } from "@/components/user/UserDisplayName";
+import { approveReportAction } from "@/app/_actions/report-actions";
 
 interface Report {
   id: string;
@@ -78,24 +79,17 @@ export function ReportApproval({
     try {
       const status = isApproveDialogOpen ? "approved" : "rejected";
       
-      const response = await fetch(`/api/reports/${report.id}/approve`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          status,
-          comments: remarks.trim(),
-          notifyUsers: true
-        }),
-      });
+      // Use server action instead of fetch API
+      const result = await approveReportAction(
+        report.id, 
+        status as 'approved' | 'rejected', 
+        remarks.trim(),
+        true // notifyUsers
+      );
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `Failed to ${status} report`);
+      if (!result.success) {
+        throw new Error(result.error || `Failed to ${status} report`);
       }
-
-      const result = await response.json();
 
       toast({
         title: "Success",

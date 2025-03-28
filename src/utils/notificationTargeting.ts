@@ -3,6 +3,138 @@ import { NotificationType } from './notificationTemplates';
 import { getAccessibleBranches } from '@/lib/auth/branch-access';
 
 /**
+ * Get all branches in the hierarchy, including the branch and all its ancestors
+ * @param branchId The branch ID to get hierarchy for
+ * @returns Array of branch IDs in the hierarchy (including the branch itself)
+ */
+async function getBranchHierarchy(branchId: string): Promise<string[]> {
+  const branchIds = new Set<string>();
+  branchIds.add(branchId);
+  
+  // Find the branch and all its ancestors
+  let currentBranchId: string | null = branchId;
+  while (currentBranchId) {
+    const branch: { parentId: string | null } | null = await prisma.branch.findUnique({
+      where: { id: currentBranchId },
+      select: { parentId: true }
+    });
+    
+    if (branch?.parentId) {
+      branchIds.add(branch.parentId);
+      currentBranchId = branch.parentId;
+    } else {
+      currentBranchId = null;
+    }
+  }
+  
+  return Array.from(branchIds);
+}
+
+/**
+ * Get all sub-branches beneath a branch in the hierarchy
+ * @param branchId The parent branch ID
+ * @returns Array of branch IDs below this branch
+ */
+async function getSubBranches(branchId: string): Promise<string[]> {
+  // Function to recursively find child branches
+  async function findChildBranches(parentId: string): Promise<string[]> {
+    const childBranches = await prisma.branch.findMany({
+      where: { parentId },
+      select: { id: true }
+    });
+    
+    const childIds = childBranches.map(b => b.id);
+    const descendantIds: string[] = [];
+    
+    // Recursively get children of children
+    for (const childId of childIds) {
+      const descendants = await findChildBranches(childId);
+      descendantIds.push(...descendants);
+    }
+    
+    return [...childIds, ...descendantIds];
+  }
+  
+  return await findChildBranches(branchId);
+}
+
+/**
+ * Get managers of a branch (including roles with management permissions)
+ * @param branchId The branch ID
+ * @returns Array of user IDs who manage this branch
+ */
+async function getBranchManagers(branchId: string): Promise<string[]> {
+  const managers = await prisma.user.findMany({
+    where: {
+      OR: [
+        {
+          // Direct branch managers
+          userRoles: {
+            some: {
+              role: {
+                name: {
+                  in: ['manager', 'admin', 'approver', 'branch_manager', 'BRANCH_MANAGER']
+                }
+              },
+              branchId
+            }
+          },
+          isActive: true
+        },
+        {
+          // Users with their primary branch set to this branch and have manager role
+          branchId,
+          userRoles: {
+            some: {
+              role: {
+                name: {
+                  in: ['manager', 'admin', 'approver', 'branch_manager', 'BRANCH_MANAGER']
+                }
+              }
+            }
+          },
+          isActive: true
+        }
+      ]
+    },
+    select: { id: true }
+  });
+  
+  return managers.map(manager => manager.id);
+}
+
+/**
+ * Get global admins across the system
+ * @returns Array of admin user IDs
+ */
+async function getGlobalAdmins(): Promise<string[]> {
+  const admins = await prisma.user.findMany({
+    where: {
+      OR: [
+        {
+          role: 'ADMIN',
+          isActive: true
+        },
+        {
+          userRoles: {
+            some: {
+              role: {
+                name: 'admin'
+              },
+              branchId: null // Global admins have no branch restriction
+            }
+          },
+          isActive: true
+        }
+      ]
+    },
+    select: { id: true }
+  });
+  
+  return admins.map(admin => admin.id);
+}
+
+/**
  * Get user IDs that should receive a specific notification
  * Returns an array of user IDs who should receive the notification
  */
@@ -27,52 +159,37 @@ export async function getUsersForNotification(
   }
 
   try {
+    // Always include global admins for all notifications
+    const globalAdmins = await getGlobalAdmins();
+    userIds.push(...globalAdmins);
+    
+    // Extract branchId directly or from the branch object if provided
+    const branchId = data.branchId || (data.branch?.id || null);
+    
+    if (!branchId) {
+      console.log('No branch ID provided for notification targeting.');
+      return [...new Set(userIds)]; // Return unique user IDs
+    }
+    
     switch (type) {
-      case NotificationType.REPORT_SUBMITTED:
-        // Send to managers and approvers for the branch
-        // Extract branchId directly or from the branch object if provided
-        const branchId = data.branchId || (data.branch?.id || null);
+      case NotificationType.REPORT_SUBMITTED: {
+        // 1. Include branch managers of the current branch
+        const directManagers = await getBranchManagers(branchId);
+        userIds.push(...directManagers);
         
-        if (branchId) {
-          // Get branch managers and users with approval role
-          const branchManagers = await prisma.user.findMany({
-            where: {
-              OR: [
-                {
-                  userRoles: {
-                    some: {
-                      role: {
-                        name: {
-                          in: ['manager', 'admin', 'approver']
-                        }
-                      },
-                      branchId: branchId
-                    }
-                  }
-                },
-                {
-                  userRoles: {
-                    some: {
-                      role: {
-                        name: 'admin'
-                      },
-                      branchId: null // Global admins
-                    }
-                  }
-                }
-              ],
-              isActive: true // Only active users
-            },
-            select: { id: true }
-          });
-          
-          userIds = [...userIds, ...branchManagers.map(user => user.id)];
+        // 2. Include managers of parent branches (notify up the hierarchy)
+        const parentBranches = await getBranchHierarchy(branchId);
+        for (const parentId of parentBranches) {
+          if (parentId !== branchId) { // Skip the current branch as we already added its managers
+            const parentManagers = await getBranchManagers(parentId);
+            userIds.push(...parentManagers);
+          }
         }
         break;
-
-      case NotificationType.REPORT_APPROVED:
-      case NotificationType.REPORT_REJECTED:
-        // Get the report submitter
+      }
+        
+      case NotificationType.REPORT_APPROVED: {
+        // For approvals, notify the report submitter and immediate branch members
         if (data.reportId) {
           const report = await prisma.report.findUnique({
             where: { id: data.reportId },
@@ -82,18 +199,108 @@ export async function getUsersForNotification(
           if (report) {
             // Add the report submitter
             userIds.push(report.submittedBy);
+            
+            // Add branch members with roles that should know about approvals
+            const branchMembers = await prisma.user.findMany({
+              where: {
+                OR: [
+                  { branchId: report.branchId },
+                  {
+                    branchAssignments: {
+                      some: { branchId: report.branchId }
+                    }
+                  }
+                ],
+                userRoles: {
+                  some: {
+                    role: {
+                      name: {
+                        in: ['manager', 'reporter', 'user', 'BRANCH_MANAGER', 'USER', 'SUPERVISOR']
+                      }
+                    }
+                  }
+                },
+                isActive: true
+              },
+              select: { id: true }
+            });
+            
+            userIds.push(...branchMembers.map(user => user.id));
+          }
+        }
+        break;
+      }
+        
+      case NotificationType.REPORT_REJECTED: {
+        // For rejections, notify the submitter, branch managers, and parent branch managers
+        if (data.reportId) {
+          const report = await prisma.report.findUnique({
+            where: { id: data.reportId },
+            select: { submittedBy: true, branchId: true }
+          });
 
-            // For rejections, also notify branch managers
-            if (type === NotificationType.REPORT_REJECTED) {
-              // Get all users who have access to this branch
-              const branchUsers = await prisma.user.findMany({
+          if (report) {
+            // Add the report submitter
+            userIds.push(report.submittedBy);
+            
+            // Add direct branch managers
+            const directManagers = await getBranchManagers(report.branchId);
+            userIds.push(...directManagers);
+            
+            // Add parent branch managers
+            const parentBranches = await getBranchHierarchy(report.branchId);
+            for (const parentId of parentBranches) {
+              if (parentId !== report.branchId) {
+                const parentManagers = await getBranchManagers(parentId);
+                userIds.push(...parentManagers);
+              }
+            }
+          }
+        }
+        break;
+      }
+        
+      case NotificationType.REPORT_NEEDS_REVISION: {
+        // Similar to rejection but focus on submitter and their immediate supervisors
+        if (data.reportId) {
+          const report = await prisma.report.findUnique({
+            where: { id: data.reportId },
+            select: { submittedBy: true, branchId: true }
+          });
+
+          if (report) {
+            // Add the report submitter
+            userIds.push(report.submittedBy);
+            
+            // Add direct branch managers
+            const directManagers = await getBranchManagers(report.branchId);
+            userIds.push(...directManagers);
+            
+            // Find the submitter's supervisor (if any)
+            const submitter = await prisma.user.findUnique({
+              where: { id: report.submittedBy },
+              include: {
+                userRoles: {
+                  include: {
+                    role: true,
+                    branch: true
+                  }
+                }
+              }
+            });
+            
+            if (submitter) {
+              // Look for users with supervisor roles for this user's branch
+              const supervisors = await prisma.user.findMany({
                 where: {
                   userRoles: {
                     some: {
                       role: {
-                        name: 'manager'
+                        name: {
+                          in: ['SUPERVISOR', 'supervisor']
+                        }
                       },
-                      branchId: report.branchId
+                      branchId: submitter.branchId
                     }
                   },
                   isActive: true
@@ -101,96 +308,157 @@ export async function getUsersForNotification(
                 select: { id: true }
               });
               
-              userIds = [...userIds, ...branchUsers.map(user => user.id)];
+              userIds.push(...supervisors.map(user => user.id));
             }
           }
         }
         break;
-
+      }
+        
+      case NotificationType.APPROVAL_PENDING: {
+        // Notify users with approval permissions for this branch and parent branches
+        // 1. Direct branch approvers
+        const directApprovers = await prisma.user.findMany({
+          where: {
+            userRoles: {
+              some: {
+                role: {
+                  name: {
+                    in: ['admin', 'approver', 'manager', 'ADMIN', 'BRANCH_MANAGER']
+                  }
+                },
+                branchId
+              }
+            },
+            isActive: true
+          },
+          select: { id: true }
+        });
+        
+        userIds.push(...directApprovers.map(user => user.id));
+        
+        // 2. Parent branch approvers
+        const parentBranches = await getBranchHierarchy(branchId);
+        for (const parentId of parentBranches) {
+          if (parentId !== branchId) {
+            const parentApprovers = await prisma.user.findMany({
+              where: {
+                userRoles: {
+                  some: {
+                    role: {
+                      name: {
+                        in: ['admin', 'approver', 'manager', 'ADMIN', 'BRANCH_MANAGER']
+                      }
+                    },
+                    branchId: parentId
+                  }
+                },
+                isActive: true
+              },
+              select: { id: true }
+            });
+            
+            userIds.push(...parentApprovers.map(user => user.id));
+          }
+        }
+        break;
+      }
+        
       case NotificationType.REPORT_REMINDER:
-        // For due date reminders, get users who should submit reports for specified date
-        if (data.date && data.branchId) {
-          // Get all users who have access to this branch
-          const branchUsers = await prisma.user.findMany({
+      case NotificationType.REPORT_OVERDUE: {
+        // For reminders/overdue notices, notify branch users who should submit reports
+        // and their direct supervisors/managers
+        const branchUsers = await prisma.user.findMany({
+          where: {
+            OR: [
+              { branchId },
+              {
+                branchAssignments: {
+                  some: { branchId }
+                }
+              }
+            ],
+            userRoles: {
+              some: {
+                role: {
+                  name: {
+                    in: ['reporter', 'user', 'manager', 'USER', 'SUPERVISOR', 'BRANCH_MANAGER']
+                  }
+                }
+              }
+            },
+            isActive: true
+          },
+          select: { id: true }
+        });
+        
+        userIds.push(...branchUsers.map(user => user.id));
+        
+        // Add direct branch managers if not already included
+        const directManagers = await getBranchManagers(branchId);
+        userIds.push(...directManagers);
+        break;
+      }
+        
+      case NotificationType.COMMENT_ADDED: {
+        // For comments, notify users involved with the report
+        if (data.reportId) {
+          const report = await prisma.report.findUnique({
+            where: { id: data.reportId },
+            select: { submittedBy: true, branchId: true }
+          });
+          
+          if (report) {
+            // 1. Add report submitter
+            userIds.push(report.submittedBy);
+            
+            // 2. Add branch managers
+            const directManagers = await getBranchManagers(report.branchId);
+            userIds.push(...directManagers);
+            
+            // 3. Add users involved in prior comments (if tracked)
+            if (data.commenters && Array.isArray(data.commenters)) {
+              userIds.push(...data.commenters);
+            }
+            
+            // Skip the commenter (don't notify the person who made the comment)
+            if (data.commenter) {
+              userIds = userIds.filter(id => id !== data.commenter);
+            }
+          }
+        }
+        break;
+      }
+        
+      case NotificationType.SYSTEM_NOTIFICATION: {
+        // System notifications can target users by roles or all users
+        if (data.roles && Array.isArray(data.roles) && data.roles.length > 0) {
+          const usersWithRoles = await prisma.user.findMany({
             where: {
               OR: [
-                { branchId: data.branchId },
                 {
-                  branchAssignments: {
+                  role: {
+                    in: data.roles
+                  }
+                },
+                {
+                  userRoles: {
                     some: {
-                      branchId: data.branchId
+                      role: {
+                        name: {
+                          in: data.roles
+                        }
+                      }
                     }
                   }
                 }
               ],
-              userRoles: {
-                some: {
-                  role: {
-                    name: {
-                      in: ['reporter', 'manager', 'user']
-                    }
-                  }
-                }
-              },
               isActive: true
             },
             select: { id: true }
           });
           
-          userIds = [...userIds, ...branchUsers.map(user => user.id)];
-        }
-        break;
-
-      case NotificationType.REPORT_OVERDUE:
-        // Get branch managers and the report owner
-        if (data.branchId) {
-          // Get all users who have access to this branch
-          const branchUsers = await prisma.user.findMany({
-            where: {
-              userRoles: {
-                some: {
-                  role: {
-                    name: {
-                      in: ['manager', 'admin']
-                    }
-                  },
-                  branchId: data.branchId
-                }
-              },
-              isActive: true
-            },
-            select: { id: true }
-          });
-          
-          userIds = [...userIds, ...branchUsers.map(user => user.id)];
-        }
-        
-        // Also include the specific user responsible if known
-        if (data.userId) {
-          userIds.push(data.userId);
-        }
-        break;
-
-      case NotificationType.SYSTEM_NOTIFICATION:
-        // System notifications can be sent to all users or specific roles
-        if (data.roles && Array.isArray(data.roles) && data.roles.length > 0) {
-          const usersWithRoles = await prisma.user.findMany({
-            where: {
-              userRoles: {
-                some: {
-                  role: {
-                    name: {
-                      in: data.roles
-                    }
-                  }
-                }
-              },
-              isActive: true
-            },
-            select: { id: true }
-          });
-          
-          userIds = [...userIds, ...usersWithRoles.map(user => user.id)];
+          userIds.push(...usersWithRoles.map(user => user.id));
         } else if (data.allUsers) {
           // Send to all active users
           const allUsers = await prisma.user.findMany({
@@ -200,9 +468,88 @@ export async function getUsersForNotification(
             select: { id: true }
           });
           
-          userIds = [...userIds, ...allUsers.map(user => user.id)];
+          userIds.push(...allUsers.map(user => user.id));
+        } else if (data.branchId) {
+          // If branch hierarchy targeting is specified
+          if (data.includeSubBranches) {
+            // Include users from sub-branches
+            const subBranches = await getSubBranches(data.branchId);
+            const allBranchIds = [data.branchId, ...subBranches];
+            
+            const branchUsers = await prisma.user.findMany({
+              where: {
+                OR: [
+                  {
+                    branchId: {
+                      in: allBranchIds
+                    }
+                  },
+                  {
+                    branchAssignments: {
+                      some: {
+                        branchId: {
+                          in: allBranchIds
+                        }
+                      }
+                    }
+                  }
+                ],
+                isActive: true
+              },
+              select: { id: true }
+            });
+            
+            userIds.push(...branchUsers.map(user => user.id));
+          } else if (data.includeParentBranches) {
+            // Include users from parent branches
+            const parentBranches = await getBranchHierarchy(data.branchId);
+            
+            const branchUsers = await prisma.user.findMany({
+              where: {
+                OR: [
+                  {
+                    branchId: {
+                      in: parentBranches
+                    }
+                  },
+                  {
+                    branchAssignments: {
+                      some: {
+                        branchId: {
+                          in: parentBranches
+                        }
+                      }
+                    }
+                  }
+                ],
+                isActive: true
+              },
+              select: { id: true }
+            });
+            
+            userIds.push(...branchUsers.map(user => user.id));
+          } else {
+            // Just this specific branch
+            const branchUsers = await prisma.user.findMany({
+              where: {
+                OR: [
+                  { branchId: data.branchId },
+                  {
+                    branchAssignments: {
+                      some: { branchId: data.branchId }
+                    }
+                  }
+                ],
+                isActive: true
+              },
+              select: { id: true }
+            });
+            
+            userIds.push(...branchUsers.map(user => user.id));
+          }
         }
         break;
+      }
 
       default:
         console.log(`Unhandled notification type: ${type}`);
@@ -210,9 +557,9 @@ export async function getUsersForNotification(
     }
   } catch (error) {
     console.error(`Error getting users for notification type ${type}:`, error);
-    // Return empty array on error, or could throw based on your error handling preference
+    // Return current user IDs even on error, to ensure at least some notifications are sent
   }
 
-  // Remove duplicates
+  // Remove duplicates and return
   return [...new Set(userIds)];
 } 

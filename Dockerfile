@@ -49,12 +49,22 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 # Copy prisma schema and migrations
 COPY --from=builder /app/prisma ./prisma
 
+# Copy worker and scripts
+COPY --from=builder /app/scripts ./scripts
+COPY --from=builder /app/ecosystem.production.config.cjs ./
+
 # Install only production dependencies
 COPY package.json package-lock.json ./
 RUN npm ci --only=production
 
 # Generate Prisma client in production
 RUN npx prisma generate
+
+# Make scripts executable
+RUN chmod +x ./scripts/*.sh
+
+# Install PM2 globally
+RUN npm install -g pm2
 
 USER nextjs
 
@@ -63,4 +73,5 @@ EXPOSE 3000
 ENV PORT 3000
 ENV HOSTNAME "0.0.0.0"
 
-CMD ["node", "server.js"] 
+# Use PM2 to start both the app and worker
+CMD ["pm2-runtime", "ecosystem.production.config.cjs"] 

@@ -1,100 +1,102 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getToken } from "next-auth/jwt";
+"use server";
+
+import { getServerSession } from "next-auth";
+import { revalidatePath } from "next/cache";
+import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/prisma";
-import { Permission, UserRole, checkPermission } from "@/lib/auth/roles";
 import { AuditAction, createServerAuditLog } from "@/lib/audit";
 import { NotificationType } from "@/utils/notificationTemplates";
 import { sendToNotificationQueue } from "@/lib/queue/sqs";
 import { getUsersForNotification } from "@/utils/notificationTargeting";
 import { hasBranchAccess } from "@/lib/auth/branch-access";
 import { createDirectNotifications } from "@/utils/createDirectNotification";
+import { Permission, UserRole, checkPermission } from "@/lib/auth/roles";
 
-// POST /api/reports/[id]/approve - Approve or reject a report
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+/**
+ * Server action to approve or reject a report
+ */
+export async function approveReportAction(
+  reportId: string,
+  status: 'approved' | 'rejected',
+  comments?: string,
+  notifyUsers: boolean = true
 ) {
   try {
-    const token = await getToken({ req: request });
+    const session = await getServerSession(authOptions);
 
-    if (!token) {
-      return NextResponse.json(
-        { error: "Unauthorized - Authentication required" },
-        { status: 401 }
-      );
+    if (!session?.user?.id) {
+      return { 
+        success: false, 
+        error: "Unauthorized - Authentication required" 
+      };
     }
 
     // Check if user has permission to approve reports
-    const userRole = token.role as UserRole;
+    const userRole = session.user.role as UserRole;
     if (!checkPermission(userRole, Permission.APPROVE_REPORTS)) {
-      return NextResponse.json(
-        { error: "Forbidden - You don't have permission to approve reports" },
-        { status: 403 }
-      );
+      return { 
+        success: false, 
+        error: "Forbidden - You don't have permission to approve reports" 
+      };
     }
 
-    const { id } = await params;
-    const { status, comments, notifyUsers = true } = await request.json();
-
-    if (!id) {
-      return NextResponse.json(
-        { error: "Report ID is required" },
-        { status: 400 }
-      );
+    if (!reportId) {
+      return { 
+        success: false, 
+        error: "Report ID is required" 
+      };
     }
 
     if (!status || !["approved", "rejected"].includes(status)) {
-      return NextResponse.json(
-        { error: "Valid status (approved or rejected) is required" },
-        { status: 400 }
-      );
+      return { 
+        success: false, 
+        error: "Valid status (approved or rejected) is required" 
+      };
     }
 
     // If rejecting, comments are required
     if (status === "rejected" && !comments) {
-      return NextResponse.json(
-        { error: "Comments are required when rejecting a report" },
-        { status: 400 }
-      );
+      return { 
+        success: false, 
+        error: "Comments are required when rejecting a report" 
+      };
     }
 
     // Check if report exists
     const report = await prisma.report.findUnique({
-      where: { id },
+      where: { id: reportId },
       include: {
         branch: true,
       },
     });
 
     if (!report) {
-      return NextResponse.json(
-        { error: "Report not found" },
-        { status: 404 }
-      );
+      return { 
+        success: false, 
+        error: "Report not found" 
+      };
     }
 
     // Only allow pending reports to be approved/rejected
     if (report.status !== "pending" && report.status !== "pending_approval") {
-      return NextResponse.json(
-        { 
-          error: `Report cannot be ${status}. Current status is: ${report.status}` 
-        },
-        { status: 400 }
-      );
+      return { 
+        success: false, 
+        error: `Report cannot be ${status}. Current status is: ${report.status}` 
+      };
     }
 
     // Check if user has access to this branch
-    const hasAccess = await hasBranchAccess(token.sub as string, report.branchId);
+    const hasAccess = await hasBranchAccess(session.user.id, report.branchId);
     if (!hasAccess) {
-      return NextResponse.json(
-        { error: "You don't have permission to approve reports for this branch" },
-        { status: 403 }
-      );
+      return { 
+        success: false, 
+        error: "You don't have permission to approve reports for this branch" 
+      };
     }
 
     // Update the report status
     const updatedReport = await prisma.report.update({
-      where: { id },
+      where: { id: reportId },
       data: {
         status,
         // Store approval/rejection comments if provided
@@ -102,9 +104,20 @@ export async function POST(
       },
     });
 
+    // Create a report history entry
+    await prisma.reportHistory.create({
+      data: {
+        reportId: report.id,
+        status,
+        comments: comments || null,
+        userId: session.user.id,
+        action: status === "approved" ? "approved" : "rejected"
+      }
+    });
+
     // Get approver's name for notifications
     const approver = await prisma.user.findUnique({
-      where: { id: token.sub as string },
+      where: { id: session.user.id },
       select: { name: true, id: true }
     });
     
@@ -117,7 +130,7 @@ export async function POST(
         : AuditAction.REPORT_REJECTED;
       
       await createServerAuditLog({
-        userId: token.sub as string,
+        userId: session.user.id,
         action: actionType,
         details: {
           reportId: report.id,
@@ -130,8 +143,8 @@ export async function POST(
           newStatus: status,
         },
         requestInfo: {
-          ipAddress: request.headers.get("x-forwarded-for") || "unknown",
-          userAgent: request.headers.get("user-agent") || "unknown",
+          ipAddress: "server-action",
+          userAgent: "server-action",
         },
         type: "userActivity"
       });
@@ -210,7 +223,7 @@ export async function POST(
                   branchName: report.branch.name,
                   approverName,
                   comments: comments || "",
-                  method: "fallback-after-sqs-error"
+                  method: "fallback-server-action"
                 }
               );
               
@@ -227,15 +240,146 @@ export async function POST(
       }
     }
 
-    return NextResponse.json({
-      message: `Report ${status} successfully`,
-      data: updatedReport
-    });
+    // Revalidate paths to update UI
+    revalidatePath("/dashboard/reports");
+    revalidatePath("/dashboard/reports/pending");
+    revalidatePath(`/reports/${reportId}`);
+    
+    return { 
+      success: true, 
+      data: updatedReport,
+      message: `Report ${status} successfully` 
+    };
   } catch (error) {
     console.error("Error processing report approval:", error);
-    return NextResponse.json(
-      { error: "Failed to process report approval" },
-      { status: 500 }
-    );
+    return { 
+      success: false, 
+      error: "Failed to process report approval" 
+    };
+  }
+}
+
+/**
+ * Server action to fetch pending reports for approval
+ */
+export async function fetchPendingReportsAction(type?: string) {
+  try {
+    const session = await getServerSession(authOptions);
+
+    if (!session?.user?.id) {
+      return { 
+        success: false, 
+        error: "Unauthorized - Authentication required" 
+      };
+    }
+
+    const filter: any = {
+      status: {
+        in: ["pending", "pending_approval"]
+      }
+    };
+
+    // Add type filter if specified
+    if (type) {
+      filter.reportType = type;
+    }
+
+    // Get all pending reports
+    const reports = await prisma.report.findMany({
+      where: filter,
+      include: {
+        branch: {
+          select: {
+            id: true,
+            name: true,
+            code: true
+          }
+        },
+        user: {
+          select: {
+            id: true,
+            name: true,
+            username: true
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+
+    return { 
+      success: true, 
+      reports 
+    };
+  } catch (error) {
+    console.error("Error fetching pending reports:", error);
+    return { 
+      success: false, 
+      error: "Failed to fetch pending reports" 
+    };
+  }
+}
+
+/**
+ * Server action to get report details
+ */
+export async function getReportDetailsAction(id: string) {
+  try {
+    const session = await getServerSession(authOptions);
+
+    if (!session?.user?.id) {
+      return { 
+        success: false, 
+        error: "Unauthorized" 
+      };
+    }
+
+    const report = await prisma.report.findUnique({
+      where: { id },
+      include: {
+        branch: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            username: true,
+            email: true
+          }
+        },
+        history: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                username: true
+              }
+            }
+          },
+          orderBy: {
+            createdAt: "desc"
+          }
+        }
+      }
+    });
+
+    if (!report) {
+      return { 
+        success: false, 
+        error: "Report not found" 
+      };
+    }
+
+    return { 
+      success: true, 
+      report 
+    };
+  } catch (error) {
+    console.error("Error fetching report details:", error);
+    return { 
+      success: false, 
+      error: "Failed to fetch report details" 
+    };
   }
 } 

@@ -171,9 +171,23 @@ model InAppNotification {
   readAt      DateTime?
   actionUrl   String?   // URL to navigate to when clicked
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  events      NotificationEvent[]
 
   @@index([userId])
   @@index([type])
   @@index([createdAt])
   @@index([isRead])
+}
+
+model NotificationEvent {
+  id             String   @id @default(cuid())
+  notificationId String
+  event          String   // QUEUED, SENT, DELIVERED, FAILED, CLICKED, CLOSED
+  metadata       Json?    // Additional data about the event
+  timestamp      DateTime @default(now())
+  notification   InAppNotification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  @@index([notificationId])
+  @@index([event])
+  @@index([timestamp])
 }

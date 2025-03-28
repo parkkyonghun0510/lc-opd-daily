@@ -1,33 +1,39 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
-import { redis } from "@/lib/redis";
+import { getPrisma } from "@/lib/prisma-server";
 
-const prisma = new PrismaClient();
-
-export const dynamic = 'force-dynamic';
-
+/**
+ * Health check endpoint for monitoring
+ * Returns system status information
+ */
 export async function GET() {
   try {
     // Check database connection
+    const prisma = await getPrisma();
     await prisma.$queryRaw`SELECT 1`;
-
-    // Check Redis connection
-    await redis.set("health_check", "ok", { ex: 10 });
-    const redisResult = await redis.get("health_check");
-
-    if (redisResult !== "ok") {
-      throw new Error("Redis health check failed");
-    }
-
-    return NextResponse.json(
-      { status: "healthy", message: "All systems operational" },
-      { status: 200 }
-    );
+    
+    const health = {
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      services: {
+        database: 'connected',
+        api: 'running'
+      },
+      version: process.env.NEXT_PUBLIC_APP_VERSION || '1.0.0'
+    };
+    
+    return NextResponse.json(health, { status: 200 });
   } catch (error) {
-    console.error("Health check failed:", error);
-    return NextResponse.json(
-      { status: "unhealthy", message: "System check failed" },
-      { status: 500 }
-    );
+    console.error('Health check failed:', error);
+    
+    const health = {
+      status: 'error',
+      timestamp: new Date().toISOString(),
+      services: {
+        database: error instanceof Error ? error.message : 'unknown error',
+        api: 'running'
+      }
+    };
+    
+    return NextResponse.json(health, { status: 500 });
   }
 }
