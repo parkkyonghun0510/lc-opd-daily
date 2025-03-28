@@ -104,17 +104,6 @@ export async function approveReportAction(
       },
     });
 
-    // Create a report history entry
-    await prisma.reportHistory.create({
-      data: {
-        reportId: report.id,
-        status,
-        comments: comments || null,
-        userId: session.user.id,
-        action: status === "approved" ? "approved" : "rejected"
-      }
-    });
-
     // Get approver's name for notifications
     const approver = await prisma.user.findUnique({
       where: { id: session.user.id },
@@ -206,7 +195,7 @@ export async function approveReportAction(
               // Generate title and body based on notification type
               let title = status === "approved" ? "Report Approved" : "Report Rejected";
               let body = status === "approved" 
-                ? `Your report has been approved by ${approverName}.`
+                ? `Your report has been approved by a manager.`
                 : `Your report has been rejected${comments ? ` with reason: ${comments}` : ""}.`;
               let actionUrl = `/reports/${report.id}`;
               
@@ -294,13 +283,6 @@ export async function fetchPendingReportsAction(type?: string) {
             name: true,
             code: true
           }
-        },
-        user: {
-          select: {
-            id: true,
-            name: true,
-            username: true
-          }
         }
       },
       orderBy: {
@@ -338,29 +320,7 @@ export async function getReportDetailsAction(id: string) {
     const report = await prisma.report.findUnique({
       where: { id },
       include: {
-        branch: true,
-        user: {
-          select: {
-            id: true,
-            name: true,
-            username: true,
-            email: true
-          }
-        },
-        history: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                username: true
-              }
-            }
-          },
-          orderBy: {
-            createdAt: "desc"
-          }
-        }
+        branch: true
       }
     });
 

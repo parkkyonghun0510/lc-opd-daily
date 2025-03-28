@@ -356,7 +356,9 @@ function NotificationListComponent({
                       if (!notification.isRead) {
                         markAsRead(notification.id);
                       }
-                      window.location.href = notification.actionUrl;
+                      if (notification.actionUrl) {
+                        window.location.href = notification.actionUrl;
+                      }
                     }}
                   >
                     View Details

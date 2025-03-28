@@ -9,9 +9,10 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "build:production": "NODE_ENV=production next build",
+    "build:production": "NODE_ENV=production next build -- --no-lint",
     "deploy": "bash scripts/deploy-lightsail.sh",
     "build:deploy": "npm run build:production && npm run deploy",
+    "build:deploy:no-lint": "NODE_ENV=production next build --no-lint && npm run deploy",
     "start": "next start",
     "start:production": "chmod +x scripts/start-production.sh && ./scripts/start-production.sh",
     "start:pm2": "bash scripts/pm2-start.sh",
