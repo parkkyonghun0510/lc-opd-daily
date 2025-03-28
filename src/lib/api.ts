@@ -2,6 +2,8 @@
  * Utility functions for API calls with authentication and error handling
  */
 
+import { NotificationType } from '@/utils/notificationTemplates';
+
 type FetchOptions = {
   method?: string;
   body?: any;
@@ -104,4 +106,95 @@ export async function fetchAdminStats() {
     throw new Error("Failed to fetch admin stats");
   }
   return response.json();
+}
+
+/**
+ * Send a notification for report approval status
+ * @param type The type of notification
+ * @param data Data related to the notification
+ * @returns Result of the notification creation
+ */
+export async function sendReportNotification(type: NotificationType, data: Record<string, any>) {
+  return secureApiCall<{ success: boolean; messageId?: string; userCount?: number }>('/api/notifications/send', {
+    method: 'POST',
+    body: { type, data }
+  });
+}
+
+/**
+ * Send a notification when a report is approved
+ * @param reportId ID of the approved report
+ * @param approverName Name of the person who approved the report
+ * @param additionalData Any additional data to include
+ */
+export async function sendReportApprovedNotification(
+  reportId: string, 
+  approverName: string,
+  additionalData: Record<string, any> = {}
+) {
+  return sendReportNotification(NotificationType.REPORT_APPROVED, {
+    reportId,
+    approverName,
+    ...additionalData
+  });
+}
+
+/**
+ * Send a notification when a report is rejected
+ * @param reportId ID of the rejected report
+ * @param approverName Name of the person who rejected the report
+ * @param reason Optional reason for rejection
+ * @param additionalData Any additional data to include
+ */
+export async function sendReportRejectedNotification(
+  reportId: string, 
+  approverName: string,
+  reason?: string,
+  additionalData: Record<string, any> = {}
+) {
+  return sendReportNotification(NotificationType.REPORT_REJECTED, {
+    reportId,
+    approverName,
+    reason,
+    ...additionalData
+  });
+}
+
+/**
+ * Send a notification when a report is submitted and needs approval
+ * @param reportId ID of the submitted report
+ * @param submitterName Name of the person who submitted the report
+ * @param branchId Branch ID related to the report
+ * @param additionalData Any additional data to include
+ */
+export async function sendReportSubmittedNotification(
+  reportId: string,
+  submitterName: string,
+  branchId: string,
+  additionalData: Record<string, any> = {}
+) {
+  return sendReportNotification(NotificationType.REPORT_SUBMITTED, {
+    reportId,
+    submitterName,
+    branchId,
+    ...additionalData
+  });
+}
+
+/**
+ * Send report due date reminders
+ * @param branchId Branch ID for which reports are due
+ * @param date Due date for the reports
+ * @param additionalData Any additional data to include
+ */
+export async function sendReportReminderNotification(
+  branchId: string,
+  date: string,
+  additionalData: Record<string, any> = {}
+) {
+  return sendReportNotification(NotificationType.REPORT_REMINDER, {
+    branchId,
+    date,
+    ...additionalData
+  });
 } 

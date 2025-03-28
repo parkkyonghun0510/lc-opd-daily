@@ -330,7 +330,6 @@ export default function UsersPage() {
     // Only include password if it was provided
     const updateData = {
       ...formData,
-      id: selectedUser.id,
       branchId: formData.branchId === "none" ? null : formData.branchId,
     };
 
@@ -339,7 +338,7 @@ export default function UsersPage() {
       const { password, ...dataWithoutPassword } = updateData;
 
       try {
-        const response = await fetch("/api/users", {
+        const response = await fetch(`/api/users/${selectedUser.id}`, {
           method: "PATCH",
           headers: {
             "Content-Type": "application/json",
@@ -367,7 +366,7 @@ export default function UsersPage() {
       }
     } else {
       try {
-        const response = await fetch("/api/users", {
+        const response = await fetch(`/api/users/${selectedUser.id}`, {
           method: "PATCH",
           headers: {
             "Content-Type": "application/json",
@@ -401,7 +400,7 @@ export default function UsersPage() {
     if (!selectedUser) return;
 
     try {
-      const response = await fetch(`/api/users?id=${selectedUser.id}`, {
+      const response = await fetch(`/api/users/${selectedUser.id}`, {
         method: "DELETE",
       });
 

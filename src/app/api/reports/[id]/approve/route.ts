@@ -3,6 +3,10 @@ import { getToken } from "next-auth/jwt";
 import { prisma } from "@/lib/prisma";
 import { Permission, UserRole, checkPermission } from "@/lib/auth/roles";
 import { AuditAction, createServerAuditLog } from "@/lib/audit";
+import { NotificationType } from "@/utils/notificationTemplates";
+import { sendToNotificationQueue } from "@/lib/queue/sqs";
+import { getUsersForNotification } from "@/utils/notificationTargeting";
+import { hasBranchAccess } from "@/lib/auth/branch-access";
 
 // POST /api/reports/[id]/approve - Approve or reject a report
 export async function POST(
@@ -29,7 +33,7 @@ export async function POST(
     }
 
     const { id } = await params;
-    const { status, comments, notifyUsers } = await request.json();
+    const { status, comments, notifyUsers = true } = await request.json();
 
     if (!id) {
       return NextResponse.json(
@@ -78,6 +82,15 @@ export async function POST(
       );
     }
 
+    // Check if user has access to this branch
+    const hasAccess = await hasBranchAccess(token.sub as string, report.branchId);
+    if (!hasAccess) {
+      return NextResponse.json(
+        { error: "You don't have permission to approve reports for this branch" },
+        { status: 403 }
+      );
+    }
+
     // Update the report status
     const updatedReport = await prisma.report.update({
       where: { id },
@@ -88,13 +101,20 @@ export async function POST(
       },
     });
 
+    // Get approver's name for notifications
+    const approver = await prisma.user.findUnique({
+      where: { id: token.sub as string },
+      select: { name: true, id: true }
+    });
+    
+    const approverName = approver?.name || 'A manager';
+
     // Create an audit log entry for the approval/rejection
     try {
       const actionType = status === "approved" 
         ? AuditAction.REPORT_APPROVED 
         : AuditAction.REPORT_REJECTED;
       
-      // Use the createServerAuditLog utility function
       await createServerAuditLog({
         userId: token.sub as string,
         action: actionType,
@@ -112,27 +132,52 @@ export async function POST(
           ipAddress: request.headers.get("x-forwarded-for") || "unknown",
           userAgent: request.headers.get("user-agent") || "unknown",
         },
-        type: "userActivity" // Create both activity log and user activity
+        type: "userActivity"
       });
     } catch (auditError) {
       console.error("Error creating audit log (non-critical):", auditError);
-      // Continue with the process even if audit log fails
     }
 
-    // Handle notifications for users (if requested)
+    // Send notifications if enabled
     if (notifyUsers) {
-      // Notification logic would go here
+      try {
+        const notificationType = status === "approved" 
+          ? NotificationType.REPORT_APPROVED 
+          : NotificationType.REPORT_REJECTED;
+
+        const targetUsers = await getUsersForNotification(notificationType, {
+          reportId: report.id,
+          branchId: report.branchId,
+          approverName,
+          comments: comments || ""
+        });
+
+        if (targetUsers.length > 0) {
+          await sendToNotificationQueue({
+            type: notificationType,
+            data: {
+              reportId: report.id,
+              branchId: report.branchId,
+              branchName: report.branch.name,
+              approverName,
+              comments: comments || ""
+            },
+            userIds: targetUsers
+          });
+        }
+      } catch (notificationError) {
+        console.error("Error sending notifications (non-critical):", notificationError);
+      }
     }
 
     return NextResponse.json({
-      success: true,
-      report: updatedReport,
       message: `Report ${status} successfully`,
+      data: updatedReport
     });
   } catch (error) {
-    console.error("Error approving report:", error);
+    console.error("Error processing report approval:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: "Failed to process report approval" },
       { status: 500 }
     );
   }

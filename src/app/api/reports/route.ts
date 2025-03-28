@@ -1,450 +1,402 @@
 import { NextRequest, NextResponse } from "next/server";
-import { withPermissionGuard } from "@/middleware/api-permission-guard";
-import { Permission } from "@/lib/auth/roles";
+import { getToken } from "next-auth/jwt";
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
-
-type ReportType = "plan" | "actual";
+import { Permission, UserRole, checkPermission } from "@/lib/auth/roles";
+import { getAccessibleBranches } from "@/lib/auth/branch-access";
+import { sendToNotificationQueue } from "@/lib/queue/sqs";
+import { getUsersForNotification } from "@/utils/notificationTargeting";
+import { NotificationType } from "@/utils/notificationTemplates";
 
 interface ReportData {
   branchId: string;
   date: string;
+  reportType: "plan" | "actual";
   writeOffs: number;
   ninetyPlus: number;
   comments?: string;
-  reportType: ReportType;
 }
 
-interface ApiResponse<T> {
-  data?: T;
-  error?: string;
-  message?: string;
-  pagination?: {
-    total: number;
-    page: number;
-    limit: number;
-    totalPages: number;
-  };
+interface UpdateReportData {
+  id: string;
+  writeOffs?: number;
+  ninetyPlus?: number;
+  comments?: string;
 }
 
-// GET handler to list reports - requires VIEW_REPORTS permission
-export const GET = withPermissionGuard(
-  async (req: NextRequest, context: {}, currentUser: any): Promise<NextResponse<ApiResponse<any>>> => {
-    try {
-      // Get query parameters
-      const { searchParams } = new URL(req.url);
-      const branchId = searchParams.get("branchId");
-      const date = searchParams.get("date");
-      const page = parseInt(searchParams.get("page") || "1");
-      const limit = parseInt(searchParams.get("limit") || "10");
-      const skip = (page - 1) * limit;
+// GET /api/reports - List reports with filtering and pagination
+export async function GET(request: NextRequest) {
+  try {
+    const token = await getToken({ req: request });
 
-      // Build query filters
-      const filters: any = {};
-      
-      // If branch ID is specified, filter by it
-      if (branchId) {
-        filters.branchId = branchId;
-      } 
-      // If not admin and has assigned branches, filter to only those branches
-      else if (currentUser.role !== "ADMIN" && currentUser.assignedBranchIds?.length) {
-        filters.branchId = {
-          in: currentUser.assignedBranchIds
-        };
-      }
-      // If not admin and has a branchId, filter to that branch
-      else if (currentUser.role !== "ADMIN" && currentUser.branchId) {
-        filters.branchId = currentUser.branchId;
-      }
-
-      // If date is specified, filter by it
-      if (date) {
-        filters.date = date; // The date is already in YYYY-MM-DD format from the frontend
-      }
-
-      // Filter by report type if specified in the query
-      const reportType = searchParams.get("reportType");
-      if (reportType && (reportType === "plan" || reportType === "actual")) {
-        filters.reportType = reportType;
-      }
-
-      // Get total count for pagination
-      const total = await prisma.report.count({
-        where: filters
-      });
-
-      // Fetch reports with pagination
-      const reports = await prisma.report.findMany({
-        where: {
-          ...(date ? { date: date } : {}),
-          ...(branchId ? { branchId: branchId } : {}),
-          ...(reportType ? { reportType: reportType } : {}),
-        },
-        include: {
-          branch: {
-            select: {
-              id: true,
-              code: true,
-              name: true,
-            },
-          },
-          planReport: reportType === "actual", // Include plan report relation for actual reports
-        },
-        orderBy: [
-          { date: "desc" },
-          { createdAt: "desc" },
-        ],
-        skip: skip,
-        take: limit,
-      });
-
-      // For actual reports, process the plan data
-      const reportsWithPlanData = reports.map(report => {
-        // Clone the report as a new object that we'll extend
-        const reportWithExtras = { ...report } as any;
-
-        // Only process this for actual reports
-        if (report.reportType === "actual") {
-          if (report.planReport) {
-            // Add plan data properties - ensure they're properly converted to numbers
-            reportWithExtras.writeOffsPlan = typeof report.planReport.writeOffs === 'number' ? report.planReport.writeOffs : 0;
-            reportWithExtras.ninetyPlusPlan = typeof report.planReport.ninetyPlus === 'number' ? report.planReport.ninetyPlus : 0;
-          } else {
-            // No plan report found, set plan values to null
-            reportWithExtras.writeOffsPlan = null;
-            reportWithExtras.ninetyPlusPlan = null;
-          }
-        }
-        
-        return reportWithExtras;
-      });
-
-      // Log the final data being sent to client
-      console.log("Reports with plan data:", JSON.stringify(reportsWithPlanData.map(r => ({
-        id: r.id,
-        date: r.date, 
-        reportType: r.reportType,
-        writeOffs: r.writeOffs,
-        ninetyPlus: r.ninetyPlus,
-        writeOffsPlan: r.writeOffsPlan,
-        ninetyPlusPlan: r.ninetyPlusPlan
-      }))));
-
-      // Return paginated response
-      return NextResponse.json({
-        data: reportsWithPlanData,
-        pagination: {
-          total,
-          page,
-          limit,
-          totalPages: Math.ceil(total / limit)
-        }
-      });
-    } catch (error) {
-      console.error("Error fetching reports:", error);
+    if (!token) {
       return NextResponse.json(
-        { error: "Failed to fetch reports" }, 
-        { status: 500 }
+        { error: "Unauthorized - Authentication required" },
+        { status: 401 }
       );
     }
-  },
-  { requiredPermission: Permission.VIEW_REPORTS, allowOwnBranch: true }
-);
 
-// POST handler to create reports - requires CREATE_REPORTS permission
-export const POST = withPermissionGuard(
-  async (req: NextRequest, context: {}, currentUser: any): Promise<NextResponse<ApiResponse<any>>> => {
-    try {
-      const data = await req.json();
-      
-      // Extract report data
-      const {
-        title,
-        date,
-        branchId,
-        writeOffs,
-        ninetyPlus,
-        content,
-        attachments,
-        reportType
-      } = data;
-      
-      // Validate required fields
-      const missingFields = [];
-      if (!date) missingFields.push("date");
-      if (!branchId) missingFields.push("branchId");
-      if (!reportType) missingFields.push("reportType");
-      
-      if (missingFields.length > 0) {
-        return NextResponse.json(
-          { 
-            error: "Missing required fields",
-            details: `The following fields are required: ${missingFields.join(", ")}`
-          },
-          { status: 400 }
-        );
-      }
+    // Get query parameters
+    const searchParams = request.nextUrl.searchParams;
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = parseInt(searchParams.get("limit") || "10");
+    const branchId = searchParams.get("branchId");
+    const status = searchParams.get("status");
+    const startDate = searchParams.get("startDate");
+    const endDate = searchParams.get("endDate");
+    const reportType = searchParams.get("reportType");
 
-      // Validate data types
-      if (typeof writeOffs !== "number") {
-        return NextResponse.json(
-          { error: "Invalid write-offs value", details: "Write-offs must be a number" },
-          { status: 400 }
-        );
-      }
+    // Get accessible branches for the user
+    const accessibleBranches = await getAccessibleBranches(token.sub as string);
+    const accessibleBranchIds = accessibleBranches.map(branch => branch.id);
 
-      if (typeof ninetyPlus !== "number") {
-        return NextResponse.json(
-          { error: "Invalid 90+ days value", details: "90+ days must be a number" },
-          { status: 400 }
-        );
+    // Build where clause
+    const where: any = {
+      branchId: {
+        in: accessibleBranchIds
       }
+    };
 
-      // Validate report type
-      if (!["plan", "actual"].includes(reportType)) {
+    if (branchId) {
+      // If specific branch is requested, verify access
+      if (!accessibleBranchIds.includes(branchId)) {
         return NextResponse.json(
-          { error: "Invalid report type", details: "Report type must be either 'plan' or 'actual'" },
-          { status: 400 }
-        );
-      }
-      
-      // Check if user has permission to create reports for this branch
-      if (currentUser.role !== "ADMIN" && 
-          currentUser.branchId !== branchId && 
-          !currentUser.assignedBranchIds?.includes(branchId)) {
-        return NextResponse.json(
-          { error: "You don't have permission to create reports for this branch" },
+          { error: "You don't have access to this branch" },
           { status: 403 }
         );
       }
+      where.branchId = branchId;
+    }
 
-      // Find existing report for the same date, branch, and report type
-      const existingReport = await prisma.report.findFirst({
+    if (status) {
+      where.status = status;
+    }
+
+    if (startDate || endDate) {
+      where.date = {};
+      if (startDate) {
+        where.date.gte = new Date(startDate);
+      }
+      if (endDate) {
+        where.date.lte = new Date(endDate);
+      }
+    }
+
+    if (reportType) {
+      where.reportType = reportType;
+    }
+
+    // Get total count for pagination
+    const total = await prisma.report.count({ where });
+
+    // Get reports with pagination
+    const reports = await prisma.report.findMany({
+      where,
+      include: {
+        branch: true,
+        planReport: true,
+        actualReports: true,
+      },
+      orderBy: {
+        date: "desc",
+      },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+
+    return NextResponse.json({
+      data: reports,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching reports:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch reports" },
+      { status: 500 }
+    );
+  }
+}
+
+// POST /api/reports - Create a new report
+export async function POST(request: NextRequest) {
+  try {
+    const token = await getToken({ req: request });
+
+    if (!token) {
+      return NextResponse.json(
+        { error: "Unauthorized - Authentication required" },
+        { status: 401 }
+      );
+    }
+
+    // Check if user has permission to create reports
+    const userRole = token.role as UserRole;
+    if (!checkPermission(userRole, Permission.CREATE_REPORTS)) {
+      return NextResponse.json(
+        { error: "Forbidden - You don't have permission to create reports" },
+        { status: 403 }
+      );
+    }
+
+    const reportData = await request.json() as ReportData;
+
+    // Validate required fields
+    if (!reportData.branchId || !reportData.date || !reportData.reportType) {
+      return NextResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 }
+      );
+    }
+
+    // Check if user has access to the branch
+    const accessibleBranches = await getAccessibleBranches(token.sub as string);
+    const hasAccess = accessibleBranches.some(branch => branch.id === reportData.branchId);
+
+    if (!hasAccess) {
+      return NextResponse.json(
+        { error: "You don't have permission to create reports for this branch" },
+        { status: 403 }
+      );
+    }
+
+    // Format date consistently
+    const formattedDate = new Date(reportData.date).toISOString().split('T')[0];
+
+    // Check for existing report
+    const existingReport = await prisma.report.findFirst({
+      where: {
+        date: formattedDate,
+        branchId: reportData.branchId,
+        reportType: reportData.reportType
+      },
+    });
+
+    if (existingReport) {
+      return NextResponse.json(
+        { error: "A report already exists for this date, branch, and type" },
+        { status: 400 }
+      );
+    }
+
+    // Get validation rules
+    const rules = await prisma.organizationSettings.findFirst({
+      where: { organizationId: "default" },
+      select: { validationRules: true }
+    });
+
+    let reportStatus = "pending";
+    if (rules?.validationRules) {
+      const validationRules = rules.validationRules as any;
+      
+      // Check if write-offs or 90+ days require approval
+      if ((validationRules.writeOffs?.requireApproval && reportData.writeOffs > 0) || 
+          (validationRules.ninetyPlus?.requireApproval && reportData.ninetyPlus > 0)) {
+        reportStatus = "pending_approval";
+      }
+    }
+
+    // Get branch name for notifications
+    const branch = await prisma.branch.findUnique({
+      where: { id: reportData.branchId },
+      select: { name: true, id: true }
+    });
+
+    // Get submitter name for notifications
+    const submitter = await prisma.user.findUnique({
+      where: { id: token.sub as string },
+      select: { name: true }
+    });
+
+    let report;
+    // For actual reports, find and validate corresponding plan report
+    if (reportData.reportType === "actual") {
+      const planReport = await prisma.report.findFirst({
         where: {
-          date: date,
-          branchId: branchId,
-          reportType: reportType
-        },
+          date: formattedDate,
+          branchId: reportData.branchId,
+          reportType: "plan"
+        }
       });
 
-      if (existingReport) {
-        console.log("Existing report found:", existingReport);
+      if (!planReport) {
         return NextResponse.json(
-          { error: `A report of this type already exists for this date and branch` },
+          { error: "A plan report must exist before submitting an actual report" },
           { status: 400 }
         );
       }
 
-      // Format date consistently
-      const formattedDate = new Date(date).toISOString().split('T')[0]; // Store as YYYY-MM-DD
-      
-      // Get validation rules to check if approval is needed
-      const validationRules = await prisma.organizationSettings.findUnique({
-        where: { organizationId: 'default' },
-        select: { validationRules: true }
-      });
-
-      // Determine report status based on validation rules
-      let reportStatus = "pending";
-      
-      if (validationRules?.validationRules) {
-        const rules = validationRules.validationRules as any;
-        
-        // Check if write-offs or 90+ days require approval
-        if ((rules.writeOffs?.requireApproval && writeOffs > 0) || 
-            (rules.ninetyPlus?.requireApproval && ninetyPlus > 0)) {
-          reportStatus = "pending_approval";
-        }
-      }
-      
-      // For actual reports, find and validate corresponding plan report
-      if (reportType === "actual") {
-        const planReport = await prisma.report.findFirst({
-          where: {
-            date: formattedDate,
-            branchId,
-            reportType: "plan"
-          }
-        });
-
-        if (!planReport) {
-          return NextResponse.json(
-            { error: "Cannot create actual report without a corresponding plan report for the same date and branch" },
-            { status: 400 }
-          );
-        }
-        
-        // Check if the plan report is approved
-        if (planReport.status !== "approved") {
-          return NextResponse.json(
-            { error: "Cannot create actual report because the plan report has not been approved yet" },
-            { status: 400 }
-          );
-        }
-
-        console.log(`Found matching plan report: ${planReport.id} for actual report creation`);
-        
-        // Create report with reference to the plan report
-        const report = await prisma.report.create({
-          data: {
-            date: formattedDate,
-            branchId,
-            writeOffs: writeOffs || 0,
-            ninetyPlus: ninetyPlus || 0,
-            reportType,
-            status: reportStatus,
-            submittedBy: currentUser.id,
-            submittedAt: new Date().toISOString(),
-            comments: content || null,
-            planReportId: planReport.id // Link to the corresponding plan report
-          }
-        });
-        
-        return NextResponse.json({ 
-          message: "Actual report created successfully with link to plan", 
-          report 
-        });
-      }
-      
-      // Create plan report (or other report types)
-      const report = await prisma.report.create({
+      report = await prisma.report.create({
         data: {
           date: formattedDate,
-          branchId,
-          writeOffs: writeOffs || 0,
-          ninetyPlus: ninetyPlus || 0,
-          reportType,
+          branchId: reportData.branchId,
+          writeOffs: reportData.writeOffs || 0,
+          ninetyPlus: reportData.ninetyPlus || 0,
+          reportType: reportData.reportType,
           status: reportStatus,
-          submittedBy: currentUser.id,
+          submittedBy: token.sub as string,
           submittedAt: new Date().toISOString(),
-          comments: content || null
-        }
-      });
-      
-      return NextResponse.json({ 
-        message: "Report created successfully", 
-        report 
-      });
-    } catch (error) {
-      console.error("Error creating report:", error);
-      return NextResponse.json(
-        { error: "Failed to create report" },
-        { status: 500 }
-      );
-    }
-  },
-  { requiredPermission: Permission.CREATE_REPORTS, allowOwnBranch: true }
-);
-
-// PATCH handler to update reports - requires EDIT_REPORTS permission
-export const PATCH = withPermissionGuard(
-  async (req: NextRequest, context: {}, currentUser: any): Promise<NextResponse<ApiResponse<any>>> => {
-    try {
-      const session = await getServerSession(authOptions);
-      if (!session?.user) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-      }
-
-      const body = await req.json();
-      const { id, writeOffs, ninetyPlus, content } = body;
-
-      if (!id) {
-        return NextResponse.json(
-          { error: "Report ID is required" },
-          { status: 400 }
-        );
-      }
-
-      // Get the existing report
-      const existingReport = await prisma.report.findUnique({
-        where: { id },
+          comments: reportData.comments || null,
+          planReportId: planReport.id
+        },
         include: {
           branch: true,
+          planReport: true,
+          actualReports: true,
         },
       });
-
-      if (!existingReport) {
-        return NextResponse.json(
-          { error: "Report not found" },
-          { status: 404 }
-        );
-      }
-
-      // Check if user has permission to edit this report
-      if (
-        session.user.role !== "ADMIN" &&
-        session.user.branchId !== existingReport.branchId
-      ) {
-        return NextResponse.json(
-          { error: "You can only edit reports for your assigned branch" },
-          { status: 403 }
-        );
-      }
-
-      // Check if the report is from today
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const reportDate = new Date(existingReport.date);
-      reportDate.setHours(0, 0, 0, 0);
-
-      // Only restrict by date for rejected reports that need resubmission
-      if (existingReport.status === "rejected" && reportDate.getTime() !== today.getTime()) {
-        return NextResponse.json(
-          { error: "You can only resubmit rejected reports from today's session" },
-          { status: 403 }
-        );
-      }
-
-      // Get validation rules
-      const orgSettings = await prisma.organizationSettings.findUnique({
-        where: { id: "1" },
-      });
-
-      // Determine new status based on validation rules and current status
-      let newStatus = existingReport.status;
-      if (existingReport.status === "rejected") {
-        // If report was rejected, set to pending_approval when resubmitted
-        newStatus = "pending_approval";
-      } else if (orgSettings && typeof orgSettings.validationRules === 'object' && orgSettings.validationRules !== null) {
-        const rules = orgSettings.validationRules as any;
-        // Check if approval is required based on validation rules
-        if (rules.requireApproval) {
-          newStatus = "pending_approval";
-        } else {
-          newStatus = "approved";
-        }
-      } else {
-        // Default to pending_approval if no settings found
-        newStatus = "pending_approval";
-      }
-
-      // Update the report
-      const updatedReport = await prisma.report.update({
-        where: { id },
+    } else {
+      report = await prisma.report.create({
         data: {
-          date: existingReport.date,
-          writeOffs: writeOffs || 0,
-          ninetyPlus: ninetyPlus || 0,
-          comments: content,
-          status: newStatus,
-          updatedAt: new Date(),
+          date: formattedDate,
+          branchId: reportData.branchId,
+          writeOffs: reportData.writeOffs || 0,
+          ninetyPlus: reportData.ninetyPlus || 0,
+          reportType: reportData.reportType,
+          status: reportStatus,
+          submittedBy: token.sub as string,
+          submittedAt: new Date().toISOString(),
+          comments: reportData.comments || null
+        },
+        include: {
+          branch: true,
+          planReport: true,
+          actualReports: true,
         },
       });
+    }
 
-      return NextResponse.json({
-        data: updatedReport,
-        message: existingReport.status === "rejected" 
-          ? "Report resubmitted successfully" 
-          : "Report updated successfully"
-      });
-    } catch (error) {
-      console.error("Error updating report:", error);
+    // Send notifications if report needs approval
+    if (reportStatus === "pending_approval") {
+      try {
+        const notificationData = {
+          reportId: report.id,
+          branchId: report.branchId,
+          branchName: branch?.name || "a branch",
+          submitterName: submitter?.name || "A user",
+          date: formattedDate,
+          writeOffs: report.writeOffs,
+          ninetyPlus: report.ninetyPlus,
+          reportType: report.reportType
+        };
+
+        // Get users who should receive this notification
+        const targetUsers = await getUsersForNotification(
+          NotificationType.REPORT_SUBMITTED,
+          notificationData
+        );
+
+        if (targetUsers.length > 0) {
+          await sendToNotificationQueue({
+            type: NotificationType.REPORT_SUBMITTED,
+            data: notificationData,
+            userIds: targetUsers
+          });
+        }
+      } catch (notificationError) {
+        console.error("Error sending notifications (non-critical):", notificationError);
+      }
+    }
+
+    return NextResponse.json({
+      message: "Report created successfully",
+      data: report,
+      notificationsSent: reportStatus === "pending_approval"
+    });
+  } catch (error) {
+    console.error("Error creating report:", error);
+    return NextResponse.json(
+      { error: "Failed to create report" },
+      { status: 500 }
+    );
+  }
+}
+
+// PATCH /api/reports - Update a report
+export async function PATCH(request: NextRequest) {
+  try {
+    const token = await getToken({ req: request });
+
+    if (!token) {
       return NextResponse.json(
-        { error: "Failed to update report" },
-        { status: 500 }
+        { error: "Unauthorized - Authentication required" },
+        { status: 401 }
       );
     }
-  },
-  { requiredPermission: Permission.EDIT_REPORTS, allowOwnBranch: true }
-);
+
+    // Check if user has permission to edit reports
+    const userRole = token.role as UserRole;
+    if (!checkPermission(userRole, Permission.EDIT_REPORTS)) {
+      return NextResponse.json(
+        { error: "Forbidden - You don't have permission to edit reports" },
+        { status: 403 }
+      );
+    }
+
+    const { id, ...updateData } = await request.json() as UpdateReportData;
+
+    if (!id) {
+      return NextResponse.json(
+        { error: "Report ID is required" },
+        { status: 400 }
+      );
+    }
+
+    // Get the report to check access
+    const report = await prisma.report.findUnique({
+      where: { id },
+      include: { branch: true },
+    });
+
+    if (!report) {
+      return NextResponse.json(
+        { error: "Report not found" },
+        { status: 404 }
+      );
+    }
+
+    // Check if user has access to the branch
+    const accessibleBranches = await getAccessibleBranches(token.sub as string);
+    const hasAccess = accessibleBranches.some(branch => branch.id === report.branchId);
+
+    if (!hasAccess) {
+      return NextResponse.json(
+        { error: "You don't have permission to edit reports for this branch" },
+        { status: 403 }
+      );
+    }
+
+    // Only allow editing pending reports
+    if (report.status !== "pending") {
+      return NextResponse.json(
+        { error: "Only pending reports can be edited" },
+        { status: 400 }
+      );
+    }
+
+    // Update the report
+    const updatedReport = await prisma.report.update({
+      where: { id },
+      data: updateData,
+      include: {
+        branch: true,
+        planReport: true,
+        actualReports: true,
+      },
+    });
+
+    return NextResponse.json({
+      message: "Report updated successfully",
+      data: updatedReport,
+    });
+  } catch (error) {
+    console.error("Error updating report:", error);
+    return NextResponse.json(
+      { error: "Failed to update report" },
+      { status: 500 }
+    );
+  }
+}

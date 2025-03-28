@@ -1,15 +1,38 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
 
 export async function POST(request: Request) {
   try {
     console.log('Received push subscription request');
+    
+    // Get current user from session
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { error: 'Unauthorized: User must be logged in to subscribe' },
+        { status: 401 }
+      );
+    }
+    
+    const userId = session.user.id;
     const subscription = await request.json();
+    
+    // Validate subscription data
+    if (!subscription.endpoint || !subscription.keys?.p256dh || !subscription.keys?.auth) {
+      return NextResponse.json(
+        { error: 'Invalid subscription data' },
+        { status: 400 }
+      );
+    }
+    
     console.log('Subscription data:', {
       endpoint: subscription.endpoint,
       hasKeys: !!subscription.keys,
       hasP256dh: !!subscription.keys?.p256dh,
-      hasAuth: !!subscription.keys?.auth
+      hasAuth: !!subscription.keys?.auth,
+      userId
     });
     
     // Check if subscription already exists
@@ -29,6 +52,8 @@ export async function POST(request: Request) {
         data: {
           p256dh: subscription.keys.p256dh,
           auth: subscription.keys.auth,
+          userId: userId, // Link to current user
+          updatedAt: new Date(),
         },
       });
       console.log('Subscription updated successfully:', updatedSubscription);
@@ -42,6 +67,9 @@ export async function POST(request: Request) {
         endpoint: subscription.endpoint,
         p256dh: subscription.keys.p256dh,
         auth: subscription.keys.auth,
+        userId: userId, // Link to current user
+        createdAt: new Date(),
+        updatedAt: new Date(),
       },
     });
     console.log('Subscription saved successfully:', savedSubscription);
