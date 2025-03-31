@@ -420,7 +420,7 @@ export default function UsersPage() {
             <Button onClick={() => fetchUsers()} variant="outline" title="Refresh">
               <RefreshCw className="h-4 w-4" />
             </Button>
-            {permissions?.canManageUsers ? (
+            {/* {permissions?.canManageUsers ? (
               <Button onClick={openCreateDialog}>
                 <UserPlus className="mr-2 h-4 w-4" />
                 Add User
@@ -432,7 +432,7 @@ export default function UsersPage() {
                   Add User
                 </Link>
               </Button>
-            )}
+            )} */}
           </div>
         </CardHeader>
         <CardContent>
