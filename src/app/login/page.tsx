@@ -128,8 +128,8 @@ function LoginForm() {
       <div className="flex flex-col items-center justify-center">
         <div className="bg-white dark:bg-gray-800 p-3 rounded-full mb-8">
           <img
-            src="https://bhr.vectoranet.com/assets/images/logo/lc_logo.svg"
-            alt="Company Logo"
+            src="/lc-logo.png"
+            alt="LC Help Desk Logo"
             className="h-16"
           />
         </div>

@@ -27,6 +27,13 @@ export async function POST() {
           JSON.stringify({
             title: 'Test',
             body: 'Testing subscription validity',
+            tag: 'subscription-validation',
+            silent: true,
+            requireInteraction: false,
+            data: {
+              type: 'validation',
+              timestamp: Date.now()
+            }
           })
         );
         validSubscriptions.push(subscription.id);

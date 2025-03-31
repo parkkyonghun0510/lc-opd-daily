@@ -1,0 +1,16 @@
+# Allow all crawlers to access all public content
+User-agent: *
+Allow: /
+
+# Disallow admin and dashboard pages
+Disallow: /dashboard/
+Disallow: /admin/
+Disallow: /api/
+
+# Disallow other private areas
+Disallow: /login
+Disallow: /password-reset
+Disallow: /profile
+
+# Sitemap location
+Sitemap: https://reports.lchelpdesk.com/sitemap.xml 
