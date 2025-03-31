@@ -2,13 +2,16 @@
  * Client-side API functions for interacting with reports
  */
 
+// Define ReportStatus type for consistency with other files
+export type ReportStatus = "pending" | "pending_approval" | "approved" | "rejected";
+
 export interface Report {
   id: string;
   date: string;
   branchId: string;
   writeOffs: number;
   ninetyPlus: number;
-  status: string;
+  status: ReportStatus; // Use the ReportStatus type instead of string
   reportType: string;
   title?: string;
   content?: string;

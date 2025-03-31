@@ -1,5 +1,8 @@
 export type ReportType = "plan" | "actual";
 
+// Define ReportStatus type for consistency across the application
+export type ReportStatus = "pending" | "pending_approval" | "approved" | "rejected";
+
 export interface Report {
   id: string;
   date: string;
@@ -13,7 +16,7 @@ export interface Report {
   writeOffsPlan?: number;
   ninetyPlusPlan?: number;
   reportType: ReportType;
-  status: string;
+  status: ReportStatus; // Use the ReportStatus type instead of string
   submittedBy: string;
   submittedAt: string;
   updatedAt?: string;
