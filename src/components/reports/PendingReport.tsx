@@ -7,13 +7,16 @@ import { format } from "date-fns";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { UserDisplayName } from "@/components/user/UserDisplayName";
 
+// Import ReportStatus type to ensure compatibility
+type ReportStatus = "pending" | "pending_approval" | "approved" | "rejected";
+
 interface Report {
   id: string;
   date: string;
   branchId: string;
   writeOffs: number;
   ninetyPlus: number;
-  status: string;
+  status: ReportStatus; // Use the ReportStatus type instead of string
   reportType: string;
   content?: string;
   submittedBy?: string;

@@ -90,12 +90,28 @@ export function useReports({
   // Fetch user branches
   const fetchUserBranches = async () => {
     try {
-      const response = await fetch("/api/branches");
+      // Always use the user-filtered branch list for reports
+      const response = await fetch("/api/branches?filterByAccess=true");
+      
       if (!response.ok) {
         throw new Error("Failed to fetch branches");
       }
+      
       const data = await response.json();
-      setUserBranches(Array.isArray(data) ? data : data.branches || []);
+      const branches = Array.isArray(data) ? data : data.branches || [];
+      
+      // Only include active branches
+      const activeBranches = branches.filter((branch: any) => branch.isActive);
+      
+      // Sort branches by code for consistency
+      activeBranches.sort((a: any, b: any) => a.code.localeCompare(b.code));
+      
+      setUserBranches(activeBranches);
+      
+      // If we have branches but no selected branch, select the first one
+      if (activeBranches.length > 0 && !selectedBranchId) {
+        setSelectedBranchId(activeBranches[0].id);
+      }
     } catch (error) {
       console.error("Error fetching branches:", error);
       toast({
@@ -194,6 +210,13 @@ export function useReports({
   useEffect(() => {
     fetchUserBranches();
   }, []);
+
+  // Initialize selectedBranchId with first branch if not already set
+  useEffect(() => {
+    if (userBranches.length > 0 && !selectedBranchId) {
+      setSelectedBranchId(userBranches[0].id);
+    }
+  }, [userBranches, selectedBranchId]);
 
   useEffect(() => {
     fetchReports();

@@ -262,6 +262,17 @@ export function useReportForm({
           });
           return;
         }
+        
+        // Handle permission errors
+        if (response.status === 403) {
+          toast({
+            title: "Permission Error",
+            description: data.error || "You don't have permission to create this report",
+            variant: "destructive",
+          });
+          return;
+        }
+        
         throw new Error(data.error || "Failed to create report");
       }
 
