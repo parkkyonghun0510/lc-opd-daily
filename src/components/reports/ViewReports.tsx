@@ -67,6 +67,103 @@ import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { UserDisplayName } from "@/components/user/UserDisplayName";
 
+// Helper function to format comment history as a conversation
+const formatCommentHistory = (comments: string) => {
+  // Split the comments by the resubmission pattern
+  const parts = comments.split(/\[RESUBMISSION ([^:]+)]:/).filter(Boolean);
+  
+  if (parts.length <= 1) {
+    // No resubmission markers, just return the original text
+    return { 
+      hasConversation: false, 
+      formattedComments: comments 
+    };
+  }
+  
+  // Format as a conversation with timestamps
+  const conversation = [];
+  for (let i = 0; i < parts.length; i += 2) {
+    if (i === 0 && parts[i].trim()) {
+      // First part is the original rejection comment
+      conversation.push({
+        type: 'rejection',
+        date: '',
+        text: parts[i].trim()
+      });
+    } else if (i < parts.length - 1) {
+      // This is a resubmission date followed by its comment
+      conversation.push({
+        type: 'resubmission',
+        date: parts[i],
+        text: (i + 1 < parts.length) ? parts[i + 1].trim() : ''
+      });
+    }
+  }
+  
+  return { 
+    hasConversation: true, 
+    conversation 
+  };
+};
+
+// Component to render a comment conversation
+const CommentConversation = ({ comments }: { comments: string }) => {
+  const result = formatCommentHistory(comments);
+  
+  if (!result.hasConversation) {
+    return (
+      <p className="whitespace-pre-wrap">
+        {comments || "No comments available"}
+      </p>
+    );
+  }
+  
+  return (
+    <div className="space-y-3">
+      {result.conversation?.map((entry, index) => (
+        <div 
+          key={index}
+          className={cn(
+            "p-3 rounded-md",
+            entry.type === 'rejection' 
+              ? "bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800" 
+              : "bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800"
+          )}
+        >
+          <div className="flex items-center justify-between mb-1">
+            <span className={cn(
+              "text-xs font-medium",
+              entry.type === 'rejection'
+                ? "text-red-800 dark:text-red-300"
+                : "text-blue-800 dark:text-blue-300"
+            )}>
+              {entry.type === 'rejection' ? "Rejection Feedback" : "Resubmission"}
+            </span>
+            {entry.date && (
+              <span className={cn(
+                "text-xs",
+                entry.type === 'rejection'
+                  ? "text-red-700 dark:text-red-400"
+                  : "text-blue-700 dark:text-blue-400"
+              )}>
+                {entry.date}
+              </span>
+            )}
+          </div>
+          <p className={cn(
+            "text-sm whitespace-pre-wrap",
+            entry.type === 'rejection'
+              ? "text-red-800 dark:text-red-200"
+              : "text-blue-800 dark:text-blue-200"
+          )}>
+            {entry.text}
+          </p>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 export function ViewReports() {
   const { data: session } = useSession();
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -165,7 +262,8 @@ export function ViewReports() {
     setEditingReport(report);
     setEditWriteOffs(report.writeOffs.toString());
     setEditNinetyPlus(report.ninetyPlus.toString());
-    setEditComments(report.comments || "");
+    // Start with empty comment text for new input instead of pre-filling with existing comments
+    setEditComments("");
     setIsEditModalOpen(true);
   };
 
@@ -194,20 +292,41 @@ export function ViewReports() {
       return;
     }
 
+    // Skip update if no changes were made
+    if (
+      writeOffsNum === editingReport.writeOffs &&
+      ninetyPlusNum === editingReport.ninetyPlus &&
+      !editComments.trim()
+    ) {
+      toast({
+        title: "No Changes",
+        description: "No changes were made to the report.",
+      });
+      setIsEditModalOpen(false);
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
+      // Only include comments in the update if they were actually added
+      const updatePayload: any = {
+        id: editingReport.id,
+        writeOffs: writeOffsNum,
+        ninetyPlus: ninetyPlusNum,
+      };
+      
+      // Only add comments to payload if user entered some text
+      if (editComments.trim()) {
+        updatePayload.comments = editComments;
+      }
+      
       const response = await fetch(`/api/reports`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          id: editingReport.id,
-          writeOffs: writeOffsNum,
-          ninetyPlus: ninetyPlusNum,
-          content: editComments,
-        }),
+        body: JSON.stringify(updatePayload),
       });
 
       if (!response.ok) {
@@ -244,13 +363,26 @@ export function ViewReports() {
     if (type === "actual" && date) {
       setIsSubmitting(true);
       try {
+        // Check if branch ID is valid before making the request
+        if (!selectedBranchId) {
+          toast({
+            title: "Branch Required",
+            description: "Please select a branch before creating a report.",
+            variant: "destructive",
+          });
+          setIsSubmitting(false);
+          return;
+        }
+
         const formattedDate = format(date, "yyyy-MM-dd");
         const response = await fetch(
-          `/api/reports?date=${formattedDate}&branchId=${selectedBranchId}&reportType=plan`
+          `/api/reports?date=${formattedDate}&branchId=${selectedBranchId || session?.user?.branchId}&reportType=plan`
         );
         
         if (!response.ok) {
-          throw new Error("Failed to verify plan report");
+          const errorData = await response.json();
+          console.error("Error response:", errorData);
+          throw new Error(errorData.error || "Failed to verify plan report");
         }
         
         const data = await response.json();
@@ -270,7 +402,7 @@ export function ViewReports() {
           return;
         }
       } catch (error) {
-        console.error("Error checking for plan report");
+        console.error("Error checking for plan report:", error);
         toast({
           title: "Error",
           description: "Failed to verify plan report existence. Please try again.",
@@ -280,6 +412,16 @@ export function ViewReports() {
         return;
       }
       setIsSubmitting(false);
+    }
+    
+    // Check if branch ID is selected before opening create modal
+    if (!selectedBranchId) {
+      toast({
+        title: "Branch Required",
+        description: "Please select a branch before creating a report.",
+        variant: "destructive",
+      });
+      return;
     }
     
     setCreateReportType(type);
@@ -409,8 +551,8 @@ export function ViewReports() {
               </Popover>
             </div>
 
-            {/* Branch selector for admin users or users with multiple branches */}
-            {userBranches.length > 1 && (
+            {/* Branch selector - always show if there are branches available */}
+            {userBranches.length > 0 && (
               <div className="w-full sm:w-auto">
                 <Select
                   value={selectedBranchId}
@@ -419,10 +561,10 @@ export function ViewReports() {
                   <SelectTrigger className="w-full sm:w-[200px] dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200">
                     <SelectValue placeholder="Select branch" />
                   </SelectTrigger>
-                  <SelectContent className="dark:bg-gray-800 dark:border-gray-700">
+                  <SelectContent className="dark:bg-gray-800 dark:border-gray-700 max-h-[300px]">
                     {userBranches.map((branch) => (
                       <SelectItem key={branch.id} value={branch.id}>
-                        {branch.name}
+                        {branch.code} - {branch.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -484,7 +626,7 @@ export function ViewReports() {
                       <TableCell className="text-blue-600 dark:text-blue-400">
                         {report.writeOffsPlan !== null && report.writeOffsPlan !== undefined
                           ? formatCurrency(report.writeOffsPlan)
-                          : "-"}
+                          : <span className="text-red-500 dark:text-red-400 text-xs">No plan data</span>}
                       </TableCell>
                     )}
                     <TableCell className={cn("dark:text-gray-300", reportType === "actual" ? "font-medium" : "")}>
@@ -494,11 +636,17 @@ export function ViewReports() {
                       <TableCell className="text-blue-600 dark:text-blue-400">
                         {report.ninetyPlusPlan !== null && report.ninetyPlusPlan !== undefined
                           ? formatCurrency(report.ninetyPlusPlan)
-                          : "-"}
+                          : <span className="text-red-500 dark:text-red-400 text-xs">No plan data</span>}
                       </TableCell>
                     )}
                     <TableCell className="max-w-[200px] truncate dark:text-gray-300">
-                      {report.comments || "-"}
+                      {report.comments ? (
+                        <div className="truncate">
+                          {formatCommentHistory(report.comments).hasConversation ? 
+                            "[Comment conversation]" : 
+                            report.comments.substring(0, 30) + (report.comments.length > 30 ? "..." : "")}
+                        </div>
+                      ) : "-"}
                     </TableCell>
                     <TableCell>
                       <Badge
@@ -592,12 +740,26 @@ export function ViewReports() {
             </div>
             <div className="grid gap-2">
               <Label htmlFor="comments">Comments</Label>
+              {editingReport && editingReport.comments && (
+                <div className="mb-2 p-3 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md">
+                  <div className="mb-1 text-xs text-gray-500 dark:text-gray-400 font-medium">Previous Comments:</div>
+                  <CommentConversation comments={editingReport.comments} />
+                </div>
+              )}
               <Textarea
                 id="comments"
                 value={editComments}
                 onChange={(e) => setEditComments(e.target.value)}
-                placeholder="Enter comments..."
+                placeholder={editingReport && editingReport.status === "rejected" 
+                  ? "Add your response to the rejection feedback..." 
+                  : "Enter new comments..."}
+                className="min-h-[100px]"
               />
+              {editingReport && editingReport.status === "rejected" && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Your comments will be visible to managers reviewing this resubmission.
+                </p>
+              )}
             </div>
           </div>
           <DialogFooter>
@@ -615,7 +777,7 @@ export function ViewReports() {
                   Updating...
                 </>
               ) : (
-                "Update Report"
+                editingReport && editingReport.status === "rejected" ? "Resubmit Report" : "Update Report"
               )}
             </Button>
           </DialogFooter>

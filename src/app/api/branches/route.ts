@@ -39,47 +39,70 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const userId = token.sub as string;
     const url = new URL(request.url);
     const searchQuery = url.searchParams.get("search") || "";
+    const filterByAccess = url.searchParams.get("filterByAccess") !== "false"; // Default to true
     
-    // Build the query
-    const where: Prisma.BranchWhereInput = searchQuery 
-      ? {
-          OR: [
-            { name: { contains: searchQuery, mode: Prisma.QueryMode.insensitive } },
-            { code: { contains: searchQuery, mode: Prisma.QueryMode.insensitive } },
-          ],
-        } 
-      : {};
+    // If filtered access is requested (default), get only branches the user has access to
+    if (filterByAccess) {
+      // Get branches the user has access to
+      const accessibleBranches = await getAccessibleBranches(userId);
+      
+      // Apply search filter if needed
+      let filteredBranches = accessibleBranches;
+      if (searchQuery) {
+        filteredBranches = accessibleBranches.filter(branch => 
+          branch.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          branch.code.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+      }
+      
+      // Sort by code for consistency
+      filteredBranches.sort((a, b) => a.code.localeCompare(b.code));
+      
+      return NextResponse.json(filteredBranches);
+    } else {
+      // For admin-only views, get all branches
+      // Build the query
+      const where: Prisma.BranchWhereInput = searchQuery 
+        ? {
+            OR: [
+              { name: { contains: searchQuery, mode: Prisma.QueryMode.insensitive } },
+              { code: { contains: searchQuery, mode: Prisma.QueryMode.insensitive } },
+            ],
+          } 
+        : {};
 
-    // Fetch branches
-    const branches = await prisma.branch.findMany({
-      where,
-      select: {
-        id: true,
-        name: true,
-        code: true,
-        parentId: true,
-        isActive: true,
-        parent: {
-          select: {
-            id: true,
-            code: true,
-            name: true,
+      // Fetch branches
+      const branches = await prisma.branch.findMany({
+        where,
+        select: {
+          id: true,
+          name: true,
+          code: true,
+          parentId: true,
+          isActive: true,
+          parent: {
+            select: {
+              id: true,
+              code: true,
+              name: true,
+            }
+          },
+          _count: {
+            select: {
+              users: true,
+              reports: true,
+              children: true,
+            }
           }
         },
-        _count: {
-          select: {
-            users: true,
-            reports: true,
-            children: true,
-          }
-        }
-      },
-      orderBy: { name: "asc" },
-    });
+        orderBy: { code: "asc" },
+      });
 
-    return NextResponse.json(branches);
+      return NextResponse.json(branches);
+    }
   } catch (error) {
     console.error("Error fetching branches:", error);
     return NextResponse.json(

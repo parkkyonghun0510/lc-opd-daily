@@ -105,7 +105,7 @@ export default function UsersPage() {
   const permissions = useUserPermissions();
   
   // Advanced view state (for admins only)
-  const [advancedView, setAdvancedView] = useState(false);
+  const [advancedView, setAdvancedView] = useState(true);
   
   // User list and pagination
   const [users, setUsers] = useState<User[]>([]);
@@ -153,12 +153,11 @@ export default function UsersPage() {
     return permissions?.canManageUsers || false;
   }, [permissions]);
 
-  // Set advanced view based on user permissions
+  // Set advanced view based on user permissions - keep it on for everyone now
   useEffect(() => {
-    if (isAdmin) {
-      setAdvancedView(true);
-    }
-  }, [isAdmin]);
+    // Keep advanced view on by default for all users
+    setAdvancedView(true);
+  }, []);
 
   // Fetch users and branches on load
   useEffect(() => {
@@ -204,6 +203,12 @@ export default function UsersPage() {
           limit: data.limit || 10,
           pages: data.pages || 1
         });
+        
+        // If the current page is higher than the total pages and there are pages,
+        // go to the last page (this handles deletion of items on the last page)
+        if (data.page > data.pages && data.pages > 0 && data.page > 1) {
+          fetchUsers(data.pages);
+        }
       } else {
         // Simple view with all results
         setUsers(data.users || []);
@@ -412,6 +417,7 @@ export default function UsersPage() {
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
+            {/* Hide the advanced toggle since we keep pagination on for everyone
             {isAdmin && (
               <div className="flex items-center gap-2 mr-2">
                 <Label htmlFor="advanced-view" className="text-sm">Advanced</Label>
@@ -422,10 +428,11 @@ export default function UsersPage() {
                 />
               </div>
             )}
+            */}
             <Button onClick={() => fetchUsers()} variant="outline" title="Refresh">
               <RefreshCw className="h-4 w-4" />
             </Button>
-            {permissions?.canManageUsers ? (
+            {/* {permissions?.canManageUsers ? (
               <Button onClick={openCreateDialog}>
                 <UserPlus className="mr-2 h-4 w-4" />
                 Add User
@@ -437,7 +444,7 @@ export default function UsersPage() {
                   Add User
                 </Link>
               </Button>
-            )}
+            )} */}
           </div>
         </CardHeader>
         <CardContent>
@@ -619,7 +626,15 @@ export default function UsersPage() {
           {/* Pagination for advanced view */}
           {advancedView && meta.pages > 1 && (
             <div className="flex justify-center mt-4">
-              <div className="flex items-center gap-6">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(1)}
+                  disabled={meta.page === 1 || loading}
+                >
+                  First
+                </Button>
                 <Button
                   variant="outline"
                   size="sm"
@@ -628,9 +643,46 @@ export default function UsersPage() {
                 >
                   Previous
                 </Button>
-                <span className="text-sm">
-                  Page {meta.page} of {meta.pages}
-                </span>
+                
+                <div className="flex items-center gap-1 mx-2">
+                  {/* Show page numbers */}
+                  {Array.from({ length: Math.min(5, meta.pages) }, (_, i) => {
+                    // Logic to show current page and adjacent pages
+                    let pageNum;
+                    if (meta.pages <= 5) {
+                      // If 5 or fewer pages, show all
+                      pageNum = i + 1;
+                    } else if (meta.page <= 3) {
+                      // If near start, show first 5
+                      pageNum = i + 1;
+                    } else if (meta.page >= meta.pages - 2) {
+                      // If near end, show last 5
+                      pageNum = meta.pages - 4 + i;
+                    } else {
+                      // Show current and 2 on each side
+                      pageNum = meta.page - 2 + i;
+                    }
+                    
+                    return (
+                      <Button
+                        key={pageNum}
+                        variant={meta.page === pageNum ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => handlePageChange(pageNum)}
+                        disabled={loading}
+                        className="w-9 h-9 p-0"
+                      >
+                        {pageNum}
+                      </Button>
+                    );
+                  })}
+                  
+                  {/* Show ellipsis if there are more pages */}
+                  {meta.pages > 5 && meta.page < meta.pages - 2 && (
+                    <span className="mx-1">...</span>
+                  )}
+                </div>
+                
                 <Button
                   variant="outline"
                   size="sm"
@@ -639,7 +691,22 @@ export default function UsersPage() {
                 >
                   Next
                 </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(meta.pages)}
+                  disabled={meta.page === meta.pages || loading}
+                >
+                  Last
+                </Button>
               </div>
+            </div>
+          )}
+          
+          {/* Display pagination info */}
+          {advancedView && users.length > 0 && (
+            <div className="text-sm text-center text-gray-500 mt-2">
+              Showing {(meta.page - 1) * meta.limit + 1} to {Math.min(meta.page * meta.limit, meta.total)} of {meta.total} users
             </div>
           )}
         </CardContent>

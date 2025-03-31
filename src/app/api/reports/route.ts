@@ -103,9 +103,23 @@ export async function GET(request: NextRequest) {
       take: limit,
     });
 
+    // Transform reports data to ensure we have plan data for actual reports
+    const transformedReports = reports.map(report => {
+      // Create a new object with the original report properties
+      const transformed = { ...report } as any;
+      
+      // If this is an actual report and has planReport data
+      if (report.reportType === 'actual' && report.planReport) {
+        transformed.writeOffsPlan = report.planReport.writeOffs || 0;
+        transformed.ninetyPlusPlan = report.planReport.ninetyPlus || 0;
+      }
+      
+      return transformed;
+    });
+
     return NextResponse.json({
-      data: reports,
-      meta: {
+      data: transformedReports,
+      pagination: {
         total,
         page,
         limit,
@@ -369,10 +383,10 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    // Only allow editing pending reports
-    if (report.status !== "pending") {
+    // Only allow editing pending or rejected reports
+    if (report.status !== "pending" && report.status !== "rejected") {
       return NextResponse.json(
-        { error: "Only pending reports can be edited" },
+        { error: "Only pending or rejected reports can be edited" },
         { status: 400 }
       );
     }
@@ -380,7 +394,18 @@ export async function PATCH(request: NextRequest) {
     // Update the report
     const updatedReport = await prisma.report.update({
       where: { id },
-      data: updateData,
+      data: {
+        ...updateData,
+        // If this is a rejected report being resubmitted and new comments were provided
+        ...(report.status === "rejected" && updateData.comments ? {
+          comments: `${report.comments ? report.comments + '\n\n' : ''}[RESUBMISSION ${new Date().toISOString().split('T')[0]}]:\n${updateData.comments}`,
+          status: "pending_approval" // Change status to pending_approval when resubmitting
+        } : {}),
+        // If no new comments were provided but updating other fields, preserve existing comments
+        ...(report.status === "rejected" && !updateData.comments ? {
+          status: "pending_approval" // Still change status to pending_approval when resubmitting
+        } : {})
+      },
       include: {
         branch: true,
         planReport: true,

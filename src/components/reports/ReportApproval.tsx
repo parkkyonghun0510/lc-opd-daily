@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -15,14 +15,18 @@ import {
   CheckCircle, 
   XCircle, 
   AlertTriangle, 
+  AlertCircle,
   Info,
   User,
-  RefreshCw
+  RefreshCw,
+  MessageSquare,
+  Clock,
+  Eye
 } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
-import { formatKHRCurrency, cn } from "@/lib/utils";
+import { formatKHRCurrency, cn, formatDate } from "@/lib/utils";
 import { PermissionGate } from "@/components/auth/PermissionGate";
-import { Permission } from "@/lib/auth/roles";
+import { Permission, UserRole } from "@/lib/auth/roles";
 import {
   Tooltip,
   TooltipContent,
@@ -32,6 +36,10 @@ import {
 import { Label } from "@/components/ui/label";
 import { UserDisplayName } from "@/components/user/UserDisplayName";
 import { approveReportAction } from "@/app/_actions/report-actions";
+import { useSession } from "next-auth/react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+
+type ReportStatus = "pending" | "pending_approval" | "approved" | "rejected";
 
 interface Report {
   id: string;
@@ -39,8 +47,10 @@ interface Report {
   branchId: string;
   writeOffs: number;
   ninetyPlus: number;
-  status: string;
+  status: ReportStatus;
   submittedBy?: string;
+  comments?: string;
+  updatedAt?: string;
   user?: {
     name: string;
     username: string;
@@ -54,15 +64,126 @@ interface ReportApprovalProps {
   branchName: string;
 }
 
+const formatCommentHistory = (comments: string) => {
+  // Split the comments by the resubmission pattern
+  const parts = comments.split(/\[RESUBMISSION ([^:]+)]:/).filter(Boolean);
+  
+  if (parts.length <= 1) {
+    // No resubmission markers, just return the original text
+    return { 
+      hasConversation: false, 
+      formattedComments: comments 
+    };
+  }
+  
+  // Format as a conversation with timestamps
+  const conversation = [];
+  for (let i = 0; i < parts.length; i += 2) {
+    if (i === 0 && parts[i].trim()) {
+      // First part is the original rejection comment
+      conversation.push({
+        type: 'rejection',
+        date: '',
+        text: parts[i].trim()
+      });
+    } else if (i < parts.length - 1) {
+      // This is a resubmission date followed by its comment
+      conversation.push({
+        type: 'resubmission',
+        date: parts[i],
+        text: (i + 1 < parts.length) ? parts[i + 1].trim() : ''
+      });
+    }
+  }
+  
+  return { 
+    hasConversation: true, 
+    conversation 
+  };
+};
+
+// Component to render a comment conversation
+const CommentConversation = ({ comments }: { comments: string }) => {
+  const result = formatCommentHistory(comments);
+  
+  if (!result.hasConversation) {
+    return (
+      <p className="whitespace-pre-wrap">
+        {comments || "No comments available"}
+      </p>
+    );
+  }
+  
+  return (
+    <div className="space-y-3">
+      {result.conversation?.map((entry, index) => (
+        <div 
+          key={index}
+          className={cn(
+            "p-3 rounded-md",
+            entry.type === 'rejection' 
+              ? "bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800" 
+              : "bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800"
+          )}
+        >
+          <div className="flex items-center justify-between mb-1">
+            <span className={cn(
+              "text-xs font-medium",
+              entry.type === 'rejection'
+                ? "text-red-800 dark:text-red-300"
+                : "text-blue-800 dark:text-blue-300"
+            )}>
+              {entry.type === 'rejection' ? "Rejection Feedback" : "Resubmission"}
+            </span>
+            {entry.date && (
+              <span className={cn(
+                "text-xs",
+                entry.type === 'rejection'
+                  ? "text-red-700 dark:text-red-400"
+                  : "text-blue-700 dark:text-blue-400"
+              )}>
+                {entry.date}
+              </span>
+            )}
+          </div>
+          <p className={cn(
+            "text-sm whitespace-pre-wrap",
+            entry.type === 'rejection'
+              ? "text-red-800 dark:text-red-200"
+              : "text-blue-800 dark:text-blue-200"
+          )}>
+            {entry.text}
+          </p>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 export function ReportApproval({
   report,
   onApprovalComplete,
   branchName,
 }: ReportApprovalProps) {
+  const { data: session } = useSession();
   const [isApproveDialogOpen, setIsApproveDialogOpen] = useState(false);
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
+  const [isViewCommentsDialogOpen, setIsViewCommentsDialogOpen] = useState(false);
   const [remarks, setRemarks] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [hasShownCommentToast, setHasShownCommentToast] = useState(false);
+
+  // Show a toast notification for users about available comments
+  useEffect(() => {
+    if (report.comments && !hasShownCommentToast && report.status !== "pending" && report.status !== "pending_approval") {
+      toast({
+        title: `${report.status === "approved" ? "Approval" : "Rejection"} Comments Available`,
+        description: "Click 'View Comments' to see manager feedback.",
+        duration: 5000,
+      });
+      setHasShownCommentToast(true);
+    }
+  }, [report.comments, report.status, hasShownCommentToast]);
 
   const handleApprovalAction = async () => {
     if (!remarks.trim() && isRejectDialogOpen) {
@@ -126,37 +247,85 @@ export function ReportApproval({
 
   // Only render if the report is in pending status
   if (report.status !== "pending" && report.status !== "pending_approval") {
+    const userRole = session?.user?.role as UserRole || UserRole.USER;
+    
     return (
-      <div className="flex items-center space-x-2">
-        <Badge
-          variant={report.status === "approved" ? "default" : "destructive"}
-          className={cn(
-            "capitalize",
-            report.status === "approved" ? "bg-green-500" : ""
-          )}
-        >
-          {report.status}
-        </Badge>
-        {report.status === "rejected" && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              // Navigate to edit page with the report ID
-              window.location.href = `/dashboard/reports/${report.id}/edit`;
-            }}
-            className="ml-2 bg-blue-500 hover:bg-blue-600 text-white"
+      <div className="space-y-2">
+        <div className="flex items-center space-x-2">
+          <Badge
+            variant={report.status === "approved" ? "default" : "destructive"}
+            className={cn(
+              "capitalize",
+              report.status === "approved" ? "bg-green-500" : ""
+            )}
           >
-            <RefreshCw className="mr-1 h-4 w-4" />
-            Resubmit Report
-          </Button>
+            {report.status}
+          </Badge>
+          
+          {report.status === "rejected" && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                // Navigate to edit page with the report ID
+                window.location.href = `/dashboard/reports/${report.id}/edit`;
+              }}
+              className="ml-2 bg-blue-500 hover:bg-blue-600 text-white"
+            >
+              <RefreshCw className="mr-1 h-4 w-4" />
+              Resubmit Report
+            </Button>
+          )}
+        </div>
+        
+        {report.comments && (
+          <div>
+            {/* Make comments more discoverable with a prominent button */}
+            <Button
+              variant={report.status === "approved" ? "default" : "destructive"}
+              size="sm"
+              onClick={() => setIsViewCommentsDialogOpen(true)}
+              className={cn(
+                "mt-2 w-full justify-start",
+                report.status === "approved" 
+                  ? "bg-green-100 text-green-800 hover:bg-green-200 border border-green-300"
+                  : "bg-red-100 text-red-800 hover:bg-red-200 border border-red-300"
+              )}
+            >
+              <MessageSquare className="mr-2 h-4 w-4" />
+              <span className="font-medium">View {report.status === "approved" ? "Approval" : "Rejection"} Comments</span>
+              <Eye className="ml-2 h-4 w-4" />
+            </Button>
+            
+            {/* Role-specific guidance */}
+            {(userRole === UserRole.USER || userRole === UserRole.SUPERVISOR) && report.status === "rejected" && (
+              <Alert variant="destructive" className="mt-2 py-2">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Action Required</AlertTitle>
+                <AlertDescription>
+                  This report was rejected. Please review the comments and resubmit.
+                </AlertDescription>
+              </Alert>
+            )}
+            
+            {userRole === UserRole.BRANCH_MANAGER && (
+              <Alert className="mt-2 py-2">
+                <Info className="h-4 w-4" />
+                <AlertTitle>Manager Info</AlertTitle>
+                <AlertDescription>
+                  Comments are available for this {report.status} report.
+                </AlertDescription>
+              </Alert>
+            )}
+          </div>
         )}
       </div>
     );
   }
 
+  // For reports that are pending approval, show the approval controls and comments if available
   return (
-    <div>
+    <div className="space-y-3">
       <PermissionGate permissions={[Permission.APPROVE_REPORTS]}>
         <div className="flex flex-wrap gap-2">
           <Button
@@ -180,6 +349,75 @@ export function ReportApproval({
           </Button>
         </div>
       </PermissionGate>
+      
+      {/* Show comments directly in the interface if available */}
+      {report.comments && (
+        <div className="mt-3">
+          <div className="flex items-center gap-2 mb-1">
+            <MessageSquare className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+            <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">Comments</Label>
+          </div>
+          <div className="p-3 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md">
+            <CommentConversation comments={report.comments} />
+            {report.updatedAt && (
+              <div className="flex items-center gap-1 mt-2 text-xs text-gray-500 dark:text-gray-500">
+                <Clock className="h-3 w-3" />
+                <span>Last updated: {formatDate(report.updatedAt)}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* View Comments Dialog - keep this for detailed view */}
+      <Dialog open={isViewCommentsDialogOpen} onOpenChange={setIsViewCommentsDialogOpen}>
+        <DialogContent className="dark:bg-gray-800 dark:border-gray-700">
+          <DialogHeader>
+            <DialogTitle className="dark:text-gray-100">Report Comments</DialogTitle>
+            <DialogDescription className="dark:text-gray-400">
+              Comments for report from {branchName}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-sm text-gray-500 dark:text-gray-400">Write-offs</Label>
+                <div className="font-semibold dark:text-gray-200">{formatKHRCurrency(report.writeOffs)}</div>
+              </div>
+              <div>
+                <Label className="text-sm text-gray-500 dark:text-gray-400">90+ Days</Label>
+                <div className="font-semibold dark:text-gray-200">{formatKHRCurrency(report.ninetyPlus)}</div>
+              </div>
+            </div>
+            <div>
+              <Label className="dark:text-gray-200">Comments</Label>
+              <div className={cn(
+                "mt-2 p-4 rounded-md",
+                (report.status as ReportStatus) === "approved" 
+                  ? "bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800" 
+                  : (report.status as ReportStatus) === "rejected"
+                  ? "bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800"
+                  : "bg-gray-100 dark:bg-gray-700"
+              )}>
+                <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 mb-2">
+                  <Clock className="h-4 w-4" />
+                  <span>Last updated: {report.updatedAt ? formatDate(report.updatedAt) : "N/A"}</span>
+                </div>
+                <CommentConversation comments={report.comments || "No comments available"} />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsViewCommentsDialogOpen(false)}
+              className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+            >
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Approve Dialog */}
       <Dialog open={isApproveDialogOpen} onOpenChange={setIsApproveDialogOpen}>

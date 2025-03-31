@@ -16,6 +16,7 @@ export interface Report {
   status: string;
   submittedBy: string;
   submittedAt: string;
+  updatedAt?: string;
   comments?: string;
   planReportId?: string | null;
   planReport?: Report;
