@@ -21,8 +21,8 @@ export function formatKHRCurrency(amount: number): string {
     style: "currency",
     currency: "KHR",
     currencyDisplay: "narrowSymbol",
-    minimumFractionDigits: 3,
-    maximumFractionDigits: 3,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
   }).format(amount); // e.g. "៛123,456.790"
 
   // Define the currency symbol

@@ -43,6 +43,7 @@ interface CreateReportModalProps {
   reportType: ReportType;
   onSuccess: () => void;
   userBranches: Branch[];
+  selectedDate?: Date;
 }
 
 const COMMENT_TEMPLATES = [
@@ -74,6 +75,7 @@ export function CreateReportModal({
   reportType,
   onSuccess,
   userBranches,
+  selectedDate,
 }: CreateReportModalProps) {
   const {
     formData,
@@ -225,8 +227,8 @@ export function CreateReportModal({
       
       // Use a batched update to minimize renders
       const newFormData = {
-        title: `${reportType === "plan" ? "Plan" : "Actual"} Report - ${format(today, "yyyy-MM-dd")}`,
-        date: today,
+        title: `${reportType === "plan" ? "Plan" : "Actual"} Report - ${format(selectedDate || today, "yyyy-MM-dd")}`,
+        date: selectedDate || today,
         branchId: userBranches.length === 1 ? userBranches[0].id : '',
         writeOffs: 0,
         ninetyPlus: 0,
@@ -249,7 +251,7 @@ export function CreateReportModal({
     if (!isOpen) {
       hasInitialized.current = false;
     }
-  }, [isOpen, reportType, userBranches, today, setFormData]);
+  }, [isOpen, reportType, userBranches, today, setFormData, selectedDate]);
 
   // Prevent future dates from being used
   useEffect(() => {
@@ -484,11 +486,12 @@ export function CreateReportModal({
                   <span className="text-red-500 ml-1">*</span>
                 )}
               </Label>
-              <Select onValueChange={handleTemplateSelect} defaultValue="">
+              <Select onValueChange={handleTemplateSelect} defaultValue="none">
                 <SelectTrigger className="w-full sm:w-[200px] dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 text-sm">
                   <SelectValue placeholder="Use template" />
                 </SelectTrigger>
                 <SelectContent className="dark:bg-gray-800 dark:border-gray-700">
+                  <SelectItem value="none">Select template</SelectItem>
                   {COMMENT_TEMPLATES.map((template) => (
                     <SelectItem key={template.label} value={template.value} className="dark:text-gray-200 dark:focus:bg-gray-700 text-sm">
                       {template.label}

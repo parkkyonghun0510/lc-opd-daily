@@ -105,7 +105,7 @@ export function useReportForm({
         }
         
         const data = await response.json();
-        return data.exists;
+        return data.isDuplicate;
       } catch (error) {
         console.error("Error checking for duplicate:", error);
         return false;

@@ -113,6 +113,12 @@ self.addEventListener('push', (event) => {
   try {
     const data = event.data.json();
     
+    // Skip showing validation notifications entirely
+    if (data.tag === 'subscription-validation' && data.silent === true) {
+      console.log('Skipping validation notification display');
+      return;
+    }
+    
     // Default notification options
     const options = {
       body: data.body || 'You have a new notification',
@@ -130,6 +136,16 @@ self.addEventListener('push', (event) => {
     // Add actions if provided
     if (data.actions) {
       options.actions = data.actions;
+    }
+    
+    // Add tag if provided
+    if (data.tag) {
+      options.tag = data.tag;
+    }
+    
+    // Add silent option if provided
+    if (data.silent) {
+      options.silent = data.silent;
     }
 
     event.waitUntil(

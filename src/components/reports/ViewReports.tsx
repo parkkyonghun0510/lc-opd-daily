@@ -14,6 +14,7 @@ import {
   ChevronRightIcon,
   PlusIcon,
   PencilIcon,
+  Eye,
 } from "lucide-react";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
@@ -34,7 +35,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Loader2 } from "lucide-react";
 import { useSession } from "next-auth/react";
-import { CreateReportModal } from "./CreateReportModal";
+import { CreateReportModal } from "@/components/reports/CreateReportModal";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
@@ -66,103 +67,26 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { UserDisplayName } from "@/components/user/UserDisplayName";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { PaginationControl } from "@/components/ui/pagination-control";
+import { ReportFilters } from "@/components/reports/ReportFilters";
+import { useRouter } from "next/navigation";
+import { Separator } from "@/components/ui/separator";
+import { ReportDetailModal, CommentConversation } from "@/components/reports/ReportDetailModal";
 
-// Helper function to format comment history as a conversation
-const formatCommentHistory = (comments: string) => {
-  // Split the comments by the resubmission pattern
-  const parts = comments.split(/\[RESUBMISSION ([^:]+)]:/).filter(Boolean);
-  
-  if (parts.length <= 1) {
-    // No resubmission markers, just return the original text
-    return { 
-      hasConversation: false, 
-      formattedComments: comments 
-    };
-  }
-  
-  // Format as a conversation with timestamps
-  const conversation = [];
-  for (let i = 0; i < parts.length; i += 2) {
-    if (i === 0 && parts[i].trim()) {
-      // First part is the original rejection comment
-      conversation.push({
-        type: 'rejection',
-        date: '',
-        text: parts[i].trim()
-      });
-    } else if (i < parts.length - 1) {
-      // This is a resubmission date followed by its comment
-      conversation.push({
-        type: 'resubmission',
-        date: parts[i],
-        text: (i + 1 < parts.length) ? parts[i + 1].trim() : ''
-      });
-    }
-  }
-  
-  return { 
-    hasConversation: true, 
-    conversation 
-  };
-};
-
-// Component to render a comment conversation
-const CommentConversation = ({ comments }: { comments: string }) => {
-  const result = formatCommentHistory(comments);
-  
-  if (!result.hasConversation) {
-    return (
-      <p className="whitespace-pre-wrap">
-        {comments || "No comments available"}
-      </p>
-    );
-  }
-  
-  return (
-    <div className="space-y-3">
-      {result.conversation?.map((entry, index) => (
-        <div 
-          key={index}
-          className={cn(
-            "p-3 rounded-md",
-            entry.type === 'rejection' 
-              ? "bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800" 
-              : "bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800"
-          )}
-        >
-          <div className="flex items-center justify-between mb-1">
-            <span className={cn(
-              "text-xs font-medium",
-              entry.type === 'rejection'
-                ? "text-red-800 dark:text-red-300"
-                : "text-blue-800 dark:text-blue-300"
-            )}>
-              {entry.type === 'rejection' ? "Rejection Feedback" : "Resubmission"}
-            </span>
-            {entry.date && (
-              <span className={cn(
-                "text-xs",
-                entry.type === 'rejection'
-                  ? "text-red-700 dark:text-red-400"
-                  : "text-blue-700 dark:text-blue-400"
-              )}>
-                {entry.date}
-              </span>
-            )}
-          </div>
-          <p className={cn(
-            "text-sm whitespace-pre-wrap",
-            entry.type === 'rejection'
-              ? "text-red-800 dark:text-red-200"
-              : "text-blue-800 dark:text-blue-200"
-          )}>
-            {entry.text}
-          </p>
-        </div>
-      ))}
-    </div>
-  );
-};
+// Define an extended type for reports with user information
+interface ReportWithUser extends Report {
+  user?: {
+    id: string;
+    name: string;
+    username?: string;
+  } | null;
+}
 
 export function ViewReports() {
   const { data: session } = useSession();
@@ -173,27 +97,39 @@ export function ViewReports() {
   const [editComments, setEditComments] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [createReportType, setCreateReportType] = useState<"plan" | "actual">(
-    "plan"
-  );
+  const [createReportType, setCreateReportType] = useState<"plan" | "actual">("plan");
+  const [status, setStatus] = useState<string | undefined>(undefined);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [viewingReport, setViewingReport] = useState<ReportWithUser | null>(null);
 
   // Use the useReports hook for all data management
   const {
-    date,
-    setDate,
+    startDate,
+    setStartDate,
+    endDate,
+    setEndDate,
     reportType,
     setReportType,
     selectedBranchId,
     setSelectedBranchId,
+    selectedUserId,
+    setSelectedUserId,
     reports,
     isLoading,
     pagination,
     userBranches,
     handlePageChange,
+    goToPage,
+    setPageSize,
     handleFilter,
+    clearFilters,
     updateReport,
+    exportReportsToCSV,
+    exportReportsToPDF,
+    isExporting,
   } = useReports({
-    initialDate: new Date(),
+    initialStartDate: new Date(),
+    initialEndDate: undefined,
   });
 
   // If user has no branches assigned, show error message
@@ -265,6 +201,18 @@ export function ViewReports() {
     // Start with empty comment text for new input instead of pre-filling with existing comments
     setEditComments("");
     setIsEditModalOpen(true);
+  };
+
+  const handleViewDetailsClick = (report: Report) => {
+    // Create a ReportWithUser from the Report type to match what the modal expects
+    const reportWithUser: ReportWithUser = {
+      ...report,
+      // Add any additional properties needed for ReportWithUser type
+      user: null // The actual user data will be displayed via UserDisplayName component
+    };
+    
+    setViewingReport(reportWithUser);
+    setIsViewModalOpen(true);
   };
 
   const handleUpdateReport = async () => {
@@ -360,7 +308,7 @@ export function ViewReports() {
   };
 
   const handleCreateClick = async (type: "plan" | "actual") => {
-    if (type === "actual" && date) {
+    if (type === "actual" && startDate) {
       setIsSubmitting(true);
       try {
         // Check if branch ID is valid before making the request
@@ -374,345 +322,293 @@ export function ViewReports() {
           return;
         }
 
-        const formattedDate = format(date, "yyyy-MM-dd");
+        const formattedDate = format(startDate, "yyyy-MM-dd");
         const response = await fetch(
           `/api/reports?date=${formattedDate}&branchId=${selectedBranchId || session?.user?.branchId}&reportType=plan`
         );
-        
+
         if (!response.ok) {
-          const errorData = await response.json();
-          console.error("Error response:", errorData);
-          throw new Error(errorData.error || "Failed to verify plan report");
+          throw new Error("No plan report exists for this date");
         }
-        
-        const data = await response.json();
-        const planExists = data.data && data.data.length > 0;
-        
-        if (!planExists) {
-          toast({
-            title: "Plan Report Required",
-            description: "You need to create a Morning Plan report before creating an Evening Actual report for the same day and branch.",
-            variant: "destructive",
-          });
-          
-          // Automatically switch to Plan tab to help user create a Plan first
-          setReportType("plan");
-          
-          setIsSubmitting(false);
-          return;
+
+        const planData = await response.json();
+        if (!planData.data || planData.data.length === 0) {
+          throw new Error("No plan report exists for this date");
         }
+
+        // Plan report exists, now we can create an actual report
+        setCreateReportType(type);
+        setIsCreateModalOpen(true);
       } catch (error) {
         console.error("Error checking for plan report:", error);
         toast({
-          title: "Error",
-          description: "Failed to verify plan report existence. Please try again.",
+          title: "Plan Report Required",
+          description:
+            "A plan report must exist before you can create an actual report. Please create a plan report first.",
           variant: "destructive",
         });
+      } finally {
         setIsSubmitting(false);
-        return;
       }
-      setIsSubmitting(false);
+    } else {
+      setCreateReportType(type);
+      setIsCreateModalOpen(true);
     }
-    
-    // Check if branch ID is selected before opening create modal
-    if (!selectedBranchId) {
-      toast({
-        title: "Branch Required",
-        description: "Please select a branch before creating a report.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    setCreateReportType(type);
-    setIsCreateModalOpen(true);
   };
 
   const formatDate = (dateString: string) => {
-    return dateString; // The date is already in YYYY-MM-DD format
+    return format(new Date(dateString), "MMM d, yyyy");
   };
 
   const formatCurrency = formatKHRCurrency;
 
   const getStatusBadgeColor = (status: string) => {
     switch (status) {
-      case "approved":
-        return "bg-green-500";
       case "pending":
-        return "bg-yellow-500";
+        return "bg-yellow-500 text-white";
+      case "pending_approval":
+        return "bg-blue-500 text-white";
+      case "approved":
+        return "bg-green-500 text-white";
       case "rejected":
-        return "bg-red-500";
+        return "bg-red-500 text-white";
       default:
-        return "bg-gray-500";
+        return "bg-gray-500 text-white";
     }
   };
 
   return (
-    <Card className="border-0 shadow-md dark:bg-gray-800 dark:shadow-lg">
-      <CardHeader className="pb-2">
-        <CardTitle>View Reports</CardTitle>
-        <CardDescription>
-          Browse and filter{" "}
-          {reportType === "plan" ? "morning plan" : "evening actual"} reports
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {/* Responsive filter controls with enhanced visual design */}
-        <div className="flex flex-col space-y-4 mb-6">
-          {/* Report type and create controls in one row */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            {/* Enhanced tabs with larger clickable area */}
-            <div className="w-full">
-              <Tabs
-                className="w-full"
-                value={reportType}
-                onValueChange={(value: string) => {
-                  if (value === "plan" || value === "actual") {
-                    setReportType(value);
-                    // No need to manually call handleFilter here as the useEffect in useReports 
-                    // will handle fetching when reportType changes
-                  }
-                }}
-              >
-                <TabsList className="w-full grid grid-cols-2 p-1 h-12 dark:bg-gray-800">
-                  <TabsTrigger
-                    value="plan"
-                    className={cn(
-                      "flex items-center justify-center gap-1 py-3 data-[state=active]:text-white",
-                      "data-[state=inactive]:dark:text-gray-300",
-                      "data-[state=active]:bg-blue-600 data-[state=active]:shadow"
-                    )}
-                  >
-                    <span className="text-sm font-medium">Morning Plan</span>
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="actual"
-                    className={cn(
-                      "flex items-center justify-center gap-1 py-3 data-[state=active]:text-white",
-                      "data-[state=inactive]:dark:text-gray-300",
-                      "data-[state=active]:bg-green-600 data-[state=active]:shadow"
-                    )}
-                  >
-                    <span className="text-sm font-medium">Evening Actual</span>
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
-            </div>
+    <div className="space-y-4">
+      {/* Filter section with its collapsible functionality */}
+      <ReportFilters
+        startDate={startDate}
+        setStartDate={setStartDate}
+        endDate={endDate}
+        setEndDate={setEndDate}
+        selectedBranchId={selectedBranchId}
+        setSelectedBranchId={setSelectedBranchId}
+        selectedUserId={selectedUserId}
+        setSelectedUserId={setSelectedUserId}
+        reportType={reportType}
+        setReportType={setReportType}
+        status={status}
+        setStatus={setStatus}
+        handleFilter={handleFilter}
+        clearFilters={clearFilters}
+        exportToCSV={exportReportsToCSV}
+        exportToPDF={exportReportsToPDF}
+        isLoading={isLoading}
+        isExporting={isExporting}
+      />
 
-            {/* Single, prominent create button that adjusts to the selected report type */}
-            <Button
-              onClick={() => handleCreateClick(reportType)}
-              className={cn(
-                "w-full sm:w-auto flex items-center justify-center shadow transition-all duration-200 h-12 px-4 sm:px-6",
-                reportType === "plan"
-                  ? "bg-blue-600 hover:bg-blue-700 text-white"
-                  : "bg-green-600 hover:bg-green-700 text-white"
-              )}
-              title={`Create a new ${reportType} report`}
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? (
-                <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-              ) : (
-                <PlusIcon className="h-5 w-5 mr-2" />
-              )}
-              <span className="font-medium">
-                {isSubmitting ? "Checking..." : `Create ${reportType === "plan" ? "Plan" : "Actual"}`}
-              </span>
-            </Button>
-          </div>
-
-          {/* Filters in one row */}
-          <div className="flex flex-wrap items-center gap-3">
-            {/* Date selector with clearer label */}
-            <div className="flex items-center w-full sm:w-auto">
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant={"outline"}
-                    className={cn(
-                      "w-full justify-start text-left font-normal border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 h-10",
-                      !date && "text-muted-foreground dark:text-gray-400"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {date ? format(date, "PPP") : <span>Select a date</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 dark:bg-gray-800 dark:border-gray-700">
-                  <Calendar
-                    mode="single"
-                    selected={date}
-                    onSelect={setDate}
-                    initialFocus
-                    className="dark:bg-gray-800"
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            {/* Branch selector - always show if there are branches available */}
-            {userBranches.length > 0 && (
-              <div className="w-full sm:w-auto">
-                <Select
-                  value={selectedBranchId}
-                  onValueChange={setSelectedBranchId}
-                >
-                  <SelectTrigger className="w-full sm:w-[200px] dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200">
-                    <SelectValue placeholder="Select branch" />
-                  </SelectTrigger>
-                  <SelectContent className="dark:bg-gray-800 dark:border-gray-700 max-h-[300px]">
-                    {userBranches.map((branch) => (
-                      <SelectItem key={branch.id} value={branch.id}>
-                        {branch.code} - {branch.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-          </div>
+      {/* Action buttons and results summary */}
+      <div className="flex flex-col sm:flex-row justify-between items-center mb-2 gap-2">
+        <div className="text-sm text-gray-500 dark:text-gray-400">
+          {reports.length > 0 ? (
+            <span>Showing {reports.length} reports {startDate && `from ${format(startDate, "MMM d, yyyy")}`}</span>
+          ) : !isLoading ? (
+            <span>No reports match your filter criteria</span>
+          ) : null}
         </div>
+        
+        <div className="flex gap-2 w-full sm:w-auto justify-between sm:justify-end">
+          <Button
+            onClick={() => handleCreateClick("plan")}
+            variant="outline"
+            className="flex-1 sm:flex-none bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800 dark:hover:bg-blue-900/30"
+          >
+            <PlusIcon className="mr-1 h-4 w-4" />
+            Plan Report
+          </Button>
+          <Button
+            onClick={() => handleCreateClick("actual")}
+            className="flex-1 sm:flex-none bg-green-600 hover:bg-green-700 text-white"
+          >
+            <PlusIcon className="mr-1 h-4 w-4" />
+            Actual Report
+          </Button>
+        </div>
+      </div>
 
-        {/* Reports table */}
-        <div className="rounded-md border border-gray-200 dark:border-gray-700 overflow-hidden">
-          <Table>
-            <TableHeader className="bg-gray-50 dark:bg-gray-800">
-              <TableRow className="hover:bg-gray-100 dark:hover:bg-gray-700 border-b dark:border-gray-700">
-                <TableHead className="font-semibold text-gray-700 dark:text-gray-200">Date</TableHead>
-                <TableHead className="font-semibold text-gray-700 dark:text-gray-200">Branch</TableHead>
-                <TableHead className="font-semibold text-gray-700 dark:text-gray-200">
-                  {reportType === "actual" ? "Write-offs (Actual)" : "Write-offs"}
-                </TableHead>
-                {reportType === "actual" && (
-                  <TableHead className="font-semibold text-blue-600 dark:text-blue-400">Write-offs (Plan)</TableHead>
-                )}
-                <TableHead className="font-semibold text-gray-700 dark:text-gray-200">
-                  {reportType === "actual" ? "90+ Days (Actual)" : "90+ Days"}
-                </TableHead>
-                {reportType === "actual" && (
-                  <TableHead className="font-semibold text-blue-600 dark:text-blue-400">90+ Days (Plan)</TableHead>
-                )}
-                <TableHead className="font-semibold text-gray-700 dark:text-gray-200">Comments</TableHead>
-                <TableHead className="font-semibold text-gray-700 dark:text-gray-200">Status</TableHead>
-                <TableHead className="font-semibold text-gray-700 dark:text-gray-200">Submitted By</TableHead>
-                <TableHead className="font-semibold text-gray-700 dark:text-gray-200">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody className="bg-white dark:bg-gray-800">
-              {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={reportType === "actual" ? 10 : 8} className="text-center py-8 dark:text-gray-300">
-                    <div className="flex items-center justify-center">
-                      <Loader2 className="h-6 w-6 animate-spin" />
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : reports.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={reportType === "actual" ? 10 : 8} className="text-center py-8 dark:text-gray-300">
-                    No reports found for the selected filters
-                  </TableCell>
-                </TableRow>
-              ) : (
-                reports.map((report) => (
-                  <TableRow key={report.id} className="hover:bg-gray-50 dark:hover:bg-gray-800 dark:border-gray-700">
-                    <TableCell className="dark:text-gray-300">{formatDate(report.date)}</TableCell>
-                    <TableCell className="dark:text-gray-300">{report.branch.name}</TableCell>
-                    <TableCell className={cn("dark:text-gray-300", reportType === "actual" ? "font-medium" : "")}>
-                      {formatCurrency(report.writeOffs)}
-                    </TableCell>
-                    {reportType === "actual" && (
-                      <TableCell className="text-blue-600 dark:text-blue-400">
-                        {report.writeOffsPlan !== null && report.writeOffsPlan !== undefined
-                          ? formatCurrency(report.writeOffsPlan)
-                          : <span className="text-red-500 dark:text-red-400 text-xs">No plan data</span>}
-                      </TableCell>
-                    )}
-                    <TableCell className={cn("dark:text-gray-300", reportType === "actual" ? "font-medium" : "")}>
-                      {formatCurrency(report.ninetyPlus)}
-                    </TableCell>
-                    {reportType === "actual" && (
-                      <TableCell className="text-blue-600 dark:text-blue-400">
-                        {report.ninetyPlusPlan !== null && report.ninetyPlusPlan !== undefined
-                          ? formatCurrency(report.ninetyPlusPlan)
-                          : <span className="text-red-500 dark:text-red-400 text-xs">No plan data</span>}
-                      </TableCell>
-                    )}
-                    <TableCell className="max-w-[200px] truncate dark:text-gray-300">
-                      {report.comments ? (
-                        <div className="truncate">
-                          {formatCommentHistory(report.comments).hasConversation ? 
-                            "[Comment conversation]" : 
-                            report.comments.substring(0, 30) + (report.comments.length > 30 ? "..." : "")}
-                        </div>
-                      ) : "-"}
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        className={cn(
-                          "text-white",
-                          getStatusBadgeColor(report.status)
-                        )}
-                      >
-                        {report.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="dark:text-gray-300">
-                      <UserDisplayName userId={report.submittedBy} />
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleEditClick(report)}
-                        disabled={
-                          session?.user?.role !== "ADMIN" &&
-                          session?.user?.branchId !== report.branch.id
-                        }
-                        className="hover:bg-gray-100 dark:hover:bg-gray-800"
-                      >
-                        <PencilIcon className="h-4 w-4 dark:text-gray-300" />
-                      </Button>
-                    </TableCell>
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden border border-gray-200 dark:border-gray-700">
+        {isLoading ? (
+          <div className="flex items-center justify-center p-8">
+            <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
+          </div>
+        ) : reports.length === 0 ? (
+          <div className="text-center p-8 text-gray-500 dark:text-gray-400">
+            <div className="mb-2">No reports found for the selected filters.</div>
+            <div className="text-sm">Try adjusting your filter criteria or create a new report.</div>
+          </div>
+        ) : (
+          <>
+            {/* Regular table for larger screens */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Branch</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Write-offs</TableHead>
+                    <TableHead>90+ Days</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Submitted By</TableHead>
+                    <TableHead>Actions</TableHead>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
+                </TableHeader>
+                <TableBody>
+                  {reports.map((report) => (
+                    <TableRow key={report.id}>
+                      <TableCell>{format(new Date(report.date), "MMM d, yyyy")}</TableCell>
+                      <TableCell>{report.branch.name}</TableCell>
+                      <TableCell className="capitalize">{report.reportType}</TableCell>
+                      <TableCell>{formatKHRCurrency(report.writeOffs)}</TableCell>
+                      <TableCell>{formatKHRCurrency(report.ninetyPlus)}</TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={
+                            report.status === "approved" ? "default" : 
+                            report.status === "rejected" ? "destructive" : 
+                            "secondary"
+                          }
+                          className="capitalize"
+                        >
+                          {report.status.replace("_", " ")}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <UserDisplayName userId={report.submittedBy} />
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center space-x-1">
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleViewDetailsClick(report)}
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>View Details</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
 
-        {/* Pagination */}
-        {pagination && pagination.totalPages > 1 && (
-          <div className="flex items-center justify-between mt-4">
-            <div className="text-sm text-muted-foreground dark:text-gray-400">
-              Showing {pagination.page} of {pagination.totalPages} pages
+                          {(report.status === "pending" || 
+                            report.status === "rejected") && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleEditClick(report)}
+                                  >
+                                    <PencilIcon className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Edit Report</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </table>
             </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handlePageChange(pagination.page - 1)}
-                disabled={pagination.page === 1}
-                className="dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300"
-              >
-                <ChevronLeftIcon className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handlePageChange(pagination.page + 1)}
-                disabled={pagination.page === pagination.totalPages}
-                className="dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300"
-              >
-                <ChevronRightIcon className="h-4 w-4" />
-              </Button>
+
+            {/* Card view for mobile screens */}
+            <div className="md:hidden space-y-4 p-4">
+              {reports.map((report) => (
+                <div key={report.id} className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <div className="font-medium">{format(new Date(report.date), "MMM d, yyyy")}</div>
+                      <div className="text-sm text-gray-500">{report.branch.name}</div>
+                    </div>
+                    <Badge
+                      variant={
+                        report.status === "approved" ? "default" : 
+                        report.status === "rejected" ? "destructive" : 
+                        "secondary"
+                      }
+                      className="capitalize"
+                    >
+                      {report.status.replace("_", " ")}
+                    </Badge>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3 mb-3">
+                    <div>
+                      <div className="text-xs text-gray-500">Write-offs</div>
+                      <div className="font-medium">{formatKHRCurrency(report.writeOffs)}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-500">90+ Days</div>
+                      <div className="font-medium">{formatKHRCurrency(report.ninetyPlus)}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-500">Type</div>
+                      <div className="capitalize">{report.reportType}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-500">Submitted By</div>
+                      <div className="text-sm">
+                        <UserDisplayName userId={report.submittedBy} />
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex justify-end space-x-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleViewDetailsClick(report)}
+                      className="flex items-center"
+                    >
+                      <Eye className="h-4 w-4 mr-1" />
+                      View
+                    </Button>
+                    
+                    {(report.status === "pending" || report.status === "rejected") && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEditClick(report)}
+                        className="flex items-center"
+                      >
+                        <PencilIcon className="h-4 w-4 mr-1" />
+                        Edit
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
-          </div>
+            
+            <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+              <PaginationControl
+                currentPage={pagination.page}
+                totalPages={pagination.totalPages}
+                totalItems={pagination.total}
+                pageSize={pagination.limit}
+                onPageChange={goToPage}
+                onPageSizeChange={setPageSize}
+              />
+            </div>
+          </>
         )}
-      </CardContent>
+      </div>
 
-      {/* Edit Modal */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
         <DialogContent>
           <DialogHeader>
@@ -784,17 +680,24 @@ export function ViewReports() {
         </DialogContent>
       </Dialog>
 
-      {/* Create Modal */}
+      <ReportDetailModal
+        report={viewingReport}
+        isOpen={isViewModalOpen}
+        onClose={() => setIsViewModalOpen(false)}
+        onEdit={handleEditClick}
+      />
+
       <CreateReportModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         reportType={createReportType}
         onSuccess={() => {
-          // Refresh the reports list
+          // Refresh reports after creating a new one
           handleFilter();
         }}
         userBranches={userBranches}
+        selectedDate={startDate}
       />
-    </Card>
+    </div>
   );
 }

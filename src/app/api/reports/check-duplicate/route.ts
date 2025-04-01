@@ -11,16 +11,29 @@ export async function GET(request: Request) {
     }
 
     const { searchParams } = new URL(request.url);
-    const date = searchParams.get("date");
+    const dateStr = searchParams.get("date");
     const branchId = searchParams.get("branchId");
     const reportType = searchParams.get("reportType");
 
-    if (!date || !branchId || !reportType) {
+    if (!dateStr || !branchId || !reportType) {
       return NextResponse.json(
         { error: "Missing required parameters" },
         { status: 400 }
       );
     }
+
+    // Parse the date string to a Date object
+    const date = new Date(dateStr);
+    
+    // Validate that the date is valid
+    if (isNaN(date.getTime())) {
+      return NextResponse.json(
+        { error: "Invalid date format" },
+        { status: 400 }
+      );
+    }
+
+    console.log(`Checking for duplicate: date=${date.toISOString()}, branchId=${branchId}, reportType=${reportType}`);
 
     // Check if a report already exists for this branch on this date
     const existingReport = await prisma.report.findFirst({
@@ -31,6 +44,8 @@ export async function GET(request: Request) {
       },
     });
 
+    console.log(`Duplicate check result: ${!!existingReport}`);
+    
     return NextResponse.json({ isDuplicate: !!existingReport });
   } catch (error) {
     console.error("Error checking for duplicate report:", error);

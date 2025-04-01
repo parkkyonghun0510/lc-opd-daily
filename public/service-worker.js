@@ -69,6 +69,12 @@ self.addEventListener('push', (event) => {
   try {
     const payload = event.data.json();
     
+    // Skip showing validation notifications entirely
+    if (payload.tag === 'subscription-validation' && payload.silent === true) {
+      console.log('Skipping validation notification display');
+      return;
+    }
+    
     // Generate notification ID if not provided
     const notificationId = payload.id || `notification-${Date.now()}`;
     
@@ -95,7 +101,8 @@ self.addEventListener('push', (event) => {
       },
       actions: payload.actions || [],
       tag: payload.tag, // For grouping similar notifications
-      requireInteraction: payload.requireInteraction || false
+      requireInteraction: payload.requireInteraction || false,
+      silent: payload.silent || false
     };
     
     event.waitUntil(

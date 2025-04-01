@@ -66,14 +66,14 @@ model Branch {
 
 model Report {
   id            String   @id @default(cuid())
-  date          String
+  date          DateTime @db.Date
   branchId      String
-  writeOffs     Float
-  ninetyPlus    Float
+  writeOffs     Decimal  @db.Decimal(15, 2)
+  ninetyPlus    Decimal  @db.Decimal(15, 2)
   reportType    String   @default("actual")
   status        String   @default("pending")
   submittedBy   String
-  submittedAt   String
+  submittedAt   DateTime @default(now())
   comments      String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -83,6 +83,10 @@ model Report {
   actualReports Report[] @relation("PlanActualRelation")
 
   @@unique([date, branchId, reportType])
+  @@index([branchId, date])
+  @@index([submittedBy, status])
+  @@index([reportType, status])
+  @@index([date, status])
   @@index([planReportId])
 }
 

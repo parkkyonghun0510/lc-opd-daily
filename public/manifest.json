@@ -1,7 +1,7 @@
 {
-  "name": "LC OPD Daily Report",
-  "short_name": "LC OPD",
-  "description": "Daily report management system for LC OPD",
+  "name": "LC Help Desk Reports",
+  "short_name": "LC Reports",
+  "description": "Professional daily reporting system for LC OPD management and tracking",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
@@ -80,7 +80,7 @@
       "label": "Create Report Screen"
     }
   ],
-  "categories": ["business", "productivity"],
+  "categories": ["business", "productivity", "healthcare", "medical"],
   "prefer_related_applications": false,
   "shortcuts": [
     {
