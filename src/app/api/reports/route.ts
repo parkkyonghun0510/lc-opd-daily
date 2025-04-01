@@ -44,6 +44,8 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
     const reportType = searchParams.get("reportType");
+    const submittedBy = searchParams.get("submittedBy");
+    const date = searchParams.get("date");
 
     // Get accessible branches for the user
     const accessibleBranches = await getAccessibleBranches(token.sub as string);
@@ -71,7 +73,14 @@ export async function GET(request: NextRequest) {
       where.status = status;
     }
 
-    if (startDate || endDate) {
+    if (submittedBy) {
+      where.submittedBy = submittedBy;
+    }
+
+    if (date) {
+      // Properly handle date as DateTime
+      where.date = new Date(date);
+    } else if (startDate || endDate) {
       where.date = {};
       if (startDate) {
         where.date.gte = new Date(startDate);
@@ -88,30 +97,54 @@ export async function GET(request: NextRequest) {
     // Get total count for pagination
     const total = await prisma.report.count({ where });
 
+    // Implement keyset pagination for better performance with large datasets
+    let skipTake = {};
+    
+    if (page && limit) {
+      skipTake = {
+        skip: (page - 1) * limit,
+        take: limit,
+      };
+    }
+
     // Get reports with pagination
     const reports = await prisma.report.findMany({
       where,
       include: {
         branch: true,
-        planReport: true,
-        actualReports: true,
+        planReport: {
+          select: {
+            id: true,
+            writeOffs: true,
+            ninetyPlus: true,
+          },
+        },
+        actualReports: {
+          select: {
+            id: true,
+          },
+        },
       },
       orderBy: {
         date: "desc",
       },
-      skip: (page - 1) * limit,
-      take: limit,
+      ...skipTake,
     });
 
     // Transform reports data to ensure we have plan data for actual reports
     const transformedReports = reports.map(report => {
       // Create a new object with the original report properties
-      const transformed = { ...report } as any;
+      const transformed = { 
+        ...report,
+        // Convert Decimal to number for JSON serialization
+        writeOffs: Number(report.writeOffs),
+        ninetyPlus: Number(report.ninetyPlus),
+      } as any;
       
       // If this is an actual report and has planReport data
       if (report.reportType === 'actual' && report.planReport) {
-        transformed.writeOffsPlan = report.planReport.writeOffs || 0;
-        transformed.ninetyPlusPlan = report.planReport.ninetyPlus || 0;
+        transformed.writeOffsPlan = Number(report.planReport.writeOffs) || 0;
+        transformed.ninetyPlusPlan = Number(report.planReport.ninetyPlus) || 0;
       }
       
       return transformed;
@@ -177,13 +210,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Format date consistently
-    const formattedDate = new Date(reportData.date).toISOString().split('T')[0];
+    // Parse date properly for DateTime field
+    const reportDate = new Date(reportData.date);
+    
+    // Ensure date is valid
+    if (isNaN(reportDate.getTime())) {
+      return NextResponse.json(
+        { error: "Invalid date format" },
+        { status: 400 }
+      );
+    }
 
     // Check for existing report
     const existingReport = await prisma.report.findFirst({
       where: {
-        date: formattedDate,
+        date: reportDate,
         branchId: reportData.branchId,
         reportType: reportData.reportType
       },
@@ -225,12 +266,25 @@ export async function POST(request: NextRequest) {
       select: { name: true }
     });
 
+    // Create the base report data with correct types
+    const baseReportData = {
+      date: reportDate,
+      branchId: reportData.branchId,
+      writeOffs: reportData.writeOffs || 0,
+      ninetyPlus: reportData.ninetyPlus || 0,
+      reportType: reportData.reportType,
+      status: reportStatus,
+      submittedBy: token.sub as string,
+      submittedAt: new Date(),
+      comments: reportData.comments || null,
+    };
+
     let report;
     // For actual reports, find and validate corresponding plan report
     if (reportData.reportType === "actual") {
       const planReport = await prisma.report.findFirst({
         where: {
-          date: formattedDate,
+          date: reportDate,
           branchId: reportData.branchId,
           reportType: "plan"
         }
@@ -245,15 +299,7 @@ export async function POST(request: NextRequest) {
 
       report = await prisma.report.create({
         data: {
-          date: formattedDate,
-          branchId: reportData.branchId,
-          writeOffs: reportData.writeOffs || 0,
-          ninetyPlus: reportData.ninetyPlus || 0,
-          reportType: reportData.reportType,
-          status: reportStatus,
-          submittedBy: token.sub as string,
-          submittedAt: new Date().toISOString(),
-          comments: reportData.comments || null,
+          ...baseReportData,
           planReportId: planReport.id
         },
         include: {
@@ -264,17 +310,7 @@ export async function POST(request: NextRequest) {
       });
     } else {
       report = await prisma.report.create({
-        data: {
-          date: formattedDate,
-          branchId: reportData.branchId,
-          writeOffs: reportData.writeOffs || 0,
-          ninetyPlus: reportData.ninetyPlus || 0,
-          reportType: reportData.reportType,
-          status: reportStatus,
-          submittedBy: token.sub as string,
-          submittedAt: new Date().toISOString(),
-          comments: reportData.comments || null
-        },
+        data: baseReportData,
         include: {
           branch: true,
           planReport: true,
@@ -291,9 +327,9 @@ export async function POST(request: NextRequest) {
           branchId: report.branchId,
           branchName: branch?.name || "a branch",
           submitterName: submitter?.name || "A user",
-          date: formattedDate,
-          writeOffs: report.writeOffs,
-          ninetyPlus: report.ninetyPlus,
+          date: reportDate.toISOString().split('T')[0],
+          writeOffs: Number(report.writeOffs),
+          ninetyPlus: Number(report.ninetyPlus),
           reportType: report.reportType
         };
 
@@ -315,9 +351,22 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Convert Decimal to number for JSON serialization
+    const serializedReport = {
+      ...report,
+      writeOffs: Number(report.writeOffs),
+      ninetyPlus: Number(report.ninetyPlus),
+      // Also handle any nested decimal values
+      planReport: report.planReport ? {
+        ...report.planReport,
+        writeOffs: Number(report.planReport.writeOffs),
+        ninetyPlus: Number(report.planReport.ninetyPlus),
+      } : null,
+    };
+
     return NextResponse.json({
       message: "Report created successfully",
-      data: report,
+      data: serializedReport,
       notificationsSent: reportStatus === "pending_approval"
     });
   } catch (error) {

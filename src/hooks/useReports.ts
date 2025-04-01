@@ -10,22 +10,30 @@ import type {
 } from "@/types/reports";
 
 interface UseReportsProps {
-  initialDate?: Date;
+  initialStartDate?: Date;
+  initialEndDate?: Date;
   initialReportType?: ReportType;
   initialBranchId?: string;
+  initialSubmittedBy?: string;
   pageSize?: number;
 }
 
 export function useReports({
-  initialDate,
+  initialStartDate,
+  initialEndDate,
   initialReportType = "actual",
   initialBranchId,
+  initialSubmittedBy,
   pageSize = 10,
 }: UseReportsProps = {}) {
-  const [date, setDate] = useState<Date | undefined>(initialDate);
+  const [startDate, setStartDate] = useState<Date | undefined>(initialStartDate);
+  const [endDate, setEndDate] = useState<Date | undefined>(initialEndDate);
   const [reportType, setReportType] = useState<ReportType>(initialReportType);
   const [selectedBranchId, setSelectedBranchId] = useState<string | undefined>(
     initialBranchId
+  );
+  const [selectedUserId, setSelectedUserId] = useState<string | undefined>(
+    initialSubmittedBy
   );
   const [reports, setReports] = useState<Report[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -36,6 +44,7 @@ export function useReports({
     totalPages: 0,
   });
   const [userBranches, setUserBranches] = useState<Branch[]>([]);
+  const [isExporting, setIsExporting] = useState(false);
 
   // Fetch reports
   const fetchReports = async () => {
@@ -45,12 +54,26 @@ export function useReports({
     try {
       let url = `/api/reports?page=${pagination.page}&limit=${pagination.limit}`;
 
-      if (date) {
-        url += `&date=${format(date, "yyyy-MM-dd")}`;
+      // Add date range parameters if set
+      if (startDate) {
+        url += `&startDate=${format(startDate, "yyyy-MM-dd")}`;
+      }
+      
+      if (endDate) {
+        url += `&endDate=${format(endDate, "yyyy-MM-dd")}`;
+      }
+      
+      // For backward compatibility, if only startDate is set, also set it as "date" parameter
+      if (startDate && !endDate) {
+        url += `&date=${format(startDate, "yyyy-MM-dd")}`;
       }
 
       if (selectedBranchId) {
         url += `&branchId=${selectedBranchId}`;
+      }
+      
+      if (selectedUserId) {
+        url += `&submittedBy=${selectedUserId}`;
       }
       
       // Add report type to the query params
@@ -84,6 +107,132 @@ export function useReports({
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Export reports to CSV
+  const exportReportsToCSV = async () => {
+    try {
+      setIsExporting(true);
+      let url = `/api/reports/export?format=csv&limit=1000`;
+      
+      // Add date range parameters
+      if (startDate) {
+        url += `&startDate=${format(startDate, "yyyy-MM-dd")}`;
+      }
+      
+      if (endDate) {
+        url += `&endDate=${format(endDate, "yyyy-MM-dd")}`;
+      }
+      
+      // For backward compatibility
+      if (startDate && !endDate) {
+        url += `&date=${format(startDate, "yyyy-MM-dd")}`;
+      }
+
+      if (selectedBranchId) {
+        url += `&branchId=${selectedBranchId}`;
+      }
+      
+      if (selectedUserId) {
+        url += `&submittedBy=${selectedUserId}`;
+      }
+      
+      url += `&reportType=${reportType}`;
+      
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to export reports");
+      }
+      
+      // Handle the CSV download
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = `reports-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(downloadUrl);
+      document.body.removeChild(a);
+      
+      toast({
+        title: "Export Successful",
+        description: "Reports exported to CSV successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Export Failed",
+        description: error instanceof Error ? error.message : "Failed to export reports",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+  
+  // Export reports to PDF
+  const exportReportsToPDF = async () => {
+    try {
+      setIsExporting(true);
+      let url = `/api/reports/export?format=pdf&limit=1000`;
+      
+      // Add date range parameters
+      if (startDate) {
+        url += `&startDate=${format(startDate, "yyyy-MM-dd")}`;
+      }
+      
+      if (endDate) {
+        url += `&endDate=${format(endDate, "yyyy-MM-dd")}`;
+      }
+      
+      // For backward compatibility
+      if (startDate && !endDate) {
+        url += `&date=${format(startDate, "yyyy-MM-dd")}`;
+      }
+
+      if (selectedBranchId) {
+        url += `&branchId=${selectedBranchId}`;
+      }
+      
+      if (selectedUserId) {
+        url += `&submittedBy=${selectedUserId}`;
+      }
+      
+      url += `&reportType=${reportType}`;
+      
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to export reports");
+      }
+      
+      // Handle the PDF download
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = `reports-${format(new Date(), 'yyyy-MM-dd')}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(downloadUrl);
+      document.body.removeChild(a);
+      
+      toast({
+        title: "Export Successful",
+        description: "Reports exported to PDF successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Export Failed",
+        description: error instanceof Error ? error.message : "Failed to export reports",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -199,11 +348,36 @@ export function useReports({
     if (newPage < 1 || newPage > pagination.totalPages) return;
     setPagination((prev) => ({ ...prev, page: newPage }));
   };
+  
+  // Jump to a specific page
+  const goToPage = (page: number) => {
+    if (page >= 1 && page <= pagination.totalPages) {
+      setPagination((prev) => ({ ...prev, page }));
+    }
+  };
+  
+  // Change page size
+  const setPageSize = (size: number) => {
+    setPagination((prev) => ({ 
+      ...prev, 
+      limit: size,
+      page: 1 // Reset to first page when changing page size
+    }));
+  };
 
   // Handle filters
   const handleFilter = () => {
     setPagination((prev) => ({ ...prev, page: 1 }));
     fetchReports();
+  };
+
+  // Clear all filters
+  const clearFilters = () => {
+    setStartDate(undefined);
+    setEndDate(undefined);
+    setSelectedBranchId(undefined);
+    setSelectedUserId(undefined);
+    setPagination((prev) => ({ ...prev, page: 1 }));
   };
 
   // Effects
@@ -220,23 +394,33 @@ export function useReports({
 
   useEffect(() => {
     fetchReports();
-  }, [pagination.page, date, reportType, selectedBranchId]);
+  }, [pagination.page, pagination.limit, startDate, endDate, reportType, selectedBranchId, selectedUserId]);
 
   return {
-    date,
-    setDate,
+    startDate,
+    setStartDate,
+    endDate,
+    setEndDate,
     reportType,
     setReportType,
     selectedBranchId,
     setSelectedBranchId,
+    selectedUserId,
+    setSelectedUserId,
     reports,
     isLoading,
     pagination,
     userBranches,
     handlePageChange,
+    goToPage,
+    setPageSize,
     handleFilter,
+    clearFilters,
     createReport,
     updateReport,
     fetchReports,
+    exportReportsToCSV,
+    exportReportsToPDF,
+    isExporting,
   };
 }

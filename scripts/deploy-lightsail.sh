@@ -1,7 +1,48 @@
 #!/bin/bash
 
-# Exit on error
+# Exit on any error
 set -e
+
+echo "Starting production deployment..."
+
+# Check if we're on the main branch
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+if [ "$CURRENT_BRANCH" != "main" ]; then
+    echo "Error: Must be on main branch to deploy to production"
+    exit 1
+fi
+
+# Ensure working directory is clean
+if [ -n "$(git status --porcelain)" ]; then
+    echo "Error: Working directory is not clean. Please commit or stash changes."
+    exit 1
+fi
+
+# Pull latest changes
+echo "Pulling latest changes..."
+git pull origin main
+
+# Install dependencies
+echo "Installing dependencies..."
+npm install
+
+# Run type checking
+echo "Running type checks..."
+npm run typecheck
+
+# Apply database migrations and link reports
+echo "Applying database migrations..."
+npm run db:deploy:production
+
+# Build the application
+echo "Building the application..."
+npm run build:production
+
+# Restart the application
+echo "Restarting the application..."
+npm run restart:pm2
+
+echo "Deployment completed successfully!"
 
 # Configuration
 CONTAINER_SERVICE_NAME="lc-opd-daily"

@@ -34,3 +34,50 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## PostgreSQL Performance Optimization
+
+The application has been optimized to work efficiently with PostgreSQL. Here are the key improvements:
+
+### Database Schema
+
+- Proper data types: `DATE` for date columns, `DECIMAL` for financial values
+- Optimized indexes for common query patterns
+- Efficient relationship handling
+
+### Maintenance
+
+Regular database maintenance is critical for optimal performance. We've included a maintenance script that:
+
+1. Runs VACUUM to reclaim storage space
+2. Updates statistics with ANALYZE for optimal query planning
+3. Identifies and rebuilds bloated indexes
+4. Reports on unused indexes that could be removed
+5. Provides information on table sizes
+
+#### Setting up Scheduled Maintenance
+
+Set up a cron job to run the maintenance script regularly:
+
+```bash
+# Edit crontab
+crontab -e
+
+# Add a line to run the maintenance script weekly on Sunday at 1:00 AM
+0 1 * * 0 cd /path/to/lc-opd-daily && npm run db:maintenance >> /var/log/lc-db-maintenance.log 2>&1
+```
+
+### Connection Pooling
+
+The application uses connection pooling to efficiently manage database connections. This can be configured in the `.env` file:
+
+```
+# Maximum number of connections in the pool
+DATABASE_CONNECTION_POOL_MAX=10
+```
+
+### Query Optimization
+
+- Efficient pagination using keyset pagination for large datasets
+- Selective field retrieval to minimize data transfer
+- Transaction support for operations requiring atomicity
