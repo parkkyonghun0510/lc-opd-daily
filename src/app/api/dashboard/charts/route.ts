@@ -6,6 +6,12 @@ import { headers } from "next/headers";
 
 const prisma = new PrismaClient();
 
+// Helper function to convert Decimal to number
+const toNumber = (value: any): number => {
+  if (typeof value === 'number') return value;
+  return Number(value) || 0;
+};
+
 // Configure route to be dynamic
 export const dynamic = 'force-dynamic';
 
@@ -68,8 +74,9 @@ async function getRevenueData() {
     const month = new Date(report.date).toLocaleString("default", {
       month: "short",
     });
-    const value =
-      (report._sum?.writeOffs || 0) + (report._sum?.ninetyPlus || 0);
+    const writeOffs = toNumber(report._sum?.writeOffs || 0);
+    const ninetyPlus = toNumber(report._sum?.ninetyPlus || 0);
+    const value = writeOffs + ninetyPlus;
 
     if (!acc[month]) {
       acc[month] = 0;

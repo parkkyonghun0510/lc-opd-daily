@@ -1,6 +1,12 @@
 import { getPrisma } from "@/lib/prisma-server";
 import { redis, CACHE_TTL, CACHE_KEYS } from "./redis";
 
+// Helper function to convert Decimal to number
+const toNumber = (value: any): number => {
+  if (typeof value === 'number') return value;
+  return Number(value) || 0;
+};
+
 async function warmStatsCache() {
   try {
     console.log("🔄 Warming stats cache...");
@@ -60,7 +66,7 @@ async function getRevenue() {
   });
 
   return reports.reduce(
-    (sum, report) => sum + report.writeOffs + report.ninetyPlus,
+    (sum, report) => sum + toNumber(report.writeOffs) + toNumber(report.ninetyPlus),
     0
   );
 }
@@ -109,9 +115,9 @@ async function getGrowthRate() {
   });
 
   const currentTotal =
-    (currentMonth._sum.writeOffs || 0) + (currentMonth._sum.ninetyPlus || 0);
+    toNumber(currentMonth._sum.writeOffs || 0) + toNumber(currentMonth._sum.ninetyPlus || 0);
   const lastTotal =
-    (lastMonth._sum.writeOffs || 0) + (lastMonth._sum.ninetyPlus || 0);
+    toNumber(lastMonth._sum.writeOffs || 0) + toNumber(lastMonth._sum.ninetyPlus || 0);
 
   if (lastTotal === 0) return 0;
   return Math.round(((currentTotal - lastTotal) / lastTotal) * 100);
@@ -140,7 +146,7 @@ async function getRevenueData() {
     const month = new Date(report.date).toLocaleString("default", {
       month: "short",
     });
-    const value = (report._sum.writeOffs || 0) + (report._sum.ninetyPlus || 0);
+    const value = toNumber(report._sum.writeOffs || 0) + toNumber(report._sum.ninetyPlus || 0);
 
     if (!acc[month]) {
       acc[month] = 0;

@@ -59,13 +59,16 @@ export async function GET(
 
 // PATCH /api/users/[id] - Update a user
 export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  request: NextRequest
 ) {
   try {
     // Verify admin permission using NextAuth
     const token = await getToken({ req: request });
-    const { id } = await params;
+    
+    // Extract the ID from the URL path
+    const url = new URL(request.url);
+    const pathParts = url.pathname.split('/');
+    const id = pathParts[pathParts.length - 1]; // Get the ID from the URL path
 
     // Check if user is authenticated and has admin role
     if (!token || token.role !== "ADMIN") {

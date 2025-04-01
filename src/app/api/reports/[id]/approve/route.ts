@@ -11,8 +11,7 @@ import { createDirectNotifications } from "@/utils/createDirectNotification";
 
 // POST /api/reports/[id]/approve - Approve or reject a report
 export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  request: NextRequest
 ) {
   try {
     const token = await getToken({ req: request });
@@ -33,10 +32,14 @@ export async function POST(
       );
     }
 
-    const { id } = await params;
+    // Extract the ID from the URL path
+    const url = new URL(request.url);
+    const pathParts = url.pathname.split('/');
+    const reportId = pathParts[pathParts.length - 2]; // Get the ID from the URL path
+    
     const { status, comments, notifyUsers = true } = await request.json();
 
-    if (!id) {
+    if (!reportId) {
       return NextResponse.json(
         { error: "Report ID is required" },
         { status: 400 }
@@ -60,7 +63,7 @@ export async function POST(
 
     // Check if report exists
     const report = await prisma.report.findUnique({
-      where: { id },
+      where: { id: reportId },
       include: {
         branch: true,
       },
@@ -94,7 +97,7 @@ export async function POST(
 
     // Update the report status
     const updatedReport = await prisma.report.update({
-      where: { id },
+      where: { id: reportId },
       data: {
         status,
         // Store approval/rejection comments if provided
@@ -210,7 +213,7 @@ export async function POST(
                   branchName: report.branch.name,
                   approverName,
                   comments: comments || "",
-                  method: "fallback-after-sqs-error"
+                  method: "fallback-api"
                 }
               );
               
@@ -228,6 +231,7 @@ export async function POST(
     }
 
     return NextResponse.json({
+      success: true,
       message: `Report ${status} successfully`,
       data: updatedReport
     });

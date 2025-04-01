@@ -3,6 +3,12 @@ import { getToken } from "next-auth/jwt";
 import { prisma } from "@/lib/prisma";
 import { Permission, UserRole, hasPermission } from "@/lib/auth/roles";
 
+// Helper function to convert Decimal to number
+const toNumber = (value: any): number => {
+  if (typeof value === 'number') return value;
+  return Number(value) || 0;
+};
+
 // GET /api/dashboard/data - Get dashboard data
 export async function GET(request: NextRequest) {
   try {
@@ -59,8 +65,8 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    const writeOffs = revenueData._sum?.writeOffs || 0;
-    const ninetyPlus = revenueData._sum?.ninetyPlus || 0;
+    const writeOffs = toNumber(revenueData._sum?.writeOffs || 0);
+    const ninetyPlus = toNumber(revenueData._sum?.ninetyPlus || 0);
     const totalAmount = writeOffs + ninetyPlus;
 
     // Calculate growth rate (comparing current month with previous month)
@@ -103,11 +109,11 @@ export async function GET(request: NextRequest) {
     });
 
     const currentAmount =
-      (currentMonthData._sum?.writeOffs || 0) +
-      (currentMonthData._sum?.ninetyPlus || 0);
+      toNumber(currentMonthData._sum?.writeOffs || 0) +
+      toNumber(currentMonthData._sum?.ninetyPlus || 0);
     const previousAmount =
-      (previousMonthData._sum?.writeOffs || 0) +
-      (previousMonthData._sum?.ninetyPlus || 0);
+      toNumber(previousMonthData._sum?.writeOffs || 0) +
+      toNumber(previousMonthData._sum?.ninetyPlus || 0);
     const growthRate =
       previousAmount === 0
         ? 100

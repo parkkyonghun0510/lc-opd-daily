@@ -59,12 +59,15 @@ export async function GET(
 }
 
 export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  request: NextRequest
 ) {
   try {
     const token = await getToken({ req: request });
-    const { id } = await params;
+    
+    // Extract the ID from the URL path
+    const url = new URL(request.url);
+    const pathParts = url.pathname.split('/');
+    const id = pathParts[pathParts.length - 2]; // Get the ID from the URL path
 
     if (!token) {
       return NextResponse.json(

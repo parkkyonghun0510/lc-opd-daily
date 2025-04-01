@@ -4,7 +4,9 @@ import { prisma } from "@/lib/prisma";
 import { format } from "date-fns";
 
 // POST /api/reports/[id]/comments - Add a comment to a report
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(
+  request: NextRequest
+) {
   try {
     const token = await getToken({ req: request });
 
@@ -15,7 +17,11 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       );
     }
 
-    const reportId = params.id;
+    // Extract the ID from the URL path
+    const url = new URL(request.url);
+    const pathParts = url.pathname.split('/');
+    const reportId = pathParts[pathParts.length - 2]; // Get the ID from the URL path
+    
     if (!reportId) {
       return NextResponse.json(
         { error: "Report ID is required" },

@@ -6,6 +6,12 @@ import { startOfDay, endOfDay, startOfWeek, endOfWeek, format, subDays } from "d
 
 const prisma = new PrismaClient();
 
+// Helper function to convert Decimal to number
+const toNumber = (value: any): number => {
+  if (typeof value === 'number') return value;
+  return Number(value) || 0;
+};
+
 // GET /api/reports/consolidated - Get consolidated report data
 export async function GET(request: NextRequest) {
   try {
@@ -97,11 +103,11 @@ export async function GET(request: NextRequest) {
 
     // Calculate aggregated metrics
     const totalWriteOffs = reports.reduce(
-      (sum, report) => sum + report.writeOffs,
+      (sum, report) => sum + toNumber(report.writeOffs),
       0
     );
     const totalNinetyPlus = reports.reduce(
-      (sum, report) => sum + report.ninetyPlus,
+      (sum, report) => sum + toNumber(report.ninetyPlus),
       0
     );
 
@@ -148,11 +154,11 @@ export async function GET(request: NextRequest) {
         });
 
         const dayWriteOffs = dayReports.reduce(
-          (sum, report) => sum + report.writeOffs,
+          (sum, report) => sum + toNumber(report.writeOffs),
           0
         );
         const dayNinetyPlus = dayReports.reduce(
-          (sum, report) => sum + report.ninetyPlus,
+          (sum, report) => sum + toNumber(report.ninetyPlus),
           0
         );
 
@@ -185,11 +191,11 @@ export async function GET(request: NextRequest) {
         });
 
         const weekWriteOffs = weekReports.reduce(
-          (sum, report) => sum + report.writeOffs,
+          (sum, report) => sum + toNumber(report.writeOffs),
           0
         );
         const weekNinetyPlus = weekReports.reduce(
-          (sum, report) => sum + report.ninetyPlus,
+          (sum, report) => sum + toNumber(report.ninetyPlus),
           0
         );
 
@@ -233,11 +239,11 @@ export async function GET(request: NextRequest) {
         });
 
         const monthWriteOffs = monthReports.reduce(
-          (sum, report) => sum + report.writeOffs,
+          (sum, report) => sum + toNumber(report.writeOffs),
           0
         );
         const monthNinetyPlus = monthReports.reduce(
-          (sum, report) => sum + report.ninetyPlus,
+          (sum, report) => sum + toNumber(report.ninetyPlus),
           0
         );
 
@@ -256,11 +262,11 @@ export async function GET(request: NextRequest) {
         (report) => report.branchId === branch.id
       );
       const branchWriteOffs = branchReports.reduce(
-        (sum, report) => sum + report.writeOffs,
+        (sum, report) => sum + toNumber(report.writeOffs),
         0
       );
       const branchNinetyPlus = branchReports.reduce(
-        (sum, report) => sum + report.ninetyPlus,
+        (sum, report) => sum + toNumber(report.ninetyPlus),
         0
       );
 

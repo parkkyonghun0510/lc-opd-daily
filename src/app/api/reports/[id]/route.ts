@@ -15,8 +15,7 @@ const updateReportSchema = z.object({
 
 // GET /api/reports/[id] - Get a specific report by ID
 export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  request: NextRequest
 ) {
   try {
     // Use NextAuth for authentication
@@ -28,8 +27,10 @@ export async function GET(
       );
     }
 
-    // Access the id from the context params
-    const { id } = await context.params;
+    // Extract the ID from the URL path
+    const url = new URL(request.url);
+    const pathParts = url.pathname.split('/');
+    const id = pathParts[pathParts.length - 1]; // Get the ID from the URL path
 
     const report = await prisma.report.findUnique({
       where: {
@@ -118,12 +119,13 @@ export async function GET(
 
 // PUT /api/reports/[id] - Update a specific report
 export async function PUT(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  request: NextRequest
 ) {
   try {
-    // Get the report ID from the URL
-    const { id } = await context.params;
+    // Extract the ID from the URL path
+    const url = new URL(request.url);
+    const pathParts = url.pathname.split('/');
+    const id = pathParts[pathParts.length - 1]; // Get the ID from the URL path
 
     // Get the user from the auth token
     const token = await getToken({ req: request });
@@ -196,12 +198,13 @@ export async function PUT(
 
 // DELETE /api/reports/[id] - Delete a specific report
 export async function DELETE(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  request: NextRequest
 ) {
   try {
-    // Get the report ID from the URL
-    const { id } = await context.params;
+    // Extract the ID from the URL path
+    const url = new URL(request.url);
+    const pathParts = url.pathname.split('/');
+    const id = pathParts[pathParts.length - 1]; // Get the ID from the URL path
 
     // Get the user from the auth token
     const token = await getToken({ req: request });

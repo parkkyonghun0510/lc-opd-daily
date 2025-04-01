@@ -10,6 +10,12 @@ import { headers } from "next/headers";
 
 const prisma = new PrismaClient();
 
+// Helper function to convert Decimal to number
+const toNumber = (value: any): number => {
+  if (typeof value === 'number') return value;
+  return Number(value) || 0;
+};
+
 // Configure route to be dynamic
 export const dynamic = 'force-dynamic';
 
@@ -99,7 +105,7 @@ async function getRevenue(user: SessionUser) {
   });
 
   return reports.reduce(
-    (sum, report) => sum + report.writeOffs + report.ninetyPlus,
+    (sum, report) => sum + toNumber(report.writeOffs) + toNumber(report.ninetyPlus),
     0
   );
 }
@@ -167,9 +173,9 @@ async function getGrowthRate(user: SessionUser) {
   });
 
   const currentTotal =
-    ((currentMonth._sum?.writeOffs ?? 0) + (currentMonth._sum?.ninetyPlus ?? 0));
+    (toNumber(currentMonth._sum?.writeOffs ?? 0) + toNumber(currentMonth._sum?.ninetyPlus ?? 0));
   const lastTotal =
-    ((lastMonth._sum?.writeOffs ?? 0) + (lastMonth._sum?.ninetyPlus ?? 0));
+    (toNumber(lastMonth._sum?.writeOffs ?? 0) + toNumber(lastMonth._sum?.ninetyPlus ?? 0));
 
   if (lastTotal === 0) return 0;
   return Math.round(((currentTotal - lastTotal) / lastTotal) * 100);

@@ -19,6 +19,12 @@ interface WeeklyTotal {
   ninetyPlus: number;
 }
 
+// Helper function to convert Decimal to number
+const toNumber = (value: any): number => {
+  if (typeof value === 'number') return value;
+  return Number(value) || 0;
+};
+
 // GET /api/consolidated - Get consolidated report by date
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -133,8 +139,8 @@ export async function GET(request: Request) {
     // Process each branch
     for (const branch of branches) {
       const report = reports.find((r) => r.branchId === branch.id);
-      const branchWriteOffs = report ? report.writeOffs : 0;
-      const branchNinetyPlus = report ? report.ninetyPlus : 0;
+      const branchWriteOffs = report ? toNumber(report.writeOffs) : 0;
+      const branchNinetyPlus = report ? toNumber(report.ninetyPlus) : 0;
 
       totalWriteOffs += branchWriteOffs;
       totalNinetyPlus += branchNinetyPlus;
@@ -186,8 +192,8 @@ export async function GET(request: Request) {
 
     const previousTotals = previousReports.reduce(
       (acc, report) => ({
-        writeOffs: acc.writeOffs + report.writeOffs,
-        ninetyPlus: acc.ninetyPlus + report.ninetyPlus,
+        writeOffs: acc.writeOffs + toNumber(report.writeOffs),
+        ninetyPlus: acc.ninetyPlus + toNumber(report.ninetyPlus),
       }),
       { writeOffs: 0, ninetyPlus: 0 }
     );
@@ -224,8 +230,8 @@ export async function GET(request: Request) {
 
         const dayTotals = dayReports.reduce(
           (acc, report) => ({
-            writeOffs: acc.writeOffs + report.writeOffs,
-            ninetyPlus: acc.ninetyPlus + report.ninetyPlus,
+            writeOffs: acc.writeOffs + toNumber(report.writeOffs),
+            ninetyPlus: acc.ninetyPlus + toNumber(report.ninetyPlus),
           }),
           { writeOffs: 0, ninetyPlus: 0 }
         );
@@ -265,8 +271,8 @@ export async function GET(request: Request) {
 
         const weekTotals = weekReports.reduce(
           (acc, report) => ({
-            writeOffs: acc.writeOffs + report.writeOffs,
-            ninetyPlus: acc.ninetyPlus + report.ninetyPlus,
+            writeOffs: acc.writeOffs + toNumber(report.writeOffs),
+            ninetyPlus: acc.ninetyPlus + toNumber(report.ninetyPlus),
           }),
           { writeOffs: 0, ninetyPlus: 0 }
         );
@@ -360,8 +366,8 @@ export async function POST(request: Request) {
     // Calculate totals
     const totals = consolidatedData.reduce(
       (acc, report) => ({
-        writeOffs: acc.writeOffs + report.writeOffs,
-        ninetyPlus: acc.ninetyPlus + report.ninetyPlus,
+        writeOffs: acc.writeOffs + toNumber(report.writeOffs),
+        ninetyPlus: acc.ninetyPlus + toNumber(report.ninetyPlus),
       }),
       { writeOffs: 0, ninetyPlus: 0 }
     );
