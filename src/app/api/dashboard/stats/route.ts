@@ -88,7 +88,7 @@ async function getRevenue(user: SessionUser) {
 
   const where = {
     date: {
-      gte: thirtyDaysAgo,
+      gte: thirtyDaysAgo.toISOString(),
     },
     ...(user.role !== UserRole.ADMIN && user.branchId
       ? { branchId: user.branchId }
@@ -115,7 +115,7 @@ async function getOrders(user: SessionUser) {
 
   const where = {
     date: {
-      gte: thirtyDaysAgo,
+      gte: thirtyDaysAgo.toISOString(),
     },
     ...(user.role !== UserRole.ADMIN && user.branchId
       ? { branchId: user.branchId }
@@ -143,7 +143,7 @@ async function getGrowthRate(user: SessionUser) {
   const currentMonth = await prisma.report.aggregate({
     where: {
       date: {
-        gte: currentMonthStart,
+        gte: currentMonthStart.toISOString(),
       },
       ...whereBase,
     },
@@ -156,8 +156,8 @@ async function getGrowthRate(user: SessionUser) {
   const lastMonth = await prisma.report.aggregate({
     where: {
       date: {
-        gte: lastMonthStart,
-        lt: thisMonthStart,
+        gte: lastMonthStart.toISOString(),
+        lt: thisMonthStart.toISOString(),
       },
       ...whereBase,
     },
