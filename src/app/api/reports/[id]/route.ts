@@ -102,7 +102,7 @@ export async function GET(
         action: "VIEW_REPORT",
         userId: token.id as string, // Cast to string since we know it exists
         details: `Viewed report for branch: ${report.branch.code} on ${
-          report.date.toLocaleDateString()
+          new Date(report.date).toLocaleDateString()
         }`,
       },
     });
@@ -181,7 +181,7 @@ export async function PUT(
         action: "UPDATE_REPORT",
         userId: token.id as string, // Cast to string since we know it exists
         details: `Updated report for branch: ${existingReport.branch.code} on ${
-          existingReport.date.toLocaleDateString()
+          new Date(existingReport.date).toLocaleDateString()
         }`,
       },
     });
@@ -241,7 +241,7 @@ export async function DELETE(
         action: "DELETE_REPORT",
         userId: token.id as string, // Cast to string since we know it exists
         details: `Deleted report for branch: ${existingReport.branch.code} on ${
-          existingReport.date.toLocaleDateString()
+          new Date(existingReport.date).toLocaleDateString()
         }`,
       },
     });
