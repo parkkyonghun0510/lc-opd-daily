@@ -6,7 +6,7 @@ import { hashPassword, verifyPassword } from "@/lib/auth";
 import { z } from "zod";
 
 const securityUpdateSchema = z.object({
-  currentPassword: z.string().min(1, "Current password is required"),
+  currentPassword: z.string().optional(),
   newPassword: z
     .string()
     .min(8, "Password must be at least 8 characters")
@@ -19,21 +19,21 @@ const securityUpdateSchema = z.object({
 }).refine((data) => data.newPassword === data.confirmPassword, {
   message: "Passwords do not match",
   path: ["confirmPassword"],
-}).refine((data) => data.currentPassword !== data.newPassword, {
-  message: "New password must be different from current password",
-  path: ["newPassword"],
 });
 
+type SecurityRouteContext = {
+  params: {
+    id: string;
+  };
+};
+
 export async function PATCH(
-  request: NextRequest
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const token = await getToken({ req: request });
-    
-    // Extract the ID from the URL path
-    const url = new URL(request.url);
-    const pathParts = url.pathname.split('/');
-    const id = pathParts[pathParts.length - 2]; // Get the ID from the URL path
+    const { id } = await params;
 
     if (!token) {
       return NextResponse.json(
@@ -42,8 +42,10 @@ export async function PATCH(
       );
     }
 
-    // Only admin can update other users' security settings
-    if (token.role !== UserRole.ADMIN && token.id !== id) {
+    const isAdmin = token.role === UserRole.ADMIN;
+    const isSelfUpdate = token.id === id;
+
+    if (!isAdmin && !isSelfUpdate) {
       return NextResponse.json(
         { error: "Forbidden - You can only update your own security settings" },
         { status: 403 }
@@ -51,15 +53,24 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const validatedData = securityUpdateSchema.parse(body);
+    
+    const parseResult = securityUpdateSchema.safeParse(body);
 
-    // Get the user
+    if (!parseResult.success) {
+       return NextResponse.json(
+        { error: "Validation error", details: parseResult.error.flatten() },
+        { status: 400 }
+      );
+    }
+    
+    const validatedData = parseResult.data;
+
     const user = await prisma.user.findUnique({
       where: { id },
-      select: { 
+      select: {
         password: true,
         isActive: true,
-        role: true 
+        role: true
       },
     });
 
@@ -70,12 +81,11 @@ export async function PATCH(
       );
     }
 
-    // Prevent deactivating the last admin user
-    if (user.role === UserRole.ADMIN && !validatedData.isActive) {
+    if (user.role === UserRole.ADMIN && !validatedData.isActive && user.isActive) {
       const adminCount = await prisma.user.count({
-        where: { 
+        where: {
           role: UserRole.ADMIN,
-          isActive: true 
+          isActive: true
         },
       });
 
@@ -87,8 +97,14 @@ export async function PATCH(
       }
     }
 
-    // Verify current password if user is updating their own settings
-    if (token.id === id) {
+    if (isSelfUpdate) {
+      if (!validatedData.currentPassword) {
+        return NextResponse.json(
+          { fieldErrors: { currentPassword: ["Current password is required to change your own password"] } },
+          { status: 400 }
+        );
+      }
+      
       const isValidPassword = await verifyPassword(
         validatedData.currentPassword,
         user.password
@@ -96,13 +112,19 @@ export async function PATCH(
 
       if (!isValidPassword) {
         return NextResponse.json(
-          { error: "Current password is incorrect" },
+          { fieldErrors: { currentPassword: ["Current password is incorrect"] } },
+          { status: 400 }
+        );
+      }
+
+      if (validatedData.currentPassword === validatedData.newPassword) {
+        return NextResponse.json(
+          { fieldErrors: { newPassword: ["New password must be different from current password"] } },
           { status: 400 }
         );
       }
     }
 
-    // Update user security settings
     const updatedUser = await prisma.user.update({
       where: { id },
       data: {
@@ -128,7 +150,7 @@ export async function PATCH(
 
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: "Validation error", details: error.errors },
+        { error: "Validation error", details: error.flatten() },
         { status: 400 }
       );
     }
@@ -138,4 +160,4 @@ export async function PATCH(
       { status: 500 }
     );
   }
-} 
+}

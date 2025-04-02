@@ -189,73 +189,37 @@ export async function getUsersForNotification(
       }
         
       case NotificationType.REPORT_APPROVED: {
-        // For approvals, notify the report submitter and immediate branch members
+        // ONLY notify the report submitter
         if (data.reportId) {
           const report = await prisma.report.findUnique({
             where: { id: data.reportId },
-            select: { submittedBy: true, branchId: true }
+            select: { submittedBy: true }
           });
-
-          if (report) {
-            // Add the report submitter
-            userIds.push(report.submittedBy);
-            
-            // Add branch members with roles that should know about approvals
-            const branchMembers = await prisma.user.findMany({
-              where: {
-                OR: [
-                  { branchId: report.branchId },
-                  {
-                    branchAssignments: {
-                      some: { branchId: report.branchId }
-                    }
-                  }
-                ],
-                userRoles: {
-                  some: {
-                    role: {
-                      name: {
-                        in: ['manager', 'reporter', 'user', 'BRANCH_MANAGER', 'USER', 'SUPERVISOR']
-                      }
-                    }
-                  }
-                },
-                isActive: true
-              },
-              select: { id: true }
-            });
-            
-            userIds.push(...branchMembers.map(user => user.id));
+          if (report?.submittedBy) {
+            userIds = [report.submittedBy]; // Reset array to only include submitter
+          } else {
+            userIds = []; // Report or submitter not found, notify no one
           }
+        } else {
+          userIds = []; // Cannot target without reportId
         }
         break;
       }
         
       case NotificationType.REPORT_REJECTED: {
-        // For rejections, notify the submitter, branch managers, and parent branch managers
+        // ONLY notify the report submitter
         if (data.reportId) {
           const report = await prisma.report.findUnique({
             where: { id: data.reportId },
-            select: { submittedBy: true, branchId: true }
+            select: { submittedBy: true }
           });
-
-          if (report) {
-            // Add the report submitter
-            userIds.push(report.submittedBy);
-            
-            // Add direct branch managers
-            const directManagers = await getBranchManagers(report.branchId);
-            userIds.push(...directManagers);
-            
-            // Add parent branch managers
-            const parentBranches = await getBranchHierarchy(report.branchId);
-            for (const parentId of parentBranches) {
-              if (parentId !== report.branchId) {
-                const parentManagers = await getBranchManagers(parentId);
-                userIds.push(...parentManagers);
-              }
-            }
+          if (report?.submittedBy) {
+            userIds = [report.submittedBy]; // Reset array to only include submitter
+          } else {
+            userIds = []; // Report or submitter not found, notify no one
           }
+        } else {
+          userIds = []; // Cannot target without reportId
         }
         break;
       }
