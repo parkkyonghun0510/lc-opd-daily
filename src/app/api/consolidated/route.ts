@@ -186,7 +186,10 @@ export async function GET(request: Request) {
 
     const previousReports = await prisma.report.findMany({
       where: {
-        date: previousDate,
+        date: {
+          gte: previousDate,
+          lt: new Date(new Date(previousDate).setHours(23, 59, 59, 999))
+        },
       },
     });
 
@@ -214,7 +217,10 @@ export async function GET(request: Request) {
         dailyReportsPromises.push(
           prisma.report.findMany({
             where: {
-              date: currentDate,
+              date: {
+                gte: new Date(currentDate).toISOString(),
+                lt: new Date(new Date(currentDate).setHours(23, 59, 59, 999)).toISOString()
+              },
             },
           })
         );
@@ -263,8 +269,8 @@ export async function GET(request: Request) {
         const weekReports = await prisma.report.findMany({
           where: {
             date: {
-              gte: weekStart,
-              lt: weekEnd,
+              gte: weekStart.toISOString(),
+              lt: weekEnd.toISOString(),
             },
           },
         });
@@ -351,12 +357,21 @@ export async function POST(request: Request) {
 
     const validatedDate = dateSchema.parse(date);
     const dateObj = new Date(validatedDate);
-    const formattedDate = dateObj.toISOString().split("T")[0]; // YYYY-MM-DD
+    
+    // Create start and end date for query
+    const startOfDay = new Date(dateObj);
+    startOfDay.setHours(0, 0, 0, 0);
+    
+    const endOfDay = new Date(dateObj);
+    endOfDay.setHours(23, 59, 59, 999);
 
     // Get consolidated data
     const consolidatedData = await prisma.report.findMany({
       where: {
-        date: formattedDate,
+        date: {
+          gte: startOfDay.toISOString(),
+          lt: endOfDay.toISOString(),
+        },
       },
       include: {
         branch: true,
