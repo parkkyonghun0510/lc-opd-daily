@@ -56,7 +56,7 @@ async function getRevenue() {
   const reports = await prisma.report.findMany({
     where: {
       date: {
-        gte: thirtyDaysAgo,
+        gte: thirtyDaysAgo.toISOString(),
       },
     },
     select: {
@@ -77,7 +77,7 @@ async function getOrders() {
   return await prisma.report.count({
     where: {
       date: {
-        gte: thirtyDaysAgo,
+        gte: thirtyDaysAgo.toISOString(),
       },
     },
   });
@@ -92,7 +92,7 @@ async function getGrowthRate() {
   const currentMonth = await prisma.report.aggregate({
     where: {
       date: {
-        gte: currentMonthStart,
+        gte: currentMonthStart.toISOString(),
       },
     },
     _sum: {
@@ -104,8 +104,8 @@ async function getGrowthRate() {
   const lastMonth = await prisma.report.aggregate({
     where: {
       date: {
-        gte: lastMonthStart,
-        lt: currentMonthStart,
+        gte: lastMonthStart.toISOString(),
+        lt: currentMonthStart.toISOString(),
       },
     },
     _sum: {
@@ -132,7 +132,7 @@ async function getRevenueData() {
     by: ["date"],
     where: {
       date: {
-        gte: sixMonthsAgo,
+        gte: sixMonthsAgo.toISOString(),
       },
     },
     _sum: {
@@ -169,7 +169,7 @@ async function getUserGrowthData() {
     by: ["createdAt"],
     where: {
       createdAt: {
-        gte: sixMonthsAgo,
+        gte: sixMonthsAgo.toISOString(),
       },
     },
     _count: {
