@@ -58,8 +58,8 @@ export async function GET(req: NextRequest) {
     // Base query condition for time range
     const dateRangeCondition = {
       createdAt: {
-        gte: startDate,
-        lte: now,
+        gte: startDate.toISOString(),
+        lte: now.toISOString(),
       },
     };
 
@@ -129,8 +129,8 @@ export async function GET(req: NextRequest) {
       },
       where: {
         timestamp: {
-          gte: startDate,
-          lte: now
+          gte: startDate.toISOString(),
+          lte: now.toISOString()
         }
       }
     });

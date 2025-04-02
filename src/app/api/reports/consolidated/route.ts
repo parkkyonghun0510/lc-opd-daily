@@ -82,8 +82,8 @@ export async function GET(request: NextRequest) {
     const reports = await prisma.report.findMany({
       where: {
         date: {
-          gte: startDate,
-          lte: endDate,
+          gte: startDate.toISOString(),
+          lte: endDate.toISOString(),
         },
         // Filter by report type if provided
         ...(searchParams.has("type")
