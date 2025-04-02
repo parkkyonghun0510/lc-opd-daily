@@ -85,11 +85,10 @@ async function getTotalUsers(user: SessionUser) {
 async function getRevenue(user: SessionUser) {
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-  const thirtyDaysAgoFormatted = thirtyDaysAgo.toISOString().split('T')[0];
 
   const where = {
     date: {
-      gte: thirtyDaysAgoFormatted,
+      gte: thirtyDaysAgo,
     },
     ...(user.role !== UserRole.ADMIN && user.branchId
       ? { branchId: user.branchId }
@@ -113,11 +112,10 @@ async function getRevenue(user: SessionUser) {
 async function getOrders(user: SessionUser) {
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-  const thirtyDaysAgoFormatted = thirtyDaysAgo.toISOString().split('T')[0];
 
   const where = {
     date: {
-      gte: thirtyDaysAgoFormatted,
+      gte: thirtyDaysAgo,
     },
     ...(user.role !== UserRole.ADMIN && user.branchId
       ? { branchId: user.branchId }
@@ -135,20 +133,17 @@ async function getGrowthRate(user: SessionUser) {
 
   const currentMonthStart = new Date();
   currentMonthStart.setDate(1);
-  const currentMonthStartFormatted = currentMonthStart.toISOString().split('T')[0];
 
   const lastMonthStart = new Date();
   lastMonthStart.setMonth(lastMonthStart.getMonth() - 1, 1);
-  const lastMonthStartFormatted = lastMonthStart.toISOString().split('T')[0];
 
   const thisMonthStart = new Date();
   thisMonthStart.setDate(1);
-  const thisMonthStartFormatted = thisMonthStart.toISOString().split('T')[0];
 
   const currentMonth = await prisma.report.aggregate({
     where: {
       date: {
-        gte: currentMonthStartFormatted,
+        gte: currentMonthStart,
       },
       ...whereBase,
     },
@@ -161,8 +156,8 @@ async function getGrowthRate(user: SessionUser) {
   const lastMonth = await prisma.report.aggregate({
     where: {
       date: {
-        gte: lastMonthStartFormatted,
-        lt: thisMonthStartFormatted,
+        gte: lastMonthStart,
+        lt: thisMonthStart,
       },
       ...whereBase,
     },

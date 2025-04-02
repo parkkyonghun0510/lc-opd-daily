@@ -39,7 +39,7 @@ export async function GET(request: Request) {
     const existingReport = await prisma.report.findFirst({
       where: {
         branchId,
-        date: date.toISOString(),
+        date: date,
         reportType,
       },
     });

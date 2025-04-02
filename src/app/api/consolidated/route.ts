@@ -119,8 +119,8 @@ export async function GET(request: Request) {
     const reports = await prisma.report.findMany({
       where: {
         date: {
-          gte: startDateFormatted,
-          lt: endDateFormatted,
+          gte: startDate,
+          lt: endDate,
         },
       },
       include: {
@@ -186,7 +186,7 @@ export async function GET(request: Request) {
 
     const previousReports = await prisma.report.findMany({
       where: {
-        date: previousDateFormatted,
+        date: previousDate,
       },
     });
 
@@ -214,7 +214,7 @@ export async function GET(request: Request) {
         dailyReportsPromises.push(
           prisma.report.findMany({
             where: {
-              date: currentDateFormatted,
+              date: currentDate,
             },
           })
         );
@@ -263,8 +263,8 @@ export async function GET(request: Request) {
         const weekReports = await prisma.report.findMany({
           where: {
             date: {
-              gte: weekStartFormatted,
-              lt: weekEndFormatted,
+              gte: weekStart,
+              lt: weekEnd,
             },
           },
         });

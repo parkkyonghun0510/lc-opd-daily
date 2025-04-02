@@ -82,8 +82,8 @@ export async function GET(request: NextRequest) {
     const reports = await prisma.report.findMany({
       where: {
         date: {
-          gte: startDate.toISOString(),
-          lte: endDate.toISOString(),
+          gte: startDate,
+          lte: endDate,
         },
         // Filter by report type if provided
         ...(searchParams.has("type")
@@ -144,8 +144,8 @@ export async function GET(request: NextRequest) {
         const dayReports = await prisma.report.findMany({
           where: {
             date: {
-              gte: dayStart.toISOString(),
-              lte: dayEnd.toISOString(),
+              gte: dayStart,
+              lte: dayEnd,
             },
             ...(searchParams.has("type")
               ? { reportType: searchParams.get("type") as "plan" | "actual" }
@@ -181,8 +181,8 @@ export async function GET(request: NextRequest) {
         const weekReports = await prisma.report.findMany({
           where: {
             date: {
-              gte: weekStart.toISOString(),
-              lte: weekEnd.toISOString(),
+              gte: weekStart,
+              lte: weekEnd,
             },
             ...(searchParams.has("type")
               ? { reportType: searchParams.get("type") as "plan" | "actual" }
@@ -229,8 +229,8 @@ export async function GET(request: NextRequest) {
         const monthReports = await prisma.report.findMany({
           where: {
             date: {
-              gte: monthStart.toISOString(),
-              lte: monthEnd.toISOString(),
+              gte: monthStart,
+              lte: monthEnd,
             },
             ...(searchParams.has("type")
               ? { reportType: searchParams.get("type") as "plan" | "actual" }

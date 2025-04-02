@@ -44,6 +44,8 @@ import {
 import { cn } from "@/lib/utils";
 import { useUserData } from "@/contexts/UserDataContext";
 import { NotificationSubscription } from "@/components/pwa/NotificationSubscription";
+import { TelegramLink } from "@/components/settings/TelegramLink";
+import { SystemUpdateForm } from "@/components/admin/SystemUpdateForm";
 
 const profileFormSchema = z.object({
   name: z
@@ -499,6 +501,8 @@ export default function SettingsPage() {
                     Get notified when a report is updated.
                   </p>
                 </div>
+                <TelegramLink />
+                <SystemUpdateForm />
                 <Switch
                   checked={
                     userData?.preferences?.notifications?.reportUpdates ?? true
@@ -855,6 +859,7 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
       </Tabs>
+    
     </div>
   );
 }

@@ -32,3 +32,16 @@ export async function sendTelegramNotification(message: string) {
     console.error('Error sending Telegram notification:', error)
   }
 }
+
+/**
+ * Escapes characters that have special meaning in Telegram MarkdownV2.
+ * See: https://core.telegram.org/bots/api#markdownv2-style
+ * 
+ * @param text The text to escape.
+ * @returns The escaped text.
+ */
+export function escapeTelegramMarkdown(text: string): string {
+  if (!text) return '';
+  // Characters to escape: _ * [ ] ( ) ~ ` > # + - = | { } . !
+  return text.replace(/([_*[\]()~`>#+\-=|{}.!])/g, '\\$1');
+}
