@@ -33,7 +33,7 @@ export async function GET(request: Request) {
       );
     }
 
-    console.log(`Checking for duplicate: date=${date.toISOString()}, branchId=${branchId}, reportType=${reportType}`);
+    console.log(`Checking for duplicate: date=${date.toLocaleDateString()}, branchId=${branchId}, reportType=${reportType}`);
 
     // Check if a report already exists for this branch on this date
     const existingReport = await prisma.report.findFirst({

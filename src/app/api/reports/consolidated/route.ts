@@ -82,8 +82,8 @@ export async function GET(request: NextRequest) {
     const reports = await prisma.report.findMany({
       where: {
         date: {
-          gte: startDate.toISOString(),
-          lte: endDate.toISOString(),
+          gte: startDate,
+          lte: endDate,
         },
         // Filter by report type if provided
         ...(searchParams.has("type")
@@ -287,8 +287,8 @@ export async function GET(request: NextRequest) {
     // Generate the final response
     const response = {
       period: {
-        start: startDate.toISOString(),
-        end: endDate.toISOString(),
+        start: format(startDate, "yyyy-MM-dd'T'HH:mm:ss.SSSxxx"),
+        end: format(endDate, "yyyy-MM-dd'T'HH:mm:ss.SSSxxx"),
         type: periodType,
       },
       metrics: {
