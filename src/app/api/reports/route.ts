@@ -78,15 +78,29 @@ export async function GET(request: NextRequest) {
     }
 
     if (date) {
-      // Properly handle date as DateTime
-      where.date = new Date(date);
+      // If a specific date is provided, create a range for that day
+      const targetDate = new Date(date);
+      const startOfDay = new Date(targetDate);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(targetDate);
+      endOfDay.setHours(23, 59, 59, 999);
+      where.date = {
+        gte: startOfDay.toISOString(),
+        lt: endOfDay.toISOString()
+      };
     } else if (startDate || endDate) {
       where.date = {};
       if (startDate) {
-        where.date.gte = new Date(startDate);
+        // Ensure startDate is interpreted as the beginning of the day
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+        where.date.gte = start.toISOString();
       }
       if (endDate) {
-        where.date.lte = new Date(endDate);
+        // Ensure endDate is interpreted as the end of the day
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        where.date.lte = end.toISOString(); // Use lte for endDate
       }
     }
 
@@ -222,9 +236,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Check for existing report
+    const startOfDay = new Date(reportDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(reportDate);
+    endOfDay.setHours(23, 59, 59, 999);
+    
     const existingReport = await prisma.report.findFirst({
       where: {
-        date: reportDate,
+        date: {
+          gte: startOfDay.toISOString(),
+          lt: endOfDay.toISOString(),
+        },
         branchId: reportData.branchId,
         reportType: reportData.reportType
       },
@@ -282,9 +304,18 @@ export async function POST(request: NextRequest) {
     let report;
     // For actual reports, find and validate corresponding plan report
     if (reportData.reportType === "actual") {
+      // Find the corresponding plan report for the same day
+      const planStartOfDay = new Date(reportDate);
+      planStartOfDay.setHours(0, 0, 0, 0);
+      const planEndOfDay = new Date(reportDate);
+      planEndOfDay.setHours(23, 59, 59, 999);
+      
       const planReport = await prisma.report.findFirst({
         where: {
-          date: reportDate,
+          date: {
+            gte: planStartOfDay.toISOString(),
+            lt: planEndOfDay.toISOString(),
+          },
           branchId: reportData.branchId,
           reportType: "plan"
         }
