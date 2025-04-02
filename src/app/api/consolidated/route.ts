@@ -187,8 +187,8 @@ export async function GET(request: Request) {
     const previousReports = await prisma.report.findMany({
       where: {
         date: {
-          gte: previousDate,
-          lt: new Date(new Date(previousDate).setHours(23, 59, 59, 999))
+          gte: previousDate.toISOString(),
+          lt: new Date(new Date(previousDate).setHours(23, 59, 59, 999)).toISOString()
         },
       },
     });
