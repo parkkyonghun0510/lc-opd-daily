@@ -36,10 +36,18 @@ export async function GET(request: Request) {
     console.log(`Checking for duplicate: date=${date.toLocaleDateString()}, branchId=${branchId}, reportType=${reportType}`);
 
     // Check if a report already exists for this branch on this date
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+    
     const existingReport = await prisma.report.findFirst({
       where: {
         branchId,
-        date: date,
+        date: {
+          gte: startOfDay.toISOString(),
+          lt: endOfDay.toISOString()
+        },
         reportType,
       },
     });
