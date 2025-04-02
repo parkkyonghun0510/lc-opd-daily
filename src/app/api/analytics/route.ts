@@ -142,8 +142,8 @@ export async function GET(request: NextRequest) {
       where: {
         ...branchFilter,
         date: {
-          gte: startDate,
-          lte: endDate,
+          gte: startDate.toISOString(),
+          lte: endDate.toISOString(),
         },
       },
       include: {
