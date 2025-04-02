@@ -290,14 +290,14 @@ export async function POST(request: NextRequest) {
 
     // Create the base report data with correct types
     const baseReportData = {
-      date: reportDate,
+      date: reportDate.toISOString(),
       branchId: reportData.branchId,
       writeOffs: reportData.writeOffs || 0,
       ninetyPlus: reportData.ninetyPlus || 0,
       reportType: reportData.reportType,
       status: reportStatus,
       submittedBy: token.sub as string,
-      submittedAt: new Date(),
+      submittedAt: new Date().toISOString(),
       comments: reportData.comments || null,
     };
 
