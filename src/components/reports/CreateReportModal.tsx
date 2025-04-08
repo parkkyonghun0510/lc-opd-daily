@@ -82,6 +82,7 @@ export function CreateReportModal({
     errors,
     isSubmitting,
     isCheckingDuplicate,
+    duplicateInfo,
     updateField,
     handleSubmit,
     validationRules,
@@ -332,14 +333,24 @@ export function CreateReportModal({
                   Checking for duplicates...
                 </span>
               )}
-              <Alert className="py-1 bg-blue-50 border-blue-200 dark:bg-blue-900/30 dark:border-blue-800 w-full">
-                <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                <AlertDescription className="text-blue-700 dark:text-blue-300 text-xs">
-                  {reportType === "plan"
-                    ? "Morning plan must be submitted before evening actual report"
-                    : "Only today's entries are allowed"}
-                </AlertDescription>
-              </Alert>
+              {duplicateInfo?.isDuplicate ? (
+                <Alert className="py-1 bg-amber-50 border-amber-200 dark:bg-amber-900/30 dark:border-amber-800 w-full">
+                  <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                  <AlertDescription className="text-amber-700 dark:text-amber-300 text-xs">
+                    A {reportType} report already exists for this date and branch 
+                    (Status: {duplicateInfo.reportStatus || "Unknown"})
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                <Alert className="py-1 bg-blue-50 border-blue-200 dark:bg-blue-900/30 dark:border-blue-800 w-full">
+                  <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                  <AlertDescription className="text-blue-700 dark:text-blue-300 text-xs">
+                    {reportType === "plan"
+                      ? "Morning plan must be submitted before evening actual report"
+                      : "Only today's entries are allowed"}
+                  </AlertDescription>
+                </Alert>
+              )}
             </div>
           </div>
           <Popover>
@@ -573,7 +584,36 @@ export function CreateReportModal({
           <Button variant="outline" onClick={onClose} className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 text-sm">
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={isSubmitting} className="dark:bg-blue-700 dark:hover:bg-blue-600 text-sm">
+          <Button 
+            onClick={() => {
+              // Check for duplicate reports before submitting
+              if (duplicateInfo?.isDuplicate) {
+                // If the duplicate report is already approved, show an error
+                if (duplicateInfo.reportStatus === "approved") {
+                  toast({
+                    title: "Duplicate Report",
+                    description: `An approved ${reportType} report already exists for this date and branch.`,
+                    variant: "destructive",
+                  });
+                  return;
+                }
+                
+                // If the duplicate report is pending or rejected, ask for confirmation
+                const confirmOverwrite = window.confirm(
+                  `A ${reportType} report already exists for this date and branch with status: ${duplicateInfo.reportStatus}.\n\nDo you want to continue and create a new report?`
+                );
+                
+                if (!confirmOverwrite) {
+                  return;
+                }
+              }
+              
+              // If no duplicates or user confirmed, proceed with submission
+              handleSubmit();
+            }} 
+            disabled={isSubmitting} 
+            className="dark:bg-blue-700 dark:hover:bg-blue-600 text-sm"
+          >
             {isSubmitting ? "Creating..." : "Create Report"}
           </Button>
         </DialogFooter>

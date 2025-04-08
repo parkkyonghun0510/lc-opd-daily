@@ -65,6 +65,11 @@ export function useReportForm({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [validationRules, setValidationRules] = useState<ValidationRules>();
   const [isCheckingDuplicate, setIsCheckingDuplicate] = useState(false);
+  const [duplicateInfo, setDuplicateInfo] = useState<{
+    isDuplicate: boolean;
+    reportId: string | null;
+    reportStatus: string | null;
+  } | null>(null);
 
   // Fetch validation rules
   useEffect(() => {
@@ -91,7 +96,10 @@ export function useReportForm({
   // Check for duplicate report when date or branch changes
   useEffect(() => {
     const checkDuplicate = async () => {
-      if (!formData.date || !formData.branchId) return;
+      if (!formData.date || !formData.branchId) {
+        setDuplicateInfo(null);
+        return;
+      }
 
       setIsCheckingDuplicate(true);
       try {
@@ -99,22 +107,29 @@ export function useReportForm({
         const response = await fetch(
           `/api/reports/check-duplicate?date=${formattedDate}&branchId=${formData.branchId}&reportType=${formData.reportType}`
         );
-        
+
         if (!response.ok) {
           throw new Error("Failed to check for duplicate reports");
         }
-        
+
         const data = await response.json();
+        setDuplicateInfo({
+          isDuplicate: data.isDuplicate,
+          reportId: data.reportId,
+          reportStatus: data.reportStatus
+        });
         return data.isDuplicate;
       } catch (error) {
         console.error("Error checking for duplicate:", error);
+        setDuplicateInfo(null);
         return false;
       } finally {
         setIsCheckingDuplicate(false);
       }
     };
 
-    checkDuplicate();
+    const timeoutId = setTimeout(checkDuplicate, 300); // Debounce the check
+    return () => clearTimeout(timeoutId);
   }, [formData.date, formData.branchId, formData.reportType]);
 
   // Load draft from localStorage
@@ -161,7 +176,7 @@ export function useReportForm({
 
   const validateForm = (): Record<string, string> => {
     const errors: Record<string, string> = {};
-    
+
     try {
       // Convert numeric fields to numbers if they're strings
       const dataToValidate = {
@@ -178,7 +193,7 @@ export function useReportForm({
       if (validationRules) {
         // NOTE: We show approval warnings but don't block submission
         // These will be handled during the approval workflow
-        
+
         // Check comments requirements only - these are required regardless of approval
         if (validationRules.comments.required && !dataToValidate.comments) {
           errors.comments = "Comments are required";
@@ -216,14 +231,14 @@ export function useReportForm({
     }
 
     setIsSubmitting(true);
-    
+
     try {
       // Ensure report type is set correctly
       const dataToSubmit = {
         ...formData,
         reportType: reportType, // Explicitly set from props
       };
-      
+
       const response = await fetch("/api/reports", {
         method: "POST",
         headers: {
@@ -239,7 +254,7 @@ export function useReportForm({
         if (response.status === 400) {
           const errorMessage = data.details || data.error || "Failed to create report";
           const fieldErrors: Record<string, string> = {};
-          
+
           // Parse field-specific errors from the details
           if (data.details) {
             const fields = data.details.match(/The following fields are required: (.*)/);
@@ -249,12 +264,12 @@ export function useReportForm({
               });
             }
           }
-          
+
           setErrors({
             general: errorMessage,
             ...fieldErrors,
           });
-          
+
           toast({
             title: "Validation Error",
             description: errorMessage,
@@ -262,7 +277,7 @@ export function useReportForm({
           });
           return;
         }
-        
+
         // Handle permission errors
         if (response.status === 403) {
           toast({
@@ -272,7 +287,7 @@ export function useReportForm({
           });
           return;
         }
-        
+
         throw new Error(data.error || "Failed to create report");
       }
 
@@ -313,7 +328,7 @@ export function useReportForm({
     } else {
       setFormData((prev) => ({ ...prev, [field]: value }));
     }
-    
+
     // Clear error for the field when it's updated
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: "" }));
@@ -342,6 +357,7 @@ export function useReportForm({
     errors,
     isSubmitting,
     isCheckingDuplicate,
+    duplicateInfo,
     updateField,
     handleSubmit,
     validationRules,

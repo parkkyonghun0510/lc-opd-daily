@@ -266,3 +266,255 @@
     [Symbol(kTrailersCount)]: 0
   }
 }
+2025-04-08 19:06:01: Database error creating notifications: PrismaClientKnownRequestError: 
+Invalid `prisma.inAppNotification.createMany()` invocation:
+
+
+Foreign key constraint violated: `InAppNotification_userId_fkey (index)`
+    at Wn.handleRequestError (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@prisma/client/runtime/library.js:121:7534)
+    at Wn.handleAndLogRequestError (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@prisma/client/runtime/library.js:121:6858)
+    at Wn.request (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@prisma/client/runtime/library.js:121:6565)
+    at async l (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@prisma/client/runtime/library.js:130:10067)
+    at async processNotificationMessage (file:///home/pkflutter/project/LC-Report/lc-opd-daily/scripts/standalone-worker.js:130:24)
+    at async startWorker (file:///home/pkflutter/project/LC-Report/lc-opd-daily/scripts/standalone-worker.js:226:25) {
+  code: 'P2003',
+  meta: {
+    modelName: 'InAppNotification',
+    field_name: 'InAppNotification_userId_fkey (index)'
+  },
+  clientVersion: '6.5.0'
+}
+2025-04-08 19:30:13: Database error creating notifications: PrismaClientKnownRequestError: 
+Invalid `prisma.inAppNotification.createMany()` invocation:
+
+
+Foreign key constraint violated: `InAppNotification_userId_fkey (index)`
+    at Wn.handleRequestError (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@prisma/client/runtime/library.js:121:7534)
+    at Wn.handleAndLogRequestError (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@prisma/client/runtime/library.js:121:6858)
+    at Wn.request (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@prisma/client/runtime/library.js:121:6565)
+    at async l (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@prisma/client/runtime/library.js:130:10067)
+    at async processNotificationMessage (file:///home/pkflutter/project/LC-Report/lc-opd-daily/scripts/standalone-worker.js:130:24)
+    at async startWorker (file:///home/pkflutter/project/LC-Report/lc-opd-daily/scripts/standalone-worker.js:226:25) {
+  code: 'P2003',
+  meta: {
+    modelName: 'InAppNotification',
+    field_name: 'InAppNotification_userId_fkey (index)'
+  },
+  clientVersion: '6.5.0'
+}
+2025-04-08 19:31:22: Database error creating notifications: PrismaClientKnownRequestError: 
+Invalid `prisma.inAppNotification.createMany()` invocation:
+
+
+Foreign key constraint violated: `InAppNotification_userId_fkey (index)`
+    at Wn.handleRequestError (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@prisma/client/runtime/library.js:121:7534)
+    at Wn.handleAndLogRequestError (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@prisma/client/runtime/library.js:121:6858)
+    at Wn.request (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@prisma/client/runtime/library.js:121:6565)
+    at async l (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@prisma/client/runtime/library.js:130:10067)
+    at async processNotificationMessage (file:///home/pkflutter/project/LC-Report/lc-opd-daily/scripts/standalone-worker.js:130:24)
+    at async startWorker (file:///home/pkflutter/project/LC-Report/lc-opd-daily/scripts/standalone-worker.js:226:25) {
+  code: 'P2003',
+  meta: {
+    modelName: 'InAppNotification',
+    field_name: 'InAppNotification_userId_fkey (index)'
+  },
+  clientVersion: '6.5.0'
+}
+2025-04-08 19:32:45: Database error creating notifications: PrismaClientKnownRequestError: 
+Invalid `prisma.inAppNotification.createMany()` invocation:
+
+
+Foreign key constraint violated: `InAppNotification_userId_fkey (index)`
+    at Wn.handleRequestError (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@prisma/client/runtime/library.js:121:7534)
+    at Wn.handleAndLogRequestError (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@prisma/client/runtime/library.js:121:6858)
+    at Wn.request (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@prisma/client/runtime/library.js:121:6565)
+    at async l (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@prisma/client/runtime/library.js:130:10067)
+    at async processNotificationMessage (file:///home/pkflutter/project/LC-Report/lc-opd-daily/scripts/standalone-worker.js:130:24)
+    at async startWorker (file:///home/pkflutter/project/LC-Report/lc-opd-daily/scripts/standalone-worker.js:226:25) {
+  code: 'P2003',
+  meta: {
+    modelName: 'InAppNotification',
+    field_name: 'InAppNotification_userId_fkey (index)'
+  },
+  clientVersion: '6.5.0'
+}
+2025-04-08 19:33:40: Database error creating notifications: PrismaClientKnownRequestError: 
+Invalid `prisma.inAppNotification.createMany()` invocation:
+
+
+Foreign key constraint violated: `InAppNotification_userId_fkey (index)`
+    at Wn.handleRequestError (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@prisma/client/runtime/library.js:121:7534)
+    at Wn.handleAndLogRequestError (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@prisma/client/runtime/library.js:121:6858)
+    at Wn.request (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@prisma/client/runtime/library.js:121:6565)
+    at async l (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@prisma/client/runtime/library.js:130:10067)
+    at async processNotificationMessage (file:///home/pkflutter/project/LC-Report/lc-opd-daily/scripts/standalone-worker.js:130:24)
+    at async startWorker (file:///home/pkflutter/project/LC-Report/lc-opd-daily/scripts/standalone-worker.js:226:25) {
+  code: 'P2003',
+  meta: {
+    modelName: 'InAppNotification',
+    field_name: 'InAppNotification_userId_fkey (index)'
+  },
+  clientVersion: '6.5.0'
+}
+2025-04-08 20:09:35: Database error creating notifications: PrismaClientKnownRequestError: 
+Invalid `prisma.inAppNotification.createMany()` invocation:
+
+
+Foreign key constraint violated: `InAppNotification_userId_fkey (index)`
+    at Wn.handleRequestError (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@prisma/client/runtime/library.js:121:7534)
+    at Wn.handleAndLogRequestError (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@prisma/client/runtime/library.js:121:6858)
+    at Wn.request (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@prisma/client/runtime/library.js:121:6565)
+    at async l (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@prisma/client/runtime/library.js:130:10067)
+    at async processNotificationMessage (file:///home/pkflutter/project/LC-Report/lc-opd-daily/scripts/standalone-worker.js:130:24)
+    at async startWorker (file:///home/pkflutter/project/LC-Report/lc-opd-daily/scripts/standalone-worker.js:226:25) {
+  code: 'P2003',
+  meta: {
+    modelName: 'InAppNotification',
+    field_name: 'InAppNotification_userId_fkey (index)'
+  },
+  clientVersion: '6.5.0'
+}
+2025-04-08 20:09:51: Database error creating notifications: PrismaClientKnownRequestError: 
+Invalid `prisma.inAppNotification.createMany()` invocation:
+
+
+Foreign key constraint violated: `InAppNotification_userId_fkey (index)`
+    at Wn.handleRequestError (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@prisma/client/runtime/library.js:121:7534)
+    at Wn.handleAndLogRequestError (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@prisma/client/runtime/library.js:121:6858)
+    at Wn.request (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@prisma/client/runtime/library.js:121:6565)
+    at async l (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@prisma/client/runtime/library.js:130:10067)
+    at async processNotificationMessage (file:///home/pkflutter/project/LC-Report/lc-opd-daily/scripts/standalone-worker.js:130:24)
+    at async startWorker (file:///home/pkflutter/project/LC-Report/lc-opd-daily/scripts/standalone-worker.js:226:25) {
+  code: 'P2003',
+  meta: {
+    modelName: 'InAppNotification',
+    field_name: 'InAppNotification_userId_fkey (index)'
+  },
+  clientVersion: '6.5.0'
+}
+2025-04-08 20:25:22: Database error creating notifications: PrismaClientKnownRequestError: 
+Invalid `prisma.inAppNotification.createMany()` invocation:
+
+
+Foreign key constraint violated: `InAppNotification_userId_fkey (index)`
+    at Wn.handleRequestError (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@prisma/client/runtime/library.js:121:7534)
+    at Wn.handleAndLogRequestError (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@prisma/client/runtime/library.js:121:6858)
+    at Wn.request (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@prisma/client/runtime/library.js:121:6565)
+    at async l (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@prisma/client/runtime/library.js:130:10067)
+    at async processNotificationMessage (file:///home/pkflutter/project/LC-Report/lc-opd-daily/scripts/standalone-worker.js:130:24)
+    at async startWorker (file:///home/pkflutter/project/LC-Report/lc-opd-daily/scripts/standalone-worker.js:226:25) {
+  code: 'P2003',
+  meta: {
+    modelName: 'InAppNotification',
+    field_name: 'InAppNotification_userId_fkey (index)'
+  },
+  clientVersion: '6.5.0'
+}
+2025-04-08 20:32:58: Database error creating notifications: PrismaClientKnownRequestError: 
+Invalid `prisma.inAppNotification.createMany()` invocation:
+
+
+Foreign key constraint violated: `InAppNotification_userId_fkey (index)`
+    at Wn.handleRequestError (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@prisma/client/runtime/library.js:121:7534)
+    at Wn.handleAndLogRequestError (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@prisma/client/runtime/library.js:121:6858)
+    at Wn.request (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@prisma/client/runtime/library.js:121:6565)
+    at async l (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@prisma/client/runtime/library.js:130:10067)
+    at async processNotificationMessage (file:///home/pkflutter/project/LC-Report/lc-opd-daily/scripts/standalone-worker.js:130:24)
+    at async startWorker (file:///home/pkflutter/project/LC-Report/lc-opd-daily/scripts/standalone-worker.js:226:25) {
+  code: 'P2003',
+  meta: {
+    modelName: 'InAppNotification',
+    field_name: 'InAppNotification_userId_fkey (index)'
+  },
+  clientVersion: '6.5.0'
+}
+2025-04-08 20:59:29: Database error creating notifications: PrismaClientKnownRequestError: 
+Invalid `prisma.inAppNotification.createMany()` invocation:
+
+
+Foreign key constraint violated: `InAppNotification_userId_fkey (index)`
+    at Wn.handleRequestError (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@prisma/client/runtime/library.js:121:7534)
+    at Wn.handleAndLogRequestError (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@prisma/client/runtime/library.js:121:6858)
+    at Wn.request (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@prisma/client/runtime/library.js:121:6565)
+    at async l (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@prisma/client/runtime/library.js:130:10067)
+    at async processNotificationMessage (file:///home/pkflutter/project/LC-Report/lc-opd-daily/scripts/standalone-worker.js:130:24)
+    at async startWorker (file:///home/pkflutter/project/LC-Report/lc-opd-daily/scripts/standalone-worker.js:226:25) {
+  code: 'P2003',
+  meta: {
+    modelName: 'InAppNotification',
+    field_name: 'InAppNotification_userId_fkey (index)'
+  },
+  clientVersion: '6.5.0'
+}
+2025-04-08 21:29:17: Database error creating notifications: PrismaClientKnownRequestError: 
+Invalid `prisma.inAppNotification.createMany()` invocation:
+
+
+Foreign key constraint violated: `InAppNotification_userId_fkey (index)`
+    at Wn.handleRequestError (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@prisma/client/runtime/library.js:121:7534)
+    at Wn.handleAndLogRequestError (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@prisma/client/runtime/library.js:121:6858)
+    at Wn.request (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@prisma/client/runtime/library.js:121:6565)
+    at async l (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@prisma/client/runtime/library.js:130:10067)
+    at async processNotificationMessage (file:///home/pkflutter/project/LC-Report/lc-opd-daily/scripts/standalone-worker.js:130:24)
+    at async startWorker (file:///home/pkflutter/project/LC-Report/lc-opd-daily/scripts/standalone-worker.js:226:25) {
+  code: 'P2003',
+  meta: {
+    modelName: 'InAppNotification',
+    field_name: 'InAppNotification_userId_fkey (index)'
+  },
+  clientVersion: '6.5.0'
+}
+2025-04-08 21:29:32: Database error creating notifications: PrismaClientKnownRequestError: 
+Invalid `prisma.inAppNotification.createMany()` invocation:
+
+
+Foreign key constraint violated: `InAppNotification_userId_fkey (index)`
+    at Wn.handleRequestError (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@prisma/client/runtime/library.js:121:7534)
+    at Wn.handleAndLogRequestError (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@prisma/client/runtime/library.js:121:6858)
+    at Wn.request (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@prisma/client/runtime/library.js:121:6565)
+    at async l (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@prisma/client/runtime/library.js:130:10067)
+    at async processNotificationMessage (file:///home/pkflutter/project/LC-Report/lc-opd-daily/scripts/standalone-worker.js:130:24)
+    at async startWorker (file:///home/pkflutter/project/LC-Report/lc-opd-daily/scripts/standalone-worker.js:226:25) {
+  code: 'P2003',
+  meta: {
+    modelName: 'InAppNotification',
+    field_name: 'InAppNotification_userId_fkey (index)'
+  },
+  clientVersion: '6.5.0'
+}
+2025-04-08 21:29:44: Database error creating notifications: PrismaClientKnownRequestError: 
+Invalid `prisma.inAppNotification.createMany()` invocation:
+
+
+Foreign key constraint violated: `InAppNotification_userId_fkey (index)`
+    at Wn.handleRequestError (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@prisma/client/runtime/library.js:121:7534)
+    at Wn.handleAndLogRequestError (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@prisma/client/runtime/library.js:121:6858)
+    at Wn.request (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@prisma/client/runtime/library.js:121:6565)
+    at async l (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@prisma/client/runtime/library.js:130:10067)
+    at async processNotificationMessage (file:///home/pkflutter/project/LC-Report/lc-opd-daily/scripts/standalone-worker.js:130:24)
+    at async startWorker (file:///home/pkflutter/project/LC-Report/lc-opd-daily/scripts/standalone-worker.js:226:25) {
+  code: 'P2003',
+  meta: {
+    modelName: 'InAppNotification',
+    field_name: 'InAppNotification_userId_fkey (index)'
+  },
+  clientVersion: '6.5.0'
+}
+2025-04-08 21:30:21: Database error creating notifications: PrismaClientKnownRequestError: 
+Invalid `prisma.inAppNotification.createMany()` invocation:
+
+
+Foreign key constraint violated: `InAppNotification_userId_fkey (index)`
+    at Wn.handleRequestError (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@prisma/client/runtime/library.js:121:7534)
+    at Wn.handleAndLogRequestError (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@prisma/client/runtime/library.js:121:6858)
+    at Wn.request (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@prisma/client/runtime/library.js:121:6565)
+    at async l (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@prisma/client/runtime/library.js:130:10067)
+    at async processNotificationMessage (file:///home/pkflutter/project/LC-Report/lc-opd-daily/scripts/standalone-worker.js:130:24)
+    at async startWorker (file:///home/pkflutter/project/LC-Report/lc-opd-daily/scripts/standalone-worker.js:226:25) {
+  code: 'P2003',
+  meta: {
+    modelName: 'InAppNotification',
+    field_name: 'InAppNotification_userId_fkey (index)'
+  },
+  clientVersion: '6.5.0'
+}
