@@ -51,6 +51,29 @@ export default function DashboardPage() {
 
     if (status === "authenticated") {
       fetchDashboardData();
+
+      const eventSource = new EventSource("/api/dashboard/stream");
+
+      eventSource.onmessage = (event) => {
+        try {
+          const parsed = JSON.parse(event.data);
+          if (parsed.type === "update") {
+            setData(parsed.data);
+          }
+        } catch (err) {
+          console.error("Error parsing SSE message", err);
+        }
+      };
+
+      eventSource.onerror = (err) => {
+        console.error("SSE connection error", err);
+        eventSource.close();
+      };
+
+      // Cleanup on unmount
+      return () => {
+        eventSource.close();
+      };
     }
   }, [status, router]);
 

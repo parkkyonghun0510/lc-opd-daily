@@ -447,6 +447,7 @@ export default function BranchesPage() {
                       <TableRow>
                         <TableCell colSpan={8} className="text-center py-8">
                           No branches found
+                        <span className="text-muted-foreground">N/A</span>
                         </TableCell>
                       </TableRow>
                     ) : (
@@ -531,14 +532,14 @@ export default function BranchesPage() {
                                 size="icon"
                                 onClick={() => openDeleteDialog(branch)}
                                 disabled={
-                                  branch._count.users > 0 ||
-                                  branch._count.reports > 0 ||
-                                  branch._count.children > 0
+                                  (branch._count?.users ?? 0) > 0 ||
+                                  (branch._count?.reports ?? 0) > 0 ||
+                                  (branch._count?.children ?? 0) > 0
                                 }
                                 title={
-                                  branch._count.users > 0 ||
-                                  branch._count.reports > 0 ||
-                                  branch._count.children > 0
+                                  (branch._count?.users ?? 0) > 0 ||
+                                  (branch._count?.reports ?? 0) > 0 ||
+                                  (branch._count?.children ?? 0) > 0
                                     ? "Cannot delete branch with associated users, reports, or sub-branches"
                                     : "Delete branch"
                                 }
@@ -582,6 +583,7 @@ export default function BranchesPage() {
                               {branch.name}
                             </CardDescription>
                           </div>
+                          console.log('Branch debug:', branch);
                           <div className="flex gap-1">
                             <Button
                               variant="ghost"
@@ -597,9 +599,9 @@ export default function BranchesPage() {
                               className="h-8 w-8 p-0"
                               onClick={() => openDeleteDialog(branch)}
                               disabled={
-                                branch._count.users > 0 ||
-                                branch._count.reports > 0 ||
-                                branch._count.children > 0
+                                (branch._count?.users ?? 0) > 0 ||
+                                (branch._count?.reports ?? 0) > 0 ||
+                                (branch._count?.children ?? 0) > 0
                               }
                             >
                               <Trash className="h-4 w-4" />
@@ -696,7 +698,7 @@ export default function BranchesPage() {
                 <Input
                   id="code"
                   name="code"
-                  placeholder="BR01"
+                  placeholder="01-PRH"
                   value={formData.code}
                   onChange={handleInputChange}
                   disabled={formSubmitting}

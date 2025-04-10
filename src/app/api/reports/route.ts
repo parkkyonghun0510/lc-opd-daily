@@ -78,16 +78,16 @@ export async function GET(request: NextRequest) {
     }
 
     if (date) {
-      // If a specific date is provided, create a range for that day
       const targetDate = new Date(date);
-      const startOfDay = new Date(targetDate);
-      startOfDay.setHours(0, 0, 0, 0);
-      const endOfDay = new Date(targetDate);
-      endOfDay.setHours(23, 59, 59, 999);
-      where.date = {
-        gte: startOfDay.toISOString(),
-        lt: endOfDay.toISOString()
-      };
+      const reportDate = targetDate.toISOString().split('T')[0]; // 'YYYY-MM-DD'
+      const reportDateISO = `${reportDate}T00:00:00.000Z`;
+
+      console.log("[DEBUG] Query param date:", date);
+      console.log("[DEBUG] Server timezone offset (minutes):", new Date().getTimezoneOffset());
+      console.log("[DEBUG] Normalized reportDate string:", reportDate);
+      console.log("[DEBUG] Using reportDateISO for Prisma query:", reportDateISO);
+
+      where.date = new Date(reportDateISO);
     } else if (startDate || endDate) {
       where.date = {};
       if (startDate) {
@@ -113,7 +113,7 @@ export async function GET(request: NextRequest) {
 
     // Implement keyset pagination for better performance with large datasets
     let skipTake = {};
-    
+
     if (page && limit) {
       skipTake = {
         skip: (page - 1) * limit,
@@ -148,19 +148,19 @@ export async function GET(request: NextRequest) {
     // Transform reports data to ensure we have plan data for actual reports
     const transformedReports = reports.map(report => {
       // Create a new object with the original report properties
-      const transformed = { 
+      const transformed = {
         ...report,
         // Convert Decimal to number for JSON serialization
         writeOffs: Number(report.writeOffs),
         ninetyPlus: Number(report.ninetyPlus),
       } as any;
-      
+
       // If this is an actual report and has planReport data
       if (report.reportType === 'actual' && report.planReport) {
         transformed.writeOffsPlan = Number(report.planReport.writeOffs) || 0;
         transformed.ninetyPlusPlan = Number(report.planReport.ninetyPlus) || 0;
       }
-      
+
       return transformed;
     });
 
@@ -226,7 +226,9 @@ export async function POST(request: NextRequest) {
 
     // Parse date properly for DateTime field
     const reportDate = new Date(reportData.date);
-    
+    const reportDateOnly = new Date(reportDate);
+    reportDateOnly.setHours(0, 0, 0, 0);
+
     // Ensure date is valid
     if (isNaN(reportDate.getTime())) {
       return NextResponse.json(
@@ -236,23 +238,26 @@ export async function POST(request: NextRequest) {
     }
 
     // Check for existing report
-    const startOfDay = new Date(reportDate);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(reportDate);
-    endOfDay.setHours(23, 59, 59, 999);
-    
-    const existingReport = await prisma.report.findFirst({
+    const reportDateObj = new Date(reportData.date);
+    const reportDateStr = reportDateObj.toISOString().split('T')[0]; // 'YYYY-MM-DD'
+
+    console.log("[DEBUG] Duplicate check normalized reportDate string:", reportDateStr);
+
+    const reportDateISO = `${reportDateStr}T00:00:00.000Z`;
+
+    const existing = await prisma.report.findMany({
       where: {
-        date: {
-          gte: startOfDay.toISOString(),
-          lt: endOfDay.toISOString(),
-        },
         branchId: reportData.branchId,
-        reportType: reportData.reportType
+        reportType: reportData.reportType,
+        date: new Date(reportDateISO),
       },
     });
 
-    if (existingReport) {
+    // console.log('DEBUG: existing report:', existing);
+
+
+
+    if (Array.isArray(existing) && existing.length > 0) {
       return NextResponse.json(
         { error: "A report already exists for this date, branch, and type" },
         { status: 400 }
@@ -268,10 +273,10 @@ export async function POST(request: NextRequest) {
     let reportStatus = "pending";
     if (rules?.validationRules) {
       const validationRules = rules.validationRules as any;
-      
+
       // Check if write-offs or 90+ days require approval
-      if ((validationRules.writeOffs?.requireApproval && reportData.writeOffs > 0) || 
-          (validationRules.ninetyPlus?.requireApproval && reportData.ninetyPlus > 0)) {
+      if ((validationRules.writeOffs?.requireApproval && reportData.writeOffs > 0) ||
+        (validationRules.ninetyPlus?.requireApproval && reportData.ninetyPlus > 0)) {
         reportStatus = "pending_approval";
       }
     }
@@ -291,6 +296,7 @@ export async function POST(request: NextRequest) {
     // Create the base report data with correct types
     const baseReportData = {
       date: reportDate.toISOString(),
+      // reportDate: reportDateStr,
       branchId: reportData.branchId,
       writeOffs: reportData.writeOffs || 0,
       ninetyPlus: reportData.ninetyPlus || 0,
@@ -309,13 +315,14 @@ export async function POST(request: NextRequest) {
       planStartOfDay.setHours(0, 0, 0, 0);
       const planEndOfDay = new Date(reportDate);
       planEndOfDay.setHours(23, 59, 59, 999);
-      
+
       const planReport = await prisma.report.findFirst({
         where: {
-          date: {
-            gte: planStartOfDay.toISOString(),
-            lt: planEndOfDay.toISOString(),
-          },
+          // date: {
+          //   gte: planStartOfDay.toISOString(),
+          //   lt: planEndOfDay.toISOString(),
+          // },
+          date: reportDate.toISOString(),
           branchId: reportData.branchId,
           reportType: "plan"
         }

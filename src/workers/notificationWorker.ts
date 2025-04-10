@@ -29,12 +29,13 @@ import webpush from 'web-push';
 import TelegramBot from 'node-telegram-bot-api';
 import { prisma } from '@/lib/prisma';
 import { NotificationType, generateNotificationContent } from '@/utils/notificationTemplates';
-import { 
-  receiveFromNotificationQueue, 
-  deleteMessageFromQueue, 
-  deleteBatchFromQueue 
+import {
+  receiveFromNotificationQueue,
+  deleteMessageFromQueue,
+  deleteBatchFromQueue
 } from '@/lib/queue/sqs';
 import { escapeTelegramMarkdown } from '@/lib/telegram';
+import sseHandler from '@/lib/sse/sseHandler';
 
 // Initialize web-push with VAPID keys
 const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '';
@@ -56,7 +57,7 @@ let bot: TelegramBot | null = null;
 if (!telegramToken) {
   console.error('TELEGRAM_BOT_TOKEN not set. Telegram notifications disabled.');
   console.error('Please make sure TELEGRAM_BOT_TOKEN is set in your .env.local file.');
-  console.error('Current environment variables:', Object.keys(process.env).filter(key => 
+  console.error('Current environment variables:', Object.keys(process.env).filter(key =>
     key.includes('TELEGRAM') || key.includes('AWS') || key.includes('VAPID')
   ));
 } else {
@@ -106,13 +107,13 @@ interface NotificationQueueMessage {
  * Create in-app notifications in the database
  */
 async function createInAppNotifications(
-  type: NotificationType, 
+  type: NotificationType,
   data: Record<string, any>,
   userIds: string[]
 ) {
   console.log(`[createInAppNotifications] Creating notifications for ${userIds.length} users of type ${type}`);
   console.log(`[createInAppNotifications] Notification data:`, JSON.stringify(data, null, 2));
-  
+
   // Generate title and body based on notification type
   let title = 'Notification';
   let body = 'You have a new notification';
@@ -184,7 +185,7 @@ async function createInAppNotifications(
     }));
 
     console.log(`[createInAppNotifications] Prepared ${notifications.length} notification objects`);
-    
+
     // Log first notification for debugging
     if (notifications.length > 0) {
       console.log(`[createInAppNotifications] First notification sample:`, JSON.stringify(notifications[0], null, 2));
@@ -227,12 +228,12 @@ async function processBatchNotifications(messages: any[]): Promise<{
 }> {
   const successful: string[] = [];
   const failed: string[] = [];
-  
+
   // Process messages in parallel with a concurrency limit
   const results = await Promise.allSettled(
     messages.map(message => processNotificationMessage(message))
   );
-  
+
   // Collect results
   results.forEach((result, index) => {
     if (result.status === 'fulfilled' && result.value) {
@@ -242,13 +243,13 @@ async function processBatchNotifications(messages: any[]): Promise<{
       if (result.status === 'rejected') {
         console.error('Error processing message:', result.reason);
         metrics.errors++;
-        metrics.lastError = result.reason instanceof Error 
-          ? result.reason 
+        metrics.lastError = result.reason instanceof Error
+          ? result.reason
           : new Error(String(result.reason));
       }
     }
   });
-  
+
   return { successful, failed };
 }
 
@@ -263,7 +264,7 @@ async function processNotificationMessage(message: any): Promise<boolean> {
     }
 
     const notification: NotificationQueueMessage = JSON.parse(message.Body);
-    
+
     // Skip if no user IDs are provided
     if (!notification.userIds || notification.userIds.length === 0) {
       console.log('No users to notify, skipping');
@@ -272,14 +273,14 @@ async function processNotificationMessage(message: any): Promise<boolean> {
 
     const priority = notification.priority || 'normal';
     console.log(`Processing ${priority} priority notification of type ${notification.type} for ${notification.userIds.length} users`);
-    
+
     // 1. Create in-app notifications
     const inAppCount = await createInAppNotifications(
       notification.type as NotificationType,
       notification.data || {},
       notification.userIds
     );
-    
+
     // 2. Send Web Push Notifications
     let pushSuccessCount = 0;
     let pushFailCount = 0;
@@ -323,11 +324,11 @@ async function processNotificationMessage(message: any): Promise<boolean> {
           notification.type as NotificationType,
           notification.data
         );
-        
+
         const telegramResults = await Promise.allSettled(
           telegramSubs.map(sub => sendTelegramMessageWithRetry(bot!, sub.chatId, telegramContent))
         );
-        
+
         telegramResults.forEach(result => {
           if (result.status === 'fulfilled') telegramSuccessCount++;
           else { telegramFailCount++; console.error('Telegram message failed:', result.reason); }
@@ -339,6 +340,20 @@ async function processNotificationMessage(message: any): Promise<boolean> {
 
     metrics.messageProcessed++;
     console.log(`Processed notification: ${pushSuccessCount}/${subscriptions.length} push, ${telegramSuccessCount}/${telegramSubsCount} TG, ${inAppCount} in-app`); // Use telegramSubsCount
+
+    // Broadcast SSE event to all relevant users
+    try {
+      notification.userIds.forEach(userId => {
+        sseHandler.broadcastToUser(userId, {
+          type: notification.type,
+          data: notification.data,
+          timestamp: Date.now()
+        });
+      });
+    } catch (sseError) {
+      console.error("Error broadcasting SSE notification:", sseError);
+    }
+
     return true;
 
   } catch (error) {
@@ -346,12 +361,12 @@ async function processNotificationMessage(message: any): Promise<boolean> {
     metrics.errors++;
     metrics.consecutiveErrors++;
     metrics.lastError = error instanceof Error ? error : new Error(String(error));
-    
+
     // If we hit the error threshold, pause processing
     if (metrics.consecutiveErrors >= ERROR_THRESHOLD) {
       console.error(`Error threshold reached (${metrics.consecutiveErrors}/${ERROR_THRESHOLD}), pausing worker`);
       metrics.isPaused = true;
-      
+
       // Auto-resume after 5 minutes
       setTimeout(() => {
         console.log('Auto-resuming worker after pause period');
@@ -359,7 +374,7 @@ async function processNotificationMessage(message: any): Promise<boolean> {
         metrics.consecutiveErrors = 0;
       }, 300000); // 5 minutes
     }
-    
+
     return false;
   }
 }
@@ -432,7 +447,7 @@ async function sendTelegramMessageWithRetry(
       `Telegram Send Error (Chat ID: ${chatId}, Retry: ${retryCount}): `,
       error.response?.body || error.message || error
     );
-    
+
     // Simple retry based only on count, not error content
     if (retryCount < MAX_RETRIES) {
       console.log(`Retrying Telegram message (${retryCount + 1}/${MAX_RETRIES}) for chat ${chatId}`);
@@ -440,10 +455,10 @@ async function sendTelegramMessageWithRetry(
       // Recursively call, passing the incremented retry count
       return sendTelegramMessageWithRetry(botInstance, chatId, messageText, retryCount + 1);
     }
-    
+
     // If retries exhausted, throw the last error
     console.error(`Telegram message failed after ${MAX_RETRIES} retries for chat ${chatId}.`);
-    throw error; 
+    throw error;
   }
 }
 
@@ -451,7 +466,7 @@ async function sendTelegramMessageWithRetry(
  * Send a push notification with retry logic
  */
 async function sendNotificationWithRetry(
-  subscription: any, 
+  subscription: any,
   notificationContent: any,
   retryCount = 0
 ): Promise<void> {
@@ -523,7 +538,7 @@ function startMetricsReporting() {
     console.log(`- Errors: ${metrics.errors}`);
     console.log(`- Status: ${metrics.isPaused ? 'PAUSED' : 'RUNNING'}`);
     console.log(`- Telegram messages: ${metrics.telegramSuccesses} successful, ${metrics.telegramFailures} failed`);
-    
+
     // Reset consecutive errors counter if things are working well
     if (metrics.consecutiveErrors > 0 && !metrics.isPaused) {
       metrics.consecutiveErrors = 0;
@@ -620,7 +635,7 @@ export async function startNotificationWorker() {
   console.log('AWS Region:', process.env.AWS_REGION);
   console.log('Queue URL:', process.env.AWS_SQS_NOTIFICATION_QUEUE_URL);
   console.log('======================================');
-  
+
   // Setup Telegram listener if bot exists
   if (bot) {
     bot.onText(/^\/start(?:\s+(.*))?$/, (msg) => {
@@ -630,17 +645,17 @@ export async function startNotificationWorker() {
       });
     });
     bot.on('polling_error', (error) => {
-        console.error('Telegram Polling Error:', error.name, error.message);
-        // Potentially add logic to restart bot or handle specific errors
+      console.error('Telegram Polling Error:', error.name, error.message);
+      // Potentially add logic to restart bot or handle specific errors
     });
     // Start polling explicitly if needed for /start commands
-    bot.startPolling(); 
+    bot.startPolling();
     console.log("Telegram Bot polling started for /start commands.");
   }
 
   // Start metrics reporting
   startMetricsReporting();
-  
+
   while (true) {
     try {
       // Skip processing if worker is paused due to errors
@@ -649,21 +664,21 @@ export async function startNotificationWorker() {
         await new Promise(resolve => setTimeout(resolve, 30000)); // Wait 30 seconds
         continue;
       }
-      
+
       console.log('[WORKER] Polling for messages from SQS queue...');
-      
+
       // Receive messages from the notification queue
       const messages = await receiveFromNotificationQueue(BATCH_SIZE);
-      
+
       if (!messages || messages.length === 0) {
         // If no messages, wait a bit before polling again
         console.log('[WORKER] No messages received, waiting before next poll');
         await new Promise(resolve => setTimeout(resolve, 5000));
         continue;
       }
-      
+
       console.log(`[WORKER] Received ${messages.length} messages from queue`);
-      
+
       // Log info about the first message
       if (messages.length > 0 && messages[0].Body) {
         try {
@@ -673,41 +688,41 @@ export async function startNotificationWorker() {
           console.error('[WORKER] Could not parse first message:', parseError);
         }
       }
-      
+
       // Process the batch of messages
       const { successful, failed } = await processBatchNotifications(messages);
-      
+
       console.log(`[WORKER] Processed batch: ${successful.length} successful, ${failed.length} failed`);
-      
+
       // Delete successful messages in batch
       if (successful.length > 0) {
         console.log(`[WORKER] Deleting ${successful.length} processed messages`);
         await deleteBatchFromQueue(successful);
       }
-      
+
       // Reset consecutive errors if we successfully processed some messages
       if (successful.length > 0) {
         metrics.consecutiveErrors = 0;
       }
-      
+
     } catch (error) {
       console.error('[WORKER] Error in notification worker loop:', error);
       metrics.errors++;
       metrics.lastError = error instanceof Error ? error : new Error(String(error));
       metrics.consecutiveErrors++;
-      
+
       // If too many consecutive errors, pause the worker temporarily
       if (metrics.consecutiveErrors >= ERROR_THRESHOLD) {
         console.error(`Error threshold reached (${metrics.consecutiveErrors}/${ERROR_THRESHOLD}), pausing worker for 5 minutes`);
         metrics.isPaused = true;
-        
+
         // Auto-resume after 5 minutes
         setTimeout(() => {
           console.log('Auto-resuming worker after pause period');
           metrics.isPaused = false;
           metrics.consecutiveErrors = 0;
         }, 300000); // 5 minutes
-        
+
         // Wait before next iteration
         await new Promise(resolve => setTimeout(resolve, 30000));
       } else {

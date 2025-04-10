@@ -92,4 +92,13 @@ In case of deployment issues:
 - [ ] Verify authentication is working correctly
 - [ ] Check API endpoints for proper authorization
 - [ ] Ensure database is not publicly accessible
+## Related Documentation
+
+- [PM2 Deployment Guide](./pm2-deployment.md)
+- [Notification Worker](./notification-worker.md)
+- [Notification Queue](./notification-queue.md)
+- [Code Organization](./code-organization.md)
+- [Error Handling Guide](./error-handling-guide.md)
+- [Performance Optimizations](./performance-optimizations.md)
+
 - [ ] Verify HTTPS is configured correctly 
