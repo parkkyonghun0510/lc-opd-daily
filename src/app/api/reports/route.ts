@@ -6,6 +6,8 @@ import { getAccessibleBranches } from "@/lib/auth/branch-access";
 import { sendToNotificationQueue } from "@/lib/queue/sqs";
 import { getUsersForNotification } from "@/utils/notificationTargeting";
 import { NotificationType } from "@/utils/notificationTemplates";
+// Import the broadcast function
+import { broadcastDashboardUpdate } from "@/app/api/dashboard/sse/route";
 
 interface ReportData {
   branchId: string;
@@ -21,6 +23,7 @@ interface UpdateReportData {
   writeOffs?: number;
   ninetyPlus?: number;
   comments?: string;
+  status?: string; // Add optional status field
 }
 
 // GET /api/reports - List reports with filtering and pagination
@@ -371,11 +374,8 @@ export async function POST(request: NextRequest) {
           reportType: report.reportType
         };
 
-        // Get users who should receive this notification
-        const targetUsers = await getUsersForNotification(
-          NotificationType.REPORT_SUBMITTED,
-          notificationData
-        );
+        // Notify relevant users
+        const targetUsers = await getUsersForNotification(NotificationType.REPORT_SUBMITTED, { branchId: report.branchId, submittedBy: token.sub as string, reportId: report.id });
 
         if (targetUsers.length > 0) {
           await sendToNotificationQueue({
@@ -416,7 +416,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// PATCH /api/reports - Update a report
+// PATCH /api/reports - Update an existing report (e.g., status change, content edit)
 export async function PATCH(request: NextRequest) {
   try {
     const token = await getToken({ req: request });
@@ -428,87 +428,147 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    // Check if user has permission to edit reports
-    const userRole = token.role as UserRole;
-    if (!checkPermission(userRole, Permission.EDIT_REPORTS)) {
-      return NextResponse.json(
-        { error: "Forbidden - You don't have permission to edit reports" },
-        { status: 403 }
-      );
-    }
-
-    const { id, ...updateData } = await request.json() as UpdateReportData;
+    const body: UpdateReportData = await request.json();
+    const { id, ...updateData } = body;
 
     if (!id) {
       return NextResponse.json(
-        { error: "Report ID is required" },
+        { error: "Report ID is required for update" },
         { status: 400 }
       );
     }
 
-    // Get the report to check access
-    const report = await prisma.report.findUnique({
+    // Fetch the existing report to check ownership/permissions
+    const existingReport = await prisma.report.findUnique({
       where: { id },
-      include: { branch: true },
+      include: { branch: true }, // Include branch for permission checks
     });
 
-    if (!report) {
-      return NextResponse.json(
-        { error: "Report not found" },
-        { status: 404 }
-      );
+    if (!existingReport) {
+      return NextResponse.json({ error: "Report not found" }, { status: 404 });
     }
 
-    // Check if user has access to the branch
+    // Permission Check: Can the user edit this specific report?
+    const userRole = token.role as UserRole;
     const accessibleBranches = await getAccessibleBranches(token.sub as string);
-    const hasAccess = accessibleBranches.some(branch => branch.id === report.branchId);
+    const canAccessBranch = accessibleBranches.some(b => b.id === existingReport.branchId);
 
-    if (!hasAccess) {
-      return NextResponse.json(
-        { error: "You don't have permission to edit reports for this branch" },
-        { status: 403 }
-      );
+    // Basic check: User must have access to the report's branch
+    if (!canAccessBranch) {
+        return NextResponse.json(
+            { error: "Forbidden - You do not have access to this branch's reports" },
+            { status: 403 }
+        );
     }
 
-    // Only allow editing pending or rejected reports
-    if (report.status !== "pending" && report.status !== "rejected") {
-      return NextResponse.json(
-        { error: "Only pending or rejected reports can be edited" },
-        { status: 400 }
-      );
+    // More granular check: Can the user edit reports in general?
+    // Or, if it's their own report and they have edit permission for own reports?
+    // (Add more specific logic based on your RBAC rules if needed)
+    if (!checkPermission(userRole, Permission.EDIT_REPORTS)) {
+        // Allow editing own report if they have that specific permission (example)
+        // if (!checkPermission(userRole, Permission.EDIT_OWN_REPORTS) || existingReport.submittedBy !== token.sub) {
+            return NextResponse.json(
+                { error: "Forbidden - You do not have permission to edit reports" },
+                { status: 403 }
+            );
+        // }
+    }
+
+    // --- Handle Status Change (Approval/Rejection) --- Requires specific permission
+    let statusChangeNotificationType: NotificationType | null = null;
+    if (updateData.status && updateData.status !== existingReport.status) {
+      if (!checkPermission(userRole, Permission.APPROVE_REPORTS)) {
+        return NextResponse.json(
+          { error: "Forbidden - You do not have permission to approve/reject reports" },
+          { status: 403 }
+        );
+      }
+      // Determine notification type based on status change
+      if (updateData.status === 'approved') {
+        statusChangeNotificationType = NotificationType.REPORT_APPROVED;
+      } else if (updateData.status === 'rejected') {
+        statusChangeNotificationType = NotificationType.REPORT_REJECTED;
+      }
+    }
+
+    // Prepare data for update (handle potential Decimal conversion if needed)
+    const prismaUpdateData: any = { ...updateData };
+    if (prismaUpdateData.writeOffs !== undefined) {
+      prismaUpdateData.writeOffs = Number(prismaUpdateData.writeOffs);
+    }
+    if (prismaUpdateData.ninetyPlus !== undefined) {
+      prismaUpdateData.ninetyPlus = Number(prismaUpdateData.ninetyPlus);
     }
 
     // Update the report
     const updatedReport = await prisma.report.update({
       where: { id },
-      data: {
-        ...updateData,
-        // If this is a rejected report being resubmitted and new comments were provided
-        ...(report.status === "rejected" && updateData.comments ? {
-          comments: `${report.comments ? report.comments + '\n\n' : ''}[RESUBMISSION ${new Date().toISOString().split('T')[0]}]:\n${updateData.comments}`,
-          status: "pending_approval" // Change status to pending_approval when resubmitting
-        } : {}),
-        // If no new comments were provided but updating other fields, preserve existing comments
-        ...(report.status === "rejected" && !updateData.comments ? {
-          status: "pending_approval" // Still change status to pending_approval when resubmitting
-        } : {})
-      },
+      data: prismaUpdateData,
       include: {
-        branch: true,
-        planReport: true,
-        actualReports: true,
+        branch: true, // Include for notifications
       },
     });
 
-    return NextResponse.json({
-      message: "Report updated successfully",
-      data: updatedReport,
+    // Broadcast the update via SSE after successful update
+    broadcastDashboardUpdate({
+      type: "REPORT_UPDATED", // Or more specific like REPORT_STATUS_CHANGED
+      payload: {
+        reportId: updatedReport.id,
+        branchId: updatedReport.branchId,
+        status: updatedReport.status,
+        // Include other fields that might affect dashboard aggregates
+        writeOffs: Number(updatedReport.writeOffs),
+        ninetyPlus: Number(updatedReport.ninetyPlus),
+        date: updatedReport.date.toISOString().split('T')[0],
+        reportType: updatedReport.reportType,
+      }
     });
+
+    // --- Send Notifications for Status Change ---
+    if (statusChangeNotificationType) {
+      try {
+        const targetUsers = await getUsersForNotification(
+          statusChangeNotificationType,
+          updatedReport.branch
+        );
+
+        if (targetUsers.length > 0) {
+          const notificationData = {
+            reportId: updatedReport.id,
+            reportDate: updatedReport.date.toISOString().split('T')[0],
+            branchName: updatedReport.branch.name,
+            status: updatedReport.status,
+            actorName: token.name || 'System',
+            // Add comments if rejection includes them
+            comments: updateData.comments || undefined
+          };
+
+          await sendToNotificationQueue({
+            type: statusChangeNotificationType,
+            data: notificationData,
+            userIds: targetUsers,
+          });
+        }
+      } catch (notificationError) {
+        console.error("Error sending status change notifications (non-critical):", notificationError);
+      }
+    }
+
+    // Convert Decimal fields to numbers for the response
+    const responseReport = {
+      ...updatedReport,
+      writeOffs: Number(updatedReport.writeOffs),
+      ninetyPlus: Number(updatedReport.ninetyPlus),
+    };
+
+    return NextResponse.json(responseReport);
   } catch (error) {
     console.error("Error updating report:", error);
+    // Check for specific Prisma errors if needed (e.g., P2025 Record not found)
     return NextResponse.json(
       { error: "Failed to update report" },
       { status: 500 }
     );
   }
 }
+

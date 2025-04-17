@@ -139,9 +139,7 @@ async function getGlobalAdmins(): Promise<string[]> {
  * Returns an array of user IDs who should receive the notification
  */
 export async function getUsersForNotification(
-  type: NotificationType,
-  data: Record<string, any>
-): Promise<string[]> {
+type: NotificationType, data: Record<string, any>): Promise<string[]> {
   // Default to empty array
   let userIds: string[] = [];
 
@@ -526,4 +524,4 @@ export async function getUsersForNotification(
 
   // Remove duplicates and return
   return [...new Set(userIds)];
-} 
+}

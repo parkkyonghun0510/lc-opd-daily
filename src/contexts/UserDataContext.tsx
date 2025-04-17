@@ -12,6 +12,7 @@ import {
   updateUserProfile,
   updateUserPreferences,
 } from "@/app/_actions/user-actions";
+import { useDashboardSSE } from "@/hooks/useDashboardSSE"; // Import the SSE hook
 
 // Default preferences - needed for mock data in development
 const defaultPreferences: UserPreferences = {
@@ -72,6 +73,9 @@ export function UserDataProvider({ children }: { children: React.ReactNode }) {
   const [persistentError, setPersistentError] = useState(false);
   const MAX_RETRIES = 3;
 
+  // Use the SSE hook to listen for real-time updates
+  const { lastEventData, isConnected: isSseConnected, error: sseError } = useDashboardSSE();
+
   // Initial data fetch
   useEffect(() => {
     if (status === "authenticated") {
@@ -96,6 +100,39 @@ export function UserDataProvider({ children }: { children: React.ReactNode }) {
       router.push("/login");
     }
   }, [status, router, userData, isLoading, retryCount]);
+
+  // Effect to handle SSE updates
+  useEffect(() => {
+    if (lastEventData && lastEventData.type === 'dashboardUpdate') {
+      const { type: updateType, payload } = lastEventData.payload;
+      console.log('[UserDataContext] Received SSE update:', updateType, payload);
+
+      // Example: Handle specific update types relevant to user data
+      if (updateType === 'USER_PROFILE_UPDATED' && payload?.userId === userData?.id) {
+        console.log('[UserDataContext] User profile updated via SSE, refreshing data...');
+        refreshUserData().catch(err => console.error("Error refreshing user data after SSE update:", err));
+      } else if (updateType === 'USER_PREFERENCES_UPDATED' && payload?.userId === userData?.id) {
+        console.log('[UserDataContext] User preferences updated via SSE, refreshing data...');
+        // Optionally update preferences directly if payload contains full data
+        // setUserData(prev => prev ? { ...prev, preferences: payload.preferences } : null);
+        refreshUserData().catch(err => console.error("Error refreshing user data after SSE update:", err));
+      } else if (updateType === 'BRANCH_ASSIGNMENT_CHANGED' && payload?.userId === userData?.id) {
+        console.log('[UserDataContext] Branch assignment changed via SSE, refreshing data...');
+        refreshUserData().catch(err => console.error("Error refreshing user data after SSE update:", err));
+      }
+      // Add more conditions here for other relevant update types
+
+    }
+  }, [lastEventData, userData?.id]);
+
+  // Log SSE connection status and errors
+  useEffect(() => {
+    if (sseError) {
+      console.error('[UserDataContext] SSE connection error:', sseError);
+      // Optionally handle SSE errors, e.g., show a notification
+    }
+    console.log('[UserDataContext] SSE connection status:', isSseConnected ? 'Connected' : 'Disconnected');
+  }, [isSseConnected, sseError]);
 
   // Clear auth data if we have persistent errors
   const handleClearAuth = useCallback(() => {
@@ -279,6 +316,9 @@ export function UserDataProvider({ children }: { children: React.ReactNode }) {
     updateUserData,
     updatePreferences,
     handleClearAuth,
+    // Include SSE status if needed by consumers, though typically not directly exposed
+    // isSseConnected,
+    // sseError,
   }), [userData, isLoading, serverError, persistentError, refreshUserData, updateUserData, updatePreferences, handleClearAuth]);
 
   return (

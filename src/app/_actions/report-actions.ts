@@ -149,11 +149,9 @@ export async function approveReportAction(
         const notificationType = status === "approved" 
           ? NotificationType.REPORT_APPROVED 
           : NotificationType.REPORT_REJECTED;
-        
-        console.log(`Notification type: ${notificationType}`);
-        
         const targetUsers = await getUsersForNotification(notificationType, {
           reportId: report.id,
+          submittedBy: report.submittedBy,
           branchId: report.branchId,
           approverName,
           comments: comments || ""
@@ -342,4 +340,4 @@ export async function getReportDetailsAction(id: string) {
       error: "Failed to fetch report details" 
     };
   }
-} 
+}

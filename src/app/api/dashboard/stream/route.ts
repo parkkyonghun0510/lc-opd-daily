@@ -3,11 +3,13 @@ import { NextRequest } from "next/server";
 export const runtime = "nodejs";
 
 export async function GET(req: NextRequest) {
+    console.log("[SSE Dashboard] Client connected at", new Date().toISOString());
     const stream = new ReadableStream({
         async start(controller) {
             const encoder = new TextEncoder();
 
             function send(data: any) {
+                console.log("[SSE Dashboard] Sending SSE data:", data);
                 controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
             }
 
@@ -16,7 +18,9 @@ export async function GET(req: NextRequest) {
 
             const intervalId = setInterval(async () => {
                 try {
-                    const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || ""}/api/dashboard/data`, {
+                    const fetchUrl = `${process.env.NEXT_PUBLIC_BASE_URL || ""}/api/dashboard/data`;
+                    console.log("[SSE Dashboard] Fetching dashboard data from:", fetchUrl);
+                    const response = await fetch(fetchUrl, {
                         headers: {
                             "Content-Type": "application/json",
                         },
@@ -26,6 +30,7 @@ export async function GET(req: NextRequest) {
                         throw new Error("Failed to fetch dashboard data");
                     }
                     const result = await response.json();
+                    console.log("[SSE Dashboard] /api/dashboard/data result:", result);
                     send({ type: "update", data: result.data });
                 } catch (error) {
                     console.error("[SSE Dashboard] Error fetching dashboard data:", error);
@@ -35,7 +40,7 @@ export async function GET(req: NextRequest) {
 
             req.signal.addEventListener("abort", () => {
                 clearInterval(intervalId);
-                console.log("[SSE Dashboard] Client disconnected");
+                console.log("[SSE Dashboard] Client disconnected at", new Date().toISOString());
                 controller.close();
             });
         },

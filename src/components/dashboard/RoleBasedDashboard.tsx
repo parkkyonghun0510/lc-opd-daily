@@ -1,362 +1,175 @@
 "use client";
 
-import { useSession } from "next-auth/react";
-import { Card } from "@/components/ui/card";
-import {
-  BarChart,
-  FileText,
-  Users,
-  Building2,
-  Clock,
-  AlertCircle,
-  ChevronLeft,
-  Loader2,
-  Shield,
-  PlusIcon,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { useRouter } from "next/navigation";
-import { UserRole } from "@/lib/auth/roles";
-import { useEffect, useState } from "react";
-import { toast } from "@/components/ui/use-toast";
-import { formatKHRCurrency } from "@/lib/utils";
+import React from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Users, FileText, Clock, ShieldCheck, TrendingUp, AlertCircle } from 'lucide-react';
+import { useUserData } from '@/contexts/UserDataContext';
+import { useDashboardData } from '@/contexts/DashboardDataContext'; // Import the hook
+import { Skeleton } from '@/components/ui/skeleton'; // Import Skeleton
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; // Import Alert
+import { Button } from '@/components/ui/button';
+import Link from 'next/link';
+// import { formatNumber } from '@/utils/formatters'; // Assuming you have a number formatter
 
-interface DashboardData {
-  totalUsers: number;
-  totalReports: number;
-  totalAmount: number;
-  growthRate: number;
-}
-
-interface StatCardProps {
+// Define a type for the dashboard card props
+interface DashboardCardProps {
   title: string;
-  value: string | number;
-  icon: React.ReactNode;
+  value: string | number | undefined;
   description: string;
-  onClick?: () => void;
-  isLoading?: boolean;
+  icon: React.ElementType;
+  isLoading: boolean;
 }
 
-function StatCard({ 
-  title, 
-  value, 
-  icon, 
-  description, 
-  onClick,
-  isLoading = false
-}: StatCardProps) {
-  return (
-    <Card
-      className={`bg-white dark:bg-gray-800 rounded-lg shadow-sm ${
-        onClick ? "cursor-pointer hover:shadow-md transition-shadow" : ""
-      }`}
-      onClick={onClick}
-    >
-      <div className="p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <div className="text-gray-500 dark:text-gray-400">{icon}</div>
-          <h3 className="text-sm font-medium text-gray-600 dark:text-gray-300">
-            {title}
-          </h3>
-        </div>
-        <div className="text-2xl font-semibold text-gray-900 dark:text-white mb-1">
-          {isLoading ? (
-            <div className="flex items-center">
-              <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-              <span className="text-gray-400">Loading...</span>
-            </div>
-          ) : (
-            value
-          )}
-        </div>
-        <p className="text-sm text-gray-500 dark:text-gray-400">
-          {description}
-        </p>
-      </div>
-    </Card>
-  );
+const DashboardCard: React.FC<DashboardCardProps> = ({ title, value, description, icon: Icon, isLoading }) => (
+  <Card className="shadow-sm hover:shadow-md transition-shadow duration-200">
+    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+      <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">{title}</CardTitle>
+      <Icon className="h-5 w-5 text-muted-foreground" />
+    </CardHeader>
+    <CardContent>
+      {isLoading ? (
+        <>
+          <Skeleton className="h-8 w-1/2 mb-1" />
+          <Skeleton className="h-4 w-3/4" />
+        </>
+      ) : (
+        <>
+          <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{value ?? 'N/A'}</div>
+          <p className="text-xs text-muted-foreground">{description}</p>
+        </>
+      )}
+    </CardContent>
+  </Card>
+);
+
+// Define a type for the dashboard component props if needed
+interface RoleBasedDashboardProps {
+  // Add any props if necessary
 }
 
-export function RoleBasedDashboard() {
-  const { data: session } = useSession();
-  const router = useRouter();
-  const userRole = session?.user?.role || UserRole.USER;
-  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
-  const [pendingReports, setPendingReports] = useState<number | null>(null);
-  const [userStats, setUserStats] = useState<{total: number, active: number, admin: number} | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  
-  useEffect(() => {
-    async function fetchDashboardData() {
-      try {
-        const response = await fetch("/api/dashboard/data");
-        if (!response.ok) {
-          throw new Error("Failed to fetch dashboard data");
-        }
-        const result = await response.json();
-        setDashboardData(result.data);
-      } catch (error) {
-        console.error("Error fetching dashboard data:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load dashboard data",
-          variant: "destructive"
-        });
-      }
+const RoleBasedDashboard: React.FC<RoleBasedDashboardProps> = () => {
+  const { userData } = useUserData();
+  const { dashboardData, isLoading, isSseConnected, sseError, refreshDashboardData } = useDashboardData(); // Use the hook
+
+  // Determine the role for display
+  const displayRole = userData?.role || 'User';
+
+  // Handle loading state
+  const cardIsLoading = isLoading || !dashboardData;
+
+  // Handle error state
+  if (sseError) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error Loading Dashboard Data</AlertTitle>
+          <AlertDescription>
+            There was an issue fetching the latest dashboard information: {sseError}.
+            Please try refreshing the data or contact support if the problem persists.
+            <Button onClick={refreshDashboardData} variant="secondary" size="sm" className="ml-4">
+              Refresh Data
+            </Button>
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  // Render based on role
+  if (displayRole === 'ADMIN') {
+    function formatNumber(totalUsers: number | undefined): string {
+      if (totalUsers === undefined) return 'N/A';
+      return totalUsers.toLocaleString();
     }
-    
-    async function fetchPendingReports() {
-      try {
-        const response = await fetch("/api/reports/pending");
-        if (!response.ok) {
-          throw new Error("Failed to fetch pending reports");
-        }
-        const result = await response.json();
-        setPendingReports(result.reports.length);
-      } catch (error) {
-        console.error("Error fetching pending reports:", error);
-      }
-    }
-    
-    async function fetchUserStats() {
-      if (userRole === UserRole.ADMIN) {
-        try {
-          const response = await fetch("/api/users/stats");
-          if (!response.ok) {
-            throw new Error("Failed to fetch user statistics");
-          }
-          const result = await response.json();
-          setUserStats(result);
-        } catch (error) {
-          console.error("Error fetching user statistics:", error);
-        }
-      }
-    }
-    
-    const fetchAllData = async () => {
-      setIsLoading(true);
-      await Promise.all([
-        fetchDashboardData(),
-        fetchPendingReports(),
-        fetchUserStats()
-      ]);
-      setIsLoading(false);
-    };
-    
-    fetchAllData();
-  }, [userRole]);
 
-  const AdminDashboard = () => (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b dark:border-gray-700">
-        <div>
-          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">Admin Dashboard</h2>
-          <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 mt-1">Consolidated overview of all branch operations</p>
+    // Admin Dashboard View
+    return (
+      <div className="container mx-auto px-4 py-8 space-y-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">Admin Dashboard</h2>
+            <p className="text-muted-foreground">Consolidated overview of all branch operations</p>
+          </div>
+          <Link href="/consolidated-view" passHref>
+            <Button variant="outline">
+              <TrendingUp className="mr-2 h-4 w-4" /> Consolidated View
+            </Button>
+          </Link>
         </div>
-        <Button 
-          onClick={() => router.push("/dashboard/reports/consolidated")}
-          className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600 flex items-center justify-center sm:justify-start gap-2 mt-2 sm:mt-0"
-        >
-          <BarChart size={18} />
-          <span>Consolidated View</span>
-        </Button>
-      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <StatCard
-          title="Total Users"
-          value={userStats?.total || 0}
-          icon={<Users size={20} />}
-          description="Active users in the system"
-          onClick={() => router.push("/dashboard/users")}
-          isLoading={isLoading}
-        />
-        <StatCard
-          title="Total Reports"
-          value={dashboardData?.totalReports || 0}
-          icon={<FileText size={20} />}
-          description="Reports across all branches"
-          onClick={() => router.push("/dashboard/reports")}
-          isLoading={isLoading}
-        />
-        <StatCard
-          title="Pending Reports"
-          value={pendingReports || 0}
-          icon={<Clock size={20} />}
-          description="Reports awaiting approval"
-          onClick={() => router.push("/dashboard/approvals")}
-          isLoading={isLoading}
-        />
-        <StatCard
-          title="Total Amount"
-          value={formatKHRCurrency(dashboardData?.totalAmount || 0)}
-          icon={<Building2 size={20} />}
-          description="Total write-offs and 90+ days"
-          onClick={() => router.push("/dashboard/analytics")}
-          isLoading={isLoading}
-        />
-        <StatCard
-          title="Admin Users"
-          value={userStats?.admin || 0}
-          icon={<Shield size={20} />}
-          description="Users with admin access"
-          onClick={() => router.push("/dashboard/admin/users")}
-          isLoading={isLoading}
-        />
-        <StatCard
-          title="Growth Rate"
-          value={`${dashboardData?.growthRate || 0}%`}
-          icon={<BarChart size={20} />}
-          description="Month-over-month growth"
-          onClick={() => router.push("/dashboard/analytics")}
-          isLoading={isLoading}
-        />
-      </div>
-    </div>
-  );
+        {!isSseConnected && (
+           <Alert >
+             <AlertCircle className="h-4 w-4" />
+             <AlertTitle>Real-time Updates Disconnected</AlertTitle>
+             <AlertDescription>
+               The connection for live dashboard updates is currently inactive. Data shown might be slightly delayed.
+             </AlertDescription>
+           </Alert>
+         )}
 
-  const ManagerDashboard = () => (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b dark:border-gray-700">
-        <div>
-          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">Branch Manager Dashboard</h2>
-          <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 mt-1">Manage your branch operations and reports</p>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <DashboardCard
+            title="Total Users"
+            value={formatNumber(dashboardData?.totalUsers)}
+            description="Active users in the system"
+            icon={Users}
+            isLoading={cardIsLoading}
+          />
+          <DashboardCard
+            title="Total Reports"
+            value={formatNumber(dashboardData?.totalReports)}
+            description="Reports across all branches"
+            icon={FileText}
+            isLoading={cardIsLoading}
+          />
+          <DashboardCard
+            title="Pending Reports"
+            value={formatNumber(dashboardData?.pendingReports)}
+            description="Reports awaiting approval"
+            icon={Clock}
+            isLoading={cardIsLoading}
+          />
+          <DashboardCard
+            title="Total Amount (Example)"
+            // Assuming totalAmount is already formatted if needed, or format here
+            value={`${dashboardData?.totalAmount}`}
+            description="Example metric" icon={TrendingUp} isLoading={false}          />
+          <DashboardCard
+            title="Admin Users"
+            value={formatNumber(dashboardData?.adminUsers)}
+            description="Users with admin access"
+            icon={ShieldCheck}
+            isLoading={cardIsLoading}
+          />
+          <DashboardCard
+            title="Growth Rate"
+            value={`${dashboardData?.growthRate ?? 'N/A'}%`}
+            description="Month-over-month growth (placeholder)"
+            icon={TrendingUp}
+            isLoading={cardIsLoading}
+          />
         </div>
-        <Button 
-          onClick={() => router.push("/dashboard/reports/create")}
-          className="w-full sm:w-auto bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600 flex items-center justify-center sm:justify-start gap-2 mt-2 sm:mt-0"
-        >
-          <PlusIcon className="h-4 w-4" />
-          <span>Create Report</span>
-        </Button>
-      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <StatCard
-          title="Branch Reports"
-          value={dashboardData?.totalReports || 0}
-          icon={<FileText size={20} />}
-          description="Reports in your branches"
-          onClick={() => router.push("/dashboard/reports")}
-          isLoading={isLoading}
-        />
-        <StatCard
-          title="Pending Reports"
-          value={pendingReports || 0}
-          icon={<Clock size={20} />}
-          description="Reports awaiting approval"
-          onClick={() => router.push("/dashboard/approvals")}
-          isLoading={isLoading}
-        />
-        <StatCard
-          title="Total Amount"
-          value={formatKHRCurrency(dashboardData?.totalAmount || 0)}
-          icon={<Building2 size={20} />}
-          description="Total write-offs and 90+ days"
-          onClick={() => router.push("/dashboard/analytics")}
-          isLoading={isLoading}
-        />
-        <StatCard
-          title="Growth Rate"
-          value={`${dashboardData?.growthRate || 0}%`}
-          icon={<BarChart size={20} />}
-          description="Month-over-month growth"
-          onClick={() => router.push("/dashboard/reports")}
-          isLoading={isLoading}
-        />
-      </div>
-    </div>
-  );
+        {/* Add other admin-specific components or sections here */}
+        {/* Example: Recent Activity Feed, Quick Links, etc. */}
 
-  const UserDashboard = () => (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b dark:border-gray-700">
-        <div>
-          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">My Dashboard</h2>
-          <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 mt-1">Your personal reporting workspace</p>
-        </div>
-        <Button
-          onClick={() => router.push("/dashboard/reports")}
-          className="w-full sm:w-auto bg-black hover:bg-gray-800 dark:bg-gray-800 dark:hover:bg-gray-700 flex items-center justify-center sm:justify-start gap-2 mt-2 sm:mt-0 text-white"
-        >
-          <PlusIcon className="h-4 w-4" />
-          <span>Create Report</span>
-        </Button>
       </div>
+    );
+  } else {
+    // Standard User Dashboard View (or Branch Manager, etc.)
+    // You might fetch different data or display different cards here
+    return (
+      <div className="container mx-auto px-4 py-8 space-y-6">
+        <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">{displayRole} Dashboard</h2>
+        <p className="text-muted-foreground">Overview of your assigned branch operations</p>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <StatCard
-          title="My Reports"
-          value={dashboardData?.totalReports || 0}
-          icon={<FileText className="h-5 w-5" />}
-          description="Your submitted reports"
-          onClick={() => router.push("/dashboard/reports")}
-          isLoading={isLoading}
-        />
-        <StatCard
-          title="Total Amount"
-          value={formatKHRCurrency(dashboardData?.totalAmount || 0)}
-          icon={<Building2 className="h-5 w-5" />}
-          description="Total write-offs and 90+ days"
-          onClick={() => router.push("/dashboard/reports")}
-          isLoading={isLoading}
-        />
-        <StatCard
-          title="Growth Rate"
-          value={`${dashboardData?.growthRate || 0}%`}
-          icon={<BarChart className="h-5 w-5" />}
-          description="Month-over-month growth"
-          onClick={() => router.push("/dashboard/analytics")}
-          isLoading={isLoading}
-        />
+        {/* Add user-specific dashboard components here */}
+        <p>Welcome, {userData?.name}! Your dashboard view is under construction.</p>
+        {/* Example: Display reports for user's branch, pending actions, etc. */}
       </div>
-    </div>
-  );
+    );
+  }
+};
 
-  const ReadOnlyDashboard = () => (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b dark:border-gray-700">
-        <div>
-          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">Reports Overview</h2>
-          <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 mt-1">View and analyze branch reports</p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <StatCard
-          title="Branch Reports"
-          value={dashboardData?.totalReports || 0}
-          icon={<FileText size={20} />}
-          description="Available reports to view"
-          onClick={() => router.push("/dashboard/reports")}
-          isLoading={isLoading}
-        />
-        <StatCard
-          title="Total Amount"
-          value={formatKHRCurrency(dashboardData?.totalAmount || 0)}
-          icon={<Building2 size={20} />}
-          description="Total write-offs and 90+ days"
-          onClick={() => router.push("/dashboard/analytics")}
-          isLoading={isLoading}
-        />
-        <StatCard
-          title="Growth Rate"
-          value={`${dashboardData?.growthRate || 0}%`}
-          icon={<BarChart size={20} />}
-          description="Month-over-month growth"
-          onClick={() => router.push("/dashboard/reports")}
-          isLoading={isLoading}
-        />
-      </div>
-    </div>
-  );
-
-  return (
-    <div className="p-6">
-      {userRole === UserRole.ADMIN && <AdminDashboard />}
-      {userRole === UserRole.BRANCH_MANAGER && <ManagerDashboard />}
-      {userRole === UserRole.USER && <UserDashboard />}
-      {userRole === UserRole.SUPERVISOR && <ReadOnlyDashboard />}
-    </div>
-  );
-}
+export default RoleBasedDashboard;

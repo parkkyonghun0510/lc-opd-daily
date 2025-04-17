@@ -1,10 +1,14 @@
-import { NextResponse } from "next/server";
-import { NextRequest } from "next/server";
-import { PrismaClient } from "@prisma/client";
-import { z } from "zod";
+import { prisma } from "@/lib/prisma";
+import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
-
-const prisma = new PrismaClient();
+import { checkPermission, Permission, UserRole } from "@/lib/auth/roles";
+import { getAccessibleBranches } from "@/lib/auth/branch-access";
+import { sendToNotificationQueue } from "@/lib/queue/sqs";
+import { getUsersForNotification } from "@/utils/notificationTargeting";
+import { NotificationType } from "@/utils/notificationTemplates";
+// Import the broadcast function
+import { broadcastDashboardUpdate } from "@/app/api/dashboard/sse/route";
+import { z } from "zod";
 
 // Validation schema for report update
 const updateReportSchema = z.object({
@@ -196,43 +200,74 @@ export async function PUT(
   }
 }
 
-// DELETE /api/reports/[id] - Delete a specific report
+// DELETE /api/reports/[id] - Delete a report
 export async function DELETE(
-  request: NextRequest
+  request: NextRequest,
+  { params }: { params: { id: string } }
 ) {
   try {
-    // Extract the ID from the URL path
-    const url = new URL(request.url);
-    const pathParts = url.pathname.split('/');
-    const id = pathParts[pathParts.length - 1]; // Get the ID from the URL path
-
-    // Get the user from the auth token
     const token = await getToken({ req: request });
+    const reportId = params.id;
+
     if (!token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized - Authentication required" },
+        { status: 401 }
+      );
     }
 
-    // Check if the report exists
-    const existingReport = await prisma.report.findUnique({
-      where: { id },
-      include: {
-        branch: {
-          select: {
-            id: true,
-            code: true,
-            name: true,
-          },
-        },
-      },
+    if (!reportId) {
+      return NextResponse.json(
+        { error: "Report ID is required" },
+        { status: 400 }
+      );
+    }
+
+    // Fetch the report to check ownership/permissions before deleting
+    const report = await prisma.report.findUnique({
+      where: { id: reportId },
+      select: { id: true, submittedBy: true, branchId: true, status: true }, // Select necessary fields
     });
 
-    if (!existingReport) {
+    if (!report) {
       return NextResponse.json({ error: "Report not found" }, { status: 404 });
     }
 
-    // Delete the report
+    // Permission Check
+    const userRole = token.role as UserRole;
+    const accessibleBranches = await getAccessibleBranches(token.sub as string);
+    const canAccessBranch = accessibleBranches.some(b => b.id === report.branchId);
+
+    // Check if user has general delete permission OR delete own permission and owns the report
+    const hasGeneralDeletePermission = checkPermission(userRole, Permission.DELETE_REPORTS);
+    const isOwner = report.submittedBy === token.sub;
+    const hasDeleteOwnPermission = checkPermission(userRole, Permission.DELETE_OWN_REPORTS);
+
+    if (!canAccessBranch || !(hasGeneralDeletePermission || (isOwner && hasDeleteOwnPermission))) {
+      return NextResponse.json(
+        { error: "Forbidden - You do not have permission to delete this report" },
+        { status: 403 }
+      );
+    }
+
+    // Optional: Add logic to prevent deletion of approved reports if needed
+    // if (report.status === 'approved') {
+    //   return NextResponse.json({ error: "Cannot delete an approved report" }, { status: 400 });
+    // }
+
+    // Perform the deletion
     await prisma.report.delete({
-      where: { id },
+      where: { id: reportId },
+    });
+
+    // Broadcast the update via SSE after successful deletion
+    broadcastDashboardUpdate({
+      type: "REPORT_DELETED",
+      payload: {
+        reportId: reportId,
+        branchId: report.branchId, // Include branchId if needed for filtering on client
+        // Add any other relevant details needed by the dashboard
+      }
     });
 
     // Log the activity
@@ -240,15 +275,19 @@ export async function DELETE(
       data: {
         action: "DELETE_REPORT",
         userId: token.id as string, // Cast to string since we know it exists
-        details: `Deleted report for branch: ${existingReport.branch.code} on ${
-          new Date(existingReport.date).toLocaleDateString()
-        }`,
+        // Use 'report' variable which is available in this scope
+        details: `Deleted report ID: ${report.id} for branch ID: ${report.branchId}`,
       },
     });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ message: "Report deleted successfully" });
+
   } catch (error) {
-    console.error("Error deleting report:", error);
+    console.error(`Error deleting report ${params.id}:`, error);
+    // Handle potential Prisma errors (e.g., record not found if deleted concurrently)
+    if ((error as any).code === 'P2025') {
+        return NextResponse.json({ error: "Report not found or already deleted" }, { status: 404 });
+    }
     return NextResponse.json(
       { error: "Failed to delete report" },
       { status: 500 }

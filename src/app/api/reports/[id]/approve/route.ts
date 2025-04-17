@@ -148,16 +148,16 @@ export async function POST(
         console.log(`Preparing to send notifications for report ${report.id}, status: ${status}`);
         
         const notificationType = status === "approved" 
-          ? NotificationType.REPORT_APPROVED 
+          ? NotificationType.REPORT_APPROVED
           : NotificationType.REPORT_REJECTED;
         
-        console.log(`Notification type: ${notificationType}`);
-        
+        // Notify relevant users
         const targetUsers = await getUsersForNotification(notificationType, {
-          reportId: report.id,
-          branchId: report.branchId,
+          reportId: updatedReport.id,
+          submittedBy: updatedReport.submittedBy,
+          branchId: updatedReport.branchId,
           approverName,
-          comments: comments || ""
+          comments,
         });
         
         console.log(`Found ${targetUsers.length} target users for notification`);
@@ -242,4 +242,4 @@ export async function POST(
       { status: 500 }
     );
   }
-} 
+}
