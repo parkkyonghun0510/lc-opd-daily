@@ -5,12 +5,13 @@ import { cn } from "@/lib/utils";
 import { Sun, Moon, Sunset } from "lucide-react";
 
 export function Greeting() {
-  const [currentTime, setCurrentTime] = useState(new Date());
+  const [currentTime, setCurrentTime] = useState<Date | null>(null);
   const { userData } = useUserData();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
+    setCurrentTime(new Date());
     // Update time every minute
     const timer = setInterval(() => {
       setCurrentTime(new Date());
@@ -20,6 +21,7 @@ export function Greeting() {
   }, []);
 
   const getGreeting = () => {
+    if (!currentTime) return { text: "", icon: Sun };
     const hour = currentTime.getHours();
     if (hour < 12) return { text: "Good morning", icon: Sun };
     if (hour < 17) return { text: "Good afternoon", icon: Sun };
@@ -48,7 +50,7 @@ export function Greeting() {
             </div>
           </div>
           <div className="text-xs text-gray-500 dark:text-gray-400">
-            {format(currentTime, "EEEE, MMMM d, yyyy • h:mm a")}
+            {currentTime ? format(currentTime, "EEEE, MMMM d, yyyy • h:mm a") : ""}
           </div>
         </div>
       </div>
@@ -69,7 +71,7 @@ export function Greeting() {
               {firstName ? `Hi, ${firstName}` : greetingText}
             </div>
             <div className="text-[10px] text-gray-500 dark:text-gray-400">
-              {format(currentTime, "MMM d • h:mm a")}
+              {currentTime ? format(currentTime, "MMM d • h:mm a") : ""}
             </div>
           </div>
         </div>

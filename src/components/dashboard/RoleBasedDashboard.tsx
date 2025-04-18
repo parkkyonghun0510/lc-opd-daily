@@ -9,6 +9,8 @@ import { Skeleton } from '@/components/ui/skeleton'; // Import Skeleton
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; // Import Alert
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { formatKHRCurrency } from '@/lib/utils';
+import AdminDashboard from '@/app/(dashboard)/dashboard/admin/page';
 // import { formatNumber } from '@/utils/formatters'; // Assuming you have a number formatter
 
 // Define a type for the dashboard card props
@@ -45,6 +47,7 @@ const DashboardCard: React.FC<DashboardCardProps> = ({ title, value, description
 // Define a type for the dashboard component props if needed
 interface RoleBasedDashboardProps {
   // Add any props if necessary
+
 }
 
 const RoleBasedDashboard: React.FC<RoleBasedDashboardProps> = () => {
@@ -52,7 +55,7 @@ const RoleBasedDashboard: React.FC<RoleBasedDashboardProps> = () => {
   const { dashboardData, isLoading, isSseConnected, sseError, refreshDashboardData } = useDashboardData(); // Use the hook
 
   // Determine the role for display
-  const displayRole = userData?.role || 'User';
+  const displayRole = userData?.computedFields.accessLevel || 'User';
 
   // Handle loading state
   const cardIsLoading = isLoading || !dashboardData;
@@ -76,6 +79,14 @@ const RoleBasedDashboard: React.FC<RoleBasedDashboardProps> = () => {
     );
   }
 
+  // switch (displayRole) {
+  //   case 'ADMIN':
+  //     return <AdminDashboard />;
+  //   case 'BRANCH_MANAGER':
+  //     return <BranchManagerDashboard />;
+  //   default:
+  //     return <UserDashboard />;
+  // }
   // Render based on role
   if (displayRole === 'ADMIN') {
     function formatNumber(totalUsers: number | undefined): string {
@@ -86,18 +97,6 @@ const RoleBasedDashboard: React.FC<RoleBasedDashboardProps> = () => {
     // Admin Dashboard View
     return (
       <div className="container mx-auto px-4 py-8 space-y-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">Admin Dashboard</h2>
-            <p className="text-muted-foreground">Consolidated overview of all branch operations</p>
-          </div>
-          <Link href="/consolidated-view" passHref>
-            <Button variant="outline">
-              <TrendingUp className="mr-2 h-4 w-4" /> Consolidated View
-            </Button>
-          </Link>
-        </div>
-
         {!isSseConnected && (
            <Alert >
              <AlertCircle className="h-4 w-4" />
@@ -106,7 +105,14 @@ const RoleBasedDashboard: React.FC<RoleBasedDashboardProps> = () => {
                The connection for live dashboard updates is currently inactive. Data shown might be slightly delayed.
              </AlertDescription>
            </Alert>
-         )}
+        )}
+        <Link href="/dashboard/consolidated" passHref>
+            <Button variant="outline">
+              <TrendingUp className="mr-2 h-4 w-4" /> Consolidated View
+            </Button>
+        </Link>
+    
+        {/* <AdminDashboard /> */}
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           <DashboardCard
@@ -131,10 +137,10 @@ const RoleBasedDashboard: React.FC<RoleBasedDashboardProps> = () => {
             isLoading={cardIsLoading}
           />
           <DashboardCard
-            title="Total Amount (Example)"
+            title="Total Amount"
             // Assuming totalAmount is already formatted if needed, or format here
-            value={`${dashboardData?.totalAmount}`}
-            description="Example metric" icon={TrendingUp} isLoading={false}          />
+            value={`${ formatKHRCurrency(dashboardData?.totalAmount ?? 0)}`}
+            description="Amount across all actual transactions" icon={TrendingUp} isLoading={false}          />
           <DashboardCard
             title="Admin Users"
             value={formatNumber(dashboardData?.adminUsers)}
@@ -159,14 +165,46 @@ const RoleBasedDashboard: React.FC<RoleBasedDashboardProps> = () => {
   } else {
     // Standard User Dashboard View (or Branch Manager, etc.)
     // You might fetch different data or display different cards here
+    
     return (
       <div className="container mx-auto px-4 py-8 space-y-6">
-        <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">{displayRole} Dashboard</h2>
+        <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">{displayRole.replace('_', ' ').trim()}</h2>
         <p className="text-muted-foreground">Overview of your assigned branch operations</p>
 
         {/* Add user-specific dashboard components here */}
-        <p>Welcome, {userData?.name}! Your dashboard view is under construction.</p>
+        <p>Welcome, {userData?.name}!</p>
         {/* Example: Display reports for user's branch, pending actions, etc. */}
+        <div>
+          <div className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">
+          <Link href="/dashboard/reports" passHref>
+            <Button variant="outline">
+              <TrendingUp className="mr-2 h-4 w-4" /> Reports View
+            </Button>
+          </Link>
+          </div>
+        
+      <DashboardCard
+            title="Total Reports"
+            value={dashboardData?.totalReports}
+            description="Reports across all branches"
+            icon={FileText}
+            isLoading={cardIsLoading}
+          />
+          <DashboardCard
+            title="Growth Rate"
+            value={`${dashboardData?.growthRate ?? 'N/A'}%`}
+            description="Month-over-month growth (placeholder)"
+            icon={TrendingUp}
+            isLoading={cardIsLoading}
+          />
+          <DashboardCard
+            title="Pending Reports"
+            value={dashboardData?.pendingReports}
+            description="Reports awaiting approval"
+            icon={Clock}
+            isLoading={cardIsLoading}
+          />
+    </div>
       </div>
     );
   }

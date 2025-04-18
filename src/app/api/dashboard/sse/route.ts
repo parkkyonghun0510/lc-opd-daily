@@ -1,6 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession } from 'next-auth/react'; // Or your auth method
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
 import { EventEmitter } from 'events';
+import { DashboardEventType, DashboardUpdatePayload, createDashboardUpdate } from '@/lib/events/dashboard-events';
+
+/**
+ * RECOMMENDED SSE IMPLEMENTATION
+ *
+ * This is the preferred Server-Sent Events (SSE) implementation using EventEmitter
+ * for real-time dashboard updates. It properly formats SSE events and handles
+ * client connections efficiently.
+ *
+ * Features:
+ * - Proper event-based architecture with EventEmitter
+ * - Authentication support
+ * - Keepalive mechanism to prevent connection timeouts
+ * - Proper event formatting with named events
+ */
 
 // Simple in-memory event emitter for broadcasting updates
 // In production, consider using Redis Pub/Sub or similar for scalability
@@ -10,15 +26,24 @@ const emitter = new EventEmitter();
 const clients = new Map<string, Response>();
 
 export async function GET(request: NextRequest) {
-  // --- Authentication Check (Adapt to your auth system) ---
-  // This is a placeholder. Replace with your actual session/token validation.
-  // const session = await getSession({ req: request });
-  // if (!session || !session.user) {
-  //   return new NextResponse('Unauthorized', { status: 401 });
-  // }
-  // const userId = session.user.id; // Get user ID or unique identifier
-  const userId = `user_${Math.random().toString(36).substring(7)}`; // Temporary unique ID for demo
-  console.log(`SSE connection opened for user: ${userId}`);
+  // --- Authentication Check ---
+  let userId: string;
+
+  try {
+    // Use getServerSession for API routes in Next.js
+    const session = await getServerSession(authOptions);
+
+    if (!session || !session.user) {
+      console.log('[SSE Debug] Authentication failed: No valid session');
+      return new NextResponse('Unauthorized', { status: 401 });
+    }
+
+    userId = session.user.id; // Get user ID from session
+    console.log(`[SSE Debug] Connection opened for authenticated user: ${userId} at ${new Date().toISOString()}`);
+  } catch (error) {
+    console.error('[SSE Debug] Authentication error:', error);
+    return new NextResponse('Authentication error', { status: 500 });
+  }
 
   const headers = {
     'Content-Type': 'text/event-stream',
@@ -33,9 +58,9 @@ export async function GET(request: NextRequest) {
         const message = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
         try {
           controller.enqueue(new TextEncoder().encode(message));
-          console.log(`Sent SSE event '${event}' to user: ${userId}`);
+          console.log(`[SSE Debug] Sent SSE event '${event}' to user: ${userId} with data:`, data);
         } catch (error) {
-          console.error(`Error sending SSE to user ${userId}:`, error);
+          console.error(`[SSE Debug] Error sending SSE to user ${userId}:`, error);
           // Clean up if the client disconnected during send
           controller.close();
           clients.delete(userId);
@@ -43,13 +68,14 @@ export async function GET(request: NextRequest) {
         }
       };
 
-      const sendUpdate = (updateData: any) => {
+      const sendUpdate = (updateData: DashboardUpdatePayload) => {
         // Example: Only send updates relevant to the user/branch
         // if (updateData.branchId === session.user.branchId) { ... }
         sendEvent('dashboardUpdate', updateData);
       };
 
       // Send a connection confirmation event
+      console.log(`[SSE Debug] Sending initial 'connected' event to user: ${userId}`);
       sendEvent('connected', { message: 'SSE connection established' });
 
       // Register listener for this client
@@ -64,7 +90,7 @@ export async function GET(request: NextRequest) {
         try {
           controller.enqueue(new TextEncoder().encode(': keepalive\n\n'));
         } catch (error) {
-          console.error(`Error sending keepalive ping to user ${userId}:`, error);
+          console.error(`[SSE Debug] Error sending keepalive ping to user ${userId}:`, error);
           clearInterval(keepAliveInterval);
           controller.close();
           clients.delete(userId);
@@ -74,35 +100,41 @@ export async function GET(request: NextRequest) {
 
       // Clean up when the client disconnects
       request.signal.addEventListener('abort', () => {
-        console.log(`SSE connection closed for user: ${userId}`);
+        console.log(`[SSE Debug] Connection closed for user: ${userId} at ${new Date().toISOString()}`);
         clearInterval(keepAliveInterval);
         emitter.off('update', sendUpdate);
         clients.delete(userId);
         // Controller might already be closed by errors, handle gracefully
         try {
           controller.close();
-        } catch {}
+        } catch { }
       });
     },
     cancel(reason) {
-      console.log(`SSE stream cancelled for user ${userId}:`, reason);
+      console.log(`[SSE Debug] Stream cancelled for user ${userId}:`, reason);
       emitter.off('update', (updateData: any) => {
-         // Ensure the correct listener is removed if multiple exist (unlikely here)
-         // This is a simplified removal, adjust if needed
+        // Ensure the correct listener is removed if multiple exist (unlikely here)
+        // This is a simplified removal, adjust if needed
       });
       clients.delete(userId);
     }
   });
 
   return new NextResponse(stream, { headers });
+
+  // --- Function to Broadcast Updates ---
+  // This function would be called from other parts of your backend
+  // (e.g., after a report is created, approved, user data changes, etc.)
+  // export function broadcastDashboardUpdate(data: any) {
+  //   console.log('[SSE Debug] Broadcasting dashboard update:', data);
+  //   emitter.emit('update', data);
+  // }
 }
 
-// --- Function to Broadcast Updates ---
-// This function would be called from other parts of your backend
-// (e.g., after a report is created, approved, user data changes, etc.)
-export function broadcastDashboardUpdate(data: any) {
-  console.log('Broadcasting dashboard update:', data);
-  emitter.emit('update', data);
+export function broadcastDashboardUpdate(type: DashboardEventType, data: unknown) {
+  const payload = createDashboardUpdate(type, data);
+  console.log('[SSE Debug] Broadcasting dashboard update:', payload);
+  emitter.emit('dashboardUpdate', payload);
 }
 
 // Example of how to trigger an update (e.g., from another API route or service)
