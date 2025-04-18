@@ -64,11 +64,11 @@ export function InstallPrompt() {
     const { outcome } = await deferredPrompt.userChoice;
 
     if (outcome === 'accepted') {
-      console.log('User accepted the install prompt');
+      //console.log('User accepted the install prompt');
       // Clear any dismissed date since they've accepted
       localStorage.removeItem(INSTALL_PROMPT_DISMISSED_DATE_KEY);
     } else {
-      console.log('User dismissed the install prompt');
+      //console.log('User dismissed the install prompt');
     }
 
     // Clear the saved prompt since it can't be used again

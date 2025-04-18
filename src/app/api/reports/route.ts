@@ -85,10 +85,10 @@ export async function GET(request: NextRequest) {
       const reportDate = targetDate.toISOString().split('T')[0]; // 'YYYY-MM-DD'
       const reportDateISO = `${reportDate}T00:00:00.000Z`;
 
-      console.log("[DEBUG] Query param date:", date);
-      console.log("[DEBUG] Server timezone offset (minutes):", new Date().getTimezoneOffset());
-      console.log("[DEBUG] Normalized reportDate string:", reportDate);
-      console.log("[DEBUG] Using reportDateISO for Prisma query:", reportDateISO);
+      //console.log("[DEBUG] Query param date:", date);
+      //console.log("[DEBUG] Server timezone offset (minutes):", new Date().getTimezoneOffset());
+      //console.log("[DEBUG] Normalized reportDate string:", reportDate);
+      //console.log("[DEBUG] Using reportDateISO for Prisma query:", reportDateISO);
 
       where.date = new Date(reportDateISO);
     } else if (startDate || endDate) {
@@ -244,7 +244,7 @@ export async function POST(request: NextRequest) {
     const reportDateObj = new Date(reportData.date);
     const reportDateStr = reportDateObj.toISOString().split('T')[0]; // 'YYYY-MM-DD'
 
-    console.log("[DEBUG] Duplicate check normalized reportDate string:", reportDateStr);
+    //console.log("[DEBUG] Duplicate check normalized reportDate string:", reportDateStr);
 
     const reportDateISO = `${reportDateStr}T00:00:00.000Z`;
 
@@ -256,7 +256,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // console.log('DEBUG: existing report:', existing);
+    // //console.log('DEBUG: existing report:', existing);
 
 
 
@@ -455,23 +455,23 @@ export async function PATCH(request: NextRequest) {
 
     // Basic check: User must have access to the report's branch
     if (!canAccessBranch) {
-        return NextResponse.json(
-            { error: "Forbidden - You do not have access to this branch's reports" },
-            { status: 403 }
-        );
+      return NextResponse.json(
+        { error: "Forbidden - You do not have access to this branch's reports" },
+        { status: 403 }
+      );
     }
 
     // More granular check: Can the user edit reports in general?
     // Or, if it's their own report and they have edit permission for own reports?
     // (Add more specific logic based on your RBAC rules if needed)
     if (!checkPermission(userRole, Permission.EDIT_REPORTS)) {
-        // Allow editing own report if they have that specific permission (example)
-        // if (!checkPermission(userRole, Permission.EDIT_OWN_REPORTS) || existingReport.submittedBy !== token.sub) {
-            return NextResponse.json(
-                { error: "Forbidden - You do not have permission to edit reports" },
-                { status: 403 }
-            );
-        // }
+      // Allow editing own report if they have that specific permission (example)
+      // if (!checkPermission(userRole, Permission.EDIT_OWN_REPORTS) || existingReport.submittedBy !== token.sub) {
+      return NextResponse.json(
+        { error: "Forbidden - You do not have permission to edit reports" },
+        { status: 403 }
+      );
+      // }
     }
 
     // --- Handle Status Change (Approval/Rejection) --- Requires specific permission

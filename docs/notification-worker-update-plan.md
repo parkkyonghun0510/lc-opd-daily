@@ -82,7 +82,7 @@ export async function processWithRetries<T>(
       if (isTransientError(error) && attempt < maxRetries) {
         // Calculate backoff time (exponential with jitter)
         const backoffMs = calculateBackoff(attempt);
-        console.log(`Retrying in ${backoffMs}ms...`);
+        //console.log(`Retrying in ${backoffMs}ms...`);
         await sleep(backoffMs);
         continue;
       }
@@ -278,7 +278,7 @@ export async function withLock<T>(lockName: string, fn: () => Promise<T>, ttlMs:
   const acquired = await acquireLock(lockName, ttlMs);
   
   if (!acquired) {
-    console.log(`Failed to acquire lock: ${lockName}`);
+    //console.log(`Failed to acquire lock: ${lockName}`);
     return null;
   }
   

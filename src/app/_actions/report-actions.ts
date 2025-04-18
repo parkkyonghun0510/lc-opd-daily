@@ -151,7 +151,7 @@ export async function approveReportAction(
     // Send notifications if enabled
     if (notifyUsers) {
       try {
-        console.log(`Preparing to send notifications for report ${report.id}, status: ${status}`);
+        //console.log(`Preparing to send notifications for report ${report.id}, status: ${status}`);
 
         const notificationType = status === "approved"
           ? NotificationType.REPORT_APPROVED
@@ -164,9 +164,9 @@ export async function approveReportAction(
           comments: comments || ""
         });
 
-        console.log(`Found ${targetUsers.length} target users for notification`);
+        //console.log(`Found ${targetUsers.length} target users for notification`);
         if (targetUsers.length > 0) {
-          console.log(`Target users: ${targetUsers.join(', ')}`);
+          //console.log(`Target users: ${targetUsers.join(', ')}`);
 
           const queueData = {
             type: notificationType,
@@ -180,12 +180,12 @@ export async function approveReportAction(
             userIds: targetUsers
           };
 
-          console.log(`Sending to notification queue:`, JSON.stringify(queueData, null, 2));
+          //console.log(`Sending to notification queue:`, JSON.stringify(queueData, null, 2));
 
           let sqsSent = false;
           try {
             const result = await sendToNotificationQueue(queueData);
-            console.log(`Notification sent to queue successfully:`, result);
+            //console.log(`Notification sent to queue successfully:`, result);
             sqsSent = true;
           } catch (sqsError) {
             console.error("Error sending to SQS queue:", sqsError);
@@ -194,7 +194,7 @@ export async function approveReportAction(
 
           // Fallback: Create notifications directly in database if SQS fails
           if (!sqsSent) {
-            console.log("Using fallback: Creating notifications directly in database");
+            //console.log("Using fallback: Creating notifications directly in database");
 
             try {
               // Generate title and body based on notification type
@@ -221,13 +221,13 @@ export async function approveReportAction(
                 }
               );
 
-              console.log(`Successfully created ${result.count} direct notifications as fallback`);
+              //console.log(`Successfully created ${result.count} direct notifications as fallback`);
             } catch (dbError) {
               console.error("Error creating direct notifications:", dbError);
             }
           }
         } else {
-          console.log(`No target users found, skipping notification`);
+          //console.log(`No target users found, skipping notification`);
         }
       } catch (notificationError) {
         console.error("Error sending notifications (non-critical):", notificationError);

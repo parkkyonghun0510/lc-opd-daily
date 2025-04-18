@@ -36,7 +36,7 @@ export async function POST(
     const url = new URL(request.url);
     const pathParts = url.pathname.split('/');
     const reportId = pathParts[pathParts.length - 2]; // Get the ID from the URL path
-    
+
     const { status, comments, notifyUsers = true } = await request.json();
 
     if (!reportId) {
@@ -79,8 +79,8 @@ export async function POST(
     // Only allow pending reports to be approved/rejected
     if (report.status !== "pending" && report.status !== "pending_approval") {
       return NextResponse.json(
-        { 
-          error: `Report cannot be ${status}. Current status is: ${report.status}` 
+        {
+          error: `Report cannot be ${status}. Current status is: ${report.status}`
         },
         { status: 400 }
       );
@@ -110,15 +110,15 @@ export async function POST(
       where: { id: token.sub as string },
       select: { name: true, id: true }
     });
-    
+
     const approverName = approver?.name || 'A manager';
 
     // Create an audit log entry for the approval/rejection
     try {
-      const actionType = status === "approved" 
-        ? AuditAction.REPORT_APPROVED 
+      const actionType = status === "approved"
+        ? AuditAction.REPORT_APPROVED
         : AuditAction.REPORT_REJECTED;
-      
+
       await createServerAuditLog({
         userId: token.sub as string,
         action: actionType,
@@ -145,12 +145,12 @@ export async function POST(
     // Send notifications if enabled
     if (notifyUsers) {
       try {
-        console.log(`Preparing to send notifications for report ${report.id}, status: ${status}`);
-        
-        const notificationType = status === "approved" 
+        //console.log(`Preparing to send notifications for report ${report.id}, status: ${status}`);
+
+        const notificationType = status === "approved"
           ? NotificationType.REPORT_APPROVED
           : NotificationType.REPORT_REJECTED;
-        
+
         // Notify relevant users
         const targetUsers = await getUsersForNotification(notificationType, {
           reportId: updatedReport.id,
@@ -159,11 +159,11 @@ export async function POST(
           approverName,
           comments,
         });
-        
-        console.log(`Found ${targetUsers.length} target users for notification`);
+
+        //console.log(`Found ${targetUsers.length} target users for notification`);
         if (targetUsers.length > 0) {
-          console.log(`Target users: ${targetUsers.join(', ')}`);
-          
+          //console.log(`Target users: ${targetUsers.join(', ')}`);
+
           const queueData = {
             type: notificationType,
             data: {
@@ -175,31 +175,31 @@ export async function POST(
             },
             userIds: targetUsers
           };
-          
-          console.log(`Sending to notification queue:`, JSON.stringify(queueData, null, 2));
-          
+
+          //console.log(`Sending to notification queue:`, JSON.stringify(queueData, null, 2));
+
           let sqsSent = false;
           try {
             const result = await sendToNotificationQueue(queueData);
-            console.log(`Notification sent to queue successfully:`, result);
+            //console.log(`Notification sent to queue successfully:`, result);
             sqsSent = true;
           } catch (sqsError) {
             console.error("Error sending to SQS queue:", sqsError);
             // Continue to fallback method
           }
-          
+
           // Fallback: Create notifications directly in database if SQS fails
           if (!sqsSent) {
-            console.log("Using fallback: Creating notifications directly in database");
-            
+            //console.log("Using fallback: Creating notifications directly in database");
+
             try {
               // Generate title and body based on notification type
               let title = status === "approved" ? "Report Approved" : "Report Rejected";
-              let body = status === "approved" 
+              let body = status === "approved"
                 ? `Your report has been approved by ${approverName}.`
                 : `Your report has been rejected${comments ? ` with reason: ${comments}` : ""}.`;
               let actionUrl = `/reports/${report.id}`;
-              
+
               // Use the utility function to create direct notifications
               const result = await createDirectNotifications(
                 notificationType,
@@ -216,14 +216,14 @@ export async function POST(
                   method: "fallback-api"
                 }
               );
-              
-              console.log(`Successfully created ${result.count} direct notifications as fallback`);
+
+              //console.log(`Successfully created ${result.count} direct notifications as fallback`);
             } catch (dbError) {
               console.error("Error creating direct notifications:", dbError);
             }
           }
         } else {
-          console.log(`No target users found, skipping notification`);
+          //console.log(`No target users found, skipping notification`);
         }
       } catch (notificationError) {
         console.error("Error sending notifications (non-critical):", notificationError);

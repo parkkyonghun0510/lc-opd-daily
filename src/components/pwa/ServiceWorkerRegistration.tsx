@@ -13,7 +13,7 @@ export function ServiceWorkerRegistration() {
         if ('serviceWorker' in navigator) {
           // Try to register the service worker
           const registration = await navigator.serviceWorker.register('/sw.js');
-          console.log('Service Worker registered:', registration);
+          //console.log('Service Worker registered:', registration);
           setServiceWorkerRegistered(true);
           
           // We no longer show the notification toast here

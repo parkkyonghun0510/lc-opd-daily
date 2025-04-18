@@ -37,16 +37,16 @@ export const useDashboardSSE = () => {
     }
 
     // Connect to the SSE endpoint
-    console.log("[SSE Debug] Initializing connection to /api/dashboard/sse");
+    //console.log("[SSE Debug] Initializing connection to /api/dashboard/sse");
     const eventSource = new EventSource("/api/dashboard/sse");
     eventSourceRef.current = eventSource;
-    console.log("[SSE Debug] Attempting to connect to /api/dashboard/sse (attempt #" + (reconnectAttemptsRef.current + 1) + ")");
+    //console.log("[SSE Debug] Attempting to connect to /api/dashboard/sse (attempt #" + (reconnectAttemptsRef.current + 1) + ")");
 
     // Update last activity timestamp
     lastActivityRef.current = Date.now();
 
     eventSource.onopen = () => {
-      console.log("[SSE Debug] Connection established");
+      //console.log("[SSE Debug] Connection established");
       reconnectAttemptsRef.current = 0;
       setIsConnected(true);
       setError(null);
@@ -55,7 +55,7 @@ export const useDashboardSSE = () => {
 
     // Listen for the 'connected' event from the server
     eventSource.addEventListener('connected', (event) => {
-      console.log("[SSE Debug] Received 'connected' event:", event.data);
+      //console.log("[SSE Debug] Received 'connected' event:", event.data);
       try {
         const parsedData = JSON.parse(event.data);
         // You might want to do something with the connection message
@@ -67,7 +67,7 @@ export const useDashboardSSE = () => {
 
     // Listen for 'dashboardUpdate' events
     eventSource.addEventListener('dashboardUpdate', (event) => {
-      console.log("[SSE Debug] Received 'dashboardUpdate' event:", event.data);
+      //console.log("[SSE Debug] Received 'dashboardUpdate' event:", event.data);
       try {
         const parsedData = JSON.parse(event.data);
         setLastEventData({ type: 'dashboardUpdate', payload: parsedData });
@@ -80,14 +80,14 @@ export const useDashboardSSE = () => {
 
     // Generic message handler for unnamed events
     eventSource.onmessage = (event) => {
-      console.log("[SSE Debug] Received generic message (no event type):", event.data);
+      //console.log("[SSE Debug] Received generic message (no event type):", event.data);
       try {
         const parsedData = JSON.parse(event.data);
-        console.log("[SSE Debug] Parsed generic message data:", parsedData);
+        //console.log("[SSE Debug] Parsed generic message data:", parsedData);
 
         // Check if this is an 'update' event from the stream implementation
         if (parsedData.type === 'update') {
-          console.log("[SSE Debug] Detected 'update' event from stream implementation");
+          //console.log("[SSE Debug] Detected 'update' event from stream implementation");
           setLastEventData({ type: 'dashboardUpdate', payload: parsedData });
           setError(null);
         }
@@ -128,13 +128,13 @@ export const useDashboardSSE = () => {
 
       // Implement reconnection with exponential backoff
       if (eventSource.readyState === EventSource.CLOSED) {
-        console.log("[SSE Debug] Connection definitely closed.");
+        //console.log("[SSE Debug] Connection definitely closed.");
         eventSource.close();
 
         // Attempt to reconnect with exponential backoff
         if (reconnectAttemptsRef.current < maxReconnectAttempts) {
           const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), 30000); // Max 30 seconds
-          console.log(`[SSE Debug] Attempting to reconnect in ${delay}ms (attempt ${reconnectAttemptsRef.current + 1}/${maxReconnectAttempts})`);
+          //console.log(`[SSE Debug] Attempting to reconnect in ${delay}ms (attempt ${reconnectAttemptsRef.current + 1}/${maxReconnectAttempts})`);
 
           reconnectTimeoutRef.current = setTimeout(() => {
             reconnectAttemptsRef.current += 1;
@@ -145,7 +145,7 @@ export const useDashboardSSE = () => {
           setError("Maximum reconnection attempts reached. Please refresh the page.");
         }
       } else {
-        console.log("[SSE Debug] Connection error, state:", eventSource.readyState);
+        //console.log("[SSE Debug] Connection error, state:", eventSource.readyState);
       }
     };
 
@@ -168,7 +168,7 @@ export const useDashboardSSE = () => {
 
         // Force reconnection
         if (eventSourceRef.current) {
-          console.log("[SSE Debug] Closing stale connection and reconnecting");
+          //console.log("[SSE Debug] Closing stale connection and reconnecting");
           eventSourceRef.current.close();
           eventSourceRef.current = null;
 
@@ -183,7 +183,7 @@ export const useDashboardSSE = () => {
     // Cleanup function
     return () => {
       if (eventSourceRef.current) {
-        console.log("[SSE Debug] Closing connection.");
+        //console.log("[SSE Debug] Closing connection.");
         eventSourceRef.current.close();
         eventSourceRef.current = null;
       }

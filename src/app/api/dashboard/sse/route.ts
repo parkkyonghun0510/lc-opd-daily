@@ -34,12 +34,12 @@ export async function GET(request: NextRequest) {
     const session = await getServerSession(authOptions);
 
     if (!session || !session.user) {
-      console.log('[SSE Debug] Authentication failed: No valid session');
+      //console.log('[SSE Debug] Authentication failed: No valid session');
       return new NextResponse('Unauthorized', { status: 401 });
     }
 
     userId = session.user.id; // Get user ID from session
-    console.log(`[SSE Debug] Connection opened for authenticated user: ${userId} at ${new Date().toISOString()}`);
+    //console.log(`[SSE Debug] Connection opened for authenticated user: ${userId} at ${new Date().toISOString()}`);
   } catch (error) {
     console.error('[SSE Debug] Authentication error:', error);
     return new NextResponse('Authentication error', { status: 500 });
@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
         const message = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
         try {
           controller.enqueue(new TextEncoder().encode(message));
-          console.log(`[SSE Debug] Sent SSE event '${event}' to user: ${userId} with data:`, data);
+          //console.log(`[SSE Debug] Sent SSE event '${event}' to user: ${userId} with data:`, data);
         } catch (error) {
           console.error(`[SSE Debug] Error sending SSE to user ${userId}:`, error);
           // Clean up if the client disconnected during send
@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
       };
 
       // Send a connection confirmation event
-      console.log(`[SSE Debug] Sending initial 'connected' event to user: ${userId}`);
+      //console.log(`[SSE Debug] Sending initial 'connected' event to user: ${userId}`);
       sendEvent('connected', { message: 'SSE connection established' });
 
       // Register listener for this client
@@ -100,7 +100,7 @@ export async function GET(request: NextRequest) {
 
       // Clean up when the client disconnects
       request.signal.addEventListener('abort', () => {
-        console.log(`[SSE Debug] Connection closed for user: ${userId} at ${new Date().toISOString()}`);
+        //console.log(`[SSE Debug] Connection closed for user: ${userId} at ${new Date().toISOString()}`);
         clearInterval(keepAliveInterval);
         emitter.off('update', sendUpdate);
         clients.delete(userId);
@@ -111,7 +111,7 @@ export async function GET(request: NextRequest) {
       });
     },
     cancel(reason) {
-      console.log(`[SSE Debug] Stream cancelled for user ${userId}:`, reason);
+      //console.log(`[SSE Debug] Stream cancelled for user ${userId}:`, reason);
       emitter.off('update', (updateData: any) => {
         // Ensure the correct listener is removed if multiple exist (unlikely here)
         // This is a simplified removal, adjust if needed
@@ -126,14 +126,14 @@ export async function GET(request: NextRequest) {
   // This function would be called from other parts of your backend
   // (e.g., after a report is created, approved, user data changes, etc.)
   // export function broadcastDashboardUpdate(data: any) {
-  //   console.log('[SSE Debug] Broadcasting dashboard update:', data);
+  //   //console.log('[SSE Debug] Broadcasting dashboard update:', data);
   //   emitter.emit('update', data);
   // }
 }
 
 export function broadcastDashboardUpdate(type: DashboardEventType, data: unknown) {
   const payload = createDashboardUpdate(type, data);
-  console.log('[SSE Debug] Broadcasting dashboard update:', payload);
+  //console.log('[SSE Debug] Broadcasting dashboard update:', payload);
   emitter.emit('dashboardUpdate', payload);
 }
 

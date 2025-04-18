@@ -34,7 +34,7 @@ async function sendTestNotification() {
       return;
     }
     
-    console.log(`Sending test notification to user: ${user.email} (${user.id})`);
+    //console.log(`Sending test notification to user: ${user.email} (${user.id})`);
     
     // Current date and time for the notification
     const now = new Date();
@@ -60,7 +60,7 @@ async function sendTestNotification() {
       idempotencyKey: `telegram-test-${Date.now()}`
     };
     
-    console.log('Sending notification with data:', JSON.stringify(notification.data, null, 2));
+    //console.log('Sending notification with data:', JSON.stringify(notification.data, null, 2));
     
     // Send message to SQS
     const command = new SendMessageCommand({
@@ -76,9 +76,9 @@ async function sendTestNotification() {
     
     const response = await sqsClient.send(command);
     
-    console.log('Notification sent to SQS queue!');
-    console.log('Message ID:', response.MessageId);
-    console.log('Target user:', user.id);
+    //console.log('Notification sent to SQS queue!');
+    //console.log('Message ID:', response.MessageId);
+    //console.log('Target user:', user.id);
     
     // Also create a direct in-app notification for comparison
     const directNotification = await prisma.inAppNotification.create({
@@ -92,7 +92,7 @@ async function sendTestNotification() {
       }
     });
     
-    console.log('Direct notification created:', directNotification.id);
+    //console.log('Direct notification created:', directNotification.id);
     
     // Check if user has a Telegram subscription
     const telegramSub = await prisma.telegramSubscription.findFirst({
@@ -100,9 +100,9 @@ async function sendTestNotification() {
     });
     
     if (telegramSub) {
-      console.log('User has a Telegram subscription:', telegramSub.chatId);
+      //console.log('User has a Telegram subscription:', telegramSub.chatId);
     } else {
-      console.log('User does not have a Telegram subscription. Notification will appear in-app only.');
+      //console.log('User does not have a Telegram subscription. Notification will appear in-app only.');
     }
     
   } catch (error) {

@@ -105,19 +105,19 @@ export function UserDataProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (lastEventData && lastEventData.type === 'dashboardUpdate') {
       const { type: updateType, payload } = lastEventData.payload;
-      console.log('[UserDataContext] Received SSE update:', updateType, payload);
+      //console.log('[UserDataContext] Received SSE update:', updateType, payload);
 
       // Example: Handle specific update types relevant to user data
       if (updateType === 'USER_PROFILE_UPDATED' && payload?.userId === userData?.id) {
-        console.log('[UserDataContext] User profile updated via SSE, refreshing data...');
+        //console.log('[UserDataContext] User profile updated via SSE, refreshing data...');
         refreshUserData().catch(err => console.error("Error refreshing user data after SSE update:", err));
       } else if (updateType === 'USER_PREFERENCES_UPDATED' && payload?.userId === userData?.id) {
-        console.log('[UserDataContext] User preferences updated via SSE, refreshing data...');
+        //console.log('[UserDataContext] User preferences updated via SSE, refreshing data...');
         // Optionally update preferences directly if payload contains full data
         // setUserData(prev => prev ? { ...prev, preferences: payload.preferences } : null);
         refreshUserData().catch(err => console.error("Error refreshing user data after SSE update:", err));
       } else if (updateType === 'BRANCH_ASSIGNMENT_CHANGED' && payload?.userId === userData?.id) {
-        console.log('[UserDataContext] Branch assignment changed via SSE, refreshing data...');
+        //console.log('[UserDataContext] Branch assignment changed via SSE, refreshing data...');
         refreshUserData().catch(err => console.error("Error refreshing user data after SSE update:", err));
       }
       // Add more conditions here for other relevant update types
@@ -131,7 +131,7 @@ export function UserDataProvider({ children }: { children: React.ReactNode }) {
       console.error('[UserDataContext] SSE connection error:', sseError);
       // Optionally handle SSE errors, e.g., show a notification
     }
-    console.log('[UserDataContext] SSE connection status:', isSseConnected ? 'Connected' : 'Disconnected');
+    //console.log('[UserDataContext] SSE connection status:', isSseConnected ? 'Connected' : 'Disconnected');
   }, [isSseConnected, sseError]);
 
   // Clear auth data if we have persistent errors

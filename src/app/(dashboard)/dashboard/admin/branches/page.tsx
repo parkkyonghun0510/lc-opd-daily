@@ -583,7 +583,7 @@ export default function BranchesPage() {
                               {branch.name}
                             </CardDescription>
                           </div>
-                          console.log('Branch debug:', branch);
+                          //console.log('Branch debug:', branch);
                           <div className="flex gap-1">
                             <Button
                               variant="ghost"

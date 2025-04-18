@@ -17,8 +17,8 @@ interface UserRecord {
 }
 
 async function main() {
-  console.log('Starting seed process...')
-  
+  //console.log('Starting seed process...')
+
   // Create basic roles
   const roles = [
     {
@@ -39,8 +39,8 @@ async function main() {
     }
   ]
 
-  console.log('Creating roles...')
-  
+  //console.log('Creating roles...')
+
   // Insert roles if they don't exist
   const createdRoles: RoleRecord = {}
   for (const role of roles) {
@@ -53,16 +53,16 @@ async function main() {
         data: role
       })
       createdRoles[role.name] = newRole
-      console.log(`Created role: ${role.name}`)
+      //console.log(`Created role: ${role.name}`)
     } else {
       createdRoles[role.name] = existingRole
-      console.log(`Role ${role.name} already exists`)
+      //console.log(`Role ${role.name} already exists`)
     }
   }
 
   // Create branches
-  console.log('Creating branches...')
-  
+  //console.log('Creating branches...')
+
   const branches = [
     {
       code: '100-HQ',
@@ -97,7 +97,7 @@ async function main() {
   ]
 
   const createdBranches: BranchRecord = {}
-  
+
   for (const branch of branches) {
     const existingBranch = await prisma.branch.findUnique({
       where: { code: branch.code }
@@ -108,10 +108,10 @@ async function main() {
         data: branch
       })
       createdBranches[branch.code] = newBranch
-      console.log(`Created branch: ${branch.name} (${branch.code})`)
+      //console.log(`Created branch: ${branch.name} (${branch.code})`)
     } else {
       createdBranches[branch.code] = existingBranch
-      console.log(`Branch ${branch.name} (${branch.code}) already exists`)
+      //console.log(`Branch ${branch.name} (${branch.code}) already exists`)
     }
   }
 
@@ -151,10 +151,10 @@ async function main() {
 
   for (const branch of subBranches) {
     if (!branch.parentId) {
-      console.log(`Skipping ${branch.code} - parent branch not found`)
+      //console.log(`Skipping ${branch.code} - parent branch not found`)
       continue
     }
-    
+
     const existingBranch = await prisma.branch.findUnique({
       where: { code: branch.code }
     })
@@ -164,18 +164,18 @@ async function main() {
         data: branch
       })
       createdBranches[branch.code] = newBranch
-      console.log(`Created sub-branch: ${branch.name} (${branch.code})`)
+      //console.log(`Created sub-branch: ${branch.name} (${branch.code})`)
     } else {
       createdBranches[branch.code] = existingBranch
-      console.log(`Sub-branch ${branch.name} (${branch.code}) already exists`)
+      //console.log(`Sub-branch ${branch.name} (${branch.code}) already exists`)
     }
   }
 
   // Create demo users
-  console.log('Creating users...')
-  
+  //console.log('Creating users...')
+
   const demoPassword = await bcrypt.hash('password123', 10)
-  
+
   const users = [
     {
       name: 'Admin User',
@@ -224,7 +224,7 @@ async function main() {
   ]
 
   const createdUsers: UserRecord = {}
-  
+
   for (const user of users) {
     const existingUser = await prisma.user.findUnique({
       where: { email: user.email }
@@ -235,16 +235,16 @@ async function main() {
         data: user
       })
       createdUsers[user.email] = newUser
-      console.log(`Created user: ${user.name} (${user.email})`)
+      //console.log(`Created user: ${user.name} (${user.email})`)
     } else {
       createdUsers[user.email] = existingUser
-      console.log(`User ${user.name} (${user.email}) already exists`)
+      //console.log(`User ${user.name} (${user.email}) already exists`)
     }
   }
 
   // Assign roles to users
-  console.log('Assigning roles to users...')
-  
+  //console.log('Assigning roles to users...')
+
   const userRoleAssignments = [
     {
       userEmail: 'admin@example.com',
@@ -281,9 +281,9 @@ async function main() {
   for (const assignment of userRoleAssignments) {
     const user = createdUsers[assignment.userEmail]
     const role = createdRoles[assignment.roleName]
-    
+
     if (!user || !role) {
-      console.log(`Skipping role assignment - user or role not found for ${assignment.userEmail}`)
+      //console.log(`Skipping role assignment - user or role not found for ${assignment.userEmail}`)
       continue
     }
 
@@ -304,15 +304,15 @@ async function main() {
           isDefault: assignment.isDefault
         }
       })
-      console.log(`Assigned ${assignment.roleName} role to ${assignment.userEmail}${assignment.branchId ? ' for specific branch' : ''}`)
+      //console.log(`Assigned ${assignment.roleName} role to ${assignment.userEmail}${assignment.branchId ? ' for specific branch' : ''}`)
     } else {
-      console.log(`Role ${assignment.roleName} already assigned to ${assignment.userEmail}`)
+      //console.log(`Role ${assignment.roleName} already assigned to ${assignment.userEmail}`)
     }
   }
 
   // Create branch assignments for users
-  console.log('Creating branch assignments...')
-  
+  //console.log('Creating branch assignments...')
+
   const branchAssignments = [
     {
       userEmail: 'admin@example.com',
@@ -364,9 +364,9 @@ async function main() {
   for (const assignment of branchAssignments) {
     const user = createdUsers[assignment.userEmail]
     const branch = createdBranches[assignment.branchCode]
-    
+
     if (!user || !branch) {
-      console.log(`Skipping branch assignment - user or branch not found for ${assignment.userEmail} to ${assignment.branchCode}`)
+      //console.log(`Skipping branch assignment - user or branch not found for ${assignment.userEmail} to ${assignment.branchCode}`)
       continue
     }
 
@@ -385,15 +385,15 @@ async function main() {
           isDefault: assignment.isDefault
         }
       })
-      console.log(`Assigned branch ${assignment.branchCode} to ${assignment.userEmail}`)
+      //console.log(`Assigned branch ${assignment.branchCode} to ${assignment.userEmail}`)
     } else {
-      console.log(`Branch ${assignment.branchCode} already assigned to ${assignment.userEmail}`)
+      //console.log(`Branch ${assignment.branchCode} already assigned to ${assignment.userEmail}`)
     }
   }
 
   // Create organization settings
-  console.log('Creating organization settings...')
-  
+  //console.log('Creating organization settings...')
+
   const existingSettings = await prisma.organizationSettings.findUnique({
     where: { organizationId: 'default' }
   })
@@ -421,12 +421,12 @@ async function main() {
         }
       }
     })
-    console.log('Created default organization settings')
+    //console.log('Created default organization settings')
   } else {
-    console.log('Organization settings already exist')
+    //console.log('Organization settings already exist')
   }
 
-  console.log('Seed completed successfully')
+  //console.log('Seed completed successfully')
 }
 
 main()

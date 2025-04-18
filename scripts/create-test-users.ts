@@ -35,8 +35,8 @@ async function createTestUsers() {
       }),
     ]);
 
-    console.log(
-      "Test users created successfully:",
+    //console.log(
+    "Test users created successfully:",
       users.map((u) => ({ username: u.username, role: u.role }))
     );
   } catch (error) {

@@ -115,7 +115,7 @@ self.addEventListener('push', (event) => {
     
     // Skip showing validation notifications entirely
     if (data.tag === 'subscription-validation' && data.silent === true) {
-      console.log('Skipping validation notification display');
+      //console.log('Skipping validation notification display');
       return;
     }
     
@@ -215,6 +215,6 @@ self.addEventListener('notificationclose', (event) => {
   if (data.timestamp) {
     const timeOpen = Date.now() - data.timestamp;
     // Analytics placeholder - implement actual analytics if needed
-    // console.log('Notification closed:', { type: data.type, timeOpen });
+    // //console.log('Notification closed:', { type: data.type, timeOpen });
   }
 }); 

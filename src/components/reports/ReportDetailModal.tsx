@@ -188,7 +188,7 @@ export function ReportDetailModal({ report, isOpen, onClose, onEdit }: ReportDet
   // Function to refresh the report details after adding a comment
   const refreshReportDetails = async (reportId: string) => {
     try {
-      console.log("Refreshing report details for:", reportId);
+      //console.log("Refreshing report details for:", reportId);
       const response = await fetch(`/api/reports/${reportId}`);
       
       if (!response.ok) {
@@ -196,7 +196,7 @@ export function ReportDetailModal({ report, isOpen, onClose, onEdit }: ReportDet
       }
       
       const reportData = await response.json();
-      console.log("Updated report data received:", reportData);
+      //console.log("Updated report data received:", reportData);
       
       // Convert the API response to ReportWithUser type
       setRefreshedReport({
@@ -214,7 +214,7 @@ export function ReportDetailModal({ report, isOpen, onClose, onEdit }: ReportDet
     
     setIsSubmittingComment(true);
     try {
-      console.log("Submitting comment for report:", displayReport.id);
+      //console.log("Submitting comment for report:", displayReport.id);
       
       // API call to add a comment
       const response = await fetch(`/api/reports/${displayReport.id}/comments`, {
@@ -234,7 +234,7 @@ export function ReportDetailModal({ report, isOpen, onClose, onEdit }: ReportDet
         throw new Error(responseData.error || 'Failed to add comment');
       }
       
-      console.log("Comment added successfully:", responseData);
+      //console.log("Comment added successfully:", responseData);
       
       toast({
         title: "Comment Added",

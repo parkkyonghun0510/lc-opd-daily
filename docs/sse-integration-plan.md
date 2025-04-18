@@ -82,7 +82,7 @@ graph TD
        const stream = new ReadableStream({
          start: (controller) => {
            this.clients.set(clientId, { id: clientId, userId, controller });
-           console.log(`Client connected: ${clientId} for user ${userId}`);
+           //console.log(`Client connected: ${clientId} for user ${userId}`);
          },
          cancel: () => {
            this.removeClient(clientId);
@@ -95,7 +95,7 @@ graph TD
      public removeClient(clientId: string): void {
        const client = this.clients.get(clientId);
        if (client) {
-         console.log(`Client disconnected: ${clientId} for user ${client.userId}`);
+         //console.log(`Client disconnected: ${clientId} for user ${client.userId}`);
          this.clients.delete(clientId);
        }
      }

@@ -36,9 +36,9 @@ export async function GET(request: Request) {
     const reportDate = date.toISOString().split('T')[0]; // 'YYYY-MM-DD'
     const reportDateISO = `${reportDate}T00:00:00.000Z`;
 
-    console.log(`Checking for duplicate: date=${date.toLocaleDateString()}, branchId=${branchId}, reportType=${reportType}`);
-    console.log(`[DEBUG] Normalized reportDate string: ${reportDate}`);
-    console.log(`[DEBUG] Using reportDateISO for Prisma query: ${reportDateISO}`);
+    //console.log(`Checking for duplicate: date=${date.toLocaleDateString()}, branchId=${branchId}, reportType=${reportType}`);
+    //console.log(`[DEBUG] Normalized reportDate string: ${reportDate}`);
+    //console.log(`[DEBUG] Using reportDateISO for Prisma query: ${reportDateISO}`);
 
     // Check if a report already exists for this branch on this date
     const existingReport = await prisma.report.findFirst({
@@ -49,7 +49,7 @@ export async function GET(request: Request) {
       },
     });
 
-    console.log(`Duplicate check result: ${!!existingReport}`);
+    //console.log(`Duplicate check result: ${!!existingReport}`);
 
     return NextResponse.json({ isDuplicate: !!existingReport });
   } catch (error) {

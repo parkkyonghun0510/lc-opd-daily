@@ -26,21 +26,21 @@ export async function GET(req: NextRequest) {
             };
 
             sseHandler.addClient(clientId, userId, response);
-            console.log(`[SSE API] Client connected: ${clientId} for user: ${userId}`);
+            //console.log(`[SSE API] Client connected: ${clientId} for user: ${userId}`);
 
             // Send initial event
             send({ type: "connected", clientId });
 
             const pingInterval = setInterval(() => {
                 const pingData = { type: "ping", timestamp: Date.now() };
-                console.log(`[SSE API] Sending ping to client: ${clientId}`, pingData);
+                //console.log(`[SSE API] Sending ping to client: ${clientId}`, pingData);
                 send(pingData);
             }, 30000);
 
             req.signal.addEventListener("abort", () => {
                 clearInterval(pingInterval);
                 sseHandler.removeClient(clientId);
-                console.log(`[SSE API] Client disconnected: ${clientId} for user: ${userId}`);
+                //console.log(`[SSE API] Client disconnected: ${clientId} for user: ${userId}`);
                 controller.close();
             });
         },

@@ -53,14 +53,14 @@ export default function DashboardPage() {
       fetchDashboardData();
 
       const eventSource = new EventSource("/api/dashboard/stream");
-      console.log("[Dashboard SSE] EventSource connection opened at", new Date().toISOString());
+      //console.log("[Dashboard SSE] EventSource connection opened at", new Date().toISOString());
 
       eventSource.onmessage = (event) => {
-        console.log("[Dashboard SSE] Received SSE message:", event.data);
+        //console.log("[Dashboard SSE] Received SSE message:", event.data);
         try {
           const parsed = JSON.parse(event.data);
           if (parsed.type === "update") {
-            console.log("[Dashboard SSE] Updating dashboard data:", parsed.data);
+            //console.log("[Dashboard SSE] Updating dashboard data:", parsed.data);
             setData(parsed.data);
           } else if (parsed.type === "error") {
             console.error("[Dashboard SSE] Error event:", parsed.message);
@@ -77,7 +77,7 @@ export default function DashboardPage() {
 
       // Cleanup on unmount
       return () => {
-        console.log("[Dashboard SSE] EventSource connection closed at", new Date().toISOString());
+        //console.log("[Dashboard SSE] EventSource connection closed at", new Date().toISOString());
         eventSource.close();
       };
     }

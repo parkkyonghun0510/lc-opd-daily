@@ -57,21 +57,21 @@ export const DashboardDataProvider = ({ children }: { children: ReactNode }) => 
   // Handle SSE updates
   useEffect(() => {
     if (lastEventData?.type === 'dashboardUpdate' && lastEventData.payload) {
-      console.log('[DashboardDataContext] Received SSE update:', JSON.stringify(lastEventData, null, 2));
+      //console.log('[DashboardDataContext] Received SSE update:', JSON.stringify(lastEventData, null, 2));
       
       const { type: updateType, data: payload } = lastEventData.payload as DashboardUpdatePayload;
       
       if (!updateType || !payload) {
         console.warn('[DashboardDataContext] Invalid payload format:', JSON.stringify(lastEventData.payload, null, 2));
-        console.log('[DashboardDataContext] Triggering refresh due to invalid format');
+        //console.log('[DashboardDataContext] Triggering refresh due to invalid format');
         refreshDashboardData();
         return;
       }
 
-      console.log('[DashboardDataContext] Processing update - Type:', updateType, 'Payload:', JSON.stringify(payload, null, 2));
+      //console.log('[DashboardDataContext] Processing update - Type:', updateType, 'Payload:', JSON.stringify(payload, null, 2));
       
       const prevDashboardData = dashboardData;
-      console.log('[DashboardDataContext] Current dashboard data:', JSON.stringify(prevDashboardData, null, 2));
+      //console.log('[DashboardDataContext] Current dashboard data:', JSON.stringify(prevDashboardData, null, 2));
 
       // Define which update types should trigger a full refresh
 
@@ -118,11 +118,11 @@ export const DashboardDataProvider = ({ children }: { children: ReactNode }) => 
       ];
 
       if (refreshTriggers.includes(updateType)) {
-        console.log(`[DashboardDataContext] Refreshing dashboard data due to ${updateType} event`);
+        //console.log(`[DashboardDataContext] Refreshing dashboard data due to ${updateType} event`);
         refreshDashboardData();
       } else {
         // Only update specific fields without a full refresh
-        console.log(`[DashboardDataContext] Handling specific update for ${updateType} event`);
+        //console.log(`[DashboardDataContext] Handling specific update for ${updateType} event`);
         setDashboardData(prevData => {
           if (!prevData) return null;
           const newData = { ...prevData };
@@ -139,7 +139,7 @@ export const DashboardDataProvider = ({ children }: { children: ReactNode }) => 
                 'growthRate' in payload &&
                 typeof (payload as GrowthRatePayload).growthRate === 'number') {
               newData.growthRate = (payload as GrowthRatePayload).growthRate;
-              console.log('[DashboardDataContext] Updated growthRate:', newData.growthRate);
+              //console.log('[DashboardDataContext] Updated growthRate:', newData.growthRate);
             }
             // Add other specific field updates as needed, with appropriate type guards
           }

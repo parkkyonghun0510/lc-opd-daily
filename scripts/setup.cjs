@@ -26,7 +26,7 @@ function prompt(question) {
 
 // Mask password input
 async function promptPassword(question) {
-  console.log(question);
+  //console.log(question);
   return new Promise((resolve) => {
     const stdin = process.stdin;
     const old = stdin.isTTY && stdin.setRawMode(true);
@@ -39,7 +39,7 @@ async function promptPassword(question) {
       if (char === "\r" || char === "\n") {
         stdin.removeListener("data", listener);
         stdin.isTTY && stdin.setRawMode(old);
-        console.log("");
+        //console.log("");
         resolve(password);
       }
       // On backspace
@@ -99,7 +99,7 @@ function writeSetupKeyToEnv(setupKey) {
 
 // Main setup function
 async function setupSystem() {
-  console.log("\n🚀 Daily Reports System - Setup Script\n");
+  //console.log("\n🚀 Daily Reports System - Setup Script\n");
 
   try {
     // Generate setup key
@@ -107,10 +107,10 @@ async function setupSystem() {
 
     // Write setup key to .env file
     writeSetupKeyToEnv(setupKey);
-    console.log("✅ Setup key generated and added to .env file");
+    //console.log("✅ Setup key generated and added to .env file");
 
     // Get admin details
-    console.log("\n--- Admin User Details ---");
+    //console.log("\n--- Admin User Details ---");
     const adminUsername = await prompt("Username: ");
     const adminName = await prompt("Full Name: ");
     const adminEmail = await prompt("Email: ");
@@ -139,7 +139,7 @@ async function setupSystem() {
       createDefaultBranches,
     };
 
-    console.log("\n🔄 Setting up the system...");
+    //console.log("\n🔄 Setting up the system...");
 
     // Call setup API endpoint using dynamic import for node-fetch
     const { default: fetch } = await import("node-fetch");
@@ -158,19 +158,19 @@ async function setupSystem() {
       throw new Error(result.error || "Failed to set up system");
     }
 
-    console.log("\n✅ System setup completed successfully!");
-    console.log(`\n👤 Admin user "${adminUsername}" has been created.`);
+    //console.log("\n✅ System setup completed successfully!");
+    //console.log(`\n👤 Admin user "${adminUsername}" has been created.`);
 
     if (createDefaultBranches) {
-      console.log(
+      //console.log(
         `\n🏢 Default branches have been created: ${result.branches
           .map((b) => b.code)
           .join(", ")}`
       );
     }
 
-    console.log("\n📝 You can now log in using your admin credentials.");
-    console.log(
+    //console.log("\n📝 You can now log in using your admin credentials.");
+    //console.log(
       `\n🔒 For security, please delete the setup key from your .env file after setup.`
     );
   } catch (error) {

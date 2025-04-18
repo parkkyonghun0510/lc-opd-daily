@@ -1139,15 +1139,15 @@ export default function ConsolidatedView() {
       setDetailsModalOpen(true);
 
       // Log the interaction
-      console.log("Branch clicked:", data.branchName);
+      //console.log("Branch clicked:", data.branchName);
     }
     // For time series chart
     else if (data.rawDate) {
       // Ensure rawDate is a valid date input for format function
-      const rawDate = data.rawDate;
+      const rawDate = data.rawDate.toLocaleString();
       if (typeof rawDate === "string" || typeof rawDate === "number") {
         // Find the specific date data
-        console.log("Date clicked:", format(rawDate, "yyyy-MM-dd"));
+        //console.log("Date clicked:", format(rawDate, "yyyy-MM-dd"));
 
         // You could implement date-specific drill down here
         toast({

@@ -70,7 +70,7 @@ export interface DashboardSummaryOptions {
 export async function fetchDashboardSummary(
   options?: DashboardSummaryOptions
 ): Promise<{ status: number; data?: DashboardSummaryData; error?: string }> {
-  console.log('[Dashboard Action] Fetching dashboard summary with options:', JSON.stringify(options, null, 2));
+  //console.log('[Dashboard Action] Fetching dashboard summary with options:', JSON.stringify(options, null, 2));
   try {
     const session = await getServerSession(authOptions);
     const user = session?.user;
@@ -176,7 +176,7 @@ export async function fetchDashboardSummary(
       ...(options?.dateRange ? { dateRange: options.dateRange } : {})
     };
 
-    console.log('[Dashboard Action] Successfully fetched summary data:', JSON.stringify(summaryData, null, 2));
+    //console.log('[Dashboard Action] Successfully fetched summary data:', JSON.stringify(summaryData, null, 2));
     return { status: 200, data: summaryData };
 
   } catch (error) {

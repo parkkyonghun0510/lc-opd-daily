@@ -122,7 +122,7 @@ export function TopBar() {
                           setAvatarError(true);
                           const target = e.target as HTMLImageElement;
                           target.style.display = 'none';
-                          console.log("Image failed to load:", profileData.image);
+                          //console.log("Image failed to load:", profileData.image);
                         }}
                       />
                       <AvatarFallback>

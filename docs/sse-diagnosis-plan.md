@@ -122,19 +122,19 @@ Server-Sent Events (SSE) can encounter various issues that affect their reliabil
 1. **Verify Event Emission**
    - Add logging to event emission code:
      ```typescript
-     console.log(`Emitting event to user ${userId}:`, { event, data });
+     //console.log(`Emitting event to user ${userId}:`, { event, data });
      ```
    - Check that events are being emitted when expected
 
 2. **Check Client Event Listeners**
    ```javascript
    eventSource.addEventListener('notification', (event) => {
-     console.log('Received notification:', JSON.parse(event.data));
+     //console.log('Received notification:', JSON.parse(event.data));
    });
    
    // Also check for generic message events
    eventSource.onmessage = (event) => {
-     console.log('Received message:', event.data);
+     //console.log('Received message:', event.data);
    };
    ```
 
@@ -149,7 +149,7 @@ Server-Sent Events (SSE) can encounter various issues that affect their reliabil
 
 4. **Monitor Connection State**
    ```javascript
-   console.log('EventSource readyState:', eventSource.readyState);
+   //console.log('EventSource readyState:', eventSource.readyState);
    // 0 = connecting, 1 = open, 2 = closed
    ```
 
@@ -376,7 +376,7 @@ Implement these logging patterns for better diagnosis:
 public addClient(userId: string): { stream: ReadableStream; clientId: string } {
   const clientId = `${userId}-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`;
   
-  console.log(`[SSE] New connection: clientId=${clientId}, userId=${userId}, total=${this.clients.size + 1}`);
+  //console.log(`[SSE] New connection: clientId=${clientId}, userId=${userId}, total=${this.clients.size + 1}`);
   
   // Create stream and add client...
   
@@ -386,7 +386,7 @@ public addClient(userId: string): { stream: ReadableStream; clientId: string } {
 public removeClient(clientId: string): void {
   const client = this.clients.get(clientId);
   if (client) {
-    console.log(`[SSE] Connection closed: clientId=${clientId}, userId=${client.userId}, total=${this.clients.size - 1}`);
+    //console.log(`[SSE] Connection closed: clientId=${clientId}, userId=${client.userId}, total=${this.clients.size - 1}`);
     this.clients.delete(clientId);
   }
 }
@@ -399,10 +399,10 @@ public sendEventToUser(userId: string, event: string, data: any): void {
   const userClients = Array.from(this.clients.values())
     .filter(client => client.userId === userId);
   
-  console.log(`[SSE] Sending event: event=${event}, userId=${userId}, recipients=${userClients.length}`);
+  //console.log(`[SSE] Sending event: event=${event}, userId=${userId}, recipients=${userClients.length}`);
   
   if (userClients.length === 0) {
-    console.log(`[SSE] No active connections for userId=${userId}`);
+    //console.log(`[SSE] No active connections for userId=${userId}`);
     return;
   }
   
@@ -416,11 +416,11 @@ public sendEventToUser(userId: string, event: string, data: any): void {
 const eventSource = new EventSource('/api/notifications/sse');
 
 eventSource.addEventListener('connected', (event) => {
-  console.log('[SSE] Connected:', JSON.parse(event.data));
+  //console.log('[SSE] Connected:', JSON.parse(event.data));
 });
 
 eventSource.addEventListener('notification', (event) => {
-  console.log('[SSE] Notification received:', JSON.parse(event.data));
+  //console.log('[SSE] Notification received:', JSON.parse(event.data));
 });
 
 eventSource.onerror = (error) => {

@@ -42,7 +42,7 @@ function LoginForm() {
   // Redirect to dashboard if already authenticated
   useEffect(() => {
     if (status === "authenticated") {
-      console.log("User already authenticated, redirecting to:", callbackUrl);
+      //console.log("User already authenticated, redirecting to:", callbackUrl);
       router.push(callbackUrl);
     }
 
@@ -79,7 +79,7 @@ function LoginForm() {
         return;
       }
 
-      console.log("Attempting to sign in with redirect to:", callbackUrl);
+      //console.log("Attempting to sign in with redirect to:", callbackUrl);
 
       const result = await signIn("credentials", {
         username,
@@ -107,7 +107,7 @@ function LoginForm() {
 
       // Success! Manual redirect
       toast.success("Signed in successfully");
-      console.log("Login successful, redirecting to:", callbackUrl);
+      //console.log("Login successful, redirecting to:", callbackUrl);
       window.location.href = callbackUrl;
     } catch (error) {
       console.error("Login error:", error);

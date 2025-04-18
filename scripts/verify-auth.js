@@ -4,7 +4,7 @@ const BASE_URL = "http://localhost:3000";
 
 async function signIn(username, password) {
   try {
-    console.log(`Attempting to sign in as ${username}...`);
+    //console.log(`Attempting to sign in as ${username}...`);
 
     // First, check account status
     const preCheckResponse = await fetch(`${BASE_URL}/api/auth/login`, {
@@ -17,7 +17,7 @@ async function signIn(username, password) {
       const error = await preCheckResponse.json();
       throw new Error(error.message || "Pre-check failed");
     }
-    console.log("Account pre-check passed");
+    //console.log("Account pre-check passed");
 
     // Then attempt sign in with NextAuth
     const csrfResponse = await fetch(`${BASE_URL}/api/auth/csrf`);
@@ -64,7 +64,7 @@ async function signIn(username, password) {
 
 async function verifyAuth(sessionToken) {
   try {
-    console.log("Verifying authentication...");
+    //console.log("Verifying authentication...");
 
     const response = await fetch(`${BASE_URL}/api/test/verify`, {
       headers: {
@@ -80,7 +80,7 @@ async function verifyAuth(sessionToken) {
     }
 
     const data = await response.json();
-    console.log("Verification response:", JSON.stringify(data, null, 2));
+    //console.log("Verification response:", JSON.stringify(data, null, 2));
     return data;
   } catch (error) {
     console.error("Verification failed:", error);
@@ -91,21 +91,21 @@ async function verifyAuth(sessionToken) {
 async function runTests() {
   try {
     // Test regular user
-    console.log("\n=== Testing Regular User Authentication ===");
+    //console.log("\n=== Testing Regular User Authentication ===");
     const userCookies = await signIn("test_regular", "Test@123");
     await verifyAuth(userCookies);
 
     // Test readonly user
-    console.log("\n=== Testing Readonly User Authentication ===");
+    //console.log("\n=== Testing Readonly User Authentication ===");
     const readonlyCookies = await signIn("test_readonly", "Test@123");
     await verifyAuth(readonlyCookies);
 
     // Test invalid credentials
-    console.log("\n=== Testing Invalid Credentials ===");
+    //console.log("\n=== Testing Invalid Credentials ===");
     try {
       await signIn("invalid_user", "wrong_password");
     } catch (error) {
-      console.log("Expected error for invalid credentials:", error.message);
+      //console.log("Expected error for invalid credentials:", error.message);
     }
   } catch (error) {
     console.error("\nTest suite failed:", error);
@@ -116,7 +116,7 @@ async function runTests() {
 // Ensure the development server is running
 fetch(`${BASE_URL}/api/health`)
   .then(() => {
-    console.log("Development server is running. Starting tests...\n");
+    //console.log("Development server is running. Starting tests...\n");
     runTests();
   })
   .catch(() => {
