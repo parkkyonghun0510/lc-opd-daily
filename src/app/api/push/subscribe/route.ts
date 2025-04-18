@@ -27,7 +27,7 @@ export async function POST(request: Request) {
       );
     }
 
-    //console.log('Subscription data:', {
+    console.log('Subscription data:', {
     endpoint: subscription.endpoint,
       hasKeys: !!subscription.keys,
         hasP256dh: !!subscription.keys?.p256dh,
