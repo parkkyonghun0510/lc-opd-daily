@@ -8,6 +8,7 @@ import { getUsersForNotification } from "@/utils/notificationTargeting";
 import { NotificationType } from "@/utils/notificationTemplates";
 // Import the broadcast function
 import { broadcastDashboardUpdate } from "@/app/api/dashboard/sse/route";
+import { DashboardEventTypes } from "@/lib/events/dashboard-events";
 
 interface ReportData {
   branchId: string;
@@ -510,9 +511,9 @@ export async function PATCH(request: NextRequest) {
     });
 
     // Broadcast the update via SSE after successful update
-    broadcastDashboardUpdate({
-      type: "REPORT_UPDATED", // Or more specific like REPORT_STATUS_CHANGED
-      payload: {
+    broadcastDashboardUpdate(
+      DashboardEventTypes.REPORT_UPDATED,
+      {
         reportId: updatedReport.id,
         branchId: updatedReport.branchId,
         status: updatedReport.status,
@@ -522,7 +523,7 @@ export async function PATCH(request: NextRequest) {
         date: updatedReport.date.toISOString().split('T')[0],
         reportType: updatedReport.reportType,
       }
-    });
+    );
 
     // --- Send Notifications for Status Change ---
     if (statusChangeNotificationType) {

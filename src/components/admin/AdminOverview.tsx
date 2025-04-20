@@ -296,9 +296,11 @@ export function AdminOverview({ stats }: AdminOverviewProps) {
                 <FileText className="h-4 w-4 text-muted-foreground" />
               </div>
               <div className="text-2xl font-bold">{isLoading ? <Skeleton className="h-8 w-16" /> : stats.pendingReports}</div>
-              <p className="text-xs text-muted-foreground">
-                {isLoading ? <Skeleton className="h-4 w-24" /> : "Awaiting approval"}
-              </p>
+              {isLoading ? (
+                <span className="text-xs text-muted-foreground"><Skeleton className="h-4 w-24" /></span>
+              ) : (
+                <p className="text-xs text-muted-foreground">Awaiting approval</p>
+              )}
             </div>
           </div>
         </CardContent>

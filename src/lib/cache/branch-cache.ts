@@ -170,7 +170,7 @@ export async function invalidateUserBranchCaches(
   userId: string
 ): Promise<void> {
   if (!redis) {
-    //console.log(
+    console.log(
     `[Redis Cache] Skipping cache invalidation for user ${userId} - Redis not configured`
     );
     return;

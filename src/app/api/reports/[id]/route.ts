@@ -9,6 +9,9 @@ import { NotificationType } from "@/utils/notificationTemplates";
 // Import the broadcast function
 import { broadcastDashboardUpdate } from "@/app/api/dashboard/sse/route";
 import { z } from "zod";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
+import { DashboardEventTypes } from "@/lib/events/dashboard-events";
 
 // Validation schema for report update
 const updateReportSchema = z.object({
@@ -261,14 +264,14 @@ export async function DELETE(
     });
 
     // Broadcast the update via SSE after successful deletion
-    broadcastDashboardUpdate({
-      type: "REPORT_DELETED",
-      payload: {
+    broadcastDashboardUpdate(
+      DashboardEventTypes.REPORT_DELETED,
+      {
         reportId: reportId,
         branchId: report.branchId, // Include branchId if needed for filtering on client
         // Add any other relevant details needed by the dashboard
       }
-    });
+    );
 
     // Log the activity
     await prisma.activityLog.create({

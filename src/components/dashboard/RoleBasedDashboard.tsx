@@ -9,8 +9,11 @@ import { Skeleton } from '@/components/ui/skeleton'; // Import Skeleton
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; // Import Alert
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { formatKHRCurrency } from '@/lib/utils';
-import AdminDashboard from '@/app/(dashboard)/dashboard/admin/page';
+import AdminDashboardContent from './dashboard-content/AdminDashboardContent';
+import BranchManagerDashboardContent from './dashboard-content/BranchManagerDashboardContent';
+import UserDashboardContent from './dashboard-content/UserDashboardContent';
 // import { formatNumber } from '@/utils/formatters'; // Assuming you have a number formatter
 
 // Define a type for the dashboard card props
@@ -47,15 +50,30 @@ const DashboardCard: React.FC<DashboardCardProps> = ({ title, value, description
 // Define a type for the dashboard component props if needed
 interface RoleBasedDashboardProps {
   // Add any props if necessary
-
 }
 
 const RoleBasedDashboard: React.FC<RoleBasedDashboardProps> = () => {
+  const router = useRouter();
   const { userData } = useUserData();
   const { dashboardData, isLoading, isSseConnected, sseError, refreshDashboardData } = useDashboardData(); // Use the hook
 
   // Determine the role for display
   const displayRole = userData?.computedFields.accessLevel || 'User';
+  
+  React.useEffect(() => {
+    // If we're on the generic dashboard route, redirect to the role-specific one
+    // This works with the middleware but provides a fallback in case middleware doesn't run
+    // (such as during development or static generation)
+    if (typeof window !== 'undefined' && window.location.pathname === '/dashboard') {
+      if (displayRole === 'ADMIN') {
+        router.push('/dashboard/admin');
+      } else if (displayRole === 'BRANCH_MANAGER') {
+        router.push('/dashboard/branch-manager');
+      } else {
+        router.push('/dashboard/user');
+      }
+    }
+  }, [displayRole, router]);
 
   // Handle loading state
   const cardIsLoading = isLoading || !dashboardData;
@@ -79,135 +97,62 @@ const RoleBasedDashboard: React.FC<RoleBasedDashboardProps> = () => {
     );
   }
 
-  // switch (displayRole) {
-  //   case 'ADMIN':
-  //     return <AdminDashboard />;
-  //   case 'BRANCH_MANAGER':
-  //     return <BranchManagerDashboard />;
-  //   default:
-  //     return <UserDashboard />;
-  // }
-  // Render based on role
-  if (displayRole === 'ADMIN') {
-    function formatNumber(totalUsers: number | undefined): string {
-      if (totalUsers === undefined) return 'N/A';
-      return totalUsers.toLocaleString();
-    }
-
-    // Admin Dashboard View
+  if (!isSseConnected) {
     return (
-      <div className="container mx-auto px-4 py-8 space-y-6">
-        {!isSseConnected && (
-           <Alert >
-             <AlertCircle className="h-4 w-4" />
-             <AlertTitle>Real-time Updates Disconnected</AlertTitle>
-             <AlertDescription>
-               The connection for live dashboard updates is currently inactive. Data shown might be slightly delayed.
-             </AlertDescription>
-           </Alert>
-        )}
-        <Link href="/dashboard/consolidated" passHref>
+      <Alert>
+        <AlertCircle className="h-4 w-4" />
+        <AlertTitle>Real-time Updates Disconnected</AlertTitle>
+        <AlertDescription>
+          The connection for live dashboard updates is currently inactive. Data shown might be slightly delayed.
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
+  // Define a mapping of roles to their corresponding dashboard content components
+  const dashboardContentMap: {
+    [key: string]: React.ComponentType<any>
+  } = {
+    // 'ADMIN': AdminDashboardContent,
+    'BRANCH_MANAGER': BranchManagerDashboardContent,
+    // Default to UserDashboardContent for any other role
+  };
+
+  // Get the appropriate dashboard content component based on role
+  const DashboardContent = dashboardContentMap[displayRole] || UserDashboardContent;
+  
+  // Create props object based on role
+  const contentProps = {
+    dashboardData,
+    isLoading: cardIsLoading,
+    ...(displayRole !== 'ADMIN' && displayRole !== 'BRANCH_MANAGER' ? { userName: userData?.name } : {})
+  };
+
+  // Use component composition rather than conditional rendering
+  // This makes it easy to add shared UI elements across all dashboard types
+  return (
+    <div className="container mx-auto px-4 py-8 space-y-6">
+      {/* Common dashboard elements for all users */}
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold">{displayRole} Dashboard</h1>
+        <div className="space-x-2">
+          <Link href="/dashboard/consolidated" passHref>
             <Button variant="outline">
               <TrendingUp className="mr-2 h-4 w-4" /> Consolidated View
             </Button>
-        </Link>
-    
-        {/* <AdminDashboard /> */}
-
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          <DashboardCard
-            title="Total Users"
-            value={formatNumber(dashboardData?.totalUsers)}
-            description="Active users in the system"
-            icon={Users}
-            isLoading={cardIsLoading}
-          />
-          <DashboardCard
-            title="Total Reports"
-            value={formatNumber(dashboardData?.totalReports)}
-            description="Reports across all branches"
-            icon={FileText}
-            isLoading={cardIsLoading}
-          />
-          <DashboardCard
-            title="Pending Reports"
-            value={formatNumber(dashboardData?.pendingReports)}
-            description="Reports awaiting approval"
-            icon={Clock}
-            isLoading={cardIsLoading}
-          />
-          <DashboardCard
-            title="Total Amount"
-            // Assuming totalAmount is already formatted if needed, or format here
-            value={`${ formatKHRCurrency(dashboardData?.totalAmount ?? 0)}`}
-            description="Amount across all actual transactions" icon={TrendingUp} isLoading={false}          />
-          <DashboardCard
-            title="Admin Users"
-            value={formatNumber(dashboardData?.adminUsers)}
-            description="Users with admin access"
-            icon={ShieldCheck}
-            isLoading={cardIsLoading}
-          />
-          <DashboardCard
-            title="Growth Rate"
-            value={`${dashboardData?.growthRate ?? 'N/A'}%`}
-            description="Month-over-month growth (placeholder)"
-            icon={TrendingUp}
-            isLoading={cardIsLoading}
-          />
-        </div>
-
-        {/* Add other admin-specific components or sections here */}
-        {/* Example: Recent Activity Feed, Quick Links, etc. */}
-
-      </div>
-    );
-  } else {
-    // Standard User Dashboard View (or Branch Manager, etc.)
-    // You might fetch different data or display different cards here
-    
-    return (
-      <div className="container mx-auto px-4 py-8 space-y-6">
-        <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">{displayRole.replace('_', ' ').trim()}</h2>
-        <p className="text-muted-foreground">Overview of your assigned branch operations</p>
-
-        {/* Add user-specific dashboard components here */}
-        <p>Welcome, {userData?.name}!</p>
-        {/* Example: Display reports for user's branch, pending actions, etc. */}
-        <div>
-          <div className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">
-          <Link href="/dashboard/reports" passHref>
-            <Button variant="outline">
-              <TrendingUp className="mr-2 h-4 w-4" /> Reports View
-            </Button>
           </Link>
-          </div>
-        
-      <DashboardCard
-            title="Total Reports"
-            value={dashboardData?.totalReports}
-            description="Reports across all branches"
-            icon={FileText}
-            isLoading={cardIsLoading}
-          />
-          <DashboardCard
-            title="Growth Rate"
-            value={`${dashboardData?.growthRate ?? 'N/A'}%`}
-            description="Month-over-month growth (placeholder)"
-            icon={TrendingUp}
-            isLoading={cardIsLoading}
-          />
-          <DashboardCard
-            title="Pending Reports"
-            value={dashboardData?.pendingReports}
-            description="Reports awaiting approval"
-            icon={Clock}
-            isLoading={cardIsLoading}
-          />
-    </div>
+          <Button onClick={refreshDashboardData} variant="ghost" size="sm">
+            Refresh
+          </Button>
+        </div>
       </div>
-    );
-  }
+
+      {/* Render the appropriate dashboard content based on role */}
+      <DashboardContent 
+        {...contentProps}
+      />
+    </div>
+  );
 };
 
 export default RoleBasedDashboard;

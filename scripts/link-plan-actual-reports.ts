@@ -54,5 +54,5 @@ async function linkPlanActualReports() {
 }
 
 linkPlanActualReports()
-  .then(() => //console.log('Migration completed'))
+  .then(() => console.log('Migration completed'))
   .catch(e => console.error('Migration failed:', e)); 

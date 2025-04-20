@@ -96,10 +96,10 @@ export async function GET(request: Request) {
       endDate.setHours(23, 59, 59, 999);
     }
 
-    //console.log(`Query date range for ${viewType} view:`, {
-    startDate,
-      endDate,
-    });
+    // console.log(`Query date range for ${viewType} view:`, {
+    // startDate,
+    //   endDate,
+    // });
 
   // Format dates to ISO string for Prisma
   const startDateFormatted = `${startDate.getUTCFullYear()}-${(startDate.getUTCMonth() + 1).toString().padStart(2, "0")}-${startDate.getUTCDate().toString().padStart(2, "0")}`;

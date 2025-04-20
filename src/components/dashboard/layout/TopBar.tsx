@@ -26,6 +26,7 @@ import { CommandPalette } from "../search/CommandPalette";
 import { Greeting } from "../greeting/Greeting";
 import { useTheme } from "next-themes";
 import { NotificationBell } from '@/components/notifications/NotificationBell';
+import { BranchSwitcher } from "../navigation/BranchSwitcher";
 
 export function TopBar() {
   const router = useRouter();
@@ -38,7 +39,7 @@ export function TopBar() {
   const handleLogout = async () => {
     try {
       setIsLoading(true);
-      await signOut({ 
+      await signOut({
         redirect: true,
         callbackUrl: '/login'
       });
@@ -72,7 +73,7 @@ export function TopBar() {
   };
 
   return (
-    <div className="h-16 px-4 border-b bg-white dark:bg-gray-800 flex items-center justify-between">
+    <div className="h-19 px-4 border-b bg-white dark:bg-gray-800 flex items-center justify-between">
       <div className="flex-1 flex items-center gap-2 md:gap-6">
         <CommandPalette />
         <Greeting />
@@ -80,9 +81,9 @@ export function TopBar() {
 
       <div className="flex items-center space-x-4">
         {/* Theme Toggle Button */}
-        <Button 
-          variant="ghost" 
-          size="icon" 
+        <Button
+          variant="ghost"
+          size="icon"
           onClick={toggleTheme}
           title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
         >
@@ -135,7 +136,7 @@ export function TopBar() {
                       </p>
                       <div className="flex items-center gap-2">
                         <p className="text-xs text-gray-500 dark:text-gray-400">
-                          {profileData.accessLevel}
+                          {profileData.accessLevel === "BRANCH_MANAGER" ? "BM" : profileData.accessLevel}
                         </p>
                         {profileData.primaryBranch && (
                           <Badge variant="outline" className="text-xs">
@@ -150,6 +151,11 @@ export function TopBar() {
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>My Account</DropdownMenuLabel>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem>
+                  <div className="flex items-center space-x-2 w-full">
+                    <BranchSwitcher />
+                  </div>
+                </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => router.push("/dashboard/profile")}
                 >
@@ -177,6 +183,6 @@ export function TopBar() {
           </>
         )}
       </div>
-    </div>
+    </div >
   );
 }

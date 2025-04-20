@@ -19,14 +19,14 @@ export async function POST(req: NextRequest) {
     const data = await req.json();
     const { title, body, type } = data;
 
-    //console.log("Creating test notification with data:", {
-    userId: session.user.id,
-      title,
-      body,
-      type: type || "SYSTEM_NOTIFICATION",
-        data: data.data || {},
-          actionUrl: data.actionUrl || null
-  });
+  //   console.log("Creating test notification with data:", {
+  //   userId: session.user.id,
+  //     title,
+  //     body,
+  //     type: type || "SYSTEM_NOTIFICATION",
+  //       data: data.data || {},
+  //         actionUrl: data.actionUrl || null
+  // });
 
   // Simple validation
   if (!title || !body) {

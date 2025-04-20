@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import { EventEmitter } from 'events';
+import sseEmitter from '@/lib/sseEmitter';
 import { DashboardEventType, DashboardUpdatePayload, createDashboardUpdate } from '@/lib/events/dashboard-events';
 
 /**
@@ -17,10 +17,6 @@ import { DashboardEventType, DashboardUpdatePayload, createDashboardUpdate } fro
  * - Keepalive mechanism to prevent connection timeouts
  * - Proper event formatting with named events
  */
-
-// Simple in-memory event emitter for broadcasting updates
-// In production, consider using Redis Pub/Sub or similar for scalability
-const emitter = new EventEmitter();
 
 // Keep track of connected clients
 const clients = new Map<string, Response>();
@@ -64,7 +60,7 @@ export async function GET(request: NextRequest) {
           // Clean up if the client disconnected during send
           controller.close();
           clients.delete(userId);
-          emitter.off('update', sendUpdate);
+          sseEmitter.off('dashboardUpdate', sendUpdate);
         }
       };
 
@@ -79,7 +75,7 @@ export async function GET(request: NextRequest) {
       sendEvent('connected', { message: 'SSE connection established' });
 
       // Register listener for this client
-      emitter.on('update', sendUpdate);
+      sseEmitter.on('dashboardUpdate', sendUpdate);
 
       // Store the response object to potentially close it later if needed
       // Note: Closing the controller is the primary way to end the stream
@@ -94,7 +90,7 @@ export async function GET(request: NextRequest) {
           clearInterval(keepAliveInterval);
           controller.close();
           clients.delete(userId);
-          emitter.off('update', sendUpdate);
+          sseEmitter.off('dashboardUpdate', sendUpdate);
         }
       }, 30000); // Send a comment every 30 seconds
 
@@ -102,7 +98,7 @@ export async function GET(request: NextRequest) {
       request.signal.addEventListener('abort', () => {
         //console.log(`[SSE Debug] Connection closed for user: ${userId} at ${new Date().toISOString()}`);
         clearInterval(keepAliveInterval);
-        emitter.off('update', sendUpdate);
+        sseEmitter.off('dashboardUpdate', sendUpdate);
         clients.delete(userId);
         // Controller might already be closed by errors, handle gracefully
         try {
@@ -112,7 +108,7 @@ export async function GET(request: NextRequest) {
     },
     cancel(reason) {
       //console.log(`[SSE Debug] Stream cancelled for user ${userId}:`, reason);
-      emitter.off('update', (updateData: any) => {
+      sseEmitter.off('dashboardUpdate', (updateData: any) => {
         // Ensure the correct listener is removed if multiple exist (unlikely here)
         // This is a simplified removal, adjust if needed
       });
@@ -131,10 +127,20 @@ export async function GET(request: NextRequest) {
   // }
 }
 
-export function broadcastDashboardUpdate(type: DashboardEventType, data: unknown) {
-  const payload = createDashboardUpdate(type, data);
-  //console.log('[SSE Debug] Broadcasting dashboard update:', payload);
-  emitter.emit('dashboardUpdate', payload);
+/**
+ * Broadcasts a dashboard update event to all connected clients.
+ * @param type - The type of dashboard event (from DashboardEventTypes)
+ * @param data - The data associated with the event (should be relevant to the event type)
+ * @returns void
+ */
+export function broadcastDashboardUpdate(type: DashboardEventType, data: unknown): void {
+  try {
+    const payload = createDashboardUpdate(type, data);
+    console.debug(`[SSE] Broadcasting ${type} with payload:`, payload);
+    sseEmitter.emit('dashboardUpdate', payload);
+  } catch (error) {
+    console.error(`[SSE] Error broadcasting dashboard update of type ${type}:`, error);
+  }
 }
 
 // Example of how to trigger an update (e.g., from another API route or service)
