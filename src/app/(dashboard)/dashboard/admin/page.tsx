@@ -14,6 +14,9 @@ import { useEffect, useState } from "react";
 import { fetchAdminStats } from "@/lib/api";
 import { useDashboardSSE } from "@/hooks/useDashboardSSE";
 import { toast } from "@/components/ui/use-toast";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { TrendingUp } from "lucide-react";
 
 // Metadata can't be exported from a Client Component
 // We'll need to move this to a separate layout.tsx file if needed
@@ -79,7 +82,11 @@ export default function AdminDashboard() {
             </p>
           </div>
         </div>
-
+        <Link href="/dashboard/consolidated" passHref>
+            <Button variant="outline">
+              <TrendingUp className="mr-2 h-4 w-4" /> Consolidated View
+            </Button>
+          </Link>
         <PermissionGate
           permissions={[Permission.ACCESS_ADMIN]}
           fallback={

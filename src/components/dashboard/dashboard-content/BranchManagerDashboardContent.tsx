@@ -33,22 +33,43 @@ const DashboardCard: React.FC<DashboardCardProps> = ({ title, value, description
 );
 
 interface BranchManagerDashboardContentProps {
-  dashboardData: any;
+  dashboardData: {
+    branchName?: string;
+    branchStaff?: number;
+    branchRank?: number;
+    totalReports?: number;
+    pendingReports?: number;
+    totalAmount?: number;
+    growthRate?: number;
+    recentReports?: Array<{
+      id: string;
+      title: string;
+      createdAt: string;
+      status: string;
+    }>;
+  };
   isLoading: boolean;
 }
 
-const BranchManagerDashboardContent: React.FC<BranchManagerDashboardContentProps> = ({ 
-  dashboardData, 
-  isLoading 
+const BranchManagerDashboardContent: React.FC<BranchManagerDashboardContentProps> = ({
+  dashboardData,
+  isLoading
 }) => {
   const formatNumber = (value: number | undefined): string => {
-    if (value === undefined) return 'N/A';
-    return value.toLocaleString();
+    if (value === undefined || isNaN(value)) return 'N/A';
+    return value.toLocaleString(undefined, { maximumFractionDigits: 2 });
   };
 
   // For branch managers, we'd typically focus on their branch's data
   const branchName = dashboardData?.branchName || "Your Branch";
-  
+  const branchStaff = dashboardData?.branchStaff;
+  const branchReports = dashboardData?.totalReports;
+  const pendingApproval = dashboardData?.pendingReports;
+  const branchRevenue = dashboardData?.totalAmount;
+  const branchRank = dashboardData?.branchRank;
+  const branchGrowth = dashboardData?.growthRate;
+  const recentReports = dashboardData?.recentReports;
+
   return (
     <>
       <div className="mb-6">
@@ -59,42 +80,42 @@ const BranchManagerDashboardContent: React.FC<BranchManagerDashboardContentProps
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <DashboardCard
           title="Branch Staff"
-          value={formatNumber(dashboardData?.branchStaff)}
+          value={formatNumber(branchStaff)}
           description="Active staff in your branch"
           icon={Users}
           isLoading={isLoading}
         />
         <DashboardCard
           title="Branch Reports"
-          value={formatNumber(dashboardData?.branchReports)}
+          value={formatNumber(branchReports)}
           description="Total reports from your branch"
           icon={FileText}
           isLoading={isLoading}
         />
         <DashboardCard
           title="Pending Approval"
-          value={formatNumber(dashboardData?.pendingApproval)}
+          value={formatNumber(pendingApproval)}
           description="Reports waiting for your approval"
           icon={Clock}
           isLoading={isLoading}
         />
         <DashboardCard
           title="Monthly Revenue"
-          value={formatKHRCurrency(dashboardData?.branchRevenue ?? 0)}
-          description="Revenue this month" 
-          icon={TrendingUp} 
+          value={formatKHRCurrency(branchRevenue ?? 0)}
+          description="Revenue this month"
+          icon={TrendingUp}
           isLoading={isLoading}
         />
         <DashboardCard
           title="Branch Rank"
-          value={dashboardData?.branchRank || 'N/A'}
+          value={branchRank || 'N/A'}
           description="Performance ranking among branches"
           icon={Building}
           isLoading={isLoading}
         />
         <DashboardCard
           title="Growth Rate"
-          value={`${dashboardData?.branchGrowth ?? 'N/A'}%`}
+          value={branchGrowth !== undefined ? `${branchGrowth.toFixed(2)}%` : 'N/A'}
           description="Month-over-month growth"
           icon={TrendingUp}
           isLoading={isLoading}
@@ -116,7 +137,7 @@ const BranchManagerDashboardContent: React.FC<BranchManagerDashboardContentProps
           </Link>
         </div>
       </div>
-      
+
       {/* Recent Reports Section */}
       <div className="mt-8">
         <div className="flex justify-between items-center mb-4">
@@ -125,7 +146,7 @@ const BranchManagerDashboardContent: React.FC<BranchManagerDashboardContentProps
             <Button variant="ghost" size="sm">View All</Button>
           </Link>
         </div>
-        
+
         <div className="bg-card rounded-lg shadow p-4">
           {isLoading ? (
             <div className="space-y-2">
@@ -133,6 +154,15 @@ const BranchManagerDashboardContent: React.FC<BranchManagerDashboardContentProps
                 <div key={i} className="h-6 bg-gray-200 animate-pulse rounded w-full" />
               ))}
             </div>
+          ) : recentReports && recentReports.length > 0 ? (
+            <ul className="divide-y divide-gray-200 dark:divide-gray-700">
+              {recentReports.map((report) => (
+                <li key={report.id} className="py-2 flex justify-between items-center">
+                  <span className="font-medium">{report.title}</span>
+                  <span className="text-xs text-muted-foreground">{new Date(report.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })} - {report.status}</span>
+                </li>
+              ))}
+            </ul>
           ) : (
             <p className="text-muted-foreground">Recent reports will appear here</p>
           )}

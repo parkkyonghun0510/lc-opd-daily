@@ -136,11 +136,12 @@ const RoleBasedDashboard: React.FC<RoleBasedDashboardProps> = () => {
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">{displayRole} Dashboard</h1>
         <div className="space-x-2">
-          <Link href="/dashboard/consolidated" passHref>
+          
+          {/* <Link href="/dashboard/consolidated" passHref>
             <Button variant="outline">
               <TrendingUp className="mr-2 h-4 w-4" /> Consolidated View
             </Button>
-          </Link>
+          </Link> */}
           <Button onClick={refreshDashboardData} variant="ghost" size="sm">
             Refresh
           </Button>

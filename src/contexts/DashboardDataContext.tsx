@@ -2,12 +2,19 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from "react";
 import { useDashboardSSE } from "@/hooks/useDashboardSSE";
-import { fetchDashboardSummary, DashboardSummaryData } from "@/app/_actions/dashboard-actions";
+import { fetchDashboardSummary, DashboardSummaryData, fetchUserDashboardData } from "@/app/_actions/dashboard-actions";
 import { DashboardEventTypes, DashboardEventType, DashboardUpdatePayload } from "@/lib/events/dashboard-events";
 
 // Define the shape of the data you expect to manage in this context
 // Use the interface from the server action
-type DashboardContextDataType = DashboardSummaryData | null;
+type UserDashboardData = {
+  userReports: number;
+  pendingReports: number;
+  growthRate: number;
+  recentActivities: { description: string; details: any; timestamp: string }[];
+};
+
+type DashboardContextDataType = DashboardSummaryData | UserDashboardData | null;
 
 type DashboardDataContextType = {
   dashboardData: DashboardContextDataType;
@@ -30,11 +37,33 @@ export const DashboardDataProvider = ({ children }: { children: ReactNode }) => 
     setIsLoading(true);
     setFetchError(null);
     try {
-      const result = await fetchDashboardSummary();
-      if (result.status === 200 && result.data) {
-        setDashboardData(result.data);
+      // Determine user role from sessionStorage (client)
+      let role: string | undefined = undefined;
+      if (typeof window !== 'undefined') {
+        const session = window.sessionStorage.getItem('nextauth.user');
+        if (session) {
+          try {
+            const user = JSON.parse(session);
+            role = user?.role;
+          } catch {}
+        }
+      }
+      // If role is not ADMIN or BRANCH_MANAGER, fetch user dashboard data
+      if (role !== 'ADMIN' && role !== 'BRANCH_MANAGER') {
+        const result = await fetchUserDashboardData();
+        if (result.status === 200 && result.data) {
+          setDashboardData(result.data);
+        } else {
+          throw new Error(result.error || "Failed to fetch user dashboard data");
+        }
       } else {
-        throw new Error(result.error || "Failed to fetch dashboard summary");
+        // Otherwise, fetch the regular dashboard summary
+        const result = await fetchDashboardSummary();
+        if (result.status === 200 && result.data) {
+          setDashboardData(result.data);
+        } else {
+          throw new Error(result.error || "Failed to fetch dashboard summary");
+        }
       }
     } catch (err: any) {
       console.error("[DashboardDataContext] Error fetching dashboard data:", err);

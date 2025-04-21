@@ -243,7 +243,7 @@ export function Sidebar() {
   );
 
   const CompanyLogo = () => (
-    <div className="flex items-center justify-items-center px-3 py-4 border-b border-gray-200 dark:border-gray-700">
+    <div className="flex items-center justify-items-center px-3 py-3 border-b border-gray-200 dark:border-gray-700">
       <Link href="/dashboard" className="flex items-center flex-1">
         <div
           className={cn(
@@ -465,7 +465,7 @@ export function Sidebar() {
           "border-t border-gray-200 dark:border-gray-700 space-y-2",
           isCompactMode ? "p-2" : "p-4"
         )}>
-          <p>Authorize by LC Cash Express</p>
+          {!collapsed && <p className="text-sm">Authorize by LC Cash Express</p>}
           {/* <RecentlyVisited /> */}
           {/* <ThemeToggle /> */}
         </div>

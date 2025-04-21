@@ -64,13 +64,13 @@ const UserDashboardContent: React.FC<UserDashboardContentProps> = ({
           icon={Clock}
           isLoading={isLoading}
         />
-        <DashboardCard
+        {/* <DashboardCard
           title="Growth Rate"
           value={`${dashboardData?.growthRate ?? 'N/A'}%`}
           description="Month-over-month growth"
           icon={TrendingUp}
           isLoading={isLoading}
-        />
+        /> */}
       </div>
 
       {/* Quick Actions Section */}
@@ -88,11 +88,11 @@ const UserDashboardContent: React.FC<UserDashboardContentProps> = ({
         </div>
       </div>
       
-      {/* Recent Activities */}
+      {/* Recent Reports */}
       <div className="mt-8">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold">Recent Activities</h2>
-          <Link href="/dashboard/activities" passHref>
+          <h2 className="text-xl font-semibold">Recent Reports</h2>
+          <Link href="/dashboard/reports" passHref>
             <Button variant="ghost" size="sm">View All</Button>
           </Link>
         </div>
@@ -105,23 +105,46 @@ const UserDashboardContent: React.FC<UserDashboardContentProps> = ({
               ))}
             </div>
           ) : (
-            dashboardData?.recentActivities?.length > 0 ? (
-              <ul className="space-y-2">
-                {dashboardData.recentActivities.map((activity: any, index: number) => (
-                  <li key={index} className="text-sm">
-                    {activity.description} - {activity.timestamp}
-                  </li>
-                ))}
-              </ul>
+            dashboardData?.recentReports?.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr className="text-muted-foreground text-xs">
+                      <th className="px-2 py-1 text-left">Date</th>
+                      <th className="px-2 py-1 text-left">Branch</th>
+                      <th className="px-2 py-1 text-left">Status</th>
+                      <th className="px-2 py-1 text-left">Type</th>
+                      {/* <th className="px-2 py-1 text-left">Action</th> */}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {dashboardData.recentReports.map((report: any, index: number) => (
+                      <tr key={report.id || index} className="border-b last:border-0">
+                        <td className="px-2 py-1">{report.date ? new Date(report.date).toLocaleDateString() : '-'}</td>
+                        <td className="px-2 py-1">{report.branch}</td>
+                        <td className="px-2 py-1 capitalize">{report.status}</td>
+                        <td className="px-2 py-1 capitalize">{report.reportType}</td>
+                        {/* <td className="px-2 py-1">
+                          {report.id ? (
+                            <Link href={`/dashboard/reports/${report.id}`} passHref>
+                              <Button variant="link" size="sm">View</Button>
+                            </Link>
+                          ) : null}
+                        </td> */}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             ) : (
-              <p className="text-muted-foreground">No recent activities to display</p>
+              <p className="text-muted-foreground">No recent reports to display</p>
             )
           )}
         </div>
       </div>
       
       {/* Upcoming Tasks */}
-      <div className="mt-8">
+      {/* <div className="mt-8">
         <h2 className="text-xl font-semibold mb-4">Upcoming Tasks</h2>
         <div className="bg-card rounded-lg shadow p-4">
           {isLoading ? (
@@ -134,7 +157,7 @@ const UserDashboardContent: React.FC<UserDashboardContentProps> = ({
             <p className="text-muted-foreground">No upcoming tasks scheduled</p>
           )}
         </div>
-      </div>
+      </div> */}
     </>
   );
 };
