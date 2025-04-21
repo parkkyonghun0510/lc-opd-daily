@@ -243,25 +243,30 @@ export function Sidebar() {
   );
 
   const CompanyLogo = () => (
-    <div className="flex items-center justify-between px-3 py-4 border-b border-gray-200 dark:border-gray-700">
+    <div className="flex items-center justify-items-center px-3 py-4 border-b border-gray-200 dark:border-gray-700">
       <Link href="/dashboard" className="flex items-center flex-1">
-        <div className={cn(
-          "relative flex-shrink-0 transition-all duration-200",
-          collapsed && !isMobile ? "w-8 h-8" : isCompactMode ? "w-8 h-8" : "w-10 h-10"
-        )}>
+        <div
+          className={cn(
+            "relative flex-shrink-0 transition-[width,opacity] duration-200",
+            collapsed && !isMobile ? "w-8 h-8" : isCompactMode ? "w-8 h-8" : "w-10 h-10"
+          )}
+        >
           <Image
             src="/icons/icon-192x192.png"
             alt="LC Logo"
-            fill
-            className="object-contain"
+            width={24}
+            height={24}
+            className="object-contain w-full h-full"
             priority
           />
         </div>
-        <div className={cn(
-          "flex flex-col ml-3 overflow-hidden transition-all duration-200 ease-spring",
-          collapsed && !isMobile ? "w-0 opacity-0" : "w-auto opacity-100"
-        )}>
-          <span className="text-ms font-semibold text-gray-900 dark:text-white whitespace-nowrap">
+        <div
+          className={cn(
+            "flex flex-col pl-0.5 transition-[width,opacity] duration-200 ease-out",
+            collapsed && !isMobile ? "w-0 opacity-0" : "w-auto opacity-100"
+          )}
+        >
+          <span className="text-sm font-semibold text-gray-900 dark:text-white whitespace-nowrap">
             LC Cash Express
           </span>
           <span className="text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap">
@@ -270,38 +275,19 @@ export function Sidebar() {
         </div>
       </Link>
       {!isMobile && (
-        <div className="flex items-center gap-2">
-          {!collapsed && (
-            <button
-              onClick={() => setCollapsed(true)}
-              className={cn(
-                "p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200",
-                "text-gray-500 dark:text-gray-400",
-                "focus:outline-none focus:ring-2 focus:ring-blue-500"
-              )}
-              title="Show icons only"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                className="w-4 h-4"
-              >
-                <path d="M18 6H6M18 12H6M18 18H6" strokeLinecap="round" />
-              </svg>
-            </button>
-          )}
+        <div className="flex items-center justify-end">
           <button
             onClick={() => setCollapsed(!collapsed)}
             className={cn(
-              "p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200",
+              "p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200",
               "text-gray-500 dark:text-gray-400",
               "focus:outline-none focus:ring-2 focus:ring-blue-500"
             )}
             title={collapsed ? "Show full sidebar" : "Collapse sidebar"}
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-expanded={!collapsed}
           >
-            {collapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
+            {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
           </button>
         </div>
       )}
@@ -331,7 +317,7 @@ export function Sidebar() {
     return (
       <div className={cn("flex flex-col h-full", isCompactMode ? "text-sm" : "text-base")}>
         <CompanyLogo />
-        <nav className="flex-1 overflow-y-auto">
+        <nav className="flex-1 gap-2">
           <RoleBasedNavigation>
             {({ hasPermission, hasRole }) => (
               <ul className={cn(
@@ -362,17 +348,22 @@ export function Sidebar() {
                         className={cn(
                           "group relative flex items-center gap-2 rounded-md text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800",
                           isCompactMode ? "px-2 py-1.5" : "px-3 py-2",
-                          (isActive || hasActiveChild) && "bg-gray-100 dark:bg-gray-800"
+                          (isActive || hasActiveChild) && "bg-gray-100 dark:bg-gray-800",
+                          collapsed && "justify-center px-0 py-2"
                         )}
+                        style={collapsed ? { justifyContent: 'center', paddingLeft: 0, paddingRight: 0 } : {}}
                       >
-                        <div className="relative">
-                          <item.icon className={cn(isCompactMode ? "h-4 w-4" : "h-5 w-5")} />
+                        <div className={cn(
+                          "relative flex items-center",
+                          collapsed ? "justify-center w-full" : ""
+                        )}>
+                          <item.icon className={cn(isCompactMode ? "h-4 w-4" : "h-5 w-5", collapsed && "mx-auto")}/>
                           {collapsed && (
                             <div className={cn(
                               "absolute left-full ml-2 px-2 py-1.5 rounded-md bg-gray-900/90 dark:bg-gray-800/90 text-white text-xs whitespace-nowrap",
                               "opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto",
                               "transition-all duration-200 z-50 translate-x-2",
-                              "backdrop-blur-sm shadow-lg",
+                              "backdrop-blur-sm",
                               "border border-gray-700/50"
                             )}>
                               {item.name}
@@ -417,11 +408,16 @@ export function Sidebar() {
                                   className={cn(
                                     "group relative flex items-center gap-2 rounded-md text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800",
                                     isCompactMode ? "px-2 py-1.5" : "px-3 py-2",
-                                    isChildActive && "bg-gray-100 dark:bg-gray-800"
+                                    isChildActive && "bg-gray-100 dark:bg-gray-800",
+                                    collapsed && "justify-center px-0 py-2"
                                   )}
+                                  style={collapsed ? { justifyContent: 'center', paddingLeft: 0, paddingRight: 0 } : {}}
                                 >
-                                  <div className="relative">
-                                    <CircleDot className={cn(isCompactMode ? "h-3 w-3" : "h-4 w-4")} />
+                                  <div className={cn(
+                                    "relative flex items-center",
+                                    collapsed ? "justify-center w-full" : ""
+                                  )}>
+                                    <CircleDot className={cn(isCompactMode ? "h-3 w-3" : "h-4 w-4", collapsed && "mx-auto")}/>
                                     {collapsed && (
                                       <div className={cn(
                                         "absolute left-full ml-2 px-2 py-1 rounded bg-gray-900 dark:bg-gray-800 text-white text-xs whitespace-nowrap",
@@ -434,9 +430,7 @@ export function Sidebar() {
                                     )}
                                   </div>
                                   {!collapsed && (
-                                    <span className={cn("font-medium", isCompactMode ? "text-sm" : "text-base")}>
-                                      {child.name}
-                                    </span>
+                                    <span className={cn("font-medium", isCompactMode ? "text-sm" : "text-base")}>{child.name}</span>
                                   )}
                                 </Link>
                               </li>
@@ -471,8 +465,9 @@ export function Sidebar() {
           "border-t border-gray-200 dark:border-gray-700 space-y-2",
           isCompactMode ? "p-2" : "p-4"
         )}>
+          <p>Authorize by LC Cash Express</p>
           {/* <RecentlyVisited /> */}
-          <ThemeToggle />
+          {/* <ThemeToggle /> */}
         </div>
       </div>
     );

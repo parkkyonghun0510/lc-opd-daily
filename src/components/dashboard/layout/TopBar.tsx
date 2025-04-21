@@ -73,7 +73,7 @@ export function TopBar() {
   };
 
   return (
-    <div className="h-19 px-4 border-b bg-white dark:bg-gray-800 flex items-center justify-between">
+    <div className="h-17 px-4 border-b bg-white dark:bg-gray-800 flex items-center justify-between">
       <div className="flex-1 flex items-center gap-2 md:gap-6">
         <CommandPalette />
         <Greeting />
