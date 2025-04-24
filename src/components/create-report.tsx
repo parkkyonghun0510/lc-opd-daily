@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   Card,
@@ -29,6 +29,8 @@ import { cn } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/use-toast";
 import { KHCurrencyInput } from "@/components/ui/currency-input";
+import { useSSE } from "@/hooks/useSSE";
+import { DashboardEventTypes } from "@/lib/events/dashboard-events";
 
 type Branch = {
   id: string;
@@ -46,6 +48,29 @@ export default function CreateReport() {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const lastSubmittedReportId = useRef<string | null>(null);
+
+  // Set up SSE connection for real-time updates
+  const { lastEvent } = useSSE({
+    endpoint: '/api/dashboard/sse',
+    eventHandlers: {
+      dashboardUpdate: (data) => {
+        // Handle report status update events (approval/rejection)
+        if (data.type === DashboardEventTypes.REPORT_STATUS_UPDATED &&
+          data.reportId === lastSubmittedReportId.current) {
+          console.log('Report status updated:', data);
+
+          // Show a toast notification about the status change
+          const statusText = data.status === 'approved' ? 'approved' : 'rejected';
+          toast({
+            title: `Report ${statusText.charAt(0).toUpperCase() + statusText.slice(1)}`,
+            description: `Your report has been ${statusText}${data.comments ? `: ${data.comments}` : '.'}`,
+            duration: 8000,
+          });
+        }
+      }
+    }
+  });
 
   // Fetch branches on component mount
   useEffect(() => {
@@ -116,6 +141,13 @@ export default function CreateReport() {
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || "Failed to submit report");
+      }
+
+      const responseData = await response.json();
+
+      // Store the report ID for SSE tracking
+      if (responseData.data && responseData.data.id) {
+        lastSubmittedReportId.current = responseData.data.id;
       }
 
       toast({

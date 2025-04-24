@@ -403,6 +403,29 @@ export async function POST(request: NextRequest) {
       } : null,
     };
 
+    // Broadcast the report submission via SSE for real-time updates
+    if (reportStatus === "pending_approval") {
+      try {
+        broadcastDashboardUpdate(
+          DashboardEventTypes.REPORT_SUBMITTED,
+          {
+            reportId: report.id,
+            branchId: report.branchId,
+            branchName: branch?.name || "Unknown Branch",
+            status: reportStatus,
+            writeOffs: Number(report.writeOffs),
+            ninetyPlus: Number(report.ninetyPlus),
+            date: reportDate.toISOString().split('T')[0],
+            reportType: report.reportType,
+            submittedBy: token.sub,
+            submitterName: submitter?.name || "Unknown User",
+          }
+        );
+      } catch (sseError) {
+        console.error("Error broadcasting SSE event (non-critical):", sseError);
+      }
+    }
+
     return NextResponse.json({
       message: "Report created successfully",
       data: serializedReport,

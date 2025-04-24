@@ -7,7 +7,8 @@ export enum NotificationType {
   SYSTEM_NOTIFICATION = 'SYSTEM_NOTIFICATION',
   REPORT_NEEDS_REVISION = 'REPORT_NEEDS_REVISION',
   APPROVAL_PENDING = 'APPROVAL_PENDING',
-  COMMENT_ADDED = 'COMMENT_ADDED'
+  COMMENT_ADDED = 'COMMENT_ADDED',
+  COMMENT_REPLY = 'COMMENT_REPLY'
 }
 
 interface NotificationContent {
@@ -103,7 +104,19 @@ export function generateNotificationContent(
       if (!data.url) defaultContent.url = `/reports/${data.reportId || ''}`;
       defaultContent.icon = '/icons/comment.png';
       break;
+
+    case NotificationType.COMMENT_REPLY:
+      if (!data.title) defaultContent.title = 'New Reply to Your Comment';
+      if (!data.body) {
+        const reportInfo = data.branchName && data.reportDate
+          ? ` on the ${data.branchName} report (${data.reportDate})`
+          : '';
+        defaultContent.body = `${data.commenterName || 'Someone'} replied to your comment${reportInfo}: "${data.commentText || '...'}"`;
+      }
+      if (!data.url) defaultContent.url = `/reports/${data.reportId || ''}`;
+      defaultContent.icon = '/icons/comment.png';
+      break;
   }
 
   return defaultContent;
-} 
+}

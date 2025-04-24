@@ -8,6 +8,10 @@ import { sendToNotificationQueue } from "@/lib/queue/sqs";
 import { getUsersForNotification } from "@/utils/notificationTargeting";
 import { hasBranchAccess } from "@/lib/auth/branch-access";
 import { createDirectNotifications } from "@/utils/createDirectNotification";
+import { broadcastDashboardUpdate } from "@/app/api/dashboard/sse/route";
+import { DashboardEventTypes } from "@/lib/events/dashboard-events";
+import { CommentItem } from "@/types/reports";
+import { v4 as uuidv4 } from "uuid";
 
 // POST /api/reports/[id]/approve - Approve or reject a report
 export async function POST(
@@ -95,16 +99,6 @@ export async function POST(
       );
     }
 
-    // Update the report status
-    const updatedReport = await prisma.report.update({
-      where: { id: reportId },
-      data: {
-        status,
-        // Store approval/rejection comments if provided
-        comments: comments || report.comments,
-      },
-    });
-
     // Get approver's name for notifications
     const approver = await prisma.user.findUnique({
       where: { id: token.sub as string },
@@ -112,6 +106,55 @@ export async function POST(
     });
 
     const approverName = approver?.name || 'A manager';
+
+    // Create a new comment object for the structured format
+    const timestamp = new Date().toISOString();
+    const formattedTimestamp = new Date().toLocaleString();
+
+    const newComment: CommentItem = {
+      id: uuidv4(),
+      type: status === "approved" ? "comment" : "rejection",
+      text: comments || (status === "approved" ? "Report approved" : "Report rejected"),
+      timestamp: formattedTimestamp,
+      userId: token.sub as string,
+      userName: approverName
+    };
+
+    // Get existing comment array or create a new one
+    let commentArray = report.commentArray as CommentItem[] || [];
+
+    // If commentArray is a string (JSON stringified), parse it
+    if (typeof commentArray === 'string') {
+      try {
+        commentArray = JSON.parse(commentArray);
+      } catch (e) {
+        commentArray = [];
+      }
+    }
+
+    // Add the new comment to the array
+    commentArray.push(newComment);
+
+    // Format the comment for legacy support
+    const commentWithMeta = status === "approved"
+      ? `[COMMENT ${formattedTimestamp} by ${approverName}]: ${comments || "Report approved"}`
+      : `[REJECTION ${formattedTimestamp}]: ${comments || "Report rejected"}`;
+
+    // Add the comment to existing comments or create new comments (legacy format)
+    const updatedComments = report.comments
+      ? `${report.comments}\n\n${commentWithMeta}`
+      : commentWithMeta;
+
+    // Update the report status
+    const updatedReport = await prisma.report.update({
+      where: { id: reportId },
+      data: {
+        status,
+        // Store approval/rejection comments if provided
+        comments: updatedComments,
+        commentArray: commentArray,
+      },
+    });
 
     // Create an audit log entry for the approval/rejection
     try {
@@ -228,6 +271,34 @@ export async function POST(
       } catch (notificationError) {
         console.error("Error sending notifications (non-critical):", notificationError);
       }
+    }
+
+    // Broadcast the status change via SSE for real-time updates
+    try {
+      const eventType = status === "approved"
+        ? DashboardEventTypes.REPORT_STATUS_UPDATED
+        : DashboardEventTypes.REPORT_STATUS_UPDATED;
+
+      broadcastDashboardUpdate(
+        eventType,
+        {
+          reportId: report.id,
+          branchId: report.branchId,
+          branchName: report.branch.name,
+          status: status,
+          previousStatus: report.status,
+          writeOffs: Number(report.writeOffs),
+          ninetyPlus: Number(report.ninetyPlus),
+          date: new Date(report.date).toISOString().split('T')[0],
+          reportType: report.reportType,
+          approvedBy: token.sub,
+          approverName: approverName,
+          comments: comments || "",
+          timestamp: new Date().toISOString()
+        }
+      );
+    } catch (sseError) {
+      console.error("Error broadcasting SSE event (non-critical):", sseError);
     }
 
     return NextResponse.json({

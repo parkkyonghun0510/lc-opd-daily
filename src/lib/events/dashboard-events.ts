@@ -1,6 +1,6 @@
 /**
  * Dashboard Event Types
- * 
+ *
  * This file defines all possible event types that can trigger dashboard updates.
  * Events are grouped by domain for better organization and maintenance.
  */
@@ -10,6 +10,7 @@ export const DashboardEventTypes = {
     REPORT_CREATED: 'REPORT_CREATED',           // When a new report is created
     REPORT_UPDATED: 'REPORT_UPDATED',           // General report updates (status, edits)
     REPORT_DELETED: 'REPORT_DELETED',           // When a report is deleted
+    REPORT_SUBMITTED: 'REPORT_SUBMITTED',       // When a report is submitted for approval
 
     // Report Attribute Events
     REPORT_STATUS_UPDATED: 'REPORT_STATUS_UPDATED',       // Status changes

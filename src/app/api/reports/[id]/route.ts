@@ -18,6 +18,7 @@ const updateReportSchema = z.object({
   writeOffs: z.number().min(0),
   ninetyPlus: z.number().min(0),
   comments: z.string().optional(),
+  commentArray: z.array(z.any()).optional(),
 });
 
 // GET /api/reports/[id] - Get a specific report by ID
@@ -89,7 +90,7 @@ export async function GET(
           responseData.writeOffsPlan = typeof planReport.writeOffs === 'number' ? planReport.writeOffs : 0;
           responseData.ninetyPlusPlan = typeof planReport.ninetyPlus === 'number' ? planReport.ninetyPlus : 0;
           responseData.planReportId = planReport.id;
-          
+
           // Update the actual report to link it to the plan report
           await prisma.report.update({
             where: { id: report.id },
@@ -108,9 +109,8 @@ export async function GET(
       data: {
         action: "VIEW_REPORT",
         userId: token.id as string, // Cast to string since we know it exists
-        details: `Viewed report for branch: ${report.branch.code} on ${
-          new Date(report.date).toLocaleDateString()
-        }`,
+        details: `Viewed report for branch: ${report.branch.code} on ${new Date(report.date).toLocaleDateString()
+          }`,
       },
     });
 
@@ -169,7 +169,7 @@ export async function PUT(
       );
     }
 
-    const { writeOffs, ninetyPlus, comments } = validationResult.data;
+    const { writeOffs, ninetyPlus, comments, commentArray } = validationResult.data;
 
     // Update the report
     const updatedReport = await prisma.report.update({
@@ -178,6 +178,7 @@ export async function PUT(
         writeOffs,
         ninetyPlus,
         comments,
+        commentArray,
         updatedAt: new Date(),
       },
     });
@@ -187,9 +188,8 @@ export async function PUT(
       data: {
         action: "UPDATE_REPORT",
         userId: token.id as string, // Cast to string since we know it exists
-        details: `Updated report for branch: ${existingReport.branch.code} on ${
-          new Date(existingReport.date).toLocaleDateString()
-        }`,
+        details: `Updated report for branch: ${existingReport.branch.code} on ${new Date(existingReport.date).toLocaleDateString()
+          }`,
       },
     });
 
@@ -289,7 +289,7 @@ export async function DELETE(
     console.error(`Error deleting report ${params.id}:`, error);
     // Handle potential Prisma errors (e.g., record not found if deleted concurrently)
     if ((error as any).code === 'P2025') {
-        return NextResponse.json({ error: "Report not found or already deleted" }, { status: 404 });
+      return NextResponse.json({ error: "Report not found or already deleted" }, { status: 404 });
     }
     return NextResponse.json(
       { error: "Failed to delete report" },

@@ -47,7 +47,8 @@
     "worker:logs": "pm2 logs notification-worker",
     "worker:status": "pm2 status notification-worker",
     "restart": "pkill -f 'node.*start' || true && npm run dev",
-    "db:maintenance": "node -r dotenv/config dist/workers/db-maintenance.js"
+    "db:maintenance": "node -r dotenv/config dist/workers/db-maintenance.js",
+    "migrate:comments": "node --loader ts-node/esm scripts/migrate-comments.js"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.8.0",

@@ -11,6 +11,8 @@ import { getUsersForNotification } from "@/utils/notificationTargeting";
 import { hasBranchAccess } from "@/lib/auth/branch-access";
 import { createDirectNotifications } from "@/utils/createDirectNotification";
 import { Permission, UserRole, checkPermission } from "@/lib/auth/roles";
+import { broadcastDashboardUpdate } from "@/app/api/dashboard/sse/route";
+import { DashboardEventTypes } from "@/lib/events/dashboard-events";
 
 /**
  * Server action to approve or reject a report
@@ -232,6 +234,34 @@ export async function approveReportAction(
       } catch (notificationError) {
         console.error("Error sending notifications (non-critical):", notificationError);
       }
+    }
+
+    // Broadcast the status change via SSE for real-time updates
+    try {
+      const eventType = status === "approved"
+        ? DashboardEventTypes.REPORT_STATUS_UPDATED
+        : DashboardEventTypes.REPORT_STATUS_UPDATED;
+
+      broadcastDashboardUpdate(
+        eventType,
+        {
+          reportId: report.id,
+          branchId: report.branchId,
+          branchName: report.branch.name,
+          status: status,
+          previousStatus: report.status,
+          writeOffs: Number(report.writeOffs),
+          ninetyPlus: Number(report.ninetyPlus),
+          date: new Date(report.date).toISOString().split('T')[0],
+          reportType: report.reportType,
+          approvedBy: session.user.id,
+          approverName: approverName,
+          comments: comments || "",
+          timestamp: new Date().toISOString()
+        }
+      );
+    } catch (sseError) {
+      console.error("Error broadcasting SSE event (non-critical):", sseError);
     }
 
     // Revalidate paths to update UI

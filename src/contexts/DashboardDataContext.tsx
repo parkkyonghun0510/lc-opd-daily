@@ -1,9 +1,10 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { fetchDashboardSummary, fetchUserDashboardData } from '@/app/_actions/dashboard-actions';
 import { useUserData } from './UserDataContext';
 import { useDashboardSSE } from '@/hooks/useDashboardSSE';
+import { useSSE } from '@/hooks/useSSE';
 
 interface DashboardContextType {
   dashboardData: any;
@@ -11,6 +12,7 @@ interface DashboardContextType {
   isSseConnected: boolean;
   sseError: string | null;
   refreshDashboardData: () => Promise<void>;
+  reconnectSSE: () => void;
 }
 
 const DashboardDataContext = createContext<DashboardContextType | undefined>(undefined);
@@ -20,19 +22,47 @@ export function DashboardDataProvider({ children }: { children: React.ReactNode 
   const [isLoading, setIsLoading] = useState(true);
   const { userData } = useUserData();
 
-  // Use the SSE hook to get real-time updates and connection status
-  const {
-    lastEventData,
-    isConnected: isSseConnected,
-    error: sseError
-  } = useDashboardSSE();
+  const role = userData?.computedFields?.accessLevel || 'USER';
 
-  const fetchData = async () => {
+  // Use the SSE hook directly with role-based configuration
+  const {
+    lastEvent,
+    isConnected: isSseConnected,
+    error: sseError,
+    reconnect: reconnectSSE
+  } = useSSE({
+    endpoint: '/api/dashboard/sse',
+    clientMetadata: {
+      type: 'dashboard',
+      role: role
+    },
+    eventHandlers: {
+      // Handle dashboard updates
+      dashboardUpdate: (data) => {
+        console.log('Received dashboard update via SSE:', data);
+
+        // Dispatch a custom event that components can listen for
+        if (typeof window !== 'undefined') {
+          const event = new CustomEvent('dashboard-update', { detail: data });
+          window.dispatchEvent(event);
+        }
+
+        // Automatically refresh data when we receive an update
+        fetchData();
+      },
+      // Handle role-specific updates
+      [`${role.toLowerCase()}Update`]: (data) => {
+        console.log(`Received ${role.toLowerCase()} update via SSE:`, data);
+        fetchData();
+      }
+    },
+    debug: process.env.NODE_ENV === 'development'
+  });
+
+  const fetchData = useCallback(async () => {
     try {
       setIsLoading(true);
-      // Note: We don't need to set sseError anymore as it comes from the hook
 
-      const role = userData?.computedFields?.accessLevel || 'USER';
       let response;
 
       if (role === 'BRANCH_MANAGER') {
@@ -51,27 +81,26 @@ export function DashboardDataProvider({ children }: { children: React.ReactNode 
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [role]);
 
   // Initial data fetch
   useEffect(() => {
     fetchData();
-  }, [userData?.computedFields?.accessLevel]);
+  }, [fetchData, userData?.computedFields?.accessLevel]);
 
   // Auto-refresh every 5 minutes
   useEffect(() => {
     const interval = setInterval(fetchData, 5 * 60 * 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchData]);
 
-  // Handle SSE updates
+  // Handle SSE updates from the lastEvent
   useEffect(() => {
-    if (lastEventData && lastEventData.type === 'dashboardUpdate') {
-      console.log('Received dashboard update via SSE:', lastEventData.type);
-      // Update dashboard data if we receive an update via SSE
-      fetchData();
+    if (lastEvent && lastEvent.type === 'dashboardUpdate') {
+      console.log('Processing dashboard update from lastEvent:', lastEvent.payload);
+      // We don't need to call fetchData() here as it's already handled in the event handler
     }
-  }, [lastEventData]);
+  }, [lastEvent]);
 
   const refreshDashboardData = async () => {
     await fetchData();
@@ -85,6 +114,7 @@ export function DashboardDataProvider({ children }: { children: React.ReactNode 
         isSseConnected,
         sseError,
         refreshDashboardData,
+        reconnectSSE
       }}
     >
       {children}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useUserData } from "@/contexts/UserDataContext";
 import { PendingReport } from "@/components/reports/PendingReport";
 import { getBranchById } from "@/lib/api/branches";
@@ -23,18 +23,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { 
-  AlertCircle, 
-  Filter, 
-  Search, 
-  SortAsc, 
-  SortDesc, 
-  RefreshCw 
+import {
+  AlertCircle,
+  Filter,
+  Search,
+  SortAsc,
+  SortDesc,
+  RefreshCw,
+  Bell
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Report, fetchPendingReports } from "@/lib/api/reports";
+import { useSSE } from "@/hooks/useSSE";
+import { DashboardEventTypes } from "@/lib/events/dashboard-events";
 
 interface Branch {
   id: string;
@@ -50,7 +53,8 @@ export default function ApprovalsPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+  const [newReportNotification, setNewReportNotification] = useState<boolean>(false);
+
   // Filter states
   const [searchTerm, setSearchTerm] = useState("");
   const [branchFilter, setBranchFilter] = useState("all");
@@ -58,6 +62,9 @@ export default function ApprovalsPage() {
   const [sortField, setSortField] = useState("date");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [activeTab, setActiveTab] = useState("pending");
+
+  // Reference to track if auto-refresh is needed
+  const autoRefreshNeeded = useRef(false);
 
   const loadPendingReports = async () => {
     setLoading(true);
@@ -68,7 +75,7 @@ export default function ApprovalsPage() {
         reportTypeFilter === "all" ? undefined : reportTypeFilter
       );
       setPendingReports(data);
-      
+
       // Fetch branch data for each report
       const branchesRecord: Record<string, Branch> = {};
       for (const report of data) {
@@ -111,19 +118,19 @@ export default function ApprovalsPage() {
   // Apply filters and sorting
   useEffect(() => {
     let results = [...pendingReports];
-    
+
     // Filter by report type
     if (reportTypeFilter !== "all") {
       results = results.filter(
         (report) => report.reportType.toLowerCase() === reportTypeFilter
       );
     }
-    
+
     // Filter by branch
     if (branchFilter !== "all") {
       results = results.filter((report) => report.branchId === branchFilter);
     }
-    
+
     // Filter by search term
     if (searchTerm) {
       const search = searchTerm.toLowerCase();
@@ -135,11 +142,11 @@ export default function ApprovalsPage() {
           new Date(report.date).toLocaleDateString().includes(search)
       );
     }
-    
+
     // Apply sorting
     results.sort((a, b) => {
       let valueA, valueB;
-      
+
       switch (sortField) {
         case "date":
           valueA = new Date(a.date).getTime();
@@ -165,14 +172,14 @@ export default function ApprovalsPage() {
           valueA = a.date;
           valueB = b.date;
       }
-      
+
       if (sortDirection === "asc") {
         return valueA > valueB ? 1 : -1;
       } else {
         return valueA < valueB ? 1 : -1;
       }
     });
-    
+
     setFilteredReports(results);
   }, [
     pendingReports,
@@ -184,9 +191,68 @@ export default function ApprovalsPage() {
     branches,
   ]);
 
+  // Set up SSE connection for real-time updates
+  const { lastEvent } = useSSE({
+    endpoint: '/api/dashboard/sse',
+    eventHandlers: {
+      dashboardUpdate: (data) => {
+        // Handle report submission events
+        if (data.type === DashboardEventTypes.REPORT_SUBMITTED) {
+          console.log('New report submitted:', data);
+          // Set the notification flag
+          setNewReportNotification(true);
+          // Mark that we need to refresh data
+          autoRefreshNeeded.current = true;
+
+          // Show a toast notification
+          toast({
+            title: "New Report Submitted",
+            description: `${data.branchName} submitted a new ${data.reportType} report that needs approval.`,
+            duration: 5000,
+          });
+        }
+        // Handle report status update events (approval/rejection)
+        else if (data.type === DashboardEventTypes.REPORT_STATUS_UPDATED) {
+          console.log('Report status updated:', data);
+
+          // If we're on the approvals page, refresh the data
+          if (activeTab === 'pending') {
+            loadPendingReports();
+          }
+
+          // Show a toast notification about the status change
+          const statusText = data.status === 'approved' ? 'approved' : 'rejected';
+          toast({
+            title: `Report ${statusText.charAt(0).toUpperCase() + statusText.slice(1)}`,
+            description: `A report from ${data.branchName} has been ${statusText}.`,
+            duration: 5000,
+          });
+        }
+      }
+    }
+  });
+
+  // Effect to handle auto-refresh when needed
+  useEffect(() => {
+    if (autoRefreshNeeded.current && activeTab === 'pending') {
+      loadPendingReports();
+      autoRefreshNeeded.current = false;
+      setNewReportNotification(false);
+    }
+  }, [activeTab]);
+
+  // Initial load and filter changes
   useEffect(() => {
     loadPendingReports();
   }, [reportTypeFilter]);
+
+  // Handle tab changes
+  useEffect(() => {
+    if (activeTab === 'pending' && newReportNotification) {
+      loadPendingReports();
+      setNewReportNotification(false);
+    }
+  }, [activeTab, newReportNotification]);
 
   const handleApprovalComplete = () => {
     loadPendingReports();
@@ -197,7 +263,7 @@ export default function ApprovalsPage() {
   };
 
   // Get unique branches for filter dropdown
-  const uniqueBranches = Object.values(branches).sort((a, b) => 
+  const uniqueBranches = Object.values(branches).sort((a, b) =>
     a.name.localeCompare(b.name)
   );
 
@@ -219,20 +285,28 @@ export default function ApprovalsPage() {
             <TabsTrigger value="pending">Pending Approvals</TabsTrigger>
             <TabsTrigger value="history">Approval History</TabsTrigger>
           </TabsList>
-          
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={handleRefresh} 
-            disabled={refreshing}
-            className="flex items-center gap-1"
-          >
-            <RefreshCw className={cn(
-              "h-4 w-4", 
-              refreshing && "animate-spin"
-            )} />
-            {refreshing ? "Refreshing..." : "Refresh"}
-          </Button>
+
+          <div className="flex items-center gap-2">
+            {newReportNotification && (
+              <div className="flex items-center text-amber-500 animate-pulse">
+                <Bell className="h-4 w-4 mr-1" />
+                <span className="text-xs font-medium">New report available</span>
+              </div>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="flex items-center gap-1"
+            >
+              <RefreshCw className={cn(
+                "h-4 w-4",
+                refreshing && "animate-spin"
+              )} />
+              {refreshing ? "Refreshing..." : "Refresh"}
+            </Button>
+          </div>
         </div>
 
         <TabsContent value="pending" className="space-y-4">
@@ -258,7 +332,7 @@ export default function ApprovalsPage() {
                     className="flex-1"
                   />
                 </div>
-                
+
                 <div className="space-y-1">
                   <p className="text-sm font-medium text-gray-500">Branch</p>
                   <Select
@@ -278,7 +352,7 @@ export default function ApprovalsPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                
+
                 <div className="space-y-1">
                   <p className="text-sm font-medium text-gray-500">Report Type</p>
                   <Select
@@ -296,12 +370,12 @@ export default function ApprovalsPage() {
                   </Select>
                 </div>
               </div>
-              
+
               <div className="flex items-center justify-between mt-4 pt-4 border-t">
                 <div className="text-sm text-gray-500">
                   {filteredReports.length} reports found
                 </div>
-                
+
                 <div className="flex items-center space-x-2">
                   <p className="text-sm font-medium mr-2">Sort by:</p>
                   <Select value={sortField} onValueChange={setSortField}>
@@ -316,7 +390,7 @@ export default function ApprovalsPage() {
                       <SelectItem value="ninetyPlus">90+ Days</SelectItem>
                     </SelectContent>
                   </Select>
-                  
+
                   <Button
                     variant="ghost"
                     size="icon"
@@ -382,7 +456,7 @@ export default function ApprovalsPage() {
             </div>
           )}
         </TabsContent>
-        
+
         <TabsContent value="history">
           <Card>
             <CardContent className="pt-6">

@@ -77,6 +77,7 @@ model Report {
   submittedBy   String
   submittedAt   DateTime @default(now())
   comments      String?
+  commentArray  Json?    // New field to store structured comments as an array
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   planReportId  String?
