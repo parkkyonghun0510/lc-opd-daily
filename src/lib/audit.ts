@@ -17,14 +17,14 @@ export const AuditAction = {
   USER_PASSWORD_RESET: "USER_PASSWORD_RESET",
   USER_PASSWORD_CHANGED: "USER_PASSWORD_CHANGED",
   USER_ROLE_CHANGED: "USER_ROLE_CHANGED",
-  
+
   // Branch-related actions
   BRANCH_CREATED: "BRANCH_CREATED",
   BRANCH_UPDATED: "BRANCH_UPDATED",
   BRANCH_DELETED: "BRANCH_DELETED",
   BRANCH_USER_ASSIGNED: "BRANCH_USER_ASSIGNED",
   BRANCH_USER_REMOVED: "BRANCH_USER_REMOVED",
-  
+
   // Report-related actions
   REPORT_CREATED: "REPORT_CREATED",
   REPORT_UPDATED: "REPORT_UPDATED",
@@ -33,10 +33,10 @@ export const AuditAction = {
   REPORT_APPROVED: "REPORT_APPROVED",
   REPORT_REJECTED: "REPORT_REJECTED",
   REPORT_EXPORTED: "REPORT_EXPORTED",
-  
+
   // Settings-related actions
   SETTINGS_UPDATED: "SETTINGS_UPDATED",
-  
+
   // System-related actions
   SYSTEM_BACKUP: "SYSTEM_BACKUP",
   SYSTEM_RESTORE: "SYSTEM_RESTORE",
@@ -78,7 +78,7 @@ export async function createServerAuditLog({
         userAgent: requestInfo.userAgent || "unknown",
       },
     });
-    
+
     // Also create a UserActivity entry for the user dashboard
     // This is useful for showing users their recent activities
     if (type === "userActivity") {
@@ -92,8 +92,8 @@ export async function createServerAuditLog({
         },
       });
     }
-    
-    console.log(`Audit log created: ${action}`);
+
+    //console.log(`Audit log created: ${action}`);
   } catch (error) {
     console.error("Error creating audit log:", error);
     // We don't want audit logging failures to block the main application flow

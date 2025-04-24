@@ -115,4 +115,13 @@ If you encounter issues:
 You can adjust the number of instances in the `ecosystem.config.cjs` file:
 
 - `max` - utilizes all available CPU cores
+## Related Documentation
+
+- [Production Deployment](./production-deployment.md)
+- [Notification Worker](./notification-worker.md)
+- [Notification Queue](./notification-queue.md)
+- [Code Organization](./code-organization.md)
+- [Error Handling Guide](./error-handling-guide.md)
+- [Performance Optimizations](./performance-optimizations.md)
+
 - Specific number (e.g., `4`) - runs exactly that many instances 

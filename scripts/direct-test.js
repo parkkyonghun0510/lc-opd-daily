@@ -4,7 +4,7 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 async function testDatabaseNotifications() {
-  console.log('Testing database connection for notifications...');
+  //console.log('Testing database connection for notifications...');
   
   try {
     // Get a sample user
@@ -17,7 +17,7 @@ async function testDatabaseNotifications() {
       return;
     }
     
-    console.log('Using user:', sampleUser.id);
+    //console.log('Using user:', sampleUser.id);
     
     // Create a test notification
     const notification = await prisma.inAppNotification.create({
@@ -31,7 +31,7 @@ async function testDatabaseNotifications() {
       }
     });
     
-    console.log('Successfully created notification:', notification.id);
+    //console.log('Successfully created notification:', notification.id);
     
     // Also create a notification event
     const event = await prisma.notificationEvent.create({
@@ -45,7 +45,7 @@ async function testDatabaseNotifications() {
       }
     });
     
-    console.log('Created notification event:', event.id);
+    //console.log('Created notification event:', event.id);
     
     // Retrieve latest notifications
     const recentNotifications = await prisma.inAppNotification.findMany({
@@ -56,9 +56,9 @@ async function testDatabaseNotifications() {
       take: 5
     });
     
-    console.log(`Found ${recentNotifications.length} recent notifications for user ${sampleUser.id}:`);
+    //console.log(`Found ${recentNotifications.length} recent notifications for user ${sampleUser.id}:`);
     recentNotifications.forEach((n, i) => {
-      console.log(`${i+1}. ${n.title} (${n.id}, created at ${n.createdAt})`);
+      //console.log(`${i+1}. ${n.title} (${n.id}, created at ${n.createdAt})`);
     });
     
   } catch (error) {

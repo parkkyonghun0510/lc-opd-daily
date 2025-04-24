@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 
-export type Role = "admin" | "manager" | "user";
+export type Role = "ADMIN" | "BRANCH" | "USER" | "MANAGER" | "SUPERVISOR" | "VIEWER";
+export type BranchAccess = {
+  branchId: string;
+};
 
 interface AuthOptions {
   requiredRole?: Role | Role[];

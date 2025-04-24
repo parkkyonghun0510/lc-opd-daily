@@ -86,12 +86,12 @@ async function login() {
 
 // Main test runner
 async function runTests() {
-  console.log("🔒 Starting API Authentication Tests");
-  console.log("------------------------------------");
+  //console.log("🔒 Starting API Authentication Tests");
+  //console.log("------------------------------------");
 
   // 1. Test protected endpoints without auth
-  console.log("\n1. Testing protected endpoints WITHOUT authentication:");
-  console.log("----------------------------------------------------");
+  //console.log("\n1. Testing protected endpoints WITHOUT authentication:");
+  //console.log("----------------------------------------------------");
 
   const endpointsToTest = [
     "/api/users",
@@ -101,10 +101,10 @@ async function runTests() {
   ];
 
   for (const endpoint of endpointsToTest) {
-    console.log(`\nTesting ${endpoint}:`);
+    //console.log(`\nTesting ${endpoint}:`);
     const result = await testEndpoint(endpoint);
-    console.log(`Status: ${result.status} (${result.statusText})`);
-    console.log(
+    //console.log(`Status: ${result.status} (${result.statusText})`);
+    //console.log(
       "Response:",
       result.body
         ? JSON.stringify(result.body).slice(0, 100) + "..."
@@ -113,17 +113,17 @@ async function runTests() {
 
     // Verify unauthorized response
     if (result.status === 401) {
-      console.log("✅ Correctly rejected unauthorized request");
+      //console.log("✅ Correctly rejected unauthorized request");
     } else {
-      console.log(
+      //console.log(
         "❌ SECURITY ISSUE: Endpoint accessible without authentication!"
       );
     }
   }
 
   // 2. Login and get token
-  console.log("\n\n2. Attempting login to get authentication token:");
-  console.log("----------------------------------------------------");
+  //console.log("\n\n2. Attempting login to get authentication token:");
+  //console.log("----------------------------------------------------");
   const token = await login();
 
   if (!token) {
@@ -133,17 +133,17 @@ async function runTests() {
     return;
   }
 
-  console.log("✅ Successfully obtained authentication token");
+  //console.log("✅ Successfully obtained authentication token");
 
   // 3. Test with valid token
-  console.log("\n\n3. Testing protected endpoints WITH authentication:");
-  console.log("----------------------------------------------------");
+  //console.log("\n\n3. Testing protected endpoints WITH authentication:");
+  //console.log("----------------------------------------------------");
 
   for (const endpoint of endpointsToTest) {
-    console.log(`\nTesting ${endpoint}:`);
+    //console.log(`\nTesting ${endpoint}:`);
     const result = await testEndpoint(endpoint, token);
-    console.log(`Status: ${result.status} (${result.statusText})`);
-    console.log(
+    //console.log(`Status: ${result.status} (${result.statusText})`);
+    //console.log(
       "Response:",
       result.body
         ? JSON.stringify(result.body).slice(0, 100) + "..."
@@ -152,16 +152,16 @@ async function runTests() {
 
     // Verify authorized response
     if (result.status >= 200 && result.status < 300) {
-      console.log("✅ Correctly allowed authenticated request");
+      //console.log("✅ Correctly allowed authenticated request");
     } else {
-      console.log("❌ ISSUE: Endpoint rejected authenticated request!");
+      //console.log("❌ ISSUE: Endpoint rejected authenticated request!");
     }
   }
 
-  console.log("\n\n4. Summary:");
-  console.log("----------------------------------------------------");
-  console.log("All tests completed. Check the logs above for any issues.");
-  console.log("Remember to also test role-based access control manually.");
+  //console.log("\n\n4. Summary:");
+  //console.log("----------------------------------------------------");
+  //console.log("All tests completed. Check the logs above for any issues.");
+  //console.log("Remember to also test role-based access control manually.");
 }
 
 // Run the tests

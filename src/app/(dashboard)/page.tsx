@@ -51,6 +51,21 @@ export default function DashboardPage() {
 
     if (status === "authenticated") {
       fetchDashboardData();
+
+      // Use the standardized SSE hook instead of direct EventSource
+      // This is handled by the useDashboardSSE hook in other components
+      // which provides better reconnection handling and error management
+
+      // Import and use the hook in a separate component if needed
+      // For now, we'll just fetch data periodically
+      const refreshInterval = setInterval(() => {
+        fetchDashboardData();
+      }, 60000); // Refresh every 60 seconds
+
+      // Cleanup on unmount
+      return () => {
+        clearInterval(refreshInterval);
+      };
     }
   }, [status, router]);
 
@@ -110,9 +125,8 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div
-              className={`text-2xl font-bold ${
-                data.growthRate >= 0 ? "text-green-600" : "text-red-600"
-              }`}
+              className={`text-2xl font-bold ${data.growthRate >= 0 ? "text-green-600" : "text-red-600"
+                }`}
             >
               {data.growthRate >= 0 ? "+" : ""}
               {data.growthRate}%

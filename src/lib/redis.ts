@@ -29,7 +29,7 @@ export async function testRedisConnection() {
       throw new Error("Redis test value mismatch");
     }
 
-    console.log("✅ Redis connection successful");
+    //console.log("✅ Redis connection successful");
     return true;
   } catch (error) {
     console.error("❌ Redis connection failed:", error);

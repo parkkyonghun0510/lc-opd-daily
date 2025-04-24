@@ -47,7 +47,7 @@ export async function requestNotificationPermission(): Promise<PushSubscription 
     // Request notification permission
     const permission = await Notification.requestPermission();
     if (permission !== 'granted') {
-      console.log('Notification permission not granted');
+      //console.log('Notification permission not granted');
       return null;
     }
 
@@ -70,7 +70,7 @@ export async function requestNotificationPermission(): Promise<PushSubscription 
 
     // Try to use existing subscription or create a new one
     let subscription = await registration.pushManager.getSubscription();
-    
+
     // If subscription exists but has changed (e.g. different key), unsubscribe first
     if (subscription) {
       const existingKey = JSON.stringify(subscription);
@@ -79,7 +79,7 @@ export async function requestNotificationPermission(): Promise<PushSubscription 
         subscription = null;
       }
     }
-    
+
     // If no subscription exists, create one
     if (!subscription) {
       subscription = await registration.pushManager.subscribe({
@@ -90,7 +90,7 @@ export async function requestNotificationPermission(): Promise<PushSubscription 
 
     // Save subscription to server
     await saveSubscriptionToServer(subscription);
-    
+
     return subscription;
   } catch (error) {
     console.error('Error requesting notification permission:', error);
@@ -120,11 +120,11 @@ export async function checkSubscription(): Promise<boolean> {
     try {
       const cachedStatus = localStorage.getItem(SUBSCRIPTION_STATUS_KEY);
       const cachedTimestamp = localStorage.getItem(SUBSCRIPTION_STATUS_TIMESTAMP_KEY);
-      
+
       if (cachedStatus && cachedTimestamp) {
         const timestamp = parseInt(cachedTimestamp, 10);
         const now = Date.now();
-        
+
         // If cache is fresh (less than 24 hours old), use it
         if (now - timestamp < CACHE_TIMEOUT_MS) {
           return cachedStatus === 'true';
@@ -153,7 +153,7 @@ export async function checkSubscription(): Promise<boolean> {
       }
       return false;
     }
-    
+
     // Verify the subscription with the server
     try {
       const response = await fetch('/api/push/validate', {
@@ -165,11 +165,11 @@ export async function checkSubscription(): Promise<boolean> {
           endpoint: subscription.endpoint,
         }),
       });
-      
+
       if (response.ok) {
         const result = await response.json();
         const isValid = result.valid === true;
-        
+
         // Cache the result
         try {
           localStorage.setItem(SUBSCRIPTION_STATUS_KEY, isValid.toString());
@@ -177,14 +177,14 @@ export async function checkSubscription(): Promise<boolean> {
         } catch (error) {
           console.error('Error writing to localStorage:', error);
         }
-        
+
         return isValid;
       }
     } catch (error) {
       console.error('Error validating subscription with server:', error);
       // If server validation fails, fall back to local check
     }
-    
+
     // If server validation failed or wasn't available, just check locally
     // Cache the result that we have a subscription
     try {
@@ -193,7 +193,7 @@ export async function checkSubscription(): Promise<boolean> {
     } catch (error) {
       console.error('Error writing to localStorage:', error);
     }
-    
+
     return true;
   } catch (error) {
     console.error('Error checking subscription:', error);
@@ -222,7 +222,7 @@ async function saveSubscriptionToServer(subscription: PushSubscription): Promise
       const error = await response.json();
       throw new Error(error.message || 'Failed to save subscription');
     }
-    
+
     // Update local cache after successful server save
     try {
       localStorage.setItem(SUBSCRIPTION_STATUS_KEY, 'true');
@@ -275,7 +275,7 @@ export async function unsubscribeFromPushNotifications(): Promise<boolean> {
 
     // Unsubscribe locally
     const result = await subscription.unsubscribe();
-    
+
     // Update local cache after unsubscription
     try {
       localStorage.setItem(SUBSCRIPTION_STATUS_KEY, 'false');
@@ -283,7 +283,7 @@ export async function unsubscribeFromPushNotifications(): Promise<boolean> {
     } catch (error) {
       console.error('Error writing to localStorage:', error);
     }
-    
+
     return result;
   } catch (error) {
     console.error('Error unsubscribing from push notifications:', error);
@@ -310,8 +310,8 @@ export async function sendTestNotification(): Promise<boolean> {
 }
 
 // Check for support and permissions at once
-export function getNotificationStatus(): { 
-  isSupported: boolean; 
+export function getNotificationStatus(): {
+  isSupported: boolean;
   permission: NotificationPermission | null;
   isGranted: boolean;
 } {

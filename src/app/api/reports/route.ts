@@ -6,6 +6,9 @@ import { getAccessibleBranches } from "@/lib/auth/branch-access";
 import { sendToNotificationQueue } from "@/lib/queue/sqs";
 import { getUsersForNotification } from "@/utils/notificationTargeting";
 import { NotificationType } from "@/utils/notificationTemplates";
+// Import the broadcast function
+import { broadcastDashboardUpdate } from "@/app/api/dashboard/sse/route";
+import { DashboardEventTypes } from "@/lib/events/dashboard-events";
 
 interface ReportData {
   branchId: string;
@@ -21,6 +24,7 @@ interface UpdateReportData {
   writeOffs?: number;
   ninetyPlus?: number;
   comments?: string;
+  status?: string; // Add optional status field
 }
 
 // GET /api/reports - List reports with filtering and pagination
@@ -78,16 +82,16 @@ export async function GET(request: NextRequest) {
     }
 
     if (date) {
-      // If a specific date is provided, create a range for that day
       const targetDate = new Date(date);
-      const startOfDay = new Date(targetDate);
-      startOfDay.setHours(0, 0, 0, 0);
-      const endOfDay = new Date(targetDate);
-      endOfDay.setHours(23, 59, 59, 999);
-      where.date = {
-        gte: startOfDay.toISOString(),
-        lt: endOfDay.toISOString()
-      };
+      const reportDate = targetDate.toISOString().split('T')[0]; // 'YYYY-MM-DD'
+      const reportDateISO = `${reportDate}T00:00:00.000Z`;
+
+      //console.log("[DEBUG] Query param date:", date);
+      //console.log("[DEBUG] Server timezone offset (minutes):", new Date().getTimezoneOffset());
+      //console.log("[DEBUG] Normalized reportDate string:", reportDate);
+      //console.log("[DEBUG] Using reportDateISO for Prisma query:", reportDateISO);
+
+      where.date = new Date(reportDateISO);
     } else if (startDate || endDate) {
       where.date = {};
       if (startDate) {
@@ -113,7 +117,7 @@ export async function GET(request: NextRequest) {
 
     // Implement keyset pagination for better performance with large datasets
     let skipTake = {};
-    
+
     if (page && limit) {
       skipTake = {
         skip: (page - 1) * limit,
@@ -148,19 +152,19 @@ export async function GET(request: NextRequest) {
     // Transform reports data to ensure we have plan data for actual reports
     const transformedReports = reports.map(report => {
       // Create a new object with the original report properties
-      const transformed = { 
+      const transformed = {
         ...report,
         // Convert Decimal to number for JSON serialization
         writeOffs: Number(report.writeOffs),
         ninetyPlus: Number(report.ninetyPlus),
       } as any;
-      
+
       // If this is an actual report and has planReport data
       if (report.reportType === 'actual' && report.planReport) {
         transformed.writeOffsPlan = Number(report.planReport.writeOffs) || 0;
         transformed.ninetyPlusPlan = Number(report.planReport.ninetyPlus) || 0;
       }
-      
+
       return transformed;
     });
 
@@ -226,7 +230,9 @@ export async function POST(request: NextRequest) {
 
     // Parse date properly for DateTime field
     const reportDate = new Date(reportData.date);
-    
+    const reportDateOnly = new Date(reportDate);
+    reportDateOnly.setHours(0, 0, 0, 0);
+
     // Ensure date is valid
     if (isNaN(reportDate.getTime())) {
       return NextResponse.json(
@@ -236,23 +242,26 @@ export async function POST(request: NextRequest) {
     }
 
     // Check for existing report
-    const startOfDay = new Date(reportDate);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(reportDate);
-    endOfDay.setHours(23, 59, 59, 999);
-    
-    const existingReport = await prisma.report.findFirst({
+    const reportDateObj = new Date(reportData.date);
+    const reportDateStr = reportDateObj.toISOString().split('T')[0]; // 'YYYY-MM-DD'
+
+    //console.log("[DEBUG] Duplicate check normalized reportDate string:", reportDateStr);
+
+    const reportDateISO = `${reportDateStr}T00:00:00.000Z`;
+
+    const existing = await prisma.report.findMany({
       where: {
-        date: {
-          gte: startOfDay.toISOString(),
-          lt: endOfDay.toISOString(),
-        },
         branchId: reportData.branchId,
-        reportType: reportData.reportType
+        reportType: reportData.reportType,
+        date: new Date(reportDateISO),
       },
     });
 
-    if (existingReport) {
+    // //console.log('DEBUG: existing report:', existing);
+
+
+
+    if (Array.isArray(existing) && existing.length > 0) {
       return NextResponse.json(
         { error: "A report already exists for this date, branch, and type" },
         { status: 400 }
@@ -268,10 +277,10 @@ export async function POST(request: NextRequest) {
     let reportStatus = "pending";
     if (rules?.validationRules) {
       const validationRules = rules.validationRules as any;
-      
+
       // Check if write-offs or 90+ days require approval
-      if ((validationRules.writeOffs?.requireApproval && reportData.writeOffs > 0) || 
-          (validationRules.ninetyPlus?.requireApproval && reportData.ninetyPlus > 0)) {
+      if ((validationRules.writeOffs?.requireApproval && reportData.writeOffs > 0) ||
+        (validationRules.ninetyPlus?.requireApproval && reportData.ninetyPlus > 0)) {
         reportStatus = "pending_approval";
       }
     }
@@ -291,6 +300,7 @@ export async function POST(request: NextRequest) {
     // Create the base report data with correct types
     const baseReportData = {
       date: reportDate.toISOString(),
+      // reportDate: reportDateStr,
       branchId: reportData.branchId,
       writeOffs: reportData.writeOffs || 0,
       ninetyPlus: reportData.ninetyPlus || 0,
@@ -309,13 +319,14 @@ export async function POST(request: NextRequest) {
       planStartOfDay.setHours(0, 0, 0, 0);
       const planEndOfDay = new Date(reportDate);
       planEndOfDay.setHours(23, 59, 59, 999);
-      
+
       const planReport = await prisma.report.findFirst({
         where: {
-          date: {
-            gte: planStartOfDay.toISOString(),
-            lt: planEndOfDay.toISOString(),
-          },
+          // date: {
+          //   gte: planStartOfDay.toISOString(),
+          //   lt: planEndOfDay.toISOString(),
+          // },
+          date: reportDate.toISOString(),
           branchId: reportData.branchId,
           reportType: "plan"
         }
@@ -364,11 +375,8 @@ export async function POST(request: NextRequest) {
           reportType: report.reportType
         };
 
-        // Get users who should receive this notification
-        const targetUsers = await getUsersForNotification(
-          NotificationType.REPORT_SUBMITTED,
-          notificationData
-        );
+        // Notify relevant users
+        const targetUsers = await getUsersForNotification(NotificationType.REPORT_SUBMITTED, { branchId: report.branchId, submittedBy: token.sub as string, reportId: report.id });
 
         if (targetUsers.length > 0) {
           await sendToNotificationQueue({
@@ -409,7 +417,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// PATCH /api/reports - Update a report
+// PATCH /api/reports - Update an existing report (e.g., status change, content edit)
 export async function PATCH(request: NextRequest) {
   try {
     const token = await getToken({ req: request });
@@ -421,87 +429,167 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    // Check if user has permission to edit reports
-    const userRole = token.role as UserRole;
-    if (!checkPermission(userRole, Permission.EDIT_REPORTS)) {
-      return NextResponse.json(
-        { error: "Forbidden - You don't have permission to edit reports" },
-        { status: 403 }
-      );
-    }
-
-    const { id, ...updateData } = await request.json() as UpdateReportData;
+    const body: UpdateReportData = await request.json();
+    const { id, ...updateData } = body;
 
     if (!id) {
       return NextResponse.json(
-        { error: "Report ID is required" },
+        { error: "Report ID is required for update" },
         { status: 400 }
       );
     }
 
-    // Get the report to check access
-    const report = await prisma.report.findUnique({
+    // Fetch the existing report to check ownership/permissions
+    const existingReport = await prisma.report.findUnique({
       where: { id },
-      include: { branch: true },
+      include: { branch: true }, // Include branch for permission checks
     });
 
-    if (!report) {
-      return NextResponse.json(
-        { error: "Report not found" },
-        { status: 404 }
-      );
+    if (!existingReport) {
+      return NextResponse.json({ error: "Report not found" }, { status: 404 });
     }
 
-    // Check if user has access to the branch
+    // Permission Check: Can the user edit this specific report?
+    const userRole = token.role as UserRole;
     const accessibleBranches = await getAccessibleBranches(token.sub as string);
-    const hasAccess = accessibleBranches.some(branch => branch.id === report.branchId);
+    const canAccessBranch = accessibleBranches.some(b => b.id === existingReport.branchId);
 
-    if (!hasAccess) {
+    // Basic check: User must have access to the report's branch
+    if (!canAccessBranch) {
       return NextResponse.json(
-        { error: "You don't have permission to edit reports for this branch" },
+        { error: "Forbidden - You do not have access to this branch's reports" },
         { status: 403 }
       );
     }
 
-    // Only allow editing pending or rejected reports
-    if (report.status !== "pending" && report.status !== "rejected") {
-      return NextResponse.json(
-        { error: "Only pending or rejected reports can be edited" },
-        { status: 400 }
-      );
+    // More granular check: Can the user edit reports in general?
+    // Or, if it's their own report and they have edit permission for own reports?
+    // (Add more specific logic based on your RBAC rules if needed)
+    console.log("[REPORT PATCH] User:", token.sub, "Role:", userRole, "Has EDIT_REPORTS:", checkPermission(userRole, Permission.EDIT_REPORTS));
+    if (!checkPermission(userRole, Permission.EDIT_REPORTS)) {
+      // Allow editing own report if they have that specific permission
+      if (!checkPermission(userRole, Permission.EDIT_OWN_REPORTS) || existingReport.submittedBy !== token.sub) {
+        console.log("[REPORT PATCH] Forbidden edit attempt. User:", token.sub, "Role:", userRole, "Report ID:", id, "SubmittedBy:", existingReport.submittedBy);
+        return NextResponse.json(
+          { error: "Forbidden - You do not have permission to edit reports" },
+          { status: 403 }
+        );
+      }
+    }
+
+    // --- Handle Status Change (Approval/Rejection) --- Requires specific permission
+    let statusChangeNotificationType: NotificationType | null = null;
+
+    // If the report is rejected and the owner is resubmitting (not an approver), force status to pending_approval
+    if (
+      existingReport.status === "rejected" &&
+      existingReport.submittedBy === token.sub &&
+      !checkPermission(userRole, Permission.APPROVE_REPORTS)
+    ) {
+      updateData.status = "pending_approval";
+    }
+
+    if (updateData.status && updateData.status !== existingReport.status) {
+      // Allow submitter to change status from 'rejected' to 'pending_approval'
+      if (!(
+        existingReport.status === "rejected" &&
+        updateData.status === "pending_approval" &&
+        existingReport.submittedBy === token.sub
+      )) {
+        // Only ADMIN can approve/reject reports, regardless of permissions
+        if (userRole !== "ADMIN") {
+          return NextResponse.json(
+            { error: "Forbidden - Only admins can approve/reject reports" },
+            { status: 403 }
+          );
+        }
+      }
+      // Determine notification type based on status change
+      if (updateData.status === 'approved') {
+        statusChangeNotificationType = NotificationType.REPORT_APPROVED;
+      } else if (updateData.status === 'rejected') {
+        statusChangeNotificationType = NotificationType.REPORT_REJECTED;
+      }
+    }
+
+    // Prepare data for update (handle potential Decimal conversion if needed)
+    const prismaUpdateData: any = { ...updateData };
+    if (prismaUpdateData.writeOffs !== undefined) {
+      prismaUpdateData.writeOffs = Number(prismaUpdateData.writeOffs);
+    }
+    if (prismaUpdateData.ninetyPlus !== undefined) {
+      prismaUpdateData.ninetyPlus = Number(prismaUpdateData.ninetyPlus);
     }
 
     // Update the report
     const updatedReport = await prisma.report.update({
       where: { id },
-      data: {
-        ...updateData,
-        // If this is a rejected report being resubmitted and new comments were provided
-        ...(report.status === "rejected" && updateData.comments ? {
-          comments: `${report.comments ? report.comments + '\n\n' : ''}[RESUBMISSION ${new Date().toISOString().split('T')[0]}]:\n${updateData.comments}`,
-          status: "pending_approval" // Change status to pending_approval when resubmitting
-        } : {}),
-        // If no new comments were provided but updating other fields, preserve existing comments
-        ...(report.status === "rejected" && !updateData.comments ? {
-          status: "pending_approval" // Still change status to pending_approval when resubmitting
-        } : {})
-      },
+      data: prismaUpdateData,
       include: {
-        branch: true,
-        planReport: true,
-        actualReports: true,
+        branch: true, // Include for notifications
       },
     });
 
-    return NextResponse.json({
-      message: "Report updated successfully",
-      data: updatedReport,
-    });
+    // Broadcast the update via SSE after successful update
+    broadcastDashboardUpdate(
+      DashboardEventTypes.REPORT_UPDATED,
+      {
+        reportId: updatedReport.id,
+        branchId: updatedReport.branchId,
+        status: updatedReport.status,
+        // Include other fields that might affect dashboard aggregates
+        writeOffs: Number(updatedReport.writeOffs),
+        ninetyPlus: Number(updatedReport.ninetyPlus),
+        date: updatedReport.date.toISOString().split('T')[0],
+        reportType: updatedReport.reportType,
+      }
+    );
+
+    // --- Send Notifications for Status Change ---
+    if (statusChangeNotificationType) {
+      try {
+        const targetUsers = await getUsersForNotification(
+          statusChangeNotificationType,
+          updatedReport.branch
+        );
+
+        if (targetUsers.length > 0) {
+          const notificationData = {
+            reportId: updatedReport.id,
+            reportDate: updatedReport.date.toISOString().split('T')[0],
+            branchName: updatedReport.branch.name,
+            status: updatedReport.status,
+            actorName: token.name || 'System',
+            // Add comments if rejection includes them
+            comments: updateData.comments || undefined
+          };
+
+          await sendToNotificationQueue({
+            type: statusChangeNotificationType,
+            data: notificationData,
+            userIds: targetUsers,
+          });
+        }
+      } catch (notificationError) {
+        console.error("Error sending status change notifications (non-critical):", notificationError);
+      }
+    }
+
+    // Convert Decimal fields to numbers for the response
+    const responseReport = {
+      ...updatedReport,
+      writeOffs: Number(updatedReport.writeOffs),
+      ninetyPlus: Number(updatedReport.ninetyPlus),
+    };
+
+    return NextResponse.json(responseReport);
   } catch (error) {
     console.error("Error updating report:", error);
+    // Check for specific Prisma errors if needed (e.g., P2025 Record not found)
     return NextResponse.json(
       { error: "Failed to update report" },
       { status: 500 }
     );
   }
 }
+

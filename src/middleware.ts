@@ -33,6 +33,20 @@ export default withAuth(
       return NextResponse.next();
     }
 
+    // Avatar handling in development
+    if (process.env.NODE_ENV === 'development' && 
+        path.startsWith('/uploads/avatars/') && 
+        !path.includes('.well-known')) {
+      
+      // Extract the filename from the URL
+      const filename = path.split('/').pop();
+      
+      // Create a fallback URL for avatars that may not exist
+      return NextResponse.rewrite(
+        new URL(`https://api.dicebear.com/7.x/initials/svg?seed=${filename}&backgroundColor=4f46e5`, req.url)
+      );
+    }
+
     // Get the token
     const token = req.nextauth.token;
 
@@ -44,10 +58,16 @@ export default withAuth(
       return NextResponse.redirect(new URL("/setup", req.url));
     }
 
-    // If the user is at /dashboard and they're authenticated with role=user,
-    // redirect them to /dashboard/reports
-    if (path === "/dashboard" && token && token.role === UserRole.USER) {
-      return NextResponse.redirect(new URL("/dashboard/reports", req.url));
+    // Role-based dashboard redirects
+    if (path === "/dashboard") {
+      // Redirect based on role
+      if (token?.role === UserRole.ADMIN) {
+        return NextResponse.redirect(new URL("/dashboard/admin", req.url));
+      } else if (token?.role === UserRole.BRANCH_MANAGER) {
+        return NextResponse.redirect(new URL("/dashboard/branch-manager", req.url));
+      } else {
+        return NextResponse.redirect(new URL("/dashboard/user", req.url));
+      }
     }
 
     // Role-based API access control
@@ -128,33 +148,6 @@ export const config = {
     "/api/:path*",
 
     // Add avatar path matcher
-    '/uploads/avatars/:path*',
-  ],
-};
-
-export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-
-  // Only run this middleware for avatar URLs in development
-  if (process.env.NODE_ENV === 'development' && 
-      pathname.startsWith('/uploads/avatars/') && 
-      !pathname.includes('.well-known')) {
-    
-    // Extract the filename from the URL
-    const filename = pathname.split('/').pop();
-    
-    // Create a fallback URL for avatars that may not exist
-    return NextResponse.rewrite(
-      new URL(`https://api.dicebear.com/7.x/initials/svg?seed=${filename}&backgroundColor=4f46e5`, request.url)
-    );
-  }
-
-  return NextResponse.next();
-}
-
-// Configure the middleware to run only for specific paths
-export const avatarConfig = {
-  matcher: [
     '/uploads/avatars/:path*',
   ],
 };

@@ -71,7 +71,7 @@ self.addEventListener('push', (event) => {
     
     // Skip showing validation notifications entirely
     if (payload.tag === 'subscription-validation' && payload.silent === true) {
-      console.log('Skipping validation notification display');
+      //console.log('Skipping validation notification display');
       return;
     }
     

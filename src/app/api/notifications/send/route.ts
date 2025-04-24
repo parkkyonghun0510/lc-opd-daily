@@ -91,7 +91,8 @@ export async function POST(request: Request) {
 
     // Get target users
     let targetUserIds = data.userIds || [];
-    if (!targetUserIds.length) {
+    // If specific user IDs are not provided, determine target users based on type and data
+    if (!targetUserIds || targetUserIds.length === 0) {
       targetUserIds = await getUsersForNotification(data.type, data.data || {});
     }
 
@@ -134,4 +135,4 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
-} 
+}

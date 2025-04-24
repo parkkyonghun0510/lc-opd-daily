@@ -24,7 +24,7 @@ export async function GET(request: Request) {
 
     // Parse the date string to a Date object
     const date = new Date(dateStr);
-    
+
     // Validate that the date is valid
     if (isNaN(date.getTime())) {
       return NextResponse.json(
@@ -33,27 +33,24 @@ export async function GET(request: Request) {
       );
     }
 
-    console.log(`Checking for duplicate: date=${date.toLocaleDateString()}, branchId=${branchId}, reportType=${reportType}`);
+    const reportDate = date.toISOString().split('T')[0]; // 'YYYY-MM-DD'
+    const reportDateISO = `${reportDate}T00:00:00.000Z`;
+
+    //console.log(`Checking for duplicate: date=${date.toLocaleDateString()}, branchId=${branchId}, reportType=${reportType}`);
+    //console.log(`[DEBUG] Normalized reportDate string: ${reportDate}`);
+    //console.log(`[DEBUG] Using reportDateISO for Prisma query: ${reportDateISO}`);
 
     // Check if a report already exists for this branch on this date
-    const startOfDay = new Date(date);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(date);
-    endOfDay.setHours(23, 59, 59, 999);
-    
     const existingReport = await prisma.report.findFirst({
       where: {
         branchId,
-        date: {
-          gte: startOfDay.toISOString(),
-          lt: endOfDay.toISOString()
-        },
+        date: new Date(reportDateISO),
         reportType,
       },
     });
 
-    console.log(`Duplicate check result: ${!!existingReport}`);
-    
+    //console.log(`Duplicate check result: ${!!existingReport}`);
+
     return NextResponse.json({ isDuplicate: !!existingReport });
   } catch (error) {
     console.error("Error checking for duplicate report:", error);

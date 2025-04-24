@@ -22,7 +22,7 @@ async function createTestUsers() {
         isActive: true,
       },
     });
-    console.log("Created regular user:", regularUser.username);
+    //console.log("Created regular user:", regularUser.username);
 
     // Create readonly user
     const readonlyUser = await prisma.user.upsert({
@@ -37,9 +37,9 @@ async function createTestUsers() {
         isActive: true,
       },
     });
-    console.log("Created readonly user:", readonlyUser.username);
+    //console.log("Created readonly user:", readonlyUser.username);
 
-    console.log("Test users created successfully");
+    //console.log("Test users created successfully");
   } catch (error) {
     console.error("Error creating test users:", error);
   } finally {

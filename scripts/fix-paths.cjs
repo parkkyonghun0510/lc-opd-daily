@@ -35,7 +35,7 @@ dirs.forEach(dir => {
     
     // Write the modified content back
     fs.writeFileSync(filePath, content);
-    console.log(`Fixed imports in ${filePath}`);
+    //console.log(`Fixed imports in ${filePath}`);
   });
 });
 
@@ -46,7 +46,7 @@ if (!fs.existsSync('dist/index.js')) {
 export * from './lib/index.js';
 export * from './utils/index.js';
   `);
-  console.log('Created dist/index.js');
+  //console.log('Created dist/index.js');
 }
 
 if (!fs.existsSync('dist/lib/index.js')) {
@@ -55,7 +55,7 @@ if (!fs.existsSync('dist/lib/index.js')) {
 export * from './prisma.js';
 export * from './queue/index.js';
   `);
-  console.log('Created dist/lib/index.js');
+  //console.log('Created dist/lib/index.js');
 }
 
 if (!fs.existsSync('dist/lib/queue/index.js')) {
@@ -63,7 +63,7 @@ if (!fs.existsSync('dist/lib/queue/index.js')) {
 // This file helps with imports
 export * from './sqs.js';
   `);
-  console.log('Created dist/lib/queue/index.js');
+  //console.log('Created dist/lib/queue/index.js');
 }
 
 if (!fs.existsSync('dist/utils/index.js')) {
@@ -72,7 +72,7 @@ if (!fs.existsSync('dist/utils/index.js')) {
 export * from './notificationTemplates.js';
 export * from './notificationTargeting.js';
   `);
-  console.log('Created dist/utils/index.js');
+  //console.log('Created dist/utils/index.js');
 }
 
-console.log('Path fixing completed'); 
+//console.log('Path fixing completed'); 

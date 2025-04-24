@@ -144,7 +144,7 @@ export function CreateReportModal({
       const formattedDate = format(formData.date, "yyyy-MM-dd");
       const fetchKey = `${formattedDate}-${formData.branchId}`;
       
-      console.log("Attempting to fetch plan data for:", fetchKey);
+      //console.log("Attempting to fetch plan data for:", fetchKey);
       
       // Only fetch if we haven't already fetched this combination
       if (!fetchedCombinations.current.has(fetchKey)) {
@@ -200,7 +200,7 @@ export function CreateReportModal({
   useEffect(() => {
     if (isOpen) {
       fetchedCombinations.current.clear();
-      console.log("Modal opened, cleared fetched combinations");
+      //console.log("Modal opened, cleared fetched combinations");
     }
   }, [isOpen]);
 
@@ -215,8 +215,8 @@ export function CreateReportModal({
   // Debug date values
   useEffect(() => {
     if (formData.date) {
-      console.log("Current formData.date:", formData.date);
-      console.log("Formatted date:", format(formData.date, "yyyy-MM-dd"));
+      //console.log("Current formData.date:", formData.date);
+      //console.log("Formatted date:", format(formData.date, "yyyy-MM-dd"));
     }
   }, [formData.date]);
 

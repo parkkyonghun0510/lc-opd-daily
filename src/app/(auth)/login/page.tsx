@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Icons } from "@/components/ui/icons";
 import { clearAuthData } from "@/lib/auth/session-utils";
+import Image from "next/image";
 
 function DevModeWarning() {
   if (process.env.NODE_ENV !== 'development') return null;
@@ -42,7 +43,7 @@ function LoginForm() {
   // Redirect to dashboard if already authenticated
   useEffect(() => {
     if (status === "authenticated") {
-      console.log("User already authenticated, redirecting to:", callbackUrl);
+      //console.log("User already authenticated, redirecting to:", callbackUrl);
       router.push(callbackUrl);
     }
 
@@ -79,7 +80,7 @@ function LoginForm() {
         return;
       }
 
-      console.log("Attempting to sign in with redirect to:", callbackUrl);
+      //console.log("Attempting to sign in with redirect to:", callbackUrl);
 
       const result = await signIn("credentials", {
         username,
@@ -105,10 +106,10 @@ function LoginForm() {
         return;
       }
 
-      // Success! Manual redirect
+      // Success! Use router.replace for proper client-side navigation
       toast.success("Signed in successfully");
-      console.log("Login successful, redirecting to:", callbackUrl);
-      window.location.href = callbackUrl;
+      //console.log("Login successful, redirecting to:", callbackUrl);
+      router.replace(callbackUrl);
     } catch (error) {
       console.error("Login error:", error);
       toast.error("An error occurred during sign in");
@@ -127,11 +128,16 @@ function LoginForm() {
     <>
       <div className="flex flex-col items-center justify-center">
         <div className="bg-white dark:bg-gray-800 p-3 rounded-full mb-8">
-          <img
-            src="/lc-logo.png"
-            alt="LC Help Desk Logo"
+          {/* Your logo here */}
+          <Image
+            width={192}
+            height={192}
+            layout="responsive"
+            src="/icons/icon-192x192.png"
+            alt="LC Report Logo"
             className="h-16"
           />
+      
         </div>
         <h2 className="text-center text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
           Welcome back

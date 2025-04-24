@@ -78,6 +78,7 @@ import { ReportFilters } from "@/components/reports/ReportFilters";
 import { useRouter } from "next/navigation";
 import { Separator } from "@/components/ui/separator";
 import { ReportDetailModal, CommentConversation } from "@/components/reports/ReportDetailModal";
+import { useAccessibleBranches } from "@/hooks/useAccessibleBranches";
 
 // Define an extended type for reports with user information
 interface ReportWithUser extends Report {
@@ -101,6 +102,9 @@ export function ViewReports() {
   const [status, setStatus] = useState<string | undefined>(undefined);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [viewingReport, setViewingReport] = useState<ReportWithUser | null>(null);
+
+  // Use the useAccessibleBranches hook for robust, DRY access
+  const { branches: accessibleBranches, loading: branchesLoading, error: branchesError } = useAccessibleBranches();
 
   // Use the useReports hook for all data management
   const {
@@ -132,8 +136,11 @@ export function ViewReports() {
     initialEndDate: undefined,
   });
 
+  // Prefer accessibleBranches, fallback to userBranches for backward compatibility
+  const branchesToUse = accessibleBranches && accessibleBranches.length > 0 ? accessibleBranches : (userBranches || []);
+
   // If user has no branches assigned, show error message
-  if (!userBranches || userBranches.length === 0) {
+  if (!branchesToUse || branchesToUse.length === 0) {
     return (
       <Card>
         <CardHeader>
@@ -176,11 +183,11 @@ export function ViewReports() {
     // Only allow editing if user has access to the branch
     if (
       session?.user?.role !== "ADMIN" &&
-      session?.user?.branchId !== report.branch.id
+      !branchesToUse.some((b) => b.id === report.branch.id)
     ) {
       toast({
         title: "Access Denied",
-        description: "You can only edit reports for your assigned branch.",
+        description: "You can only edit reports for your accessible branches.",
         variant: "destructive",
       });
       return;
@@ -277,7 +284,15 @@ export function ViewReports() {
         body: JSON.stringify(updatePayload),
       });
 
+     
+
       if (!response.ok) {
+        console.log('Resubmitting report:', {
+          reportId: editingReport.id,
+          reportStatus: editingReport.status,
+          currentUser: session?.user?.id,
+          submittedBy: editingReport.submittedBy
+        });
         const error = await response.json();
         throw new Error(error.error || "Failed to update report");
       }

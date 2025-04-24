@@ -9,9 +9,9 @@
 // Load environment variables
 import 'dotenv/config';
 
-console.log('Starting notification worker...');
-console.log('AWS Region:', process.env.AWS_REGION);
-console.log('Queue URL:', process.env.AWS_SQS_NOTIFICATION_QUEUE_URL);
+//console.log('Starting notification worker...');
+//console.log('AWS Region:', process.env.AWS_REGION);
+//console.log('Queue URL:', process.env.AWS_SQS_NOTIFICATION_QUEUE_URL);
 
 // Check for required environment variables
 const requiredEnvVars = [
@@ -34,7 +34,7 @@ if (missingEnvVars.length > 0) {
 // Import and start the worker
 import('../src/workers/standalone-worker.js')
   .then(({ startNotificationWorker }) => {
-    console.log('Worker module loaded, starting worker...');
+    //console.log('Worker module loaded, starting worker...');
     return startNotificationWorker();
   })
   .catch(error => {

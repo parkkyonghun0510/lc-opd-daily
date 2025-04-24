@@ -26,6 +26,7 @@ interface BranchSelectorProps {
   className?: string;
   disabled?: boolean;
   id?: string;
+  showAllOption?: boolean;
 }
 
 export function BranchSelector({
@@ -36,6 +37,7 @@ export function BranchSelector({
   className = "",
   disabled = false,
   id,
+  showAllOption = false,
 }: BranchSelectorProps) {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [loading, setLoading] = useState(true);
@@ -107,6 +109,11 @@ export function BranchSelector({
             className="h-8"
           />
         </div>
+        {showAllOption && (
+          <SelectItem key="all-branches" value="">
+            All My Branches
+          </SelectItem>
+        )}
         {filteredBranches.length > 0 ? (
           filteredBranches.map((branch) => (
             <SelectItem key={branch.id} id={branch.id} value={branch.id}>
