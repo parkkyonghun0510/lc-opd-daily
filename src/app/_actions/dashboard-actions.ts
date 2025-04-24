@@ -76,13 +76,13 @@ export interface BranchDashboardSummaryData extends DashboardSummaryData {
     title: string;
     createdAt: string;
     status: string;
+    amount?: number;
   }>;
 }
 
 export async function fetchDashboardSummary(
   options?: DashboardSummaryOptions
 ): Promise<{ status: number; data?: BranchDashboardSummaryData; error?: string }> {
-  //console.log('[Dashboard Action] Fetching dashboard summary with options:', JSON.stringify(options, null, 2));
   try {
     const session = await getServerSession(authOptions);
     const user = session?.user;
@@ -91,193 +91,202 @@ export async function fetchDashboardSummary(
     }
 
     let accessibleBranchIds: string[] | undefined = undefined;
-    console.log('[DEBUG] Fetching accessible branches for user:', user.id);
     if (user.role !== UserRole.ADMIN) {
       const branches = await getAccessibleBranches(user.id);
       accessibleBranchIds = branches.map(b => b.id);
-      console.log('[DEBUG] Accessible branches:', accessibleBranchIds);
       if (accessibleBranchIds.length === 0) {
-        // Non-admin users must have access to at least one branch
-        // This case should ideally be handled earlier (e.g., login), but added as a safeguard
-        console.warn(`User ${user.id} has no accessible branches.`);
-        // Return empty/zeroed data or an error depending on desired behavior
         return { status: 200, data: { totalUsers: 0, totalReports: 0, pendingReports: 0, totalAmount: 0, adminUsers: 0, growthRate: 0 } };
       }
     }
 
-    // Build the where clause for reports based on accessible branches
-    const baseReportWhereClause = {
-      ...(accessibleBranchIds ? { branchId: { in: accessibleBranchIds } } : {}),
-      ...(options?.dateRange ? {
-        createdAt: {
-          gte: typeof options.dateRange.start === 'string' ? options.dateRange.start : new Date(options.dateRange.start).toISOString(),
-          lte: typeof options.dateRange.end === 'string' ? options.dateRange.end : new Date(options.dateRange.end).toISOString(),
-        }
-      } : {})
-    };
-
-    // Apply optional filters
-    const reportWhereClause = {
-      ...baseReportWhereClause,
+    // Simplified where clause construction
+    const reportWhereClause: Prisma.ReportWhereInput = {
+      ...(accessibleBranchIds && { branchId: { in: accessibleBranchIds } }),
+      ...(options?.branchIds && { branchId: { in: options.branchIds } }),
       ...(options?.dateRange && {
         createdAt: {
-          gte: typeof options.dateRange.start === 'string' ? options.dateRange.start : new Date(options.dateRange.start).toISOString(),
-          lte: typeof options.dateRange.end === 'string' ? options.dateRange.end : new Date(options.dateRange.end).toISOString(),
-        }
+          gte: new Date(options.dateRange.start).toISOString(),
+          lte: new Date(options.dateRange.end).toISOString(),
+        },
       }),
-      ...(options?.branchIds && {
-        branchId: { in: options.branchIds }
-      })
     };
 
-    // Fetch data concurrently
-    // Removed customFields reducer: not part of DashboardSummaryOptions
-
-    const aggregationFields = {
+    // Prepare aggregation fields
+    const aggregationFields: Prisma.ReportAggregateArgs = {
       _sum: {
         writeOffs: true,
         ninetyPlus: true,
-        ...(options?.customAggregations ?
-          options.customAggregations.reduce((acc, field) => ({
-            ...acc,
-            [field]: true
-          }), {}) : {})
-      }
+        ...(options?.customAggregations?.reduce((acc, field) => ({
+          ...acc,
+          [field]: true
+        }), {}))
+      },
+      where: reportWhereClause
     };
 
+    // Fetch data concurrently with optimized selects
     const [totalUsersCount, totalReportsCount, pendingReportsCount, reportAggregations, adminUsersCount] = await Promise.all([
-      prisma.user.count({ where: { isActive: true } }), // Count only active users
+      prisma.user.count({ where: { isActive: true } }),
       prisma.report.count({ where: reportWhereClause }),
       prisma.report.count({ where: { ...reportWhereClause, status: 'pending_approval' } }),
-      prisma.report.aggregate({
-        _sum: {
-          writeOffs: true,
-          ninetyPlus: true,
-          // Allow dynamic fields for customAggregations
-          ...(options?.customAggregations ? options.customAggregations.reduce((acc: Record<string, true>, field: string) => {
-            acc[field] = true;
-            return acc;
-          }, {}) : {})
-        },
-        where: reportWhereClause,
-      }),
+      prisma.report.aggregate(aggregationFields),
       prisma.user.count({ where: { role: UserRole.ADMIN, isActive: true } }),
     ]);
 
-    const totalAmount = (reportAggregations._sum.writeOffs?.toNumber() || 0) +
-      (reportAggregations._sum.ninetyPlus?.toNumber() || 0);
+    // Calculate total amount and custom aggregations with proper null checking
+    const totalAmount = (reportAggregations._sum?.writeOffs?.toNumber() || 0) +
+      (reportAggregations._sum?.ninetyPlus?.toNumber() || 0);
 
-    // Calculate custom aggregations if requested
-    // TypeScript: cast _sum as Record<string, Decimal | null> for dynamic custom fields
-    const customAggregations = options?.customAggregations ?
-      options.customAggregations.reduce((acc: Record<string, number>, field: string) => ({
-        ...acc,
-        [field]: (reportAggregations._sum as Record<string, Prisma.Decimal | null>)[field]?.toNumber() || 0
-      }), {}) : undefined;
+    const customAggregations = options?.customAggregations?.reduce((acc, field) => ({
+      ...acc,
+      [field]: ((reportAggregations._sum as Record<string, Prisma.Decimal | null>)?.[field])?.toNumber() || 0
+    }), {} as Record<string, number>);
 
-    // Placeholder for growth rate calculation (requires historical data)
-    const currentMonthStart = new Date();
-    currentMonthStart.setDate(1);
-    currentMonthStart.setHours(0, 0, 0, 0);
-    const previousMonthStart = new Date(currentMonthStart);
-    previousMonthStart.setMonth(previousMonthStart.getMonth() - 1);
+    // Optimized growth rate calculation with a single query
+    const { currentRevenue, previousRevenue } = await prisma.$transaction(async (tx) => {
+      const currentMonthStart = new Date();
+      currentMonthStart.setDate(1);
+      currentMonthStart.setHours(0, 0, 0, 0);
+      const previousMonthStart = new Date(currentMonthStart);
+      previousMonthStart.setMonth(previousMonthStart.getMonth() - 1);
 
-    const currentMonthRevenue = await prisma.report.aggregate({
-      _sum: { writeOffs: true, ninetyPlus: true },
-      where: {
-        createdAt: { gte: currentMonthStart.toISOString() },
-        ...(accessibleBranchIds ? { branchId: { in: accessibleBranchIds } } : {}),
-      },
+      const [current, previous] = await Promise.all([
+        tx.report.aggregate({
+          _sum: { writeOffs: true, ninetyPlus: true },
+          where: {
+            createdAt: { gte: currentMonthStart.toISOString() },
+            ...(accessibleBranchIds ? { branchId: { in: accessibleBranchIds } } : {}),
+          },
+        }),
+        tx.report.aggregate({
+          _sum: { writeOffs: true, ninetyPlus: true },
+          where: {
+            createdAt: {
+              gte: previousMonthStart.toISOString(),
+              lt: currentMonthStart.toISOString(),
+            },
+            ...(accessibleBranchIds ? { branchId: { in: accessibleBranchIds } } : {}),
+          },
+        }),
+      ]);
+
+      return {
+        currentRevenue: (current._sum.writeOffs?.toNumber() || 0) + (current._sum.ninetyPlus?.toNumber() || 0),
+        previousRevenue: (previous._sum.writeOffs?.toNumber() || 0) + (previous._sum.ninetyPlus?.toNumber() || 0),
+      };
     });
-
-    const previousMonthRevenue = await prisma.report.aggregate({
-      _sum: { writeOffs: true, ninetyPlus: true },
-      where: {
-        createdAt: {
-          gte: previousMonthStart.toISOString(),
-          lt: currentMonthStart.toISOString(),
-        },
-        ...(accessibleBranchIds ? { branchId: { in: accessibleBranchIds } } : {}),
-      },
-    });
-
-    const currentRevenue = (currentMonthRevenue._sum.writeOffs?.toNumber() || 0) +
-      (currentMonthRevenue._sum.ninetyPlus?.toNumber() || 0);
-    const previousRevenue = (previousMonthRevenue._sum.writeOffs?.toNumber() || 0) +
-      (previousMonthRevenue._sum.ninetyPlus?.toNumber() || 0);
 
     const growthRate = previousRevenue === 0
       ? currentRevenue > 0 ? 100 : 0
       : ((currentRevenue - previousRevenue) / previousRevenue) * 100;
 
-    // --- Branch Manager Enhancements ---
-    let branchName: string | undefined = undefined;
-    let branchStaff: number | undefined = undefined;
-    let branchRank: number | undefined = undefined;
-    let recentReports: Array<{ id: string; title: string; createdAt: string; status: string }> | undefined = undefined;
-
-    if (user.role === UserRole.BRANCH_MANAGER && accessibleBranchIds && accessibleBranchIds.length === 1) {
+    // For branch manager data
+    let branchData: Partial<BranchDashboardSummaryData> = {};
+    if (user.role === UserRole.BRANCH_MANAGER && accessibleBranchIds?.length === 1) {
       const branchId = accessibleBranchIds[0];
 
+      // Get branch data in a single transaction to ensure consistency
+      const branchDetails = await prisma.$transaction(async (tx) => {
+        const [branch, branchStaff, branchRevenues, recentReports] = await Promise.all([
+          tx.branch.findUnique({
+            where: { id: branchId },
+            select: { name: true }
+          }),
+          tx.user.count({
+            where: { branchId, isActive: true }
+          }),
+          tx.report.groupBy({
+            by: ['branchId'],
+            where: {
+              status: "approved",
+              reportType: "actual",
+              // Add date range if needed
+              ...(options?.dateRange && {
+                createdAt: {
+                  gte: new Date(options.dateRange.start).toISOString(),
+                  lte: new Date(options.dateRange.end).toISOString(),
+                }
+              })
+            },
+            _sum: {
+              writeOffs: true,
+              ninetyPlus: true
+            }
+          }),
+          tx.report.findMany({
+            where: {
+              branchId,
+              // Add date range if needed
+              ...(options?.dateRange && {
+                createdAt: {
+                  gte: new Date(options.dateRange.start).toISOString(),
+                  lte: new Date(options.dateRange.end).toISOString(),
+                }
+              })
+            },
+            orderBy: { createdAt: "desc" },
+            take: 5,
+            select: {
+              id: true,
+              reportType: true,
+              createdAt: true,
+              status: true,
+              date: true,
+              writeOffs: true,
+              ninetyPlus: true
+            }
+          })
+        ]);
 
-      // 1. Branch Name
-      const branch = await prisma.branch.findUnique({ where: { id: branchId }, select: { name: true } });
-      branchName = branch?.name || "Your Branch";
+        // Calculate total revenue for each branch and sort for ranking
+        const branchRevenuesMap = new Map(
+          branchRevenues.map(b => [
+            b.branchId,
+            (b._sum.writeOffs?.toNumber() || 0) + (b._sum.ninetyPlus?.toNumber() || 0)
+          ])
+        );
 
-      // 2. Branch Staff
-      branchStaff = await prisma.user.count({ where: { branchId, isActive: true } });
+        // Convert to array and sort by revenue to get rankings
+        const sortedBranches = Array.from(branchRevenuesMap.entries())
+          .sort(([, a], [, b]) => b - a);
 
-      // 3. Branch Rank (by totalAmount)
-      const allBranches = await prisma.branch.findMany({
-        select: { id: true, name: true },
+        // Find current branch's rank
+        const branchRank = sortedBranches.findIndex(([id]) => id === branchId) + 1;
+
+        return {
+          branch,
+          branchStaff,
+          branchRank,
+          recentReports
+        };
       });
-      const branchRevenues = await Promise.all(
-        allBranches.map(async b => {
-          const agg = await prisma.report.aggregate({
-            where: { branchId: b.id, status: "approved", reportType: "actual" },
-            _sum: { writeOffs: true, ninetyPlus: true },
-          });
-          const revenue = (agg._sum.writeOffs?.toNumber() || 0) + (agg._sum.ninetyPlus?.toNumber() || 0);
-          return { id: b.id, revenue };
-        })
-      );
-      branchRevenues.sort((a, b) => b.revenue - a.revenue);
-      branchRank = branchRevenues.findIndex(b => b.id === branchId) + 1;
 
-      // 4. Recent Reports
-      console.log('[DEBUG] Fetching recent reports for branch:', branchId);
-      const reports = await prisma.report.findMany({
-        where: { branchId },
-        orderBy: { createdAt: "desc" },
-        take: 5,
-        select: { id: true, reportType: true, createdAt: true, status: true },
-      });
-      console.log('[DEBUG] Recent reports fetched:', recentReports);
-      recentReports = reports.map(r => ({
-        id: r.id,
-        title: r.reportType ?? `Report #${r.id}`,
-        createdAt: r.createdAt.toISOString(),
-        status: r.status,
-      }));
+      branchData = {
+        branchName: branchDetails.branch?.name || "Welcome to the Dashboard",
+        branchStaff: branchDetails.branchStaff,
+        branchRank: branchDetails.branchRank,
+        recentReports: branchDetails.recentReports.map(r => ({
+          id: r.id,
+          title: `${r.reportType} Report - ${new Date(r.date).toLocaleDateString()}`,
+          createdAt: r.createdAt.toISOString(),
+          status: r.status,
+          amount: (r.writeOffs?.toNumber() || 0) + (r.ninetyPlus?.toNumber() || 0)
+        }))
+      };
     }
-    // --- End Branch Manager Enhancements ---
 
     const summaryData: BranchDashboardSummaryData = {
       totalUsers: totalUsersCount,
       totalReports: totalReportsCount,
       pendingReports: pendingReportsCount,
-      totalAmount: totalAmount,
+      totalAmount,
       adminUsers: adminUsersCount,
-      growthRate: growthRate,
-      ...(customAggregations ? { customAggregations } : {}),
-      ...(options?.dateRange ? { dateRange: options.dateRange } : {}),
-      ...(branchName ? { branchName } : {}),
-      ...(branchStaff !== undefined ? { branchStaff } : {}),
-      ...(branchRank !== undefined ? { branchRank } : {}),
-      ...(recentReports ? { recentReports } : {}),
+      growthRate,
+      ...(customAggregations && { customAggregations }),
+      ...(options?.dateRange && { dateRange: options.dateRange }),
+      ...branchData
     };
 
-    //console.log('[Dashboard Action] Successfully fetched summary data:', JSON.stringify(summaryData, null, 2));
     return { status: 200, data: summaryData };
 
   } catch (error) {
@@ -299,105 +308,132 @@ export async function fetchUserDashboardData() {
     }
     const userId = user.id;
     const userRole = user.role;
-    const prisma = require('@/lib/prisma').prisma || (await import('@/lib/prisma')).prisma;
 
-    // Get user's branch (if not admin)
-    let branchId: string | undefined = undefined;
-    if (userRole !== UserRole.ADMIN) {
-      const dbUser = await prisma.user.findUnique({ where: { id: userId }, select: { branchId: true } });
-      branchId = dbUser?.branchId || undefined;
-    }
+    // Use transaction for consistent data snapshot and parallel queries
+    const data = await prisma.$transaction(async (tx) => {
+      // Get user's branch and counts in parallel
+      const [
+        dbUser,
+        userReports,
+        { currentMonthData, previousMonthData },
+        recentActivities,
+        recentReports
+      ] = await Promise.all([
+        // Get user's branch (if not admin)
+        userRole !== UserRole.ADMIN
+          ? tx.user.findUnique({
+            where: { id: userId },
+            select: { branchId: true }
+          })
+          : null,
 
-    // 1. Reports created by the user
-    const userReports = await prisma.report.count({ where: { submittedBy: userId } });
+        // 1. Reports created by the user
+        tx.report.count({
+          where: { submittedBy: userId }
+        }),
 
-    // 2. Reports pending approval for user's branch
-    let pendingReports = 0;
-    if (userRole === UserRole.ADMIN) {
-      pendingReports = await prisma.report.count({ where: { status: 'pending_approval' } });
-    } else if (branchId) {
-      pendingReports = await prisma.report.count({ where: { status: 'pending_approval', branchId } });
-    }
+        // 2. Growth rate data
+        (async () => {
+          const currentMonthStart = new Date();
+          currentMonthStart.setDate(1);
+          currentMonthStart.setHours(0, 0, 0, 0);
+          const previousMonthStart = new Date(currentMonthStart);
+          previousMonthStart.setMonth(previousMonthStart.getMonth() - 1);
 
-    // 3. Growth rate (reuse logic from summary)
-    // Calculate growth rate (comparing current month with previous month)
-    const currentMonthStart = new Date();
-    currentMonthStart.setDate(1);
-    currentMonthStart.setHours(0, 0, 0, 0);
-    const currentMonthStartStr = currentMonthStart.toISOString();
-    const previousMonthStart = new Date(currentMonthStart);
-    previousMonthStart.setMonth(previousMonthStart.getMonth() - 1);
-    const previousMonthStartStr = previousMonthStart.toISOString();
+          const [current, previous] = await Promise.all([
+            tx.report.count({
+              where: {
+                submittedBy: userId,
+                createdAt: { gte: currentMonthStart.toISOString() },
+              },
+            }),
+            tx.report.count({
+              where: {
+                submittedBy: userId,
+                createdAt: {
+                  gte: previousMonthStart.toISOString(),
+                  lt: currentMonthStart.toISOString()
+                },
+              },
+            }),
+          ]);
 
-    const currentMonthData = await prisma.report.count({
-      where: {
-        submittedBy: userId,
-        createdAt: { gte: currentMonthStartStr },
-      },
-    });
-    const previousMonthData = await prisma.report.count({
-      where: {
-        submittedBy: userId,
-        createdAt: { gte: previousMonthStartStr, lt: currentMonthStartStr },
-      },
-    });
-    let growthRate = 0;
-    if (previousMonthData === 0 && currentMonthData > 0) {
-      growthRate = 100;
-    } else if (previousMonthData > 0) {
-      growthRate = ((currentMonthData - previousMonthData) / previousMonthData) * 100;
-    }
+          return { currentMonthData: current, previousMonthData: previous };
+        })(),
 
-    // 4. Recent activities (last 5 userActivity entries for the user)
-    const recentActivitiesRaw = await prisma.userActivity.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-      take: 5,
-      select: {
-        action: true,
-        details: true,
-        createdAt: true,
-      },
-    });
-    const recentActivities = recentActivitiesRaw.map((a: any) => ({
-      description: a.action.replace(/_/g, ' ').toLowerCase(),
-      details: a.details,
-      timestamp: a.createdAt,
-    }));
+        // 3. Recent activities
+        tx.userActivity.findMany({
+          where: { userId },
+          orderBy: { createdAt: 'desc' },
+          take: 5,
+          select: {
+            action: true,
+            details: true,
+            createdAt: true,
+          },
+        }),
 
-    // 5. Recent reports (last 5 created by the user)
-    const recentReportsRaw = await prisma.report.findMany({
-      where: { submittedBy: userId },
-      orderBy: { createdAt: 'desc' },
-      take: 5,
-      select: {
-        id: true,
-        date: true,
-        branch: { select: { name: true } },
-        status: true,
-        reportType: true,
-        submittedAt: true,
-      },
-    });
-    const recentReports = recentReportsRaw.map((r: any) => ({
-      id: r.id,
-      date: r.date,
-      branch: r.branch?.name || 'Unknown',
-      status: r.status,
-      reportType: r.reportType,
-      submittedAt: r.submittedAt,
-    }));
+        // 4. Recent reports with branch info
+        tx.report.findMany({
+          where: { submittedBy: userId },
+          orderBy: { createdAt: 'desc' },
+          take: 5,
+          select: {
+            id: true,
+            date: true,
+            branch: { select: { name: true } },
+            status: true,
+            reportType: true,
+            submittedAt: true,
+          },
+        }),
+      ]);
 
-    return {
-      status: 200,
-      data: {
+      // Get pending reports count based on role and branch
+      const pendingReports = await (async () => {
+        if (userRole === UserRole.ADMIN) {
+          return tx.report.count({ where: { status: 'pending_approval' } });
+        } else if (dbUser?.branchId) {
+          return tx.report.count({
+            where: {
+              status: 'pending_approval',
+              branchId: dbUser.branchId
+            }
+          });
+        }
+        return 0;
+      })();
+
+      // Calculate growth rate
+      let growthRate = 0;
+      if (previousMonthData === 0 && currentMonthData > 0) {
+        growthRate = 100;
+      } else if (previousMonthData > 0) {
+        growthRate = ((currentMonthData - previousMonthData) / previousMonthData) * 100;
+      }
+
+      return {
         userReports,
         pendingReports,
         growthRate: Math.round(growthRate * 100) / 100,
-        recentActivities,
-        recentReports,
-      },
-    };
+        recentActivities: recentActivities.map(a => ({
+          description: a.action.replace(/_/g, ' ').toLowerCase(),
+          details: a.details,
+          timestamp: a.createdAt,
+        })),
+        recentReports: recentReports.map(r => ({
+          id: r.id,
+          date: r.date,
+          branch: r.branch?.name || 'Unknown',
+          status: r.status,
+          reportType: r.reportType,
+          submittedAt: r.submittedAt,
+        })),
+      };
+    });
+
+    return { status: 200, data };
+
   } catch (error) {
     console.error('[Dashboard Action] Error fetching user dashboard data:', error);
     return { status: 500, error: 'Failed to fetch user dashboard data' };

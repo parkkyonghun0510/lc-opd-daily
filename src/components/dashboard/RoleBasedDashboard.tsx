@@ -4,29 +4,41 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, FileText, Clock, ShieldCheck, TrendingUp, AlertCircle } from 'lucide-react';
 import { useUserData } from '@/contexts/UserDataContext';
-import { useDashboardData } from '@/contexts/DashboardDataContext'; // Import the hook
-import { Skeleton } from '@/components/ui/skeleton'; // Import Skeleton
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; // Import Alert
+import { useDashboardData } from '@/contexts/DashboardDataContext';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from '@/components/ui/button';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { formatKHRCurrency } from '@/lib/utils';
-import AdminDashboardContent from './dashboard-content/AdminDashboardContent';
-import BranchManagerDashboardContent from './dashboard-content/BranchManagerDashboardContent';
-import UserDashboardContent from './dashboard-content/UserDashboardContent';
-// import { formatNumber } from '@/utils/formatters'; // Assuming you have a number formatter
+import BranchManagerDashboardContent from './BranchManagerDashboardContent';
+import UserDashboardContent from './UserDashboardContent';
 
-// Define a type for the dashboard card props
+// Enhanced type definitions
 interface DashboardCardProps {
   title: string;
   value: string | number | undefined;
   description: string;
   icon: React.ElementType;
   isLoading: boolean;
+  className?: string;
 }
 
-const DashboardCard: React.FC<DashboardCardProps> = ({ title, value, description, icon: Icon, isLoading }) => (
-  <Card className="shadow-sm hover:shadow-md transition-shadow duration-200">
+interface DashboardContentProps {
+  dashboardData: any;
+  isLoading: boolean;
+  userName?: string;
+}
+
+// Reusable DashboardCard component with improved styling
+const DashboardCard: React.FC<DashboardCardProps> = ({
+  title,
+  value,
+  description,
+  icon: Icon,
+  isLoading,
+  className
+}) => (
+  <Card className={`shadow-sm hover:shadow-md transition-shadow duration-200 ${className}`}>
     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
       <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">{title}</CardTitle>
       <Icon className="h-5 w-5 text-muted-foreground" />
@@ -39,7 +51,12 @@ const DashboardCard: React.FC<DashboardCardProps> = ({ title, value, description
         </>
       ) : (
         <>
-          <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{value ?? 'N/A'}</div>
+          <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+            {typeof value === 'number' && title.toLowerCase().includes('amount')
+              ? formatKHRCurrency(value)
+              : value ?? 'N/A'
+            }
+          </div>
           <p className="text-xs text-muted-foreground">{description}</p>
         </>
       )}
@@ -47,111 +64,102 @@ const DashboardCard: React.FC<DashboardCardProps> = ({ title, value, description
   </Card>
 );
 
-// Define a type for the dashboard component props if needed
-interface RoleBasedDashboardProps {
-  // Add any props if necessary
-}
+// Export DashboardCard for reuse
+export { DashboardCard };
 
-const RoleBasedDashboard: React.FC<RoleBasedDashboardProps> = () => {
+// Shared error component
+const DashboardError: React.FC<{ error: string; onRefresh: () => void }> = ({ error, onRefresh }) => (
+  <div className="container mx-auto px-4 py-8">
+    <Alert variant="destructive">
+      <AlertCircle className="h-4 w-4" />
+      <AlertTitle>Error Loading Dashboard Data</AlertTitle>
+      <AlertDescription>
+        There was an issue fetching the latest dashboard information: {error}.
+        Please try refreshing the data or contact support if the problem persists.
+        <Button onClick={onRefresh} variant="secondary" size="sm" className="ml-4">
+          Refresh Data
+        </Button>
+      </AlertDescription>
+    </Alert>
+  </div>
+);
+
+// Connection status component
+const ConnectionStatus: React.FC = () => (
+  <Alert>
+    <AlertCircle className="h-4 w-4" />
+    <AlertTitle>Real-time Updates Disconnected</AlertTitle>
+    <AlertDescription>
+      The connection for live dashboard updates is currently inactive. Data shown might be slightly delayed.
+    </AlertDescription>
+  </Alert>
+);
+
+const RoleBasedDashboard: React.FC = () => {
   const router = useRouter();
   const { userData } = useUserData();
-  const { dashboardData, isLoading, isSseConnected, sseError, refreshDashboardData } = useDashboardData(); // Use the hook
+  const {
+    dashboardData,
+    isLoading,
+    isSseConnected,
+    sseError,
+    refreshDashboardData
+  } = useDashboardData();
 
-  // Determine the role for display
   const displayRole = userData?.computedFields.accessLevel || 'User';
-  
+
+  // Redirect to role-specific dashboard
   React.useEffect(() => {
-    // If we're on the generic dashboard route, redirect to the role-specific one
-    // This works with the middleware but provides a fallback in case middleware doesn't run
-    // (such as during development or static generation)
     if (typeof window !== 'undefined' && window.location.pathname === '/dashboard') {
-      if (displayRole === 'ADMIN') {
-        router.push('/dashboard/admin');
-      } else if (displayRole === 'BRANCH_MANAGER') {
-        router.push('/dashboard/branch-manager');
-      } else {
-        router.push('/dashboard/user');
-      }
+      const roleRoutes = {
+        'ADMIN': '/dashboard/admin',
+        'BRANCH_MANAGER': '/dashboard/branch-manager',
+        'USER': '/dashboard/user'
+      };
+      const targetRoute = roleRoutes[displayRole as keyof typeof roleRoutes] || '/dashboard/user';
+      router.push(targetRoute);
     }
   }, [displayRole, router]);
 
-  // Handle loading state
-  const cardIsLoading = isLoading || !dashboardData;
-
-  // Handle error state
+  // Handle loading and error states
   if (sseError) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Error Loading Dashboard Data</AlertTitle>
-          <AlertDescription>
-            There was an issue fetching the latest dashboard information: {sseError}.
-            Please try refreshing the data or contact support if the problem persists.
-            <Button onClick={refreshDashboardData} variant="secondary" size="sm" className="ml-4">
-              Refresh Data
-            </Button>
-          </AlertDescription>
-        </Alert>
-      </div>
-    );
+    return <DashboardError error={sseError} onRefresh={refreshDashboardData} />;
   }
 
   if (!isSseConnected) {
-    return (
-      <Alert>
-        <AlertCircle className="h-4 w-4" />
-        <AlertTitle>Real-time Updates Disconnected</AlertTitle>
-        <AlertDescription>
-          The connection for live dashboard updates is currently inactive. Data shown might be slightly delayed.
-        </AlertDescription>
-      </Alert>
-    );
+    return <ConnectionStatus />;
   }
 
-  // Define a mapping of roles to their corresponding dashboard content components
-  const dashboardContentMap: {
-    [key: string]: React.ComponentType<any>
-  } = {
-    // 'ADMIN': AdminDashboardContent,
+  // Define role-specific content components
+  const dashboardContentMap: Record<string, React.ComponentType<DashboardContentProps>> = {
     'BRANCH_MANAGER': BranchManagerDashboardContent,
-    // Default to UserDashboardContent for any other role
+    'USER': UserDashboardContent
   };
 
-  // Get the appropriate dashboard content component based on role
+  // Get the appropriate dashboard content component
   const DashboardContent = dashboardContentMap[displayRole] || UserDashboardContent;
-  
-  // Create props object based on role
-  const contentProps = {
+
+  // Prepare common props for the content component
+  const contentProps: DashboardContentProps = {
     dashboardData,
-    isLoading: cardIsLoading,
-    ...(displayRole !== 'ADMIN' && displayRole !== 'BRANCH_MANAGER' ? { userName: userData?.name } : {})
+    isLoading,
+    ...(displayRole === 'USER' && { userName: userData?.name })
   };
 
-  // Use component composition rather than conditional rendering
-  // This makes it easy to add shared UI elements across all dashboard types
   return (
     <div className="container mx-auto px-4 py-8 space-y-6">
-      {/* Common dashboard elements for all users */}
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">{displayRole} Dashboard</h1>
+        <h1 className="text-2xl font-bold capitalize">
+          {displayRole.toLowerCase().replace('_', ' ')} Dashboard
+        </h1>
         <div className="space-x-2">
-          
-          {/* <Link href="/dashboard/consolidated" passHref>
-            <Button variant="outline">
-              <TrendingUp className="mr-2 h-4 w-4" /> Consolidated View
-            </Button>
-          </Link> */}
           <Button onClick={refreshDashboardData} variant="ghost" size="sm">
             Refresh
           </Button>
         </div>
       </div>
 
-      {/* Render the appropriate dashboard content based on role */}
-      <DashboardContent 
-        {...contentProps}
-      />
+      <DashboardContent {...contentProps} />
     </div>
   );
 };

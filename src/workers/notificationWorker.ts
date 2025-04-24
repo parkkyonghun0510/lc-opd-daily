@@ -341,17 +341,29 @@ async function processNotificationMessage(message: any): Promise<boolean> {
     metrics.messageProcessed++;
     //console.log(`Processed notification: ${pushSuccessCount}/${subscriptions.length} push, ${telegramSuccessCount}/${telegramSubsCount} TG, ${inAppCount} in-app`); // Use telegramSubsCount
 
-    // Broadcast SSE event to all relevant users
+    // Broadcast SSE event to all relevant users using standardized format
     try {
       notification.userIds.forEach(userId => {
-        sseHandler.broadcastToUser(userId, {
-          type: notification.type,
-          data: notification.data,
-          timestamp: Date.now()
-        });
+        // Send a properly formatted SSE event using the enhanced handler
+        sseHandler.sendEventToUser(
+          userId,
+          'notification', // Use a standardized event type
+          {
+            id: crypto.randomUUID(), // Generate a unique ID for the notification
+            type: notification.type,
+            title: notification.data?.title,
+            body: notification.data?.body,
+            data: notification.data,
+            timestamp: Date.now(),
+            priority: notification.priority || 'normal'
+          }
+        );
       });
+
+      // Log successful SSE broadcast
+      console.log(`[SSE] Broadcast notification of type ${notification.type} to ${notification.userIds.length} users`);
     } catch (sseError) {
-      console.error("Error broadcasting SSE notification:", sseError);
+      console.error("[SSE] Error broadcasting notification:", sseError);
     }
 
     return true;
@@ -739,4 +751,4 @@ if (require.main === module) {
     console.error('Fatal error in notification worker:', error);
     process.exit(1);
   });
-} 
+}

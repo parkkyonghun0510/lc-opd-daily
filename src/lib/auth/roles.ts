@@ -80,6 +80,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     Permission.VIEW_REPORTS,
     Permission.CREATE_REPORTS,
     Permission.VIEW_BRANCH,
+    Permission.EDIT_OWN_REPORTS,
   ],
 };
 

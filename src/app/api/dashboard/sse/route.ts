@@ -2,26 +2,36 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import sseEmitter from '@/lib/sseEmitter';
+import sseHandler from '@/lib/sse/sseHandler';
 import { DashboardEventType, DashboardUpdatePayload, createDashboardUpdate } from '@/lib/events/dashboard-events';
+import { rateLimiter } from '@/lib/rate-limit';
 
 /**
- * RECOMMENDED SSE IMPLEMENTATION
+ * Dashboard SSE Endpoint
  *
- * This is the preferred Server-Sent Events (SSE) implementation using EventEmitter
- * for real-time dashboard updates. It properly formats SSE events and handles
- * client connections efficiently.
+ * This endpoint provides real-time dashboard updates using Server-Sent Events.
+ * It uses the standardized SSE handler for connection management and event formatting.
  *
  * Features:
- * - Proper event-based architecture with EventEmitter
- * - Authentication support
- * - Keepalive mechanism to prevent connection timeouts
- * - Proper event formatting with named events
+ * - Secure authentication via session
+ * - Standardized event format
+ * - Connection monitoring and cleanup
+ * - Integration with dashboard event emitter
  */
-
-// Keep track of connected clients
-const clients = new Map<string, Response>();
-
 export async function GET(request: NextRequest) {
+  // Apply rate limiting - increased limits for development
+  const rateLimitResponse = await rateLimiter.applyRateLimit(request, {
+    identifier: 'dashboard_sse',
+    limit: 10, // Maximum 10 connections per user/IP (increased from 3)
+    window: 60 // Within a 60-second window
+  });
+
+  // If rate limited, return the response
+  if (rateLimitResponse) {
+    console.log('[SSE] Rate limit exceeded for dashboard SSE');
+    return rateLimitResponse;
+  }
+
   // --- Authentication Check ---
   let userId: string;
 
@@ -30,17 +40,36 @@ export async function GET(request: NextRequest) {
     const session = await getServerSession(authOptions);
 
     if (!session || !session.user) {
-      //console.log('[SSE Debug] Authentication failed: No valid session');
+      console.log('[SSE] Authentication failed: No valid session');
       return new NextResponse('Unauthorized', { status: 401 });
     }
 
     userId = session.user.id; // Get user ID from session
-    //console.log(`[SSE Debug] Connection opened for authenticated user: ${userId} at ${new Date().toISOString()}`);
   } catch (error) {
-    console.error('[SSE Debug] Authentication error:', error);
+    console.error('[SSE] Authentication error:', error);
     return new NextResponse('Authentication error', { status: 500 });
   }
 
+  // Check if user already has too many active connections
+  try {
+    const stats = sseHandler.getStats(); // Removed await since getStats is not async
+    const userConnections = stats.userCounts[userId] || 0;
+
+    // Limit to 5 connections per user (increased from 2)
+    if (userConnections >= 5) {
+      console.log(`[SSE] Too many connections for user ${userId}: ${userConnections}`);
+      return new NextResponse("Too many connections for this user", {
+        status: 429,
+        headers: {
+          'Retry-After': '60'
+        }
+      });
+    }
+  } catch (error) {
+    console.error("[SSE] Error checking user connection count:", error);
+  }
+
+  // Set up SSE headers
   const headers = {
     'Content-Type': 'text/event-stream',
     'Cache-Control': 'no-cache, no-transform',
@@ -48,74 +77,82 @@ export async function GET(request: NextRequest) {
     'X-Accel-Buffering': 'no', // Important for Nginx buffering issues
   };
 
+  // Create SSE stream
   const stream = new ReadableStream({
     start(controller) {
-      const sendEvent = (event: string, data: any) => {
-        const message = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
-        try {
-          controller.enqueue(new TextEncoder().encode(message));
-          //console.log(`[SSE Debug] Sent SSE event '${event}' to user: ${userId} with data:`, data);
-        } catch (error) {
-          console.error(`[SSE Debug] Error sending SSE to user ${userId}:`, error);
-          // Clean up if the client disconnected during send
-          controller.close();
-          clients.delete(userId);
-          sseEmitter.off('dashboardUpdate', sendUpdate);
-        }
+      const encoder = new TextEncoder();
+      const clientId = crypto.randomUUID();
+
+      // Create response object that the SSE handler will use
+      const response = {
+        write: (chunk: string) => controller.enqueue(encoder.encode(chunk)),
       };
 
-      const sendUpdate = (updateData: DashboardUpdatePayload) => {
-        // Example: Only send updates relevant to the user/branch
-        // if (updateData.branchId === session.user.branchId) { ... }
-        sendEvent('dashboardUpdate', updateData);
+      // Register client with the SSE handler
+      sseHandler.addClient(clientId, userId, response, {
+        type: 'dashboard',
+        userAgent: request.headers.get("user-agent") || undefined,
+        ip: request.headers.get("x-forwarded-for") || undefined
+      });
+
+      // Function to handle dashboard updates from the event emitter
+      const handleDashboardUpdate = (payload: DashboardUpdatePayload) => {
+        // Send all dashboard updates to this user
+        // In a real implementation, you might want to filter based on relevance
+        // For example, only send branch updates for branches the user has access to
+
+        // Use the standardized SSE handler to send the event
+        sseHandler.sendEventToUser(
+          userId,
+          'dashboardUpdate',
+          {
+            type: payload.type,
+            data: payload.data,
+            timestamp: Date.now()
+          }
+        );
+
+        // Update client activity timestamp
+        sseHandler.updateClientActivity(clientId);
       };
 
-      // Send a connection confirmation event
-      //console.log(`[SSE Debug] Sending initial 'connected' event to user: ${userId}`);
-      sendEvent('connected', { message: 'SSE connection established' });
+      // Listen for dashboard updates from the event emitter
+      sseEmitter.on('dashboardUpdate', handleDashboardUpdate);
 
-      // Register listener for this client
-      sseEmitter.on('dashboardUpdate', sendUpdate);
-
-      // Store the response object to potentially close it later if needed
-      // Note: Closing the controller is the primary way to end the stream
-      // clients.set(userId, response); // Storing response might not be necessary with ReadableStream
-
-      // Keep connection alive by sending periodic pings (optional but recommended)
-      const keepAliveInterval = setInterval(() => {
+      // Set up ping interval to keep connection alive (increased to 60 seconds to reduce traffic)
+      const pingInterval = setInterval(() => {
         try {
-          controller.enqueue(new TextEncoder().encode(': keepalive\n\n'));
+          // Send ping and update activity timestamp
+          sseHandler.sendEventToUser(userId, "ping", {
+            timestamp: Date.now(),
+            clientId
+          });
+          sseHandler.updateClientActivity(clientId);
         } catch (error) {
-          console.error(`[SSE Debug] Error sending keepalive ping to user ${userId}:`, error);
-          clearInterval(keepAliveInterval);
-          controller.close();
-          clients.delete(userId);
-          sseEmitter.off('dashboardUpdate', sendUpdate);
+          console.error(`[SSE] Error sending ping to dashboard client ${clientId}:`, error);
         }
-      }, 30000); // Send a comment every 30 seconds
+      }, 60000); // 60 second ping (reduced frequency)
 
-      // Clean up when the client disconnects
-      request.signal.addEventListener('abort', () => {
-        //console.log(`[SSE Debug] Connection closed for user: ${userId} at ${new Date().toISOString()}`);
-        clearInterval(keepAliveInterval);
-        sseEmitter.off('dashboardUpdate', sendUpdate);
-        clients.delete(userId);
-        // Controller might already be closed by errors, handle gracefully
-        try {
-          controller.close();
-        } catch { }
+      // Handle connection close
+      request.signal.addEventListener("abort", () => {
+        clearInterval(pingInterval);
+        sseEmitter.off('dashboardUpdate', handleDashboardUpdate);
+        sseHandler.removeClient(clientId);
+        controller.close();
       });
-    },
-    cancel(reason) {
-      //console.log(`[SSE Debug] Stream cancelled for user ${userId}:`, reason);
-      sseEmitter.off('dashboardUpdate', (updateData: any) => {
-        // Ensure the correct listener is removed if multiple exist (unlikely here)
-        // This is a simplified removal, adjust if needed
+
+      // Send initial connection event with retry parameter
+      sseHandler.sendEventToUser(userId, "connected", {
+        clientId,
+        timestamp: Date.now(),
+        message: "Dashboard SSE connection established"
+      }, {
+        retry: 10000 // Suggest client to wait 10 seconds before reconnecting
       });
-      clients.delete(userId);
     }
   });
 
+  // Return the SSE response with appropriate headers
   return new NextResponse(stream, { headers });
 
   // --- Function to Broadcast Updates ---

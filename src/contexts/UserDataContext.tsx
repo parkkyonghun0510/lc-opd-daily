@@ -12,7 +12,7 @@ import {
   updateUserProfile,
   updateUserPreferences,
 } from "@/app/_actions/user-actions";
-import { useDashboardSSE } from "@/hooks/useDashboardSSE"; // Import the SSE hook
+// Removed SSE hook import to reduce connection count
 
 // Default preferences - needed for mock data in development
 const defaultPreferences: UserPreferences = {
@@ -48,7 +48,7 @@ const UserDataContext = createContext<UserDataContextType | undefined>(
 // Add this helper function to fix legacy avatar URLs that point to the production domain in development
 export function fixAvatarUrl(url: string | null | undefined): string | undefined {
   if (!url) return undefined;
-  
+
   // If we're in development and S3 URLs might not work correctly
   if (process.env.NODE_ENV === 'development') {
     // If it's an S3 URL or a production URL
@@ -59,7 +59,7 @@ export function fixAvatarUrl(url: string | null | undefined): string | undefined
       return `/api/placeholder/avatar?seed=${filename}`;
     }
   }
-  
+
   return url;
 }
 
@@ -73,8 +73,8 @@ export function UserDataProvider({ children }: { children: React.ReactNode }) {
   const [persistentError, setPersistentError] = useState(false);
   const MAX_RETRIES = 3;
 
-  // Use the SSE hook to listen for real-time updates
-  const { lastEventData, isConnected: isSseConnected, error: sseError } = useDashboardSSE();
+  // Removed SSE hook usage to reduce connection count
+  // We'll use polling instead of SSE for user data updates
 
   // Initial data fetch
   useEffect(() => {
@@ -87,7 +87,7 @@ export function UserDataProvider({ children }: { children: React.ReactNode }) {
             setIsLoading(false);
             setRetryCount(prev => prev + 1);
             setServerError("Server connection error. Please try refreshing the page.");
-            
+
             if (retryCount >= MAX_RETRIES - 1) {
               console.warn("Max retry attempts reached when fetching user data");
               setPersistentError(true);
@@ -101,53 +101,15 @@ export function UserDataProvider({ children }: { children: React.ReactNode }) {
     }
   }, [status, router, userData, isLoading, retryCount]);
 
-  // Effect to handle SSE updates
-  useEffect(() => {
-    if (lastEventData && lastEventData.type === 'dashboardUpdate') {
-      const { type: updateType, payload } = lastEventData.payload;
-      //console.log('[UserDataContext] Received SSE update:', updateType, payload);
-
-      // Example: Handle specific update types relevant to user data
-      if (updateType === 'USER_PROFILE_UPDATED' && payload?.userId === userData?.id) {
-        //console.log('[UserDataContext] User profile updated via SSE, refreshing data...');
-        refreshUserData().catch(err => console.error("Error refreshing user data after SSE update:", err));
-      } else if (updateType === 'USER_PREFERENCES_UPDATED' && payload?.userId === userData?.id) {
-        //console.log('[UserDataContext] User preferences updated via SSE, refreshing data...');
-        // Optionally update preferences directly if payload contains full data
-        // setUserData(prev => prev ? { ...prev, preferences: payload.preferences } : null);
-        refreshUserData().catch(err => console.error("Error refreshing user data after SSE update:", err));
-      } else if (updateType === 'BRANCH_ASSIGNMENT_CHANGED' && payload?.userId === userData?.id) {
-        //console.log('[UserDataContext] Branch assignment changed via SSE, refreshing data...');
-        refreshUserData().catch(err => console.error("Error refreshing user data after SSE update:", err));
-      }
-      // Add more conditions here for other relevant update types
-
-    }
-  }, [lastEventData, userData?.id]);
-
-  // Log SSE connection status and errors
-  useEffect(() => {
-    if (sseError) {
-      console.error('[UserDataContext] SSE connection error:', sseError);
-      // Optionally handle SSE errors, e.g., show a notification
-    }
-    //console.log('[UserDataContext] SSE connection status:', isSseConnected ? 'Connected' : 'Disconnected');
-  }, [isSseConnected, sseError]);
-
-  // Clear auth data if we have persistent errors
-  const handleClearAuth = useCallback(() => {
-    clearAuthData();
-    window.location.href = "/login?cleared=true";
-  }, []);
-
+  // Define refreshUserData function before using it in useEffect
   const refreshUserData = useCallback(async () => {
     try {
       setIsLoading(true);
-      
+
       // Add a timeout to the fetch operation to prevent hanging indefinitely
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000);
-      
+
       let result;
       try {
         result = await fetchUserData();
@@ -205,7 +167,7 @@ export function UserDataProvider({ children }: { children: React.ReactNode }) {
           await signOut({ redirect: true, callbackUrl: "/login?error=No+branch+assigned" });
           return;
         }
-        
+
         setUserData(result.data as UserData);
         setServerError(null);
         // Reset retry count on successful fetch
@@ -220,6 +182,28 @@ export function UserDataProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(false);
     }
   }, []);
+
+  // Set up polling for user data updates instead of SSE
+  useEffect(() => {
+    if (!userData || !userData.id) return;
+
+    // Poll for user data updates every 2 minutes
+    const pollingInterval = setInterval(() => {
+      refreshUserData().catch(err =>
+        console.error("Error refreshing user data during polling:", err)
+      );
+    }, 2 * 60 * 1000); // 2 minutes
+
+    return () => clearInterval(pollingInterval);
+  }, [userData?.id, refreshUserData]);
+
+  // Clear auth data if we have persistent errors
+  const handleClearAuth = useCallback(() => {
+    clearAuthData();
+    window.location.href = "/login?cleared=true";
+  }, []);
+
+  // refreshUserData is already defined above
 
   const updateUserData = useCallback(async (newData: Partial<UserData>) => {
     try {

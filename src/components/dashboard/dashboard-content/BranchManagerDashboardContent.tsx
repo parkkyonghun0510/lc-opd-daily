@@ -129,12 +129,12 @@ const BranchManagerDashboardContent: React.FC<BranchManagerDashboardContentProps
           <Link href="/dashboard/reports" passHref>
             <Button>Create New Report</Button>
           </Link>
-          <Link href="/dashboard/reports/pending" passHref>
+          {/* <Link href="/dashboard/reports/pending" passHref>
             <Button variant="outline">Review Pending Reports</Button>
           </Link>
           <Link href="/dashboard/staff" passHref>
             <Button variant="outline">Manage Staff</Button>
-          </Link>
+          </Link> */}
         </div>
       </div>
 

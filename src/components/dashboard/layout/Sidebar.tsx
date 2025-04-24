@@ -251,13 +251,30 @@ export function Sidebar() {
             collapsed && !isMobile ? "w-8 h-8" : isCompactMode ? "w-8 h-8" : "w-10 h-10"
           )}
         >
-          <Image
+          {/* <Image
             src="/icons/icon-192x192.png"
             alt="LC Logo"
-            width={24}
-            height={24}
-            className="object-contain w-full h-full"
+            fill
+            sizes="100%"
+            width={isCompactMode ? 32 : 40}
+            height={isCompactMode ? 32 : 40}
+            className={cn(
+              "rounded-full",
+              collapsed && !isMobile ? "opacity-0" : "opacity-100"
+            )}
+            style={{ objectFit: "contain" }}
             priority
+          /> */}
+          <img
+            src="/icons/icon-192x192.png"
+            alt="LC Logo"
+            className={cn(
+              "rounded-full",
+              collapsed && !isMobile ? "opacity-0" : "opacity-100"
+            )}
+            width={isCompactMode ? 32 : 40}
+            height={isCompactMode ? 32 : 40}
+            style={{ objectFit: "contain" }}
           />
         </div>
         <div
@@ -357,7 +374,7 @@ export function Sidebar() {
                           "relative flex items-center",
                           collapsed ? "justify-center w-full" : ""
                         )}>
-                          <item.icon className={cn(isCompactMode ? "h-4 w-4" : "h-5 w-5", collapsed && "mx-auto")}/>
+                          <item.icon className={cn(isCompactMode ? "h-4 w-4" : "h-5 w-5", collapsed && "mx-auto")} />
                           {collapsed && (
                             <div className={cn(
                               "absolute left-full ml-2 px-2 py-1.5 rounded-md bg-gray-900/90 dark:bg-gray-800/90 text-white text-xs whitespace-nowrap",
@@ -417,7 +434,7 @@ export function Sidebar() {
                                     "relative flex items-center",
                                     collapsed ? "justify-center w-full" : ""
                                   )}>
-                                    <CircleDot className={cn(isCompactMode ? "h-3 w-3" : "h-4 w-4", collapsed && "mx-auto")}/>
+                                    <CircleDot className={cn(isCompactMode ? "h-3 w-3" : "h-4 w-4", collapsed && "mx-auto")} />
                                     {collapsed && (
                                       <div className={cn(
                                         "absolute left-full ml-2 px-2 py-1 rounded bg-gray-900 dark:bg-gray-800 text-white text-xs whitespace-nowrap",

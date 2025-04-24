@@ -52,33 +52,19 @@ export default function DashboardPage() {
     if (status === "authenticated") {
       fetchDashboardData();
 
-      const eventSource = new EventSource("/api/dashboard/stream");
-      //console.log("[Dashboard SSE] EventSource connection opened at", new Date().toISOString());
+      // Use the standardized SSE hook instead of direct EventSource
+      // This is handled by the useDashboardSSE hook in other components
+      // which provides better reconnection handling and error management
 
-      eventSource.onmessage = (event) => {
-        //console.log("[Dashboard SSE] Received SSE message:", event.data);
-        try {
-          const parsed = JSON.parse(event.data);
-          if (parsed.type === "update") {
-            //console.log("[Dashboard SSE] Updating dashboard data:", parsed.data);
-            setData(parsed.data);
-          } else if (parsed.type === "error") {
-            console.error("[Dashboard SSE] Error event:", parsed.message);
-          }
-        } catch (err) {
-          console.error("Error parsing SSE message", err);
-        }
-      };
-
-      eventSource.onerror = (err) => {
-        console.error("[Dashboard SSE] SSE connection error", err);
-        eventSource.close();
-      };
+      // Import and use the hook in a separate component if needed
+      // For now, we'll just fetch data periodically
+      const refreshInterval = setInterval(() => {
+        fetchDashboardData();
+      }, 60000); // Refresh every 60 seconds
 
       // Cleanup on unmount
       return () => {
-        //console.log("[Dashboard SSE] EventSource connection closed at", new Date().toISOString());
-        eventSource.close();
+        clearInterval(refreshInterval);
       };
     }
   }, [status, router]);
@@ -139,9 +125,8 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div
-              className={`text-2xl font-bold ${
-                data.growthRate >= 0 ? "text-green-600" : "text-red-600"
-              }`}
+              className={`text-2xl font-bold ${data.growthRate >= 0 ? "text-green-600" : "text-red-600"
+                }`}
             >
               {data.growthRate >= 0 ? "+" : ""}
               {data.growthRate}%

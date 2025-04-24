@@ -465,24 +465,44 @@ export async function PATCH(request: NextRequest) {
     // More granular check: Can the user edit reports in general?
     // Or, if it's their own report and they have edit permission for own reports?
     // (Add more specific logic based on your RBAC rules if needed)
+    console.log("[REPORT PATCH] User:", token.sub, "Role:", userRole, "Has EDIT_REPORTS:", checkPermission(userRole, Permission.EDIT_REPORTS));
     if (!checkPermission(userRole, Permission.EDIT_REPORTS)) {
-      // Allow editing own report if they have that specific permission (example)
-      // if (!checkPermission(userRole, Permission.EDIT_OWN_REPORTS) || existingReport.submittedBy !== token.sub) {
-      return NextResponse.json(
-        { error: "Forbidden - You do not have permission to edit reports" },
-        { status: 403 }
-      );
-      // }
+      // Allow editing own report if they have that specific permission
+      if (!checkPermission(userRole, Permission.EDIT_OWN_REPORTS) || existingReport.submittedBy !== token.sub) {
+        console.log("[REPORT PATCH] Forbidden edit attempt. User:", token.sub, "Role:", userRole, "Report ID:", id, "SubmittedBy:", existingReport.submittedBy);
+        return NextResponse.json(
+          { error: "Forbidden - You do not have permission to edit reports" },
+          { status: 403 }
+        );
+      }
     }
 
     // --- Handle Status Change (Approval/Rejection) --- Requires specific permission
     let statusChangeNotificationType: NotificationType | null = null;
+
+    // If the report is rejected and the owner is resubmitting (not an approver), force status to pending_approval
+    if (
+      existingReport.status === "rejected" &&
+      existingReport.submittedBy === token.sub &&
+      !checkPermission(userRole, Permission.APPROVE_REPORTS)
+    ) {
+      updateData.status = "pending_approval";
+    }
+
     if (updateData.status && updateData.status !== existingReport.status) {
-      if (!checkPermission(userRole, Permission.APPROVE_REPORTS)) {
-        return NextResponse.json(
-          { error: "Forbidden - You do not have permission to approve/reject reports" },
-          { status: 403 }
-        );
+      // Allow submitter to change status from 'rejected' to 'pending_approval'
+      if (!(
+        existingReport.status === "rejected" &&
+        updateData.status === "pending_approval" &&
+        existingReport.submittedBy === token.sub
+      )) {
+        // Only ADMIN can approve/reject reports, regardless of permissions
+        if (userRole !== "ADMIN") {
+          return NextResponse.json(
+            { error: "Forbidden - Only admins can approve/reject reports" },
+            { status: 403 }
+          );
+        }
       }
       // Determine notification type based on status change
       if (updateData.status === 'approved') {

@@ -12,7 +12,7 @@ import { Permission } from "@/lib/auth/roles";
 import { DashboardDataProvider, useDashboardData } from '@/contexts/DashboardDataContext';
 import { useEffect, useState } from "react";
 import { fetchAdminStats } from "@/lib/api";
-import { useDashboardSSE } from "@/hooks/useDashboardSSE";
+// Removed direct SSE import to reduce connections
 import { toast } from "@/components/ui/use-toast";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -47,17 +47,19 @@ export default function AdminDashboard() {
     getStats();
   }, []);
 
-  // Listen for live dashboard updates via SSE
-  const { lastEventData } = useDashboardSSE();
+  // Auto-refresh stats every 2 minutes
   useEffect(() => {
-    if (lastEventData && lastEventData.type === "dashboardUpdate" && lastEventData.payload?.data) {
-      setStats(lastEventData.payload.data);
-      toast({
-        title: "Dashboard Updated",
-        description: "Live dashboard data has been updated.",
-      });
-    }
-  }, [lastEventData]);
+    const refreshInterval = setInterval(async () => {
+      try {
+        const apiStats = await fetchAdminStats();
+        setStats(apiStats);
+      } catch (err) {
+        console.error("Error refreshing admin stats:", err);
+      }
+    }, 2 * 60 * 1000); // 2 minutes
+
+    return () => clearInterval(refreshInterval);
+  }, []);
 
   // Dummy stats for initial render/loading/error fallback
   const dummyStats = {
@@ -82,11 +84,7 @@ export default function AdminDashboard() {
             </p>
           </div>
         </div>
-        <Link href="/dashboard/consolidated" passHref>
-            <Button variant="outline">
-              <TrendingUp className="mr-2 h-4 w-4" /> Consolidated View
-            </Button>
-          </Link>
+
         <PermissionGate
           permissions={[Permission.ACCESS_ADMIN]}
           fallback={
@@ -99,12 +97,26 @@ export default function AdminDashboard() {
             <div className="p-6 text-red-500">{error}</div>
           ) : (
             <Tabs defaultValue="overview" className="space-y-4">
+
               <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="overview">Overview</TabsTrigger>
                 <TabsTrigger value="users">Users</TabsTrigger>
                 <TabsTrigger value="branches">Branches</TabsTrigger>
                 <TabsTrigger value="system">System</TabsTrigger>
               </TabsList>
+
+              {/* Quick Actions Section */}
+              <div className="mt-8">
+                <h2 className="text-xl font-semibold mb-4">Quick Actions</h2>
+                <div className="flex flex-wrap gap-3">
+                  <Link href="/dashboard/consolidated" passHref>
+                    <Button variant="outline">
+                      <TrendingUp className="mr-2 h-4 w-4" /> Consolidated View
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+
 
               <TabsContent value="overview">
                 <AdminOverview stats={{ ...(stats || dummyStats) }} />

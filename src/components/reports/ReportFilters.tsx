@@ -356,7 +356,8 @@ export function ReportFilters({
                   userId={userData?.id || ""}
                   value={selectedBranchId}
                   onChange={(id) => setSelectedBranchId(id)}
-                  placeholder="All branches"
+                  placeholder="All My Branches"
+                  showAllOption={true}
                 />
               </div>
               
