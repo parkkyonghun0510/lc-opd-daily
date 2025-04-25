@@ -15,18 +15,15 @@ interface DashboardContextType {
   refreshDashboardData: () => Promise<void>;
   reconnect: () => void;
   retryCount: number;
-  hasNewUpdates: boolean;
-  clearNewUpdates: () => void;
 }
 
-const DashboardDataContext = createContext<DashboardContextType | undefined>(undefined);
+const HybridDashboardContext = createContext<DashboardContextType | undefined>(undefined);
 
-export function DashboardDataProvider({ children }: { children: React.ReactNode }) {
+export function HybridDashboardProvider({ children }: { children: React.ReactNode }) {
   const [dashboardData, setDashboardData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
-  const [hasNewUpdates, setHasNewUpdates] = useState(false);
   const { userData } = useUserData();
 
   const role = userData?.computedFields?.accessLevel || 'USER';
@@ -43,7 +40,6 @@ export function DashboardDataProvider({ children }: { children: React.ReactNode 
       // Handle dashboard updates
       dashboardUpdate: (data) => {
         console.log('Received dashboard update via hybrid realtime:', data);
-        setHasNewUpdates(true);
 
         // Dispatch a custom event that components can listen for
         if (typeof window !== 'undefined') {
@@ -51,20 +47,12 @@ export function DashboardDataProvider({ children }: { children: React.ReactNode 
           window.dispatchEvent(event);
         }
 
-        // Show a toast notification
-        toast({
-          title: "Dashboard Updated",
-          description: `New dashboard data is available.`,
-          duration: 5000,
-        });
-
         // Automatically refresh data when we receive an update
         fetchData();
       },
       // Handle role-specific updates
       [`${role.toLowerCase()}Update`]: (data) => {
         console.log(`Received ${role.toLowerCase()} update via hybrid realtime:`, data);
-        setHasNewUpdates(true);
         fetchData();
       }
     },
@@ -85,22 +73,12 @@ export function DashboardDataProvider({ children }: { children: React.ReactNode 
         response = await fetchUserDashboardData();
       }
 
+      // Check if the response is successful and has data
       if (response.status === 200 && response.data) {
         setDashboardData(response.data);
         console.log('Dashboard data fetched successfully:', response.data);
       } else {
-        console.error('Failed to fetch dashboard data:', response.error);
-        setConnectionError(response.error || 'Failed to fetch dashboard data');
-
-        // Increment retry count
-        setRetryCount(prev => prev + 1);
-
-        // Show toast notification
-        toast({
-          title: "Dashboard Connection Error",
-          description: `Error connecting to dashboard: ${response.error || 'Unknown error'}`,
-          variant: "destructive",
-        });
+        throw new Error(response.error || 'Failed to fetch dashboard data');
       }
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -119,7 +97,7 @@ export function DashboardDataProvider({ children }: { children: React.ReactNode 
     } finally {
       setIsLoading(false);
     }
-  }, [role]);
+  }, [role, retryCount, toast]);
 
   // Initial data fetch
   useEffect(() => {
@@ -144,39 +122,31 @@ export function DashboardDataProvider({ children }: { children: React.ReactNode 
   const refreshDashboardData = async () => {
     // Reset retry count when manually refreshing
     setRetryCount(0);
-    setHasNewUpdates(false);
     await fetchData();
   };
 
-  // Function to clear new updates flag
-  const clearNewUpdates = () => {
-    setHasNewUpdates(false);
-  };
-
   return (
-    <DashboardDataContext.Provider
+    <HybridDashboardContext.Provider
       value={{
         dashboardData,
         isLoading,
         isConnected,
         connectionMethod: activeMethod,
-        connectionError: connectionError || error,
+        connectionError,
         refreshDashboardData,
         reconnect,
-        retryCount,
-        hasNewUpdates,
-        clearNewUpdates
+        retryCount
       }}
     >
       {children}
-    </DashboardDataContext.Provider>
+    </HybridDashboardContext.Provider>
   );
 }
 
-export function useDashboardData() {
-  const context = useContext(DashboardDataContext);
+export function useHybridDashboard() {
+  const context = useContext(HybridDashboardContext);
   if (context === undefined) {
-    throw new Error('useDashboardData must be used within a DashboardDataProvider');
+    throw new Error('useHybridDashboard must be used within a HybridDashboardProvider');
   }
   return context;
 }

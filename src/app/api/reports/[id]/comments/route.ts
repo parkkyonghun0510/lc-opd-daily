@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { format } from "date-fns";
 import { CommentItem } from "@/types/reports";
 import { v4 as uuidv4 } from "uuid";
+import { sanitizeString, sanitizeCommentArray } from "@/utils/sanitize";
 
 // POST /api/reports/[id]/comments - Add a comment to a report
 export async function POST(
@@ -75,7 +76,7 @@ export async function POST(
     const newComment: CommentItem = {
       id: uuidv4(),
       type: 'comment',
-      text: comment,
+      text: sanitizeString(comment) || '', // Sanitize comment text
       timestamp: timestamp,
       userId: token.sub as string,
       userName: commenterName
@@ -100,8 +101,8 @@ export async function POST(
     const updatedReport = await prisma.report.update({
       where: { id: reportId },
       data: {
-        comments: updatedComments,
-        commentArray: commentArray,
+        comments: sanitizeString(updatedComments), // Sanitize legacy comments
+        commentArray: sanitizeCommentArray(commentArray), // Sanitize comment array
       },
     });
 

@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
 import { z } from "zod";
 import { toast } from "@/components/ui/use-toast";
-import type { ReportType, Branch } from "@/types/reports";
+import type { ReportType, Branch, CommentItem } from "@/types/reports";
 import { format } from "date-fns";
+import { sanitizeString, sanitizeFormData } from "@/utils/clientSanitize";
+import { v4 as uuidv4 } from "uuid";
 
 interface ValidationRules {
   writeOffs: {
@@ -29,7 +31,7 @@ const reportFormSchema = z.object({
   }),
   writeOffs: z.number().min(0, "Write-offs must be a positive number"),
   ninetyPlus: z.number().min(0, "90+ Days must be a positive number"),
-  comments: z.string().optional(),
+  commentArray: z.array(z.any()).default([]),
   reportType: z.enum(["plan", "actual"]),
   title: z.string().min(1, "Title is required"),
   planReportId: z.string().nullable().optional(),
@@ -55,7 +57,7 @@ export function useReportForm({
     branchId: userBranches.length === 1 ? userBranches[0].id : "",
     writeOffs: 0,
     ninetyPlus: 0,
-    comments: "",
+    commentArray: [],
     reportType,
     title: `${reportType === "plan" ? "Plan" : "Actual"} Report - ${format(new Date(), "yyyy-MM-dd")}`,
     planReportId: null,
@@ -179,15 +181,20 @@ export function useReportForm({
         // NOTE: We show approval warnings but don't block submission
         // These will be handled during the approval workflow
 
-        // Check comments requirements only - these are required regardless of approval
-        if (validationRules.comments.required && !dataToValidate.comments) {
-          errors.comments = "Comments are required";
+        // Check commentArray requirements - these are required regardless of approval
+        if (validationRules.comments.required &&
+          (!dataToValidate.commentArray || dataToValidate.commentArray.length === 0)) {
+          errors.commentArray = "Comments are required";
         }
+
+        // Check if the first comment meets the minimum length requirement
         if (
-          dataToValidate.comments &&
-          dataToValidate.comments.length < validationRules.comments.minLength
+          dataToValidate.commentArray &&
+          dataToValidate.commentArray.length > 0 &&
+          dataToValidate.commentArray[0].text &&
+          dataToValidate.commentArray[0].text.length < validationRules.comments.minLength
         ) {
-          errors.comments = `Comments must be at least ${validationRules.comments.minLength} characters`;
+          errors.commentArray = `Comments must be at least ${validationRules.comments.minLength} characters`;
         }
       }
 
@@ -215,14 +222,64 @@ export function useReportForm({
       return;
     }
 
+    // Additional validation for date field
+    if (!formData.date || !(formData.date instanceof Date) || isNaN(formData.date.getTime())) {
+      setErrors({
+        ...validationErrors,
+        date: "Please select a valid date",
+      });
+      toast({
+        title: "Validation Error",
+        description: "Please select a valid date",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      // Ensure report type is set correctly
-      const dataToSubmit = {
+      // Create a copy of formData with guaranteed valid date
+      const validFormData = {
         ...formData,
+        // Ensure date is a proper Date object
+        date: formData.date instanceof Date && !isNaN(formData.date.getTime())
+          ? formData.date
+          : new Date(),
         reportType: reportType, // Explicitly set from props
       };
+
+      // Log the date being submitted for debugging
+      console.log("Submitting report with date:", validFormData.date);
+
+      // Ensure report type is set correctly and sanitize the data
+      const dataToSubmit = sanitizeFormData(validFormData);
+
+      // Ensure commentArray is properly formatted and sanitized
+      if (!dataToSubmit.commentArray || !Array.isArray(dataToSubmit.commentArray)) {
+        dataToSubmit.commentArray = [];
+      }
+
+      // Sanitize each comment in the commentArray
+      if (dataToSubmit.commentArray.length > 0) {
+        dataToSubmit.commentArray = dataToSubmit.commentArray.map(comment => {
+          if (comment.text) {
+            return {
+              ...comment,
+              text: sanitizeString(comment.text) || ''
+            };
+          }
+          return comment;
+        });
+      }
+
+      // For backward compatibility with the API, generate a comments string from commentArray
+      if (dataToSubmit.commentArray.length > 0) {
+        const firstComment = dataToSubmit.commentArray[0];
+        dataToSubmit.comments = firstComment.text || '';
+      } else {
+        dataToSubmit.comments = '';
+      }
 
       const response = await fetch("/api/reports", {
         method: "POST",
@@ -273,7 +330,13 @@ export function useReportForm({
           return;
         }
 
-        throw new Error(data.error || "Failed to create report");
+        // Handle any other error status codes
+        toast({
+          title: "Error",
+          description: data.error || "Failed to create report",
+          variant: "destructive",
+        });
+        return;
       }
 
       clearDraft();
@@ -303,12 +366,34 @@ export function useReportForm({
     if (field === "writeOffs" || field === "ninetyPlus") {
       const numValue = typeof value === "string" ? Number(value) : value;
       setFormData((prev) => ({ ...prev, [field]: numValue }));
-    } else if (field === "date" && value) {
+    } else if (field === "date") {
+      // Ensure we have a valid date
+      let validDate: Date;
+
+      if (value instanceof Date && !isNaN(value.getTime())) {
+        // Valid Date object
+        validDate = value as Date;
+      } else if (typeof value === 'string' && value) {
+        // Try to parse string to Date
+        const parsedDate = new Date(value);
+        validDate = !isNaN(parsedDate.getTime()) ? parsedDate : new Date();
+      } else {
+        // Default to current date for any invalid value
+        console.warn('Invalid date value, using current date');
+        validDate = new Date();
+      }
+
       // If we're updating the date, also update the title accordingly
       setFormData((prev) => ({
         ...prev,
-        [field]: value,
-        title: `${reportType === "plan" ? "Plan" : "Actual"} Report - ${format(value as Date, "yyyy-MM-dd")}`,
+        [field]: validDate,
+        title: `${reportType === "plan" ? "Plan" : "Actual"} Report - ${format(validDate, "yyyy-MM-dd")}`,
+      }));
+    } else if (field === "commentArray") {
+      // Handle commentArray updates directly
+      setFormData((prev) => ({
+        ...prev,
+        commentArray: value as CommentItem[]
       }));
     } else {
       setFormData((prev) => ({ ...prev, [field]: value }));
@@ -330,7 +415,7 @@ export function useReportForm({
       branchId: '',
       writeOffs: 0,
       ninetyPlus: 0,
-      comments: '',
+      commentArray: [],
       reportType: reportType,
       planReportId: null,
     });

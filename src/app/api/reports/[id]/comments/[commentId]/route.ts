@@ -3,6 +3,7 @@ import { getToken } from "next-auth/jwt";
 import { prisma } from "@/lib/prisma";
 import { format } from "date-fns";
 import { CommentItem } from "@/types/reports";
+import { sanitizeString, sanitizeCommentArray } from "@/utils/sanitize";
 
 // Helper function to find and update a comment in the array
 const findAndUpdateComment = (
@@ -12,10 +13,10 @@ const findAndUpdateComment = (
 ): { updatedComments: CommentItem[]; found: boolean; updatedComment: CommentItem | null } => {
   let found = false;
   let updatedComment: CommentItem | null = null;
-  
+
   // Create a deep copy of the comments array
   const updatedComments = [...comments];
-  
+
   // Helper function to recursively search and update comments
   const searchAndUpdate = (items: CommentItem[]): CommentItem[] => {
     return items.reduce((acc: CommentItem[], comment) => {
@@ -36,7 +37,7 @@ const findAndUpdateComment = (
       return acc;
     }, []);
   };
-  
+
   const result = searchAndUpdate(updatedComments);
   return { updatedComments: result, found, updatedComment };
 };
@@ -57,7 +58,7 @@ export async function PATCH(
     }
 
     const { id: reportId, commentId } = params;
-    
+
     if (!reportId || !commentId) {
       return NextResponse.json(
         { error: "Report ID and Comment ID are required" },
@@ -90,7 +91,7 @@ export async function PATCH(
 
     // Get existing comment array
     let commentArray = report.commentArray as CommentItem[] || [];
-    
+
     // If commentArray is a string (JSON stringified), parse it
     if (typeof commentArray === 'string') {
       try {
@@ -99,7 +100,7 @@ export async function PATCH(
         commentArray = [];
       }
     }
-    
+
     // Find and update the comment
     const { updatedComments, found, updatedComment } = findAndUpdateComment(
       commentArray,
@@ -109,37 +110,37 @@ export async function PATCH(
         if (comment.userId !== token.sub) {
           return null; // Not authorized to edit this comment
         }
-        
+
         // Update the comment text
         return {
           ...comment,
-          text,
+          text: sanitizeString(text) || '', // Sanitize comment text
           // Add an edited flag or timestamp if desired
           edited: true,
           editedAt: format(new Date(), "yyyy-MM-dd HH:mm:ss")
         };
       }
     );
-    
+
     if (!found) {
       return NextResponse.json(
         { error: "Comment not found" },
         { status: 404 }
       );
     }
-    
+
     if (!updatedComment) {
       return NextResponse.json(
         { error: "You are not authorized to edit this comment" },
         { status: 403 }
       );
     }
-    
+
     // Update the report with the modified comment array
     const updatedReport = await prisma.report.update({
       where: { id: reportId },
       data: {
-        commentArray: updatedComments,
+        commentArray: sanitizeCommentArray(updatedComments), // Sanitize comment array
       },
     });
 
@@ -173,7 +174,7 @@ export async function DELETE(
     }
 
     const { id: reportId, commentId } = params;
-    
+
     if (!reportId || !commentId) {
       return NextResponse.json(
         { error: "Report ID and Comment ID are required" },
@@ -195,7 +196,7 @@ export async function DELETE(
 
     // Get existing comment array
     let commentArray = report.commentArray as CommentItem[] || [];
-    
+
     // If commentArray is a string (JSON stringified), parse it
     if (typeof commentArray === 'string') {
       try {
@@ -204,7 +205,7 @@ export async function DELETE(
         commentArray = [];
       }
     }
-    
+
     // Find and remove the comment
     const { updatedComments, found, updatedComment } = findAndUpdateComment(
       commentArray,
@@ -214,31 +215,31 @@ export async function DELETE(
         if (comment.userId !== token.sub) {
           return null; // Not authorized to delete this comment
         }
-        
+
         // Return null to remove the comment
         return null;
       }
     );
-    
+
     if (!found) {
       return NextResponse.json(
         { error: "Comment not found" },
         { status: 404 }
       );
     }
-    
+
     if (updatedComments.length === commentArray.length) {
       return NextResponse.json(
         { error: "You are not authorized to delete this comment" },
         { status: 403 }
       );
     }
-    
+
     // Update the report with the modified comment array
     const updatedReport = await prisma.report.update({
       where: { id: reportId },
       data: {
-        commentArray: updatedComments,
+        commentArray: sanitizeCommentArray(updatedComments), // Sanitize comment array
       },
     });
 

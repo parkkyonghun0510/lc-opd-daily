@@ -21,7 +21,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { KHCurrencyInput } from "@/components/ui/currency-input";
-import type { Branch, ReportType } from "@/types/reports";
+import type { Branch, ReportType, CommentItem } from "@/types/reports";
 import { useReportForm } from "@/hooks/useReportForm";
 import {
   Select,
@@ -36,6 +36,7 @@ import { BranchSelector } from "@/components/ui/branch-selector";
 import { useUserData } from "@/contexts/UserDataContext";
 import { toast } from "@/components/ui/use-toast";
 import { Badge } from "@/components/ui/badge";
+import { v4 as uuidv4 } from "uuid";
 
 interface CreateReportModalProps {
   isOpen: boolean;
@@ -96,17 +97,17 @@ export function CreateReportModal({
   });
 
   const { userData } = useUserData();
-  
+
   // Initialize plan data state at the top level
   const [planData, setPlanData] = useState<{
     writeOffsPlan: number | null;
     ninetyPlusPlan: number | null;
     planReportId: string | null;
   }>({ writeOffsPlan: null, ninetyPlusPlan: null, planReportId: null });
-  
+
   // Use a ref to track which combinations we've already fetched
   const fetchedCombinations = React.useRef<Set<string>>(new Set());
-  
+
   // Use a ref to track if we've initialized the form for this dialog session
   const hasInitialized = React.useRef(false);
 
@@ -136,35 +137,35 @@ export function CreateReportModal({
       const currentDate = new Date();
       selectedDate.setHours(0, 0, 0, 0);
       currentDate.setHours(0, 0, 0, 0);
-      
+
       if (selectedDate > currentDate) {
         return; // Don't fetch for future dates
       }
-      
+
       const formattedDate = format(formData.date, "yyyy-MM-dd");
       const fetchKey = `${formattedDate}-${formData.branchId}`;
-      
+
       //console.log("Attempting to fetch plan data for:", fetchKey);
-      
+
       // Only fetch if we haven't already fetched this combination
       if (!fetchedCombinations.current.has(fetchKey)) {
         fetchedCombinations.current.add(fetchKey);
-        
+
         // Set loading state to true before fetching
         setPlanDataLoading(true);
-        
+
         const fetchPlanData = async () => {
           try {
             const url = `/api/reports?date=${encodeURIComponent(formattedDate)}&branchId=${encodeURIComponent(formData.branchId)}&reportType=plan`;
-            
+
             const response = await fetch(url);
-            
+
             if (!response.ok) {
               throw new Error(`Failed to fetch plan data: ${response.status}`);
             }
-            
+
             const data = await response.json();
-            
+
             if (data.data && data.data.length > 0) {
               const planReport = data.data[0];
               setPlanData({
@@ -187,7 +188,7 @@ export function CreateReportModal({
             setPlanDataLoading(false);
           }
         };
-        
+
         fetchPlanData();
       } else {
         // If we've already fetched this combination, make sure loading is false
@@ -206,9 +207,23 @@ export function CreateReportModal({
 
   const handleTemplateSelect = useCallback((template: string) => {
     if (template === "custom") {
-      updateField("comments", "");
+      // Clear the comment array
+      updateField("commentArray", []);
     } else {
-      updateField("comments", template);
+      // Create a new comment object with the template text
+      const userName = "User"; // This will be replaced by the server
+      const timestamp = new Date().toLocaleString();
+
+      const newComment: CommentItem = {
+        id: uuidv4(),
+        type: 'comment',
+        text: template,
+        timestamp: timestamp,
+        userId: "", // Will be filled by the server
+        userName: userName
+      };
+
+      updateField("commentArray", [newComment]);
     }
   }, [updateField]);
 
@@ -224,29 +239,48 @@ export function CreateReportModal({
   useEffect(() => {
     if (isOpen && !hasInitialized.current) {
       hasInitialized.current = true;
-      
+
+      // Ensure we have a valid date
+      let validDate: Date;
+
+      if (selectedDate instanceof Date && !isNaN(selectedDate.getTime())) {
+        validDate = selectedDate;
+      } else if (today instanceof Date && !isNaN(today.getTime())) {
+        validDate = today;
+      } else {
+        // Fallback to current date if both are invalid
+        validDate = new Date();
+        console.warn("Using current date as fallback for form initialization");
+      }
+
+      // Format the date for the title
+      const formattedDate = format(validDate, "yyyy-MM-dd");
+
       // Use a batched update to minimize renders
       const newFormData = {
-        title: `${reportType === "plan" ? "Plan" : "Actual"} Report - ${format(selectedDate || today, "yyyy-MM-dd")}`,
-        date: selectedDate || today,
+        title: `${reportType === "plan" ? "Plan" : "Actual"} Report - ${formattedDate}`,
+        date: validDate, // Use the validated date
         branchId: userBranches.length === 1 ? userBranches[0].id : '',
         writeOffs: 0,
         ninetyPlus: 0,
-        comments: '',
+        commentArray: [],
         reportType: reportType,
         planReportId: null,
       };
-      
+
+      // Log the date being used for debugging
+      console.log("Initializing form with date:", validDate);
+
       // Set the entire form data at once
       setFormData(newFormData);
-      
+
       // Clear fetched combinations to ensure fresh data
       fetchedCombinations.current.clear();
-      
+
       // Clear plan data
       setPlanData({ writeOffsPlan: null, ninetyPlusPlan: null, planReportId: null });
     }
-    
+
     // Reset the initialization flag when the modal closes
     if (!isOpen) {
       hasInitialized.current = false;
@@ -258,18 +292,18 @@ export function CreateReportModal({
     if (formData.date) {
       const selectedDate = new Date(formData.date);
       const currentDate = new Date();
-      
+
       // Clear the time part for accurate date comparison
       selectedDate.setHours(0, 0, 0, 0);
       currentDate.setHours(0, 0, 0, 0);
-      
+
       if (selectedDate > currentDate) {
         // Automatically adjust to today's date if a future date is detected
         console.warn("Future date detected, adjusting to today's date");
         const today = new Date();
         updateField("date", today);
         updateField(
-          "title", 
+          "title",
           `${reportType === "plan" ? "Plan" : "Actual"} Report - ${format(today, "yyyy-MM-dd")}`
         );
       }
@@ -312,13 +346,13 @@ export function CreateReportModal({
               <AlertDescription>{errors.general}</AlertDescription>
             </Alert>
           )}
-          
+
           {/* Hidden title field */}
-          <input 
-            type="hidden" 
-            id="title" 
-            name="title" 
-            value={formData.title || `${reportType === "plan" ? "Plan" : "Actual"} Report - ${format(new Date(), "yyyy-MM-dd")}`} 
+          <input
+            type="hidden"
+            id="title"
+            name="title"
+            value={formData.title || `${reportType === "plan" ? "Plan" : "Actual"} Report - ${format(new Date(), "yyyy-MM-dd")}`}
           />
           {errors.title && (
             <p className="text-sm text-red-500">{errors.title}</p>
@@ -366,15 +400,15 @@ export function CreateReportModal({
                 selected={formData.date}
                 onSelect={(date) => {
                   if (!date) return;
-                  
+
                   // Set the time to noon to avoid timezone issues
                   const selectedDate = new Date(date);
                   selectedDate.setHours(12, 0, 0, 0);
-                  
+
                   // Get today's date at noon
                   const today = new Date();
                   today.setHours(12, 0, 0, 0);
-                  
+
                   // Don't update if future date
                   if (selectedDate > today) {
                     toast({
@@ -384,12 +418,12 @@ export function CreateReportModal({
                     });
                     return;
                   }
-                  
+
                   updateField("date", selectedDate);
-                  
+
                   // Update the title with the local date format
                   updateField(
-                    "title", 
+                    "title",
                     `${reportType === "plan" ? "Plan" : "Actual"} Report - ${format(selectedDate, "yyyy-MM-dd")}`
                   );
                 }}
@@ -397,11 +431,11 @@ export function CreateReportModal({
                   // Set time to noon to match the "today" variable's time
                   const compareDate = new Date(date);
                   compareDate.setHours(12, 0, 0, 0);
-                  
+
                   // Get today's date at noon
                   const today = new Date();
                   today.setHours(12, 0, 0, 0);
-                  
+
                   // Disable future dates
                   return compareDate > today;
                 }}
@@ -502,21 +536,42 @@ export function CreateReportModal({
             </div>
             <Textarea
               id="comments"
-              value={formData.comments}
-              onChange={(e) => updateField("comments", e.target.value)}
-              placeholder={`Add any comments about this report...${
-                validationRules?.comments.required
-                  ? ` (Minimum ${validationRules.comments.minLength} characters)`
-                  : ""
-              }`}
+              value={formData.commentArray && formData.commentArray.length > 0 ? formData.commentArray[0].text : ''}
+              onChange={(e) => {
+                const text = e.target.value;
+                const userName = "User"; // This will be replaced by the server
+                const timestamp = new Date().toLocaleString();
+
+                if (text.trim()) {
+                  // If there's text, create or update the comment
+                  const newComment: CommentItem = {
+                    id: formData.commentArray && formData.commentArray.length > 0 ? formData.commentArray[0].id : uuidv4(),
+                    type: 'comment',
+                    text: text,
+                    timestamp: timestamp,
+                    userId: "", // Will be filled by the server
+                    userName: userName
+                  };
+                  updateField("commentArray", [newComment]);
+                } else {
+                  // If the text is empty, clear the comment array
+                  updateField("commentArray", []);
+                }
+              }}
+              placeholder={`Add any comments about this report...${validationRules?.comments.required
+                ? ` (Minimum ${validationRules.comments.minLength} characters)`
+                : ""
+                }`}
               className="min-h-[100px] dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 dark:placeholder:text-gray-400 text-sm"
             />
-            {errors.comments && (
-              <p className="text-sm text-red-500">{errors.comments}</p>
+            {errors.commentArray && (
+              <p className="text-sm text-red-500">{errors.commentArray}</p>
             )}
-            {validationRules?.comments.required && formData.comments !== undefined && (
+            {validationRules?.comments.required && (
               <p className="text-xs text-muted-foreground dark:text-gray-400">
-                {formData.comments.length}/{validationRules.comments.minLength} characters minimum
+                {formData.commentArray && formData.commentArray.length > 0 && formData.commentArray[0].text
+                  ? formData.commentArray[0].text.length
+                  : 0}/{validationRules.comments.minLength} characters minimum
               </p>
             )}
           </div>
@@ -535,8 +590,8 @@ export function CreateReportModal({
                   <div>
                     <Label htmlFor="planWriteOffs" className="text-xs dark:text-gray-300">Write-offs (Plan)</Label>
                     <p id="planWriteOffs" className="text-sm font-medium dark:text-gray-200">
-                      {planData.writeOffsPlan !== null 
-                        ? formatKHRCurrency(planData.writeOffsPlan) 
+                      {planData.writeOffsPlan !== null
+                        ? formatKHRCurrency(planData.writeOffsPlan)
                         : (
                           <span className="text-muted-foreground italic dark:text-gray-400">
                             No plan data available
@@ -547,8 +602,8 @@ export function CreateReportModal({
                   <div>
                     <Label htmlFor="planNinetyPlus" className="text-xs dark:text-gray-300">90+ Days (Plan)</Label>
                     <p id="planNinetyPlus" className="text-sm font-medium dark:text-gray-200">
-                      {planData.ninetyPlusPlan !== null 
-                        ? formatKHRCurrency(planData.ninetyPlusPlan) 
+                      {planData.ninetyPlusPlan !== null
+                        ? formatKHRCurrency(planData.ninetyPlusPlan)
                         : (
                           <span className="text-muted-foreground italic dark:text-gray-400">
                             No plan data available

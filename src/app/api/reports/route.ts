@@ -9,6 +9,7 @@ import { NotificationType } from "@/utils/notificationTemplates";
 // Import the broadcast function
 import { broadcastDashboardUpdate } from "@/app/api/dashboard/sse/route";
 import { DashboardEventTypes } from "@/lib/events/dashboard-events";
+import { sanitizeString, sanitizeCommentArray } from "@/utils/sanitize";
 
 interface ReportData {
   branchId: string;
@@ -17,6 +18,7 @@ interface ReportData {
   writeOffs: number;
   ninetyPlus: number;
   comments?: string;
+  commentArray?: any[]; // Add support for commentArray
 }
 
 interface UpdateReportData {
@@ -91,20 +93,23 @@ export async function GET(request: NextRequest) {
       //console.log("[DEBUG] Normalized reportDate string:", reportDate);
       //console.log("[DEBUG] Using reportDateISO for Prisma query:", reportDateISO);
 
-      where.date = new Date(reportDateISO);
+      // Pass date as a string to match Prisma query expectations
+      where.date = reportDateISO;
     } else if (startDate || endDate) {
       where.date = {};
       if (startDate) {
         // Ensure startDate is interpreted as the beginning of the day
         const start = new Date(startDate);
         start.setHours(0, 0, 0, 0);
-        where.date.gte = start.toISOString();
+        // Pass as string instead of DateTime
+        where.date.gte = start.toISOString(); // Convert to ISO 8601 string
       }
       if (endDate) {
         // Ensure endDate is interpreted as the end of the day
         const end = new Date(endDate);
         end.setHours(23, 59, 59, 999);
-        where.date.lte = end.toISOString(); // Use lte for endDate
+        // Pass as string instead of DateTime
+        where.date.lte = end.toISOString(); // Convert to ISO 8601 string
       }
     }
 
@@ -253,7 +258,7 @@ export async function POST(request: NextRequest) {
       where: {
         branchId: reportData.branchId,
         reportType: reportData.reportType,
-        date: new Date(reportDateISO),
+        date: reportDateISO, // Pass as string to match Prisma query expectations
       },
     });
 
@@ -297,10 +302,43 @@ export async function POST(request: NextRequest) {
       select: { name: true }
     });
 
-    // Create the base report data with correct types
-    const baseReportData = {
-      date: reportDate.toISOString(),
-      // reportDate: reportDateStr,
+    // IMPORTANT: Due to persistent UTF-8 encoding issues, we're temporarily disabling commentArray
+    // and only using the legacy comments field
+    let sanitizedCommentArray = null;
+
+    // Extract text from commentArray and add it to comments if needed
+    if (reportData.commentArray && Array.isArray(reportData.commentArray) && reportData.commentArray.length > 0) {
+      try {
+        // Get the text from the first comment in the array to use in the legacy comments field
+        const firstComment = reportData.commentArray[0];
+        if (firstComment && typeof firstComment.text === 'string' && firstComment.text.trim()) {
+          // If we don't already have comments, use the text from the first comment
+          if (!reportData.comments) {
+            reportData.comments = firstComment.text;
+          }
+        }
+
+        console.log("[DEBUG] Using legacy comments field instead of commentArray due to UTF-8 encoding issues");
+      } catch (error) {
+        console.error("[ERROR] Failed to extract text from commentArray:", error);
+      }
+    }
+
+    // Now sanitize comments after potentially updating from commentArray
+    const sanitizedComments = sanitizeString(reportData.comments);
+
+    // Log the sanitization process for debugging
+    if (reportData.comments && sanitizedComments !== reportData.comments) {
+      console.log("[DEBUG] Comments were sanitized to remove invalid characters");
+    }
+
+    if (reportData.commentArray && sanitizedCommentArray !== reportData.commentArray) {
+      console.log("[DEBUG] CommentArray was sanitized to remove invalid characters");
+    }
+
+    // Validate that all data is in the correct format before proceeding
+    const baseReportData: any = {
+      date: reportDateISO, // Pass as string to match Prisma query expectations
       branchId: reportData.branchId,
       writeOffs: reportData.writeOffs || 0,
       ninetyPlus: reportData.ninetyPlus || 0,
@@ -308,57 +346,138 @@ export async function POST(request: NextRequest) {
       status: reportStatus,
       submittedBy: token.sub as string,
       submittedAt: new Date().toISOString(),
-      comments: reportData.comments || null,
+      comments: sanitizedComments, // Already sanitized comments
     };
 
+    // IMPORTANT: We're completely disabling commentArray for now due to persistent UTF-8 encoding issues
+    // Do not include commentArray in the baseReportData at all
+    console.log("[DEBUG] commentArray field is disabled for report creation to avoid UTF-8 encoding issues");
+
     let report;
-    // For actual reports, find and validate corresponding plan report
-    if (reportData.reportType === "actual") {
-      // Find the corresponding plan report for the same day
-      const planStartOfDay = new Date(reportDate);
-      planStartOfDay.setHours(0, 0, 0, 0);
-      const planEndOfDay = new Date(reportDate);
-      planEndOfDay.setHours(23, 59, 59, 999);
 
-      const planReport = await prisma.report.findFirst({
-        where: {
-          // date: {
-          //   gte: planStartOfDay.toISOString(),
-          //   lt: planEndOfDay.toISOString(),
-          // },
-          date: reportDate.toISOString(),
-          branchId: reportData.branchId,
-          reportType: "plan"
+    try {
+      // For actual reports, find and validate corresponding plan report
+      if (reportData.reportType === "actual") {
+        // Find the corresponding plan report for the same day
+        const planStartOfDay = new Date(reportDate);
+        planStartOfDay.setHours(0, 0, 0, 0);
+        const planEndOfDay = new Date(reportDate);
+        planEndOfDay.setHours(23, 59, 59, 999);
+
+        const planReport = await prisma.report.findFirst({
+          where: {
+            date: reportDateISO, // Pass as string to match Prisma query expectations
+            branchId: reportData.branchId,
+            reportType: "plan"
+          }
+        });
+
+        if (!planReport) {
+          return NextResponse.json(
+            { error: "A plan report must exist before submitting an actual report" },
+            { status: 400 }
+          );
         }
-      });
 
-      if (!planReport) {
-        return NextResponse.json(
-          { error: "A plan report must exist before submitting an actual report" },
-          { status: 400 }
-        );
+        // Double-check data before inserting
+        console.log("[DEBUG] Creating actual report with plan report ID:", planReport.id);
+
+        // Create the report with additional error handling
+        report = await prisma.report.create({
+          data: {
+            ...baseReportData,
+            planReportId: planReport.id
+          },
+          include: {
+            branch: true,
+            planReport: true,
+            actualReports: true,
+          },
+        });
+      } else {
+        // Double-check data before inserting
+        console.log("[DEBUG] Creating plan report with data:", JSON.stringify({
+          date: baseReportData.date,
+          branchId: baseReportData.branchId,
+          reportType: baseReportData.reportType,
+          // Don't log sensitive data
+        }));
+
+        // Debug log: Check for null bytes and unexpected nulls in baseReportData
+        const hasNullByte = JSON.stringify(baseReportData).includes('\u0000');
+
+        // More thorough check for null bytes in all fields
+        const stringFields = Object.entries(baseReportData)
+          .filter(([_, v]) => typeof v === 'string')
+          .map(([k, v]) => ({
+            field: k,
+            hasNullByte: (v as string).includes('\u0000'),
+            value: v
+          }));
+
+        // We've disabled commentArray to avoid UTF-8 encoding issues
+        const commentArrayCheck = { disabled: true, reason: 'Disabled to avoid UTF-8 encoding issues' };
+
+        console.log("DEBUG: baseReportData before create", {
+          ...baseReportData,
+          hasNullByte,
+          nullFields: Object.entries(baseReportData).filter(([_, v]) => v === null),
+          stringFieldsCheck: stringFields,
+          commentArrayCheck
+        });
+
+        // Create the report with additional error handling
+        report = await prisma.report.create({
+          data: baseReportData,
+          include: {
+            branch: true,
+            planReport: true,
+            actualReports: true,
+          },
+        });
+      }
+    } catch (createError) {
+      console.error("Error during report creation:", createError);
+
+      // Debug log: Check error payload type and value
+      if (typeof createError === "object" && createError !== null) {
+        console.error("DEBUG: createError keys", Object.keys(createError));
+        if ("payload" in createError) {
+          console.error("DEBUG: createError.payload", createError.payload);
+        }
+      } else {
+        console.error("DEBUG: createError is not an object or is null", createError);
       }
 
-      report = await prisma.report.create({
-        data: {
-          ...baseReportData,
-          planReportId: planReport.id
-        },
-        include: {
-          branch: true,
-          planReport: true,
-          actualReports: true,
-        },
-      });
-    } else {
-      report = await prisma.report.create({
-        data: baseReportData,
-        include: {
-          branch: true,
-          planReport: true,
-          actualReports: true,
-        },
-      });
+      // Check for specific PostgreSQL error codes
+      if (createError instanceof Error) {
+        const errorMessage = createError.message || '';
+
+        // Check for UTF-8 encoding issues (PostgreSQL error code 22021)
+        if (errorMessage.includes('22021') || errorMessage.includes('invalid byte sequence for encoding')) {
+          console.error("UTF-8 encoding error detected in report data");
+
+          // Try to identify which field has the issue
+          let problematicField = "unknown";
+          if (errorMessage.includes("comments")) {
+            problematicField = "comments";
+          } else if (errorMessage.includes("commentArray")) {
+            problematicField = "commentArray";
+          }
+
+          return NextResponse.json(
+            {
+              error: "Invalid characters detected in the report data. Please remove any special characters or emojis and try again.",
+              details: `The system detected invalid UTF-8 characters that cannot be stored in the database. The issue may be in the ${problematicField} field.`,
+              field: problematicField
+            },
+            { status: 400 }
+          );
+        }
+      }
+
+      // Re-throw to be caught by the outer catch block
+      throw createError;
     }
 
     // Send notifications if report needs approval
@@ -391,17 +510,20 @@ export async function POST(request: NextRequest) {
     }
 
     // Convert Decimal to number for JSON serialization
-    const serializedReport = {
+    const serializedReport: any = {
       ...report,
       writeOffs: Number(report.writeOffs),
       ninetyPlus: Number(report.ninetyPlus),
-      // Also handle any nested decimal values
-      planReport: report.planReport ? {
+    };
+
+    // Handle nested planReport if it exists
+    if (report.planReport) {
+      serializedReport.planReport = {
         ...report.planReport,
         writeOffs: Number(report.planReport.writeOffs),
         ninetyPlus: Number(report.planReport.ninetyPlus),
-      } : null,
-    };
+      };
+    }
 
     // Broadcast the report submission via SSE for real-time updates
     if (reportStatus === "pending_approval") {
@@ -433,8 +555,45 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("Error creating report:", error);
+
+    // Check for specific PostgreSQL error codes
+    if (error instanceof Error) {
+      const errorMessage = error.message || '';
+
+      // Check for UTF-8 encoding issues (PostgreSQL error code 22021)
+      if (errorMessage.includes('22021') || errorMessage.includes('invalid byte sequence for encoding')) {
+        console.error("UTF-8 encoding error detected in report data");
+
+        // Try to identify which field has the issue
+        let problematicField = "unknown";
+        if (errorMessage.includes("comments")) {
+          problematicField = "comments";
+        } else if (errorMessage.includes("commentArray")) {
+          problematicField = "commentArray";
+        }
+
+        return NextResponse.json(
+          {
+            error: "Invalid characters detected in the report data. Please remove any special characters or emojis and try again.",
+            details: `The system detected invalid UTF-8 characters that cannot be stored in the database. The issue may be in the ${problematicField} field.`,
+            field: problematicField
+          },
+          { status: 400 }
+        );
+      }
+
+      // Check for unique constraint violations (PostgreSQL error code 23505)
+      if (errorMessage.includes('23505') || errorMessage.includes('unique constraint')) {
+        return NextResponse.json(
+          { error: "A report already exists for this date, branch, and type" },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Generic error response for other cases
     return NextResponse.json(
-      { error: "Failed to create report" },
+      { error: "Failed to create report. Please try again or contact support if the issue persists." },
       { status: 500 }
     );
   }
@@ -543,6 +702,12 @@ export async function PATCH(request: NextRequest) {
     if (prismaUpdateData.ninetyPlus !== undefined) {
       prismaUpdateData.ninetyPlus = Number(prismaUpdateData.ninetyPlus);
     }
+    if (prismaUpdateData.comments !== undefined) {
+      prismaUpdateData.comments = sanitizeString(prismaUpdateData.comments);
+    }
+    if (prismaUpdateData.commentArray !== undefined) {
+      prismaUpdateData.commentArray = sanitizeCommentArray(prismaUpdateData.commentArray);
+    }
 
     // Update the report
     const updatedReport = await prisma.report.update({
@@ -563,7 +728,7 @@ export async function PATCH(request: NextRequest) {
         // Include other fields that might affect dashboard aggregates
         writeOffs: Number(updatedReport.writeOffs),
         ninetyPlus: Number(updatedReport.ninetyPlus),
-        date: updatedReport.date.toISOString().split('T')[0],
+        date: new Date(updatedReport.date).toISOString().split('T')[0], // Convert Date to string
         reportType: updatedReport.reportType,
       }
     );
@@ -579,7 +744,7 @@ export async function PATCH(request: NextRequest) {
         if (targetUsers.length > 0) {
           const notificationData = {
             reportId: updatedReport.id,
-            reportDate: updatedReport.date.toISOString().split('T')[0],
+            reportDate: new Date(updatedReport.date).toISOString().split('T')[0], // Convert Date to string
             branchName: updatedReport.branch.name,
             status: updatedReport.status,
             actorName: token.name || 'System',

@@ -14,6 +14,7 @@ import BranchManagerDashboardContent from './BranchManagerDashboardContent';
 import UserDashboardContent from './UserDashboardContent';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/components/ui/use-toast';
+import DashboardStatusIndicator from './DashboardStatusIndicator';
 
 // Enhanced type definitions
 interface DashboardCardProps {
@@ -107,10 +108,13 @@ const RoleBasedDashboard: React.FC = () => {
   const {
     dashboardData,
     isLoading,
-    isSseConnected,
-    sseError,
+    isConnected,
+    connectionMethod,
+    connectionError,
     refreshDashboardData,
-    reconnectSSE
+    reconnect,
+    hasNewUpdates: contextHasNewUpdates,
+    clearNewUpdates
   } = useDashboardData();
 
   const [hasNewUpdates, setHasNewUpdates] = useState(false);
@@ -130,10 +134,10 @@ const RoleBasedDashboard: React.FC = () => {
     }
   }, [displayRole, router]);
 
-  // Handle SSE events
+  // Handle real-time events
   useEffect(() => {
     // When we receive a dashboard update, show a notification
-    const handleDashboardUpdate = (data: any) => {
+    const handleDashboardUpdate = (event: CustomEvent) => {
       setHasNewUpdates(true);
 
       // Show a toast notification
@@ -153,19 +157,27 @@ const RoleBasedDashboard: React.FC = () => {
     };
   }, [displayRole]);
 
+  // Sync hasNewUpdates with context
+  useEffect(() => {
+    if (contextHasNewUpdates) {
+      setHasNewUpdates(true);
+    }
+  }, [contextHasNewUpdates]);
+
   // Handle refresh button click
   const handleRefresh = () => {
     setHasNewUpdates(false);
+    clearNewUpdates();
     refreshDashboardData();
   };
 
   // Handle loading and error states
-  if (sseError) {
-    return <DashboardError error={sseError} onRefresh={refreshDashboardData} />;
+  if (connectionError) {
+    return <DashboardError error={connectionError} onRefresh={refreshDashboardData} />;
   }
 
-  if (!isSseConnected) {
-    return <ConnectionStatus onReconnect={reconnectSSE} />;
+  if (!isConnected) {
+    return <ConnectionStatus onReconnect={reconnect} />;
   }
 
   // Define role-specific content components
@@ -185,8 +197,13 @@ const RoleBasedDashboard: React.FC = () => {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="container mx-auto px-4 py-8 space-y-6 relative">
+      {/* Status indicator with absolute positioning */}
+      <div className="absolute top-4 right-4 z-10">
+        <DashboardStatusIndicator />
+      </div>
+
+      <div className="flex items-center">
         <div className="flex items-center gap-2">
           <h1 className="text-2xl font-bold capitalize">
             {displayRole.toLowerCase().replace('_', ' ')} Dashboard
@@ -197,17 +214,18 @@ const RoleBasedDashboard: React.FC = () => {
             </Badge>
           )}
         </div>
-        <div className="space-x-2">
-          <Button
-            onClick={handleRefresh}
-            variant={hasNewUpdates ? "default" : "ghost"}
-            size="sm"
-            className="flex items-center gap-2"
-          >
-            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
-        </div>
+      </div>
+
+      <div className="flex justify-end mb-4">
+        <Button
+          onClick={handleRefresh}
+          variant={hasNewUpdates ? "default" : "ghost"}
+          size="sm"
+          className="flex items-center gap-2"
+        >
+          <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+          Refresh
+        </Button>
       </div>
 
       <DashboardContent {...contentProps} />

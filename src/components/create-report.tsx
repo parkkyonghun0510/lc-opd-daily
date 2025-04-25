@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { sanitizeString, sanitizeFormData } from "@/utils/clientSanitize";
 import {
   Card,
   CardContent,
@@ -123,19 +124,22 @@ export default function CreateReport() {
     setIsSubmitting(true);
 
     try {
+      // Sanitize form data before submission
+      const sanitizedData = sanitizeFormData({
+        date: date.toISOString(),
+        branchId,
+        writeOffs: parseFloat(writeOffs),
+        ninetyPlus: parseFloat(ninetyPlus),
+        comments: sanitizeString(comments) || '',
+        // The API will get the submittedBy from the JWT token
+      });
+
       const response = await fetch("/api/reports", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          date: date.toISOString(),
-          branchId,
-          writeOffs: parseFloat(writeOffs),
-          ninetyPlus: parseFloat(ninetyPlus),
-          comments,
-          // The API will get the submittedBy from the JWT token
-        }),
+        body: JSON.stringify(sanitizedData),
       });
 
       if (!response.ok) {
@@ -264,7 +268,7 @@ export default function CreateReport() {
               id="comments"
               placeholder="Add any additional comments or notes"
               value={comments}
-              onChange={(e) => setComments(e.target.value)}
+              onChange={(e) => setComments(sanitizeString(e.target.value) || '')}
             />
           </div>
 
