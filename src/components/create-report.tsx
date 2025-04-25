@@ -124,12 +124,13 @@ export default function CreateReport() {
     setIsSubmitting(true);
 
     try {
-      // Sanitize form data before submission
+      // Sanitize form data before submission - we'll handle comments separately
       const sanitizedData = sanitizeFormData({
         date: date.toISOString(),
         branchId,
         writeOffs: parseFloat(writeOffs),
         ninetyPlus: parseFloat(ninetyPlus),
+        // We're still sending comments to the API, but it will be handled differently
         comments: sanitizeString(comments) || '',
         // The API will get the submittedBy from the JWT token
       });

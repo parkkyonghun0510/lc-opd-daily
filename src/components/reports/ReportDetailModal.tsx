@@ -21,6 +21,21 @@ import { cn, formatKHRCurrency } from "@/lib/utils";
 import { Report, CommentItem as CommentItemType } from "@/types/reports";
 import { UserDisplayName } from "@/components/user/UserDisplayName";
 import { CommentItem } from "@/components/reports/CommentItem";
+import { ReportCommentsList } from "@/components/reports/ReportCommentsList";
+
+interface ReportComment {
+  id: string;
+  reportId: string;
+  userId: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+  user: {
+    id: string;
+    name: string;
+    username: string;
+  };
+}
 
 interface ReportWithUser extends Report {
   user?: {
@@ -28,6 +43,7 @@ interface ReportWithUser extends Report {
     name: string;
     username?: string;
   } | null;
+  ReportComment?: ReportComment[];
 }
 
 interface ReportDetailModalProps {
@@ -309,8 +325,6 @@ export const CommentConversation = ({
 };
 
 export function ReportDetailModal({ report, isOpen, onClose, onEdit }: ReportDetailModalProps) {
-  const [newComment, setNewComment] = useState("");
-  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [refreshedReport, setRefreshedReport] = useState<ReportWithUser | null>(null);
   const [replyingToComment, setReplyingToComment] = useState<string | null>(null);
 
@@ -347,54 +361,6 @@ export function ReportDetailModal({ report, isOpen, onClose, onEdit }: ReportDet
     } catch (error) {
       console.error("Error refreshing report details:", error);
       // Don't show an error toast here as it would be confusing
-    }
-  };
-
-  const handleAddComment = async () => {
-    if (!displayReport || !newComment.trim()) return;
-
-    setIsSubmittingComment(true);
-    try {
-      //console.log("Submitting comment for report:", displayReport.id);
-
-      // API call to add a comment
-      const response = await fetch(`/api/reports/${displayReport.id}/comments`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          comment: newComment,
-        }),
-      });
-
-      const responseData = await response.json();
-
-      if (!response.ok) {
-        console.error("Comment submission error:", responseData);
-        throw new Error(responseData.error || 'Failed to add comment');
-      }
-
-      //console.log("Comment added successfully:", responseData);
-
-      toast({
-        title: "Comment Added",
-        description: "Your comment has been added successfully",
-      });
-
-      setNewComment("");
-
-      // Refresh the report to show the new comment
-      await refreshReportDetails(displayReport.id);
-    } catch (error) {
-      console.error("Error adding comment:", error);
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to add comment",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSubmittingComment(false);
     }
   };
 
@@ -491,43 +457,29 @@ export function ReportDetailModal({ report, isOpen, onClose, onEdit }: ReportDet
           {/* Comments Section */}
           <div>
             <Label className="text-sm font-medium mb-2">Comments</Label>
-            {(displayReport.comments || displayReport.commentArray) ? (
-              <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-md mb-3">
-                <CommentConversation
-                  comments={displayReport.comments}
-                  commentArray={displayReport.commentArray}
-                  reportId={displayReport.id}
-                  onReplyAdded={() => refreshReportDetails(displayReport.id)}
-                />
-              </div>
-            ) : (
-              <div className="text-gray-500 italic text-sm mb-3">No comments available</div>
-            )}
+            <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-md">
+              {/* Legacy Comments Display */}
+              {(displayReport.comments || displayReport.commentArray) && (
+                <div className="mb-4 pb-4 border-b border-gray-200 dark:border-gray-700">
+                  <h4 className="text-sm font-medium text-gray-500 mb-2">Legacy Comments:</h4>
+                  <CommentConversation
+                    comments={displayReport.comments}
+                    commentArray={displayReport.commentArray}
+                    reportId={displayReport.id}
+                    onReplyAdded={() => refreshReportDetails(displayReport.id)}
+                  />
+                </div>
+              )}
 
-            {/* New Comment Input */}
-            <div className="space-y-2">
-              <Textarea
-                placeholder="Add a comment..."
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-                className="resize-none"
-              />
-              <div className="flex justify-end space-x-2">
-                <Button
-                  size="sm"
-                  onClick={handleAddComment}
-                  disabled={!newComment.trim() || isSubmittingComment}
-                >
-                  {isSubmittingComment ? (
-                    <>
-                      <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                      Submitting...
-                    </>
-                  ) : (
-                    "Add Comment"
-                  )}
-                </Button>
-              </div>
+              {/* New ReportComment Model Display */}
+              {displayReport.ReportComment ? (
+                <ReportCommentsList
+                  reportId={displayReport.id}
+                  initialComments={displayReport.ReportComment}
+                />
+              ) : (
+                <ReportCommentsList reportId={displayReport.id} />
+              )}
             </div>
           </div>
         </div>

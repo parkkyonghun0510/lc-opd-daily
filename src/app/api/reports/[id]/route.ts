@@ -58,7 +58,22 @@ export async function GET(
             ninetyPlus: true,
             id: true
           }
-        }
+        },
+        // Include ReportComment records
+        ReportComment: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                username: true,
+              },
+            },
+          },
+          orderBy: {
+            createdAt: 'asc',
+          },
+        },
       },
     });
 

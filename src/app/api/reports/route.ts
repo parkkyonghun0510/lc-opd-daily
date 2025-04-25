@@ -302,39 +302,16 @@ export async function POST(request: NextRequest) {
       select: { name: true }
     });
 
-    // IMPORTANT: Due to persistent UTF-8 encoding issues, we're temporarily disabling commentArray
-    // and only using the legacy comments field
-    let sanitizedCommentArray = null;
+    // We're going to skip handling comments in the report creation
+    // and instead use the ReportComment model to add comments separately
+    // This avoids UTF-8 encoding issues with the comments field
+    console.log("[DEBUG] Skipping comments handling in report creation. Will use ReportComment model instead.");
 
-    // Extract text from commentArray and add it to comments if needed
-    if (reportData.commentArray && Array.isArray(reportData.commentArray) && reportData.commentArray.length > 0) {
-      try {
-        // Get the text from the first comment in the array to use in the legacy comments field
-        const firstComment = reportData.commentArray[0];
-        if (firstComment && typeof firstComment.text === 'string' && firstComment.text.trim()) {
-          // If we don't already have comments, use the text from the first comment
-          if (!reportData.comments) {
-            reportData.comments = firstComment.text;
-          }
-        }
+    // Store any comments temporarily to add after report creation
+    const initialComment = reportData.comments;
 
-        console.log("[DEBUG] Using legacy comments field instead of commentArray due to UTF-8 encoding issues");
-      } catch (error) {
-        console.error("[ERROR] Failed to extract text from commentArray:", error);
-      }
-    }
-
-    // Now sanitize comments after potentially updating from commentArray
-    const sanitizedComments = sanitizeString(reportData.comments);
-
-    // Log the sanitization process for debugging
-    if (reportData.comments && sanitizedComments !== reportData.comments) {
-      console.log("[DEBUG] Comments were sanitized to remove invalid characters");
-    }
-
-    if (reportData.commentArray && sanitizedCommentArray !== reportData.commentArray) {
-      console.log("[DEBUG] CommentArray was sanitized to remove invalid characters");
-    }
+    // Set comments to null in the report data
+    const sanitizedComments = null;
 
     // Validate that all data is in the correct format before proceeding
     const baseReportData: any = {
@@ -506,6 +483,30 @@ export async function POST(request: NextRequest) {
         }
       } catch (notificationError) {
         console.error("Error sending notifications (non-critical):", notificationError);
+      }
+    }
+
+    // If there was an initial comment, create a ReportComment record
+    if (initialComment) {
+      try {
+        // Sanitize the comment text to avoid UTF-8 encoding issues
+        const sanitizedContent = sanitizeString(initialComment);
+
+        if (sanitizedContent) {
+          // Create a comment using the ReportComment model
+          await prisma.reportComment.create({
+            data: {
+              reportId: report.id,
+              userId: token.sub as string,
+              content: sanitizedContent,
+            }
+          });
+
+          console.log("[DEBUG] Created ReportComment for the initial comment");
+        }
+      } catch (commentError) {
+        console.error("Error creating initial ReportComment (non-critical):", commentError);
+        // We don't want to fail the report creation if the comment creation fails
       }
     }
 

@@ -28,19 +28,21 @@ export default withAuth(
       path === "/setup" ||
       path === "/api/setup" ||
       path.startsWith("/_next") ||
-      path.startsWith("/static")
+      path.startsWith("/static") ||
+      path === "/api/test/report-comments" ||
+      path === "/test-report-comments"
     ) {
       return NextResponse.next();
     }
 
     // Avatar handling in development
-    if (process.env.NODE_ENV === 'development' && 
-        path.startsWith('/uploads/avatars/') && 
-        !path.includes('.well-known')) {
-      
+    if (process.env.NODE_ENV === 'development' &&
+      path.startsWith('/uploads/avatars/') &&
+      !path.includes('.well-known')) {
+
       // Extract the filename from the URL
       const filename = path.split('/').pop();
-      
+
       // Create a fallback URL for avatars that may not exist
       return NextResponse.rewrite(
         new URL(`https://api.dicebear.com/7.x/initials/svg?seed=${filename}&backgroundColor=4f46e5`, req.url)
@@ -111,7 +113,9 @@ export default withAuth(
           path === "/setup" ||
           path === "/api/setup" ||
           path.startsWith("/_next") ||
-          path.startsWith("/static")
+          path.startsWith("/static") ||
+          path === "/api/test/report-comments" ||
+          path === "/test-report-comments"
         ) {
           return true;
         }
