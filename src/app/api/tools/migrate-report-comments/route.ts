@@ -146,13 +146,13 @@ export async function POST(request: NextRequest) {
     // Log the user who is running the migration
     console.log(`Comment migration initiated by admin: ${token.sub} (${token.name || 'Unknown'})`);
 
-    // Get all reports with comments or commentArray
+    // We know that commentArray doesn't exist in the Prisma schema
+    // So we'll only query for reports with comments
+    console.log("Only querying for reports with comments field (commentArray not available)");
+
     const reports = await prisma.report.findMany({
       where: {
-        OR: [
-          { comments: { not: null } },
-          { commentArray: { not: null } }
-        ]
+        comments: { not: null }
       }
     });
 
@@ -176,12 +176,12 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
-        // Parse comments from both sources
+        // Parse comments from string source only
+        // We know commentArray doesn't exist in the Prisma schema
         const commentsFromString = await parseCommentsString(report.comments, report.submittedBy);
-        const commentsFromArray = await parseCommentArray(report.commentArray, report.submittedBy);
 
-        // Combine comments from both sources
-        const allComments = [...commentsFromString, ...commentsFromArray];
+        // Use only comments from string source
+        const allComments = [...commentsFromString];
 
         // Skip if no comments to migrate
         if (allComments.length === 0) {

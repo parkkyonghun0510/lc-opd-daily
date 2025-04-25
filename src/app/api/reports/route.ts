@@ -17,8 +17,9 @@ interface ReportData {
   reportType: "plan" | "actual";
   writeOffs: number;
   ninetyPlus: number;
-  comments?: string;
-  commentArray?: any[]; // Add support for commentArray
+  comments?: string; // @deprecated - Use initialComment instead
+  commentArray?: any[]; // @deprecated - Use ReportComment model instead
+  initialComment?: string; // New field for initial comment to be stored in ReportComment
 }
 
 interface UpdateReportData {
@@ -305,10 +306,11 @@ export async function POST(request: NextRequest) {
     // We're going to skip handling comments in the report creation
     // and instead use the ReportComment model to add comments separately
     // This avoids UTF-8 encoding issues with the comments field
-    console.log("[DEBUG] Skipping comments handling in report creation. Will use ReportComment model instead.");
+    console.log("[DEBUG] Using ReportComment model for comments instead of storing in Report.");
 
     // Store any comments temporarily to add after report creation
-    const initialComment = reportData.comments;
+    // Use initialComment field if available, fall back to comments for backward compatibility
+    const initialComment = reportData.initialComment || reportData.comments;
 
     // Set comments to null in the report data
     const sanitizedComments = null;
@@ -703,11 +705,16 @@ export async function PATCH(request: NextRequest) {
     if (prismaUpdateData.ninetyPlus !== undefined) {
       prismaUpdateData.ninetyPlus = Number(prismaUpdateData.ninetyPlus);
     }
+
+    // Remove legacy comment fields from update data
+    // Comments should now be handled through the ReportComment model
     if (prismaUpdateData.comments !== undefined) {
-      prismaUpdateData.comments = sanitizeString(prismaUpdateData.comments);
+      console.log("[DEPRECATED] Removing 'comments' field from update data. Use ReportComment model instead.");
+      delete prismaUpdateData.comments;
     }
     if (prismaUpdateData.commentArray !== undefined) {
-      prismaUpdateData.commentArray = sanitizeCommentArray(prismaUpdateData.commentArray);
+      console.log("[DEPRECATED] Removing 'commentArray' field from update data. Use ReportComment model instead.");
+      delete prismaUpdateData.commentArray;
     }
 
     // Update the report
@@ -749,8 +756,8 @@ export async function PATCH(request: NextRequest) {
             branchName: updatedReport.branch.name,
             status: updatedReport.status,
             actorName: token.name || 'System',
-            // Add comments if rejection includes them
-            comments: updateData.comments || undefined
+            // Don't include comments in notification data anymore
+            // Comments should be fetched from ReportComment model if needed
           };
 
           await sendToNotificationQueue({

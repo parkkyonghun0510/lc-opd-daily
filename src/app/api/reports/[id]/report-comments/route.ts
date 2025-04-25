@@ -18,7 +18,7 @@ export async function GET(
       );
     }
 
-    const reportId = params.id;
+    const reportId = await params.id;
 
     // Check if the report exists
     const report = await prisma.report.findUnique({
@@ -134,11 +134,11 @@ export async function POST(
     });
   } catch (error) {
     console.error("Error adding report comment:", error);
-    
+
     // Check for specific PostgreSQL error codes
     if (error instanceof Error) {
       const errorMessage = error.message || '';
-      
+
       // Check for UTF-8 encoding issues (PostgreSQL error code 22021)
       if (errorMessage.includes('22021') || errorMessage.includes('invalid byte sequence for encoding')) {
         return NextResponse.json(
@@ -150,7 +150,7 @@ export async function POST(
         );
       }
     }
-    
+
     return NextResponse.json(
       { error: "Failed to add comment" },
       { status: 500 }

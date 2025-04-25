@@ -34,10 +34,27 @@ export interface Report {
   submittedBy: string;
   submittedAt: string;
   updatedAt?: string;
-  comments?: string; // Legacy comments field
-  commentArray?: CommentItem[]; // New structured comments field
+  // Legacy fields - marked as deprecated
+  comments?: string; // @deprecated Use ReportComment model instead
+  commentArray?: CommentItem[]; // @deprecated Use ReportComment model instead
   planReportId?: string | null;
   planReport?: Report;
+  // New field for ReportComment relation
+  ReportComment?: ReportCommentType[];
+}
+
+export interface ReportCommentType {
+  id: string;
+  reportId: string;
+  userId: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+  user?: {
+    id: string;
+    name?: string;
+    username?: string;
+  };
 }
 
 export interface Branch {
@@ -51,7 +68,8 @@ export interface CreateReportData {
   branchId: string;
   writeOffs: number;
   ninetyPlus: number;
-  comments?: string;
+  comments?: string; // @deprecated Will be stored in ReportComment model
+  initialComment?: string; // New field for initial comment to be stored in ReportComment
   reportType: ReportType;
   planReportId?: string | null;
 }

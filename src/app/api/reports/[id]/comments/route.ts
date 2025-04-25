@@ -7,6 +7,7 @@ import { v4 as uuidv4 } from "uuid";
 import { sanitizeString, sanitizeCommentArray } from "@/utils/sanitize";
 
 // POST /api/reports/[id]/comments - Add a comment to a report
+// @deprecated - This endpoint is deprecated. Use /api/reports/[id]/report-comments instead.
 export async function POST(
   request: NextRequest
 ) {
@@ -98,6 +99,7 @@ export async function POST(
     commentArray.push(newComment);
 
     // Update the report with both the legacy comments and the new comment array
+    // This is for backward compatibility
     const updatedReport = await prisma.report.update({
       where: { id: reportId },
       data: {
@@ -106,9 +108,24 @@ export async function POST(
       },
     });
 
+    // Also create a record in the ReportComment model (new approach)
+    try {
+      await prisma.reportComment.create({
+        data: {
+          reportId,
+          userId: token.sub as string,
+          content: sanitizeString(comment) || '',
+        }
+      });
+      console.log("[INFO] Created ReportComment record for backward compatibility");
+    } catch (commentError) {
+      console.error("Error creating ReportComment record (non-critical):", commentError);
+      // We don't want to fail the comment creation if this fails
+    }
+
     return NextResponse.json({
       success: true,
-      message: "Comment added successfully"
+      message: "Comment added successfully. Note: This endpoint is deprecated, please use /api/reports/[id]/report-comments instead."
     });
   } catch (error) {
     console.error("Error adding comment:", error);

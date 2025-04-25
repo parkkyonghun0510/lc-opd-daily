@@ -130,8 +130,8 @@ export default function CreateReport() {
         branchId,
         writeOffs: parseFloat(writeOffs),
         ninetyPlus: parseFloat(ninetyPlus),
-        // We're still sending comments to the API, but it will be handled differently
-        comments: sanitizeString(comments) || '',
+        // Use initialComment field instead of comments for the ReportComment model
+        initialComment: sanitizeString(comments) || '',
         // The API will get the submittedBy from the JWT token
       });
 

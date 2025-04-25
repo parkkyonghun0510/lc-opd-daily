@@ -534,45 +534,102 @@ export function CreateReportModal({
                 </SelectContent>
               </Select>
             </div>
-            <Textarea
-              id="comments"
-              value={formData.commentArray && formData.commentArray.length > 0 ? formData.commentArray[0].text : ''}
-              onChange={(e) => {
-                const text = e.target.value;
-                const userName = "User"; // This will be replaced by the server
-                const timestamp = new Date().toLocaleString();
 
-                if (text.trim()) {
-                  // If there's text, create or update the comment
-                  const newComment: CommentItem = {
-                    id: formData.commentArray && formData.commentArray.length > 0 ? formData.commentArray[0].id : uuidv4(),
-                    type: 'comment',
-                    text: text,
-                    timestamp: timestamp,
-                    userId: "", // Will be filled by the server
-                    userName: userName
-                  };
-                  updateField("commentArray", [newComment]);
-                } else {
-                  // If the text is empty, clear the comment array
-                  updateField("commentArray", []);
-                }
-              }}
-              placeholder={`Add any comments about this report...${validationRules?.comments.required
-                ? ` (Minimum ${validationRules.comments.minLength} characters)`
-                : ""
-                }`}
-              className="min-h-[100px] dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 dark:placeholder:text-gray-400 text-sm"
-            />
+            {/* Enhanced comment input with avatar */}
+            <div className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 transition-all duration-200 hover:shadow-md focus-within:shadow-md focus-within:border-blue-300 dark:focus-within:border-blue-700">
+              <div className="flex-shrink-0">
+                <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 text-white flex items-center justify-center font-medium shadow-sm transition-transform duration-200 hover:scale-110">
+                  {userData?.name ? userData.name.charAt(0).toUpperCase() : 'U'}
+                </div>
+              </div>
+
+              <div className="flex-1">
+                <Textarea
+                  id="comments"
+                  value={formData.commentArray && formData.commentArray.length > 0 ? formData.commentArray[0].text : ''}
+                  onChange={(e) => {
+                    const text = e.target.value;
+                    const userName = userData?.name || "User"; // Use actual user name if available
+                    const timestamp = new Date().toLocaleString();
+
+                    if (text.trim()) {
+                      // If there's text, create or update the comment
+                      const newComment: CommentItem = {
+                        id: formData.commentArray && formData.commentArray.length > 0 ? formData.commentArray[0].id : uuidv4(),
+                        type: 'comment',
+                        text: text,
+                        timestamp: timestamp,
+                        userId: userData?.id || "", // Use actual user ID if available
+                        userName: userName
+                      };
+                      updateField("commentArray", [newComment]);
+                    } else {
+                      // If the text is empty, clear the comment array
+                      updateField("commentArray", []);
+                    }
+                  }}
+                  placeholder={`Add any comments about this report...${validationRules?.comments.required
+                    ? ` (Minimum ${validationRules.comments.minLength} characters)`
+                    : ""
+                    }`}
+                  className="min-h-[100px] border-0 focus-visible:ring-0 focus-visible:ring-offset-0 p-0 shadow-none resize-none dark:bg-transparent dark:text-gray-200 dark:placeholder:text-gray-400 text-sm transition-all duration-200 leading-relaxed"
+                  autoFocus
+                />
+
+                {/* Character count and validation */}
+                <div className="flex justify-between items-center mt-2">
+                  {validationRules?.comments.required && (
+                    <p className="text-xs text-muted-foreground dark:text-gray-400">
+                      {formData.commentArray && formData.commentArray.length > 0 && formData.commentArray[0].text
+                        ? formData.commentArray[0].text.length
+                        : 0}/{validationRules.comments.minLength} characters minimum
+                    </p>
+                  )}
+
+                  {/* Emoji buttons */}
+                  <div className="flex space-x-1">
+                    {['😊', '👍', '🎉', '❤️', '🔥'].map((emoji) => (
+                      <Button
+                        key={emoji}
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 hover:scale-110 focus:scale-110 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-800 group"
+                        onClick={() => {
+                          const text = formData.commentArray && formData.commentArray.length > 0
+                            ? formData.commentArray[0].text + ' ' + emoji
+                            : emoji;
+
+                          const userName = userData?.name || "User";
+                          const timestamp = new Date().toLocaleString();
+
+                          const newComment: CommentItem = {
+                            id: formData.commentArray && formData.commentArray.length > 0 ? formData.commentArray[0].id : uuidv4(),
+                            type: 'comment',
+                            text: text,
+                            timestamp: timestamp,
+                            userId: userData?.id || "",
+                            userName: userName
+                          };
+
+                          updateField("commentArray", [newComment]);
+
+                          toast({
+                            title: "Emoji Added",
+                            description: `Added ${emoji} to your comment`,
+                          });
+                        }}
+                      >
+                        <span role="img" aria-label="emoji" className="text-lg transform transition-transform duration-200 group-hover:scale-125">{emoji}</span>
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {errors.commentArray && (
               <p className="text-sm text-red-500">{errors.commentArray}</p>
-            )}
-            {validationRules?.comments.required && (
-              <p className="text-xs text-muted-foreground dark:text-gray-400">
-                {formData.commentArray && formData.commentArray.length > 0 && formData.commentArray[0].text
-                  ? formData.commentArray[0].text.length
-                  : 0}/{validationRules.comments.minLength} characters minimum
-              </p>
             )}
           </div>
 

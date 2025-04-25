@@ -9,6 +9,7 @@ import { createDirectNotifications } from "@/utils/createDirectNotification";
 import { sanitizeString, sanitizeCommentArray } from "@/utils/sanitize";
 
 // POST /api/reports/[id]/comments/reply - Add a reply to a comment
+// @deprecated - This endpoint is deprecated. Use /api/reports/[id]/report-comments instead with a parentId parameter.
 export async function POST(
   request: NextRequest
 ) {
@@ -108,6 +109,7 @@ export async function POST(
       : replyWithMeta;
 
     // Update the report with both the legacy comments and the new comment array
+    // This is for backward compatibility
     const updatedReport = await prisma.report.update({
       where: { id: reportId },
       data: {
@@ -118,6 +120,21 @@ export async function POST(
         branch: true
       }
     });
+
+    // Also create a record in the ReportComment model (new approach)
+    try {
+      await prisma.reportComment.create({
+        data: {
+          reportId,
+          userId: token.sub as string,
+          content: sanitizeString(`Reply to comment ${parentId}: ${comment}`) || '',
+        }
+      });
+      console.log("[INFO] Created ReportComment record for reply (backward compatibility)");
+    } catch (commentError) {
+      console.error("Error creating ReportComment record for reply (non-critical):", commentError);
+      // We don't want to fail the reply creation if this fails
+    }
 
     // Find the parent comment to get the original commenter's ID
     const parentComment = commentArray.find(c => c.id === parentId);
@@ -149,7 +166,7 @@ export async function POST(
 
     return NextResponse.json({
       success: true,
-      message: "Reply added successfully",
+      message: "Reply added successfully. Note: This endpoint is deprecated, please use /api/reports/[id]/report-comments instead.",
       reply: newReply
     });
   } catch (error) {

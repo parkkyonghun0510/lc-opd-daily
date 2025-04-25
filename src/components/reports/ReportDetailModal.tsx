@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
-import { Eye, Loader2, PencilIcon } from "lucide-react";
+import { Eye, Loader2, MessageSquare, PencilIcon } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -456,12 +456,18 @@ export function ReportDetailModal({ report, isOpen, onClose, onEdit }: ReportDet
 
           {/* Comments Section */}
           <div>
-            <Label className="text-sm font-medium mb-2">Comments</Label>
-            <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-md">
+            {/* <div className="flex items-center gap-2 mb-3">
+              <MessageSquare className="h-5 w-5 text-blue-500" />
+              <Label className="text-lg font-medium">Comments</Label>
+            </div> */}
+            <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 transition-all duration-200 hover:shadow-md">
               {/* Legacy Comments Display */}
-              {(displayReport.comments || displayReport.commentArray) && (
+              {/* {(displayReport.comments || displayReport.commentArray) && (
                 <div className="mb-4 pb-4 border-b border-gray-200 dark:border-gray-700">
-                  <h4 className="text-sm font-medium text-gray-500 mb-2">Legacy Comments:</h4>
+                  <h4 className="text-sm font-medium text-gray-500 mb-2 flex items-center gap-2">
+                    <Eye className="h-4 w-4" />
+                    Legacy Comments:
+                  </h4>
                   <CommentConversation
                     comments={displayReport.comments}
                     commentArray={displayReport.commentArray}
@@ -469,7 +475,7 @@ export function ReportDetailModal({ report, isOpen, onClose, onEdit }: ReportDet
                     onReplyAdded={() => refreshReportDetails(displayReport.id)}
                   />
                 </div>
-              )}
+              )} */}
 
               {/* New ReportComment Model Display */}
               {displayReport.ReportComment ? (
