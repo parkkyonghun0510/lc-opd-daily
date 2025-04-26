@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { format } from "date-fns";
 import { CommentItem } from "@/types/reports";
 import { v4 as uuidv4 } from "uuid";
-import { sanitizeString, sanitizeCommentArray } from "@/utils/sanitize";
+import { sanitizeString } from "@/utils/sanitize";
 
 // POST /api/reports/[id]/comments - Add a comment to a report
 // @deprecated - This endpoint is deprecated. Use /api/reports/[id]/report-comments instead.
@@ -73,38 +73,15 @@ export async function POST(
       ? `${report.comments}\n\n${commentWithMeta}`
       : commentWithMeta;
 
-    // Create a new comment object for the structured format
-    const newComment: CommentItem = {
-      id: uuidv4(),
-      type: 'comment',
-      text: sanitizeString(comment) || '', // Sanitize comment text
-      timestamp: timestamp,
-      userId: token.sub as string,
-      userName: commenterName
-    };
+    // Sanitize the comment text
+    const sanitizedComment = sanitizeString(comment) || '';
 
-    // Get existing comment array or create a new one
-    let commentArray = report.commentArray as CommentItem[] || [];
-
-    // If commentArray is a string (JSON stringified), parse it
-    if (typeof commentArray === 'string') {
-      try {
-        commentArray = JSON.parse(commentArray);
-      } catch (e) {
-        commentArray = [];
-      }
-    }
-
-    // Add the new comment to the array
-    commentArray.push(newComment);
-
-    // Update the report with both the legacy comments and the new comment array
+    // Update the report with the legacy comments
     // This is for backward compatibility
     const updatedReport = await prisma.report.update({
       where: { id: reportId },
       data: {
         comments: sanitizeString(updatedComments), // Sanitize legacy comments
-        commentArray: sanitizeCommentArray(commentArray), // Sanitize comment array
       },
     });
 

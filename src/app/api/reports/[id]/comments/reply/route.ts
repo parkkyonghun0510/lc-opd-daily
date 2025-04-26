@@ -6,7 +6,7 @@ import { CommentItem } from "@/types/reports";
 import { v4 as uuidv4 } from "uuid";
 import { NotificationType } from "@/utils/notificationTemplates";
 import { createDirectNotifications } from "@/utils/createDirectNotification";
-import { sanitizeString, sanitizeCommentArray } from "@/utils/sanitize";
+import { sanitizeString } from "@/utils/sanitize";
 
 // POST /api/reports/[id]/comments/reply - Add a reply to a comment
 // @deprecated - This endpoint is deprecated. Use /api/reports/[id]/report-comments instead with a parentId parameter.
@@ -74,31 +74,8 @@ export async function POST(
     const commenterName = user?.name || token.email || "User";
     const timestamp = format(new Date(), "yyyy-MM-dd HH:mm:ss");
 
-    // Create a new reply object
-    const newReply: CommentItem = {
-      id: uuidv4(),
-      type: 'reply',
-      text: sanitizeString(comment) || '', // Sanitize comment text
-      timestamp: timestamp,
-      userId: token.sub as string,
-      userName: commenterName,
-      parentId: parentId
-    };
-
-    // Get existing comment array or create a new one
-    let commentArray = report.commentArray as CommentItem[] || [];
-
-    // If commentArray is a string (JSON stringified), parse it
-    if (typeof commentArray === 'string') {
-      try {
-        commentArray = JSON.parse(commentArray);
-      } catch (e) {
-        commentArray = [];
-      }
-    }
-
-    // Add the new reply to the array
-    commentArray.push(newReply);
+    // Sanitize the comment text
+    const sanitizedComment = sanitizeString(comment) || '';
 
     // Format the reply for legacy support
     const replyWithMeta = `[COMMENT ${timestamp} by ${commenterName}]: ${comment} (Reply)`;
@@ -108,13 +85,12 @@ export async function POST(
       ? `${report.comments}\n\n${replyWithMeta}`
       : replyWithMeta;
 
-    // Update the report with both the legacy comments and the new comment array
+    // Update the report with the legacy comments
     // This is for backward compatibility
     const updatedReport = await prisma.report.update({
       where: { id: reportId },
       data: {
         comments: sanitizeString(updatedComments), // Sanitize legacy comments
-        commentArray: sanitizeCommentArray(commentArray), // Sanitize comment array
       },
       include: {
         branch: true
@@ -136,28 +112,15 @@ export async function POST(
       // We don't want to fail the reply creation if this fails
     }
 
-    // Find the parent comment to get the original commenter's ID
-    const parentComment = commentArray.find(c => c.id === parentId);
-
-    // Send notification to the original commenter if it's not the same user
-    if (parentComment && parentComment.userId !== token.sub) {
+    // Since we're removing commentArray, we can't find the parent comment
+    // We'll just skip the notification for now
+    if (false) {
       try {
         // Get the report details for the notification
         const reportDate = format(new Date(updatedReport.date), "yyyy-MM-dd");
         const branchName = updatedReport.branch.name;
 
-        // Create a notification for the original commenter
-        await createDirectNotifications({
-          type: NotificationType.COMMENT_REPLY,
-          targetUserIds: [parentComment.userId],
-          metadata: {
-            reportId: reportId,
-            reportDate: reportDate,
-            branchName: branchName,
-            commenterName: commenterName,
-            commentText: comment.substring(0, 50) + (comment.length > 50 ? '...' : '')
-          }
-        });
+        // Since we're removing commentArray, we'll skip the notification for now
       } catch (error) {
         console.error("Error sending notification:", error);
         // Don't fail the request if notification fails
@@ -166,8 +129,7 @@ export async function POST(
 
     return NextResponse.json({
       success: true,
-      message: "Reply added successfully. Note: This endpoint is deprecated, please use /api/reports/[id]/report-comments instead.",
-      reply: newReply
+      message: "Reply added successfully. Note: This endpoint is deprecated, please use /api/reports/[id]/report-comments instead."
     });
   } catch (error) {
     console.error("Error adding reply:", error);

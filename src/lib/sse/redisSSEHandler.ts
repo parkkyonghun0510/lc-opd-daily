@@ -40,29 +40,29 @@ class RedisSSEHandler {
     private pubSubChannel = 'sse-events';
     private pubSubClient: Redis;
     private isSubscribed = false;
-    
+
     constructor(redisUrl: string, redisToken: string) {
         // Create Redis client for operations
         this.redis = new Redis({
             url: redisUrl,
             token: redisToken,
         });
-        
+
         // Create a separate Redis client for pub/sub
         this.pubSubClient = new Redis({
             url: redisUrl,
             token: redisToken,
         });
-        
+
         // Generate a unique ID for this server instance
         this.instanceId = `instance-${crypto.randomUUID()}`;
-        
+
         // Start the cleanup interval to remove stale connections
         this.cleanupInterval = setInterval(() => this.cleanupInactiveConnections(), 60000);
-        
+
         // Subscribe to the pub/sub channel for cross-instance events
         this.setupPubSub();
-        
+
         console.log(`[SSE] Redis-backed SSE handler initialized with instance ID: ${this.instanceId}`);
     }
 
@@ -72,45 +72,53 @@ class RedisSSEHandler {
     private async setupPubSub() {
         try {
             if (this.isSubscribed) return;
-            
-            // Subscribe to the SSE events channel
-            const subscription = this.pubSubClient.subscribe(this.pubSubChannel);
-            
-            // Process incoming messages
-            (async () => {
-                for await (const message of subscription) {
+
+            // Subscribe to the channel
+            await this.pubSubClient.subscribe(this.pubSubChannel);
+
+            // Poll for messages
+            const pollMessages = async () => {
+                while (this.isSubscribed) {
                     try {
-                        // Parse the message
-                        const { sourceInstanceId, event } = JSON.parse(message as string);
-                        
-                        // Skip messages from this instance to avoid duplicates
-                        if (sourceInstanceId === this.instanceId) continue;
-                        
-                        // Process the cross-instance event
-                        this.processCrossInstanceEvent(event);
+                        const message = await this.pubSubClient.get(this.pubSubChannel);
+                        if (message) {
+                            const { sourceInstanceId, event } = JSON.parse(message as string);
+
+                            // Skip messages from this instance to avoid duplicates
+                            if (sourceInstanceId === this.instanceId) continue;
+
+                            // Process the cross-instance event
+                            this.processCrossInstanceEvent(event);
+                        }
+                        // Small delay to prevent tight polling
+                        await new Promise(resolve => setTimeout(resolve, 100));
                     } catch (error) {
                         console.error('[SSE] Error processing pub/sub message:', error);
+                        await new Promise(resolve => setTimeout(resolve, 1000));
                     }
                 }
-            })();
-            
+            };
+
+            // Start polling
+            pollMessages();
+
             this.isSubscribed = true;
             console.log('[SSE] Successfully subscribed to Redis pub/sub channel');
         } catch (error) {
             console.error('[SSE] Error setting up Redis pub/sub:', error);
-            
+
             // Retry subscription after a delay
             setTimeout(() => this.setupPubSub(), 5000);
         }
     }
-    
+
     /**
      * Process an event received from another instance
      */
     private processCrossInstanceEvent(event: any) {
         try {
             const { userId, eventType, data } = event;
-            
+
             // If the event is for a specific user, send it only to that user
             if (userId) {
                 // Find local clients for this user
@@ -119,7 +127,7 @@ class RedisSSEHandler {
                         this.sendEvent(client.response, { type: eventType, data });
                     }
                 }
-            } 
+            }
             // If no userId, it's a broadcast event
             else {
                 // Send to all local clients
@@ -131,7 +139,7 @@ class RedisSSEHandler {
             console.error('[SSE] Error processing cross-instance event:', error);
         }
     }
-    
+
     /**
      * Publish an event to Redis for cross-instance communication
      */
@@ -152,19 +160,19 @@ class RedisSSEHandler {
      */
     async addClient(id: string, userId: string, response: any, metadata?: Record<string, any>) {
         const now = Date.now();
-        const client: Client = { 
-            id, 
-            userId, 
+        const client: Client = {
+            id,
+            userId,
             response,
             connectedAt: now,
             lastActivity: now,
             metadata,
             instanceId: this.instanceId
         };
-        
+
         // Add to local map
         this.clients.set(id, client);
-        
+
         // Add to Redis
         try {
             await this.redis.hset(`sse:clients:${userId}`, {
@@ -177,15 +185,15 @@ class RedisSSEHandler {
                     instanceId: this.instanceId
                 })
             });
-            
+
             // Update user's active client count
             await this.redis.hincrby('sse:user-counts', userId, 1);
-            
+
             console.log(`[SSE] Client connected: ${id} for user: ${userId}. Total local: ${this.clients.size}`);
         } catch (error) {
             console.error('[SSE] Error adding client to Redis:', error);
         }
-        
+
         return id;
     }
 
@@ -197,14 +205,14 @@ class RedisSSEHandler {
         if (client) {
             // Remove from local map
             this.clients.delete(id);
-            
+
             // Remove from Redis
             try {
                 await this.redis.hdel(`sse:clients:${client.userId}`, id);
-                
+
                 // Update user's active client count
                 await this.redis.hincrby('sse:user-counts', client.userId, -1);
-                
+
                 const duration = Math.round((Date.now() - client.connectedAt) / 1000);
                 console.log(`[SSE] Client disconnected: ${id} for user: ${client.userId}. Duration: ${duration}s. Total local: ${this.clients.size}`);
             } catch (error) {
@@ -220,10 +228,10 @@ class RedisSSEHandler {
         const client = this.clients.get(id);
         if (client) {
             const now = Date.now();
-            
+
             // Update local map
             client.lastActivity = now;
-            
+
             // Update Redis (less frequently to reduce Redis operations)
             // Only update Redis every 5 minutes or so
             const timeSinceLastUpdate = now - client.lastActivity;
@@ -249,7 +257,7 @@ class RedisSSEHandler {
      */
     async sendEventToUser(userId: string, eventType: string, data: any) {
         let localSentCount = 0;
-        
+
         // Send to local clients
         for (const client of this.clients.values()) {
             if (client.userId === userId) {
@@ -257,18 +265,18 @@ class RedisSSEHandler {
                 localSentCount++;
             }
         }
-        
+
         // Publish to Redis for other instances
         await this.publishEvent({
             userId,
             eventType,
             data
         });
-        
+
         if (localSentCount > 0) {
             console.log(`[SSE] Sent '${eventType}' event to user ${userId} (${localSentCount} local connections)`);
         }
-        
+
         return localSentCount;
     }
 
@@ -280,15 +288,15 @@ class RedisSSEHandler {
         for (const client of this.clients.values()) {
             this.sendEvent(client.response, { type: eventType, data });
         }
-        
+
         // Publish to Redis for other instances
         await this.publishEvent({
             eventType,
             data
         });
-        
+
         console.log(`[SSE] Broadcast '${eventType}' event to all clients (${this.clients.size} local)`);
-        
+
         return this.clients.size;
     }
 
@@ -299,25 +307,25 @@ class RedisSSEHandler {
         try {
             // Format the event according to SSE specification
             let message = '';
-            
+
             // Add event type if provided
             if (event.type) {
                 message += `event: ${event.type}\n`;
             }
-            
+
             // Add event ID if provided
             if (event.id) {
                 message += `id: ${event.id}\n`;
             }
-            
+
             // Add retry if provided
             if (event.retry) {
                 message += `retry: ${event.retry}\n`;
             }
-            
+
             // Add the data (required)
             message += `data: ${JSON.stringify(event.data)}\n\n`;
-            
+
             // Send the formatted message
             response.write(message);
         } catch (error) {
@@ -331,32 +339,33 @@ class RedisSSEHandler {
     private async cleanupInactiveConnections() {
         const now = Date.now();
         const inactiveIds: string[] = [];
-        
+
         // Find inactive local connections
         for (const [id, client] of this.clients.entries()) {
             if (now - client.lastActivity > this.INACTIVE_TIMEOUT) {
                 inactiveIds.push(id);
             }
         }
-        
+
         // Remove inactive local connections
         if (inactiveIds.length > 0) {
             console.log(`[SSE] Cleaning up ${inactiveIds.length} inactive local connections`);
-            
+
             for (const id of inactiveIds) {
                 await this.removeClient(id);
             }
         }
-        
+
         // Clean up orphaned Redis entries (less frequently)
         // This is a more expensive operation, so do it less often
         if (Math.random() < 0.1) { // 10% chance each time
             try {
                 // Get all user IDs with active connections
                 const userCounts = await this.redis.hgetall('sse:user-counts');
-                
+
                 // For each user with 0 connections, clean up their client entries
-                for (const [userId, count] of Object.entries(userCounts)) {
+                const entries = userCounts ? Object.entries(userCounts) : [];
+                for (const [userId, count] of entries) {
                     if (parseInt(count as string, 10) <= 0) {
                         await this.redis.del(`sse:clients:${userId}`);
                         await this.redis.hdel('sse:user-counts', userId);
@@ -379,34 +388,35 @@ class RedisSSEHandler {
             for (const client of this.clients.values()) {
                 localUserCounts.set(client.userId, (localUserCounts.get(client.userId) || 0) + 1);
             }
-            
+
             // Get global stats from Redis
             const globalUserCounts = await this.redis.hgetall('sse:user-counts');
-            
+
             // Count total connections across all instances
             let totalConnections = 0;
-            for (const count of Object.values(globalUserCounts)) {
+            const values = globalUserCounts ? Object.values(globalUserCounts) : [];
+            for (const count of values) {
                 totalConnections += parseInt(count as string, 10);
             }
-            
+
             return {
                 instanceId: this.instanceId,
                 localConnections: this.clients.size,
                 localUniqueUsers: localUserCounts.size,
                 localUserCounts: Object.fromEntries(localUserCounts),
-                globalUniqueUsers: Object.keys(globalUserCounts).length,
+                globalUniqueUsers: globalUserCounts ? Object.keys(globalUserCounts).length : 0,
                 globalTotalConnections: totalConnections,
                 globalUserCounts: globalUserCounts
             };
         } catch (error) {
             console.error('[SSE] Error getting stats from Redis:', error);
-            
+
             // Fall back to local stats only
             const localUserCounts = new Map<string, number>();
             for (const client of this.clients.values()) {
                 localUserCounts.set(client.userId, (localUserCounts.get(client.userId) || 0) + 1);
             }
-            
+
             return {
                 instanceId: this.instanceId,
                 localConnections: this.clients.size,
@@ -427,20 +437,21 @@ class RedisSSEHandler {
             clearInterval(this.cleanupInterval);
             this.cleanupInterval = null;
         }
-        
+
         // Close all local connections
         for (const id of this.clients.keys()) {
             await this.removeClient(id);
         }
-        
+
         // Unsubscribe from Redis pub/sub
         try {
-            await this.pubSubClient.unsubscribe(this.pubSubChannel);
+            // Stop message polling
+            this.isSubscribed = false;
             this.isSubscribed = false;
         } catch (error) {
             console.error('[SSE] Error unsubscribing from Redis pub/sub:', error);
         }
-        
+
         console.log(`[SSE] Handler shutdown complete`);
     }
 }

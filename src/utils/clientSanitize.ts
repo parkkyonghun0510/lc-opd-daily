@@ -57,7 +57,7 @@ export function sanitizeString(str: string | null | undefined): string | null {
  * @returns A new object with sanitized string values
  */
 export function sanitizeFormData<T extends Record<string, any>>(formData: T): T {
-  const sanitized = { ...formData };
+  const sanitized = { ...formData } as T;
 
   // Deep sanitization function to handle nested objects
   const deepSanitize = (obj: any): any => {
@@ -79,54 +79,43 @@ export function sanitizeFormData<T extends Record<string, any>>(formData: T): T 
     }
 
     if (typeof obj === 'object') {
-      // Check if it's an empty object that should be a Date
-      if (Object.keys(obj).length === 0 && 'date' in formData) {
-        // If we're processing an empty object and the form has a date field,
-        // this might be a serialized Date that lost its type
-        return new Date().toISOString(); // Use current date as fallback
-      }
-
       const sanitizedObj: Record<string, any> = {};
-      for (const key in obj) {
-        sanitizedObj[key] = deepSanitize(obj[key]);
+      for (const k in obj) {
+        sanitizedObj[k] = deepSanitize(obj[k]);
       }
       return sanitizedObj;
     }
 
-    // For numbers, booleans, etc., return as is
     return obj;
   };
 
   // Apply deep sanitization to each property
   for (const key in sanitized) {
-    // Special handling for date field
-    if (key === 'date') {
-      // Ensure date is properly formatted
-      const dateValue = sanitized[key];
+    if (key === 'date' || (typeof key === 'string' && key.toLowerCase().endsWith('date'))) {
+      const dateValue = sanitized[key] as unknown;
+      let isoString: string;
 
-      if (dateValue instanceof Date) {
-        sanitized[key] = dateValue.toISOString();
+      if (dateValue && typeof dateValue === 'object' && dateValue instanceof Date) {
+        isoString = dateValue.toISOString();
       } else if (typeof dateValue === 'string') {
-        // If it's already a string, make sure it's a valid date string
         const dateObj = new Date(dateValue);
         if (!isNaN(dateObj.getTime())) {
-          sanitized[key] = dateObj.toISOString();
+          isoString = dateObj.toISOString();
         } else {
-          // Invalid date string, use current date as fallback
           console.warn('Invalid date string detected, using current date as fallback');
-          sanitized[key] = new Date().toISOString();
+          isoString = new Date().toISOString();
         }
-      } else if (typeof dateValue === 'object' && Object.keys(dateValue).length === 0) {
-        // Empty object where date should be, use current date as fallback
+      } else if (dateValue && typeof dateValue === 'object' && Object.keys(dateValue as object).length === 0) {
         console.warn('Empty object detected for date field, using current date as fallback');
-        sanitized[key] = new Date().toISOString();
+        isoString = new Date().toISOString();
       } else {
-        // For any other case, use current date as fallback
         console.warn('Invalid date value detected, using current date as fallback');
-        sanitized[key] = new Date().toISOString();
+        isoString = new Date().toISOString();
       }
+
+      (sanitized as any)[key] = isoString;
     } else {
-      sanitized[key] = deepSanitize(sanitized[key]);
+      (sanitized as any)[key] = deepSanitize(sanitized[key]);
     }
   }
 

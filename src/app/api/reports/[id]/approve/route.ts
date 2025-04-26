@@ -8,11 +8,11 @@ import { sendToNotificationQueue } from "@/lib/queue/sqs";
 import { getUsersForNotification } from "@/utils/notificationTargeting";
 import { hasBranchAccess } from "@/lib/auth/branch-access";
 import { createDirectNotifications } from "@/utils/createDirectNotification";
-import { broadcastDashboardUpdate } from "@/app/api/dashboard/sse/route";
+import { broadcastDashboardUpdate } from "@/lib/events/dashboard-broadcaster";
 import { DashboardEventTypes } from "@/lib/events/dashboard-events";
 import { CommentItem } from "@/types/reports";
 import { v4 as uuidv4 } from "uuid";
-import { sanitizeString, sanitizeCommentArray } from "@/utils/sanitize";
+import { sanitizeString } from "@/utils/sanitize";
 
 // POST /api/reports/[id]/approve - Approve or reject a report
 export async function POST(
@@ -108,33 +108,9 @@ export async function POST(
 
     const approverName = approver?.name || 'A manager';
 
-    // Create a new comment object for the structured format
+    // Create timestamp for the comment
     const timestamp = new Date().toISOString();
     const formattedTimestamp = new Date().toLocaleString();
-
-    const newComment: CommentItem = {
-      id: uuidv4(),
-      type: status === "approved" ? "comment" : "rejection",
-      text: sanitizeString(comments) || (status === "approved" ? "Report approved" : "Report rejected"),
-      timestamp: formattedTimestamp,
-      userId: token.sub as string,
-      userName: approverName
-    };
-
-    // Get existing comment array or create a new one
-    let commentArray = report.commentArray as CommentItem[] || [];
-
-    // If commentArray is a string (JSON stringified), parse it
-    if (typeof commentArray === 'string') {
-      try {
-        commentArray = JSON.parse(commentArray);
-      } catch (e) {
-        commentArray = [];
-      }
-    }
-
-    // Add the new comment to the array
-    commentArray.push(newComment);
 
     // Format the comment for legacy support in conversation style
     const commentWithMeta = status === "approved"
@@ -153,7 +129,6 @@ export async function POST(
         status,
         // Store approval/rejection comments if provided
         comments: sanitizeString(updatedComments), // Sanitize legacy comments
-        commentArray: sanitizeCommentArray(commentArray), // Sanitize comment array
       },
     });
 

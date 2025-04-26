@@ -4,12 +4,12 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Permission } from "@/lib/auth/roles";
 import { DashboardEventTypes, createDashboardUpdate } from '@/lib/events/dashboard-events';
-import { broadcastDashboardUpdate } from '@/app/api/dashboard/sse/route';
+import { broadcastDashboardUpdate } from '@/lib/events/dashboard-broadcaster';
 
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
@@ -88,4 +88,4 @@ export async function GET() {
     console.error("Error fetching admin stats:", error);
     return new NextResponse("Internal Server Error", { status: 500 });
   }
-} 
+}

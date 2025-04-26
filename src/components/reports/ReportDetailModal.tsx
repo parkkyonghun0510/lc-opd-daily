@@ -37,7 +37,7 @@ import { UserDisplayName } from "@/components/user/UserDisplayName";
 import { CommentItem } from "@/components/reports/CommentItem";
 import { ReportCommentsList } from "@/components/reports/ReportCommentsList";
 
-interface ReportComment {
+export interface ReportComment {
   id: string;
   reportId: string;
   userId: string;
@@ -51,7 +51,7 @@ interface ReportComment {
   };
 }
 
-interface ReportWithUser extends Report {
+export interface ReportWithUser extends Report {
   user?: {
     id: string;
     name: string;

@@ -9,7 +9,7 @@ import { getUsersForNotification } from "@/utils/notificationTargeting";
 import { hasBranchAccess } from "@/lib/auth/branch-access";
 import { createDirectNotifications } from "@/utils/createDirectNotification";
 import { broadcastDashboardUpdate, DashboardEventTypes } from "@/lib/events/dashboardEvents";
-import { CommentItem } from "@/types/reports";
+
 import { v4 as uuidv4 } from "uuid";
 import { format } from "date-fns";
 import { sanitizeString } from "@/utils/sanitize";
@@ -115,18 +115,17 @@ export async function POST(
       : `[REJECTION ${timestamp}]: ${comments || "Report rejected"}`;
 
     // Create a structured comment for the commentArray
-    const commentItem: CommentItem = {
+    const commentItem = {
       id: uuidv4(),
       text: comments || `Report ${status}`,
       userId: token.sub as string,
       userName: approverName,
       timestamp: new Date().toISOString(),
-      type: status === "approved" ? "approval" : "rejection",
+      type: status === "approved" ? "comment" : "rejection",
     };
 
-    // Get existing comment array or create a new one
-    const existingComments = report.commentArray as CommentItem[] || [];
-    const commentArray = [...existingComments, commentItem];
+    // Since we're removing commentArray, we'll just use the new comment
+    const commentArray = [commentItem];
 
     // Add the comment to existing comments or create new comments (legacy format)
     const updatedComments = report.comments
@@ -140,7 +139,6 @@ export async function POST(
         status,
         // Store approval/rejection comments if provided
         comments: sanitizeString(updatedComments),
-        commentArray: commentArray,
       },
     });
 
@@ -158,7 +156,7 @@ export async function POST(
           "Report has been rejected";
       }
 
-      const sanitizedContent = sanitizeString(commentMessage);
+      const sanitizedContent = sanitizeString(commentMessage) || '';
 
       await prisma.reportComment.create({
         data: {
@@ -214,7 +212,7 @@ export async function POST(
         const targetUsers = await getUsersForNotification(notificationType, {
           reportId: report.id,
           branchId: report.branchId,
-          submitterId: report.submittedById,
+          submitterId: report.submittedBy,
         });
 
         if (targetUsers.length > 0) {
@@ -242,17 +240,28 @@ export async function POST(
           // If SQS failed, create direct notifications
           if (!sqsSent) {
             try {
-              await createDirectNotifications({
-                type: notificationType,
-                userIds: targetUsers,
-                data: {
+              // Generate title and body based on notification type
+              let title = status === "approved" ? "Report Approved" : "Report Rejected";
+              let body = status === "approved"
+                ? `Your report has been approved by a manager.`
+                : `Your report has been rejected${comments ? ` with reason: ${comments}` : ""}.`;
+              let actionUrl = `/reports/${report.id}`;
+
+              await createDirectNotifications(
+                notificationType,
+                title,
+                body,
+                targetUsers,
+                actionUrl,
+                {
                   reportId: report.id,
                   branchId: report.branchId,
                   branchName: report.branch.name,
                   approverName,
-                  comments: comments || ""
+                  comments: comments || "",
+                  method: "fallback-hybrid-route"
                 }
-              });
+              );
             } catch (directError) {
               console.error("Error creating direct notifications:", directError);
             }

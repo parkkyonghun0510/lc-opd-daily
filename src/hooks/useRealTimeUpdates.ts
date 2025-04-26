@@ -12,27 +12,27 @@ export interface RealTimeUpdatesOptions {
    * SSE endpoint URL
    */
   sseEndpoint?: string;
-  
+
   /**
    * Polling endpoint URL (for fallback)
    */
   pollingEndpoint?: string;
-  
+
   /**
    * Polling interval in milliseconds
    */
   pollingInterval?: number;
-  
+
   /**
    * Event handlers for specific event types
    */
   eventHandlers?: Record<SSEEventType, (data: any) => void>;
-  
+
   /**
    * Whether to enable client-side caching of events
    */
   enableCache?: boolean;
-  
+
   /**
    * Whether to enable debug logging
    */
@@ -41,7 +41,7 @@ export interface RealTimeUpdatesOptions {
 
 /**
  * Hook for real-time updates with SSE and polling fallback
- * 
+ *
  * This hook provides real-time updates using SSE when available,
  * and falls back to polling when SSE is not supported.
  */
@@ -54,10 +54,10 @@ export function useRealTimeUpdates(options: RealTimeUpdatesOptions = {}) {
     enableCache = true,
     debug = false
   } = options;
-  
+
   // State to track which method is being used
   const [updateMethod, setUpdateMethod] = useState<'sse' | 'polling' | null>(null);
-  
+
   // Use SSE for real-time updates
   const {
     isConnected: sseConnected,
@@ -70,13 +70,15 @@ export function useRealTimeUpdates(options: RealTimeUpdatesOptions = {}) {
     enableCache,
     debug
   });
-  
+
+  // Check if SSE is supported
+  const isSSESupported = typeof EventSource !== 'undefined';
+
   // Use polling as a fallback
   const {
     lastUpdate: pollingLastUpdate,
     isPolling,
     error: pollingError,
-    isSSESupported,
     refresh: refreshPolling
   } = usePollingFallback({
     endpoint: pollingEndpoint,
@@ -94,7 +96,7 @@ export function useRealTimeUpdates(options: RealTimeUpdatesOptions = {}) {
     },
     enabled: !isSSESupported // Only enable polling if SSE is not supported
   });
-  
+
   // Determine which method is being used
   useEffect(() => {
     if (isSSESupported && sseConnected) {
@@ -105,13 +107,13 @@ export function useRealTimeUpdates(options: RealTimeUpdatesOptions = {}) {
       setUpdateMethod(null);
     }
   }, [isSSESupported, sseConnected, pollingLastUpdate]);
-  
+
   // Combine errors
   const error = sseError || pollingError;
-  
+
   // Combine last updates
   const lastUpdate = sseLastEvent || pollingLastUpdate;
-  
+
   // Refresh function
   const refresh = useCallback(() => {
     if (isSSESupported) {
@@ -120,7 +122,7 @@ export function useRealTimeUpdates(options: RealTimeUpdatesOptions = {}) {
       refreshPolling();
     }
   }, [isSSESupported, sseReconnect, refreshPolling]);
-  
+
   return {
     isConnected: sseConnected || (pollingLastUpdate !== null),
     isLoading: isPolling,

@@ -23,7 +23,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ConsolidatedData } from "../types/consolidated-types";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group-simple";
 
 export interface ExportOption {
   id: string;
@@ -202,8 +202,8 @@ export function ExportOptionsDialog({
               <h4 className="text-sm font-medium">Status Filter</h4>
               <RadioGroup
                 value={settings.statusFilter}
-                onValueChange={(value: "all" | "reported" | "missing") =>
-                  setSettings({ ...settings, statusFilter: value })
+                onValueChange={(value) =>
+                  setSettings({ ...settings, statusFilter: value as "all" | "reported" | "missing" })
                 }
                 className="flex flex-col space-y-1"
               >
@@ -226,10 +226,10 @@ export function ExportOptionsDialog({
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <h4 className="text-sm font-medium">Branch Selection</h4>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => setSettings({...settings, branchFilter: []})}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSettings({ ...settings, branchFilter: [] })}
                     className="h-7 text-xs"
                     disabled={settings.branchFilter.length === 0}
                   >
@@ -247,9 +247,9 @@ export function ExportOptionsDialog({
                     setSettings((prev) => {
                       // If value is empty, keep the current selection
                       if (!value) return prev;
-                      
+
                       const newFilter = [...prev.branchFilter];
-                      
+
                       // If already selected, remove it (deselect)
                       if (newFilter.includes(value)) {
                         return {
@@ -257,7 +257,7 @@ export function ExportOptionsDialog({
                           branchFilter: newFilter.filter(id => id !== value)
                         };
                       }
-                      
+
                       // If not selected, add it
                       return {
                         ...prev,
@@ -271,8 +271,8 @@ export function ExportOptionsDialog({
                   </SelectTrigger>
                   <SelectContent>
                     {consolidatedData.branchData.map((branch) => (
-                      <SelectItem 
-                        key={branch.branchId} 
+                      <SelectItem
+                        key={branch.branchId}
                         value={branch.branchId}
                         className="flex items-center"
                       >
@@ -366,4 +366,4 @@ export function ExportOptionsDialog({
       </DialogContent>
     </Dialog>
   );
-} 
+}

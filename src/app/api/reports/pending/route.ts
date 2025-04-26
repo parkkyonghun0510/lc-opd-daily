@@ -73,10 +73,11 @@ export async function GET(request: NextRequest) {
       const pendingReportsResults = await Promise.all(pendingReportsPromises);
       // Filter out null results and reports with missing branches
       const pendingReports = pendingReportsResults.filter(
-        (report): report is any =>
-          report !== null &&
-          report.branch !== null &&
-          !report.error
+        (report): report is any => {
+          if (!report) return false;
+          if ('error' in report) return false;
+          return report.branch !== null;
+        }
       );
 
       // Manually fetch user data for submitted reports

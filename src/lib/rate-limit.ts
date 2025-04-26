@@ -9,12 +9,12 @@ export interface RateLimitConfig {
    * Maximum number of requests allowed within the window
    */
   limit: number;
-  
+
   /**
    * Time window in seconds
    */
   window: number;
-  
+
   /**
    * Identifier for the rate limit (e.g., 'api', 'sse')
    */
@@ -29,17 +29,17 @@ export interface RateLimitResult {
    * Whether the request is allowed
    */
   success: boolean;
-  
+
   /**
    * Current count of requests
    */
   count: number;
-  
+
   /**
    * Maximum number of requests allowed
    */
   limit: number;
-  
+
   /**
    * Time in seconds until the rate limit resets
    */
@@ -51,7 +51,7 @@ export interface RateLimitResult {
  */
 export class RateLimiter {
   private redis: Redis | null = null;
-  
+
   constructor() {
     // Initialize Redis client if configured
     if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
@@ -61,7 +61,7 @@ export class RateLimiter {
       });
     }
   }
-  
+
   /**
    * Check if a request is rate limited
    */
@@ -78,34 +78,36 @@ export class RateLimiter {
         reset: 0
       };
     }
-    
+
     // Get IP address from request
-    const ip = req.ip || req.headers.get('x-forwarded-for') || 'unknown';
-    
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
+      req.headers.get('x-real-ip') ||
+      'unknown';
+
     // Get user ID from query parameter or cookie
     let userId = new URL(req.url).searchParams.get('userId');
-    
+
     // Create a key for the rate limit
     // Use both IP and user ID if available, or just IP
     const key = `rate-limit:${config.identifier}:${userId ? `user-${userId}` : `ip-${ip}`}`;
-    
+
     // Get the current count and expiration
     const [count, reset] = await this.redis.pipeline()
       .incr(key)
       .ttl(key)
       .exec() as [number, number];
-    
+
     // If this is the first request, set the expiration
     if (count === 1) {
       await this.redis.expire(key, config.window);
     }
-    
+
     // Calculate the reset time
     const resetTime = reset < 0 ? config.window : reset;
-    
+
     // Check if the request is allowed
     const success = count <= config.limit;
-    
+
     return {
       success,
       count,
@@ -113,7 +115,7 @@ export class RateLimiter {
       reset: resetTime
     };
   }
-  
+
   /**
    * Apply rate limiting to a request
    */
@@ -122,7 +124,7 @@ export class RateLimiter {
     config: RateLimitConfig
   ): Promise<NextResponse | null> {
     const result = await this.limit(req, config);
-    
+
     if (!result.success) {
       // Return a rate limit exceeded response
       return new NextResponse(
@@ -143,7 +145,7 @@ export class RateLimiter {
         }
       );
     }
-    
+
     // Request is allowed
     return null;
   }

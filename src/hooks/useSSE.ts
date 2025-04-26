@@ -86,7 +86,9 @@ export function useSSE(options: SSEOptions = {}) {
     enableCache = true
   } = options;
 
-  const { data: session, status } = useSession();
+  const { data: session, status } = useSession({
+    required: false,
+  });
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastEvent, setLastEvent] = useState<SSEEvent | null>(null);
@@ -126,7 +128,7 @@ export function useSSE(options: SSEOptions = {}) {
     closeConnection();
 
     // Don't connect if not authenticated
-    if (status !== 'authenticated' && !session?.user?.id) {
+    if (status !== 'authenticated' || !session?.user?.id) {
       log('Not authenticated, skipping SSE connection');
       return;
     }

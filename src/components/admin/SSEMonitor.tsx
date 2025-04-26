@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react';
 
 /**
  * SSE Monitor Component
- * 
+ *
  * This component displays statistics about SSE connections for admin users.
  * It shows the number of connected clients, unique users, and other metrics.
  */
@@ -15,24 +15,24 @@ export default function SSEMonitor() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(false);
-  
+
   // Check if the user is an admin
   const isAdmin = session?.user?.role === 'ADMIN' || session?.user?.role === 'SUPER_ADMIN';
-  
+
   // Fetch SSE statistics
   const fetchStats = async () => {
     if (!isAdmin) return;
-    
+
     try {
       setLoading(true);
       setError(null);
-      
+
       const response = await fetch('/api/admin/sse-monitor');
-      
+
       if (!response.ok) {
         throw new Error(`Error fetching SSE stats: ${response.status} ${response.statusText}`);
       }
-      
+
       const data = await response.json();
       setStats(data);
     } catch (err) {
@@ -42,21 +42,21 @@ export default function SSEMonitor() {
       setLoading(false);
     }
   };
-  
+
   // Set up auto-refresh
   useEffect(() => {
     if (!isAdmin) return;
-    
+
     // Initial fetch
     fetchStats();
-    
+
     // Set up auto-refresh interval
     let intervalId: NodeJS.Timeout | null = null;
-    
+
     if (autoRefresh) {
       intervalId = setInterval(fetchStats, 5000); // Refresh every 5 seconds
     }
-    
+
     // Clean up
     return () => {
       if (intervalId) {
@@ -64,12 +64,12 @@ export default function SSEMonitor() {
       }
     };
   }, [isAdmin, autoRefresh]);
-  
+
   // If not admin, don't show anything
   if (!isAdmin) {
     return null;
   }
-  
+
   return (
     <div className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
       <div className="flex justify-between items-center mb-4">
@@ -93,13 +93,13 @@ export default function SSEMonitor() {
           </label>
         </div>
       </div>
-      
+
       {error && (
         <div className="mb-4 p-3 bg-red-100 text-red-700 rounded">
           {error}
         </div>
       )}
-      
+
       {stats && (
         <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -118,7 +118,7 @@ export default function SSEMonitor() {
               </div>
             </div>
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="p-3 bg-blue-100 dark:bg-blue-900 rounded">
               <div className="text-sm text-blue-500 dark:text-blue-300">Local Connections</div>
@@ -131,21 +131,21 @@ export default function SSEMonitor() {
             <div className="p-3 bg-purple-100 dark:bg-purple-900 rounded">
               <div className="text-sm text-purple-500 dark:text-purple-300">Global Connections</div>
               <div className="text-2xl font-semibold">
-                {typeof stats.stats.globalTotalConnections === 'number' 
-                  ? stats.stats.globalTotalConnections 
+                {typeof stats.stats.globalTotalConnections === 'number'
+                  ? stats.stats.globalTotalConnections
                   : 'N/A'}
               </div>
             </div>
             <div className="p-3 bg-indigo-100 dark:bg-indigo-900 rounded">
               <div className="text-sm text-indigo-500 dark:text-indigo-300">Global Unique Users</div>
               <div className="text-2xl font-semibold">
-                {typeof stats.stats.globalUniqueUsers === 'number' 
-                  ? stats.stats.globalUniqueUsers 
+                {typeof stats.stats.globalUniqueUsers === 'number'
+                  ? stats.stats.globalUniqueUsers
                   : 'N/A'}
               </div>
             </div>
           </div>
-          
+
           {/* User Connections Table */}
           <div className="mt-6">
             <h3 className="text-lg font-semibold mb-2">User Connections</h3>
@@ -171,7 +171,7 @@ export default function SSEMonitor() {
                         {userId}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        {count}
+                        {Number(count)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         {stats.stats.globalUserCounts && typeof stats.stats.globalUserCounts === 'object'

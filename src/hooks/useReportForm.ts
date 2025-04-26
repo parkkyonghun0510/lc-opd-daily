@@ -274,11 +274,17 @@ export function useReportForm({
       }
 
       // For backward compatibility with the API, generate a comments string from commentArray
+      // Add comments field to the dataToSubmit object
+      const dataWithComments = {
+        ...dataToSubmit,
+        comments: ''
+      };
+
       if (dataToSubmit.commentArray.length > 0) {
         const firstComment = dataToSubmit.commentArray[0];
-        dataToSubmit.comments = firstComment.text || '';
+        dataWithComments.comments = firstComment.text || '';
       } else {
-        dataToSubmit.comments = '';
+        dataWithComments.comments = '';
       }
 
       const response = await fetch("/api/reports", {

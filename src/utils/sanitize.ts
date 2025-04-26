@@ -2,8 +2,6 @@
  * Utility functions for sanitizing data before saving to the database
  */
 
-import { CommentItem } from "@/types/reports";
-
 /**
  * Sanitizes a string by removing null bytes and other invalid UTF-8 characters
  * that could cause PostgreSQL errors
@@ -53,32 +51,4 @@ export function sanitizeString(str: string | null | undefined): string | null {
   }
 }
 
-/**
- * Sanitizes a comment array by removing null bytes from all text fields
- * @param commentArray The comment array to sanitize
- * @returns Sanitized comment array
- */
-export function sanitizeCommentArray(commentArray: CommentItem[] | null | undefined): CommentItem[] | null {
-  if (!commentArray) {
-    return null;
-  }
 
-  return commentArray.map(comment => {
-    if (!comment) return comment;
-
-    // Create a new comment object with sanitized text
-    const sanitizedComment = { ...comment };
-
-    // Sanitize the text field
-    if (typeof sanitizedComment.text === 'string') {
-      sanitizedComment.text = sanitizeString(sanitizedComment.text);
-    }
-
-    // Recursively sanitize replies if they exist
-    if (Array.isArray(sanitizedComment.replies)) {
-      sanitizedComment.replies = sanitizeCommentArray(sanitizedComment.replies);
-    }
-
-    return sanitizedComment;
-  });
-}

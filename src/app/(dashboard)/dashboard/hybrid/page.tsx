@@ -10,6 +10,9 @@ export const metadata: Metadata = {
   description: 'Dashboard with hybrid real-time updates',
 };
 
+// Opt out of static optimization
+export const dynamic = 'force-dynamic';
+
 export default function HybridDashboardPage() {
   return (
     <HybridDashboardLayout>

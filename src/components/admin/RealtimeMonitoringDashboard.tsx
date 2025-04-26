@@ -14,25 +14,25 @@ export default function RealtimeMonitoringDashboard() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(false);
-  
+
   // Fetch monitoring data
   const fetchData = async () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       const response = await fetch('/api/realtime/monitor');
-      
+
       if (!response.ok) {
         throw new Error(`Error: ${response.status} ${response.statusText}`);
       }
-      
+
       const data = await response.json();
       setData(data);
     } catch (err) {
       console.error('Error fetching monitoring data:', err);
       setError(err instanceof Error ? err.message : 'Unknown error');
-      
+
       toast({
         title: 'Error',
         description: 'Failed to fetch monitoring data',
@@ -42,30 +42,30 @@ export default function RealtimeMonitoringDashboard() {
       setLoading(false);
     }
   };
-  
+
   // Initial data fetch
   useEffect(() => {
     fetchData();
   }, []);
-  
+
   // Auto-refresh
   useEffect(() => {
     if (!autoRefresh) return;
-    
+
     const interval = setInterval(fetchData, 5000);
     return () => clearInterval(interval);
   }, [autoRefresh]);
-  
+
   // Format timestamp
   const formatTime = (timestamp: string) => {
     return new Date(timestamp).toLocaleTimeString();
   };
-  
+
   // Handle auto-refresh toggle
   const toggleAutoRefresh = () => {
     setAutoRefresh(prev => !prev);
   };
-  
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -98,7 +98,7 @@ export default function RealtimeMonitoringDashboard() {
           </Button>
         </div>
       </div>
-      
+
       {error && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
@@ -106,7 +106,7 @@ export default function RealtimeMonitoringDashboard() {
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
-      
+
       {data ? (
         <Tabs defaultValue="overview">
           <TabsList>
@@ -116,7 +116,7 @@ export default function RealtimeMonitoringDashboard() {
             <TabsTrigger value="performance">Performance</TabsTrigger>
             <TabsTrigger value="instances">Instances</TabsTrigger>
           </TabsList>
-          
+
           <TabsContent value="overview" className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <Card>
@@ -133,7 +133,7 @@ export default function RealtimeMonitoringDashboard() {
                   </p>
                 </CardContent>
               </Card>
-              
+
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium">Events Sent</CardTitle>
@@ -148,7 +148,7 @@ export default function RealtimeMonitoringDashboard() {
                   </p>
                 </CardContent>
               </Card>
-              
+
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium">Unique Users</CardTitle>
@@ -163,7 +163,7 @@ export default function RealtimeMonitoringDashboard() {
                   </p>
                 </CardContent>
               </Card>
-              
+
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium">Avg Latency</CardTitle>
@@ -179,7 +179,7 @@ export default function RealtimeMonitoringDashboard() {
                 </CardContent>
               </Card>
             </div>
-            
+
             <Card>
               <CardHeader>
                 <CardTitle>System Status</CardTitle>
@@ -195,21 +195,21 @@ export default function RealtimeMonitoringDashboard() {
                       Operational
                     </Badge>
                   </div>
-                  
+
                   <div className="flex justify-between items-center">
                     <span className="font-medium">Event Processing</span>
                     <Badge variant="outline" className="bg-green-50 text-green-700">
                       Operational
                     </Badge>
                   </div>
-                  
+
                   <div className="flex justify-between items-center">
                     <span className="font-medium">Redis Connectivity</span>
                     <Badge variant="outline" className={data.metrics.redisAvailable ? "bg-green-50 text-green-700" : "bg-amber-50 text-amber-700"}>
                       {data.metrics.redisAvailable ? "Connected" : "Fallback Mode"}
                     </Badge>
                   </div>
-                  
+
                   <div className="flex justify-between items-center">
                     <span className="font-medium">Active Instances</span>
                     <Badge variant="outline" className="bg-blue-50 text-blue-700">
@@ -223,7 +223,7 @@ export default function RealtimeMonitoringDashboard() {
               </CardFooter>
             </Card>
           </TabsContent>
-          
+
           <TabsContent value="connections" className="space-y-4">
             <Card>
               <CardHeader>
@@ -248,14 +248,14 @@ export default function RealtimeMonitoringDashboard() {
                       <div className="text-2xl font-bold">{data.metrics.connections.peak}</div>
                     </div>
                   </div>
-                  
+
                   <div className="border rounded-md p-4">
                     <div className="text-sm font-medium mb-2">User Distribution</div>
                     <div className="space-y-2">
-                      {Object.entries(data.sseStats.userCounts).map(([userId, count]: [string, number]) => (
+                      {Object.entries(data.sseStats.userCounts).map(([userId, count]) => (
                         <div key={userId} className="flex justify-between items-center">
                           <span className="text-sm">{userId}</span>
-                          <Badge variant="outline">{count}</Badge>
+                          <Badge variant="outline">{Number(count)}</Badge>
                         </div>
                       ))}
                     </div>
@@ -264,7 +264,7 @@ export default function RealtimeMonitoringDashboard() {
               </CardContent>
             </Card>
           </TabsContent>
-          
+
           <TabsContent value="events" className="space-y-4">
             <Card>
               <CardHeader>
@@ -289,7 +289,7 @@ export default function RealtimeMonitoringDashboard() {
                       <div className="text-2xl font-bold">{data.metrics.events.errors}</div>
                     </div>
                   </div>
-                  
+
                   <div className="border rounded-md p-4">
                     <div className="text-sm font-medium mb-2">Error Breakdown</div>
                     <div className="space-y-2">
@@ -317,7 +317,7 @@ export default function RealtimeMonitoringDashboard() {
               </CardContent>
             </Card>
           </TabsContent>
-          
+
           <TabsContent value="performance" className="space-y-4">
             <Card>
               <CardHeader>
@@ -346,7 +346,7 @@ export default function RealtimeMonitoringDashboard() {
               </CardContent>
             </Card>
           </TabsContent>
-          
+
           <TabsContent value="instances" className="space-y-4">
             <Card>
               <CardHeader>

@@ -83,14 +83,8 @@ import { ReportDetailModal, CommentConversation } from "@/components/reports/Rep
 import { CommentItem as CommentItemType } from "@/types/reports";
 import { useAccessibleBranches } from "@/hooks/useAccessibleBranches";
 
-// Define an extended type for reports with user information
-interface ReportWithUser extends Report {
-  user?: {
-    id: string;
-    name: string;
-    username?: string;
-  } | null;
-}
+// Import the ReportWithUser type from ReportDetailModal
+import type { ReportWithUser } from "@/components/reports/ReportDetailModal";
 
 export function ViewReports() {
   const { data: session } = useSession();
@@ -210,11 +204,12 @@ export function ViewReports() {
 
   const handleViewDetailsClick = (report: Report) => {
     // Create a ReportWithUser from the Report type to match what the modal expects
-    const reportWithUser: ReportWithUser = {
+    // Use type assertion to avoid type errors
+    const reportWithUser = {
       ...report,
       // Add any additional properties needed for ReportWithUser type
       user: null // The actual user data will be displayed via UserDisplayName component
-    };
+    } as ReportWithUser;
 
     setViewingReport(reportWithUser);
     setIsViewModalOpen(true);

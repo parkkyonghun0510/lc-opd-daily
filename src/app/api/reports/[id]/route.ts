@@ -3,14 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { checkPermission, Permission, UserRole } from "@/lib/auth/roles";
 import { getAccessibleBranches } from "@/lib/auth/branch-access";
-import { sendToNotificationQueue } from "@/lib/queue/sqs";
-import { getUsersForNotification } from "@/utils/notificationTargeting";
-import { NotificationType } from "@/utils/notificationTemplates";
-// Import the broadcast function
-import { broadcastDashboardUpdate } from "@/app/api/dashboard/sse/route";
+import { broadcastDashboardUpdate } from "@/lib/events/dashboard-broadcaster";
 import { z } from "zod";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
 import { DashboardEventTypes } from "@/lib/events/dashboard-events";
 
 // Validation schema for report update
@@ -18,12 +12,12 @@ const updateReportSchema = z.object({
   writeOffs: z.number().min(0),
   ninetyPlus: z.number().min(0),
   comments: z.string().optional(),
-  commentArray: z.array(z.any()).optional(),
 });
 
 // GET /api/reports/[id] - Get a specific report by ID
 export async function GET(
-  request: NextRequest
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     // Use NextAuth for authentication
@@ -35,10 +29,8 @@ export async function GET(
       );
     }
 
-    // Extract the ID from the URL path
-    const url = new URL(request.url);
-    const pathParts = url.pathname.split('/');
-    const id = pathParts[pathParts.length - 1]; // Get the ID from the URL path
+    // Get the ID from the context params
+    const { id } = await context.params;
 
     const report = await prisma.report.findUnique({
       where: {
@@ -150,13 +142,12 @@ export async function GET(
 
 // PUT /api/reports/[id] - Update a specific report
 export async function PUT(
-  request: NextRequest
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    // Extract the ID from the URL path
-    const url = new URL(request.url);
-    const pathParts = url.pathname.split('/');
-    const id = pathParts[pathParts.length - 1]; // Get the ID from the URL path
+    // Get the ID from the context params
+    const { id } = await context.params;
 
     // Get the user from the auth token
     const token = await getToken({ req: request });
@@ -193,7 +184,7 @@ export async function PUT(
       );
     }
 
-    const { writeOffs, ninetyPlus, comments, commentArray } = validationResult.data;
+    const { writeOffs, ninetyPlus, comments } = validationResult.data;
 
     // Update the report
     const updatedReport = await prisma.report.update({
@@ -202,7 +193,6 @@ export async function PUT(
         writeOffs,
         ninetyPlus,
         comments,
-        commentArray,
         updatedAt: new Date(),
       },
     });
@@ -230,11 +220,11 @@ export async function PUT(
 // DELETE /api/reports/[id] - Delete a report
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const token = await getToken({ req: request });
-    const reportId = params.id;
+    const { id: reportId } = await context.params;
 
     if (!token) {
       return NextResponse.json(
@@ -310,7 +300,7 @@ export async function DELETE(
     return NextResponse.json({ message: "Report deleted successfully" });
 
   } catch (error) {
-    console.error(`Error deleting report ${params.id}:`, error);
+    console.error(`Error deleting report:`, error);
     // Handle potential Prisma errors (e.g., record not found if deleted concurrently)
     if ((error as any).code === 'P2025') {
       return NextResponse.json({ error: "Report not found or already deleted" }, { status: 404 });

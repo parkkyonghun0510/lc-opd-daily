@@ -20,7 +20,7 @@ interface EventRecord {
 class RealtimeEventEmitter {
   private events: EventRecord[] = [];
   private maxEvents: number = 100; // Maximum number of events to keep in memory
-  
+
   /**
    * Emit an event to be delivered to clients
    * 
@@ -35,7 +35,7 @@ class RealtimeEventEmitter {
   } = {}): string {
     const id = crypto.randomUUID();
     const timestamp = Date.now();
-    
+
     // Create the event record
     const event: EventRecord = {
       id,
@@ -47,25 +47,25 @@ class RealtimeEventEmitter {
         roles: options.roles
       }
     };
-    
+
     // Add to the in-memory store
     this.events.unshift(event);
-    
+
     // Trim the events array if it gets too large
     if (this.events.length > this.maxEvents) {
       this.events = this.events.slice(0, this.maxEvents);
     }
-    
+
     console.log(`[EventEmitter] Emitted event: ${type}`, {
       id,
-      targets: options.userIds?.length || options.roles?.length 
-        ? `${options.userIds?.length || 0} users, ${options.roles?.length || 0} roles` 
+      targets: options.userIds?.length || options.roles?.length
+        ? `${options.userIds?.length || 0} users, ${options.roles?.length || 0} roles`
         : 'broadcast'
     });
-    
+
     return id;
   }
-  
+
   /**
    * Get recent events for a specific user
    * 
@@ -81,28 +81,28 @@ class RealtimeEventEmitter {
         if (since && event.timestamp <= since) {
           return false;
         }
-        
+
         // Include broadcast events (no specific targets)
         if (!event.targets?.userIds?.length && !event.targets?.roles?.length) {
           return true;
         }
-        
+
         // Include events targeted at this user
         if (event.targets?.userIds?.includes(userId)) {
           return true;
         }
-        
+
         // Include events targeted at roles this user has
         // Note: In a real implementation, you would check the user's roles
         // For now, we'll just include all role-targeted events
         if (event.targets?.roles?.length) {
           return true; // In a real implementation, check if user has any of these roles
         }
-        
+
         return false;
       });
   }
-  
+
   /**
    * Get all recent events
    * 
@@ -115,12 +115,24 @@ class RealtimeEventEmitter {
     }
     return [...this.events];
   }
-  
+
   /**
    * Clear all events
    */
   clearEvents(): void {
     this.events = [];
+  }
+
+  /**
+   * Get statistics about the event emitter
+   */
+  getStats(): any {
+    return {
+      eventsInMemory: this.events.length,
+      maxEvents: this.maxEvents,
+      oldestEventTimestamp: this.events.length ? this.events[this.events.length - 1].timestamp : null,
+      newestEventTimestamp: this.events.length ? this.events[0].timestamp : null
+    };
   }
 }
 

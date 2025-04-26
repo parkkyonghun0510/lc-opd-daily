@@ -11,7 +11,7 @@ import { getUsersForNotification } from "@/utils/notificationTargeting";
 import { hasBranchAccess } from "@/lib/auth/branch-access";
 import { createDirectNotifications } from "@/utils/createDirectNotification";
 import { Permission, UserRole, checkPermission } from "@/lib/auth/roles";
-import { broadcastDashboardUpdate } from "@/app/api/dashboard/sse/route";
+import { broadcastDashboardUpdate } from "@/lib/events/dashboard-broadcaster";
 import { DashboardEventTypes } from "@/lib/events/dashboard-events";
 import { format } from "date-fns";
 import { sanitizeString } from "@/utils/sanitize";
@@ -141,7 +141,7 @@ export async function approveReportAction(
           "Report has been rejected";
       }
 
-      const sanitizedContent = sanitizeString(commentMessage);
+      const sanitizedContent = sanitizeString(commentMessage) || '';
 
       await prisma.reportComment.create({
         data: {

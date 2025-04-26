@@ -6,6 +6,12 @@
 
 import { Redis } from '@upstash/redis';
 
+// Types
+interface RedisMetricsData {
+  metrics: Metrics;
+  timestamp: number;
+}
+
 // Monitoring metrics
 interface Metrics {
   connections: {
@@ -57,15 +63,15 @@ class RealtimeMonitor {
   private instanceId: string;
   private latencies: number[] = [];
   private maxLatencies: number = 1000;
-  
+
   constructor() {
     // Generate a unique instance ID
     this.instanceId = `instance:${crypto.randomUUID()}`;
-    
+
     // Initialize Redis client
     this.initRedis();
   }
-  
+
   /**
    * Initialize Redis client
    */
@@ -81,7 +87,7 @@ class RealtimeMonitor {
         );
         return;
       }
-      
+
       // Initialize Redis client
       this.redis = Redis.fromEnv();
       console.log("[RealtimeMonitor] Redis client initialized");
@@ -90,7 +96,7 @@ class RealtimeMonitor {
       this.redis = null;
     }
   }
-  
+
   /**
    * Record a new connection
    */
@@ -98,49 +104,49 @@ class RealtimeMonitor {
     // Update local metrics
     this.metrics.connections.total++;
     this.metrics.connections.active++;
-    
+
     // Update peak if needed
     if (this.metrics.connections.active > this.metrics.connections.peak) {
       this.metrics.connections.peak = this.metrics.connections.active;
     }
-    
+
     // Update Redis metrics if available
     this.updateRedisMetrics();
   }
-  
+
   /**
    * Record a connection close
    */
   recordDisconnection() {
     // Update local metrics
     this.metrics.connections.active = Math.max(0, this.metrics.connections.active - 1);
-    
+
     // Update Redis metrics if available
     this.updateRedisMetrics();
   }
-  
+
   /**
    * Record a sent event
    */
   recordSentEvent() {
     // Update local metrics
     this.metrics.events.sent++;
-    
+
     // Update Redis metrics if available
     this.updateRedisMetrics();
   }
-  
+
   /**
    * Record a received event
    */
   recordReceivedEvent() {
     // Update local metrics
     this.metrics.events.received++;
-    
+
     // Update Redis metrics if available
     this.updateRedisMetrics();
   }
-  
+
   /**
    * Record an error
    * 
@@ -150,11 +156,11 @@ class RealtimeMonitor {
     // Update local metrics
     this.metrics.errors[type]++;
     this.metrics.events.errors++;
-    
+
     // Update Redis metrics if available
     this.updateRedisMetrics();
   }
-  
+
   /**
    * Record latency
    * 
@@ -163,28 +169,28 @@ class RealtimeMonitor {
   recordLatency(latency: number) {
     // Add to latencies array
     this.latencies.push(latency);
-    
+
     // Trim latencies array if it gets too large
     if (this.latencies.length > this.maxLatencies) {
       this.latencies = this.latencies.slice(-this.maxLatencies);
     }
-    
+
     // Calculate new average
     const sum = this.latencies.reduce((a, b) => a + b, 0);
     this.metrics.performance.avgLatency = sum / this.latencies.length;
-    
+
     // Calculate percentiles
     const sortedLatencies = [...this.latencies].sort((a, b) => a - b);
     const p95Index = Math.floor(sortedLatencies.length * 0.95);
     const p99Index = Math.floor(sortedLatencies.length * 0.99);
-    
+
     this.metrics.performance.p95Latency = sortedLatencies[p95Index] || 0;
     this.metrics.performance.p99Latency = sortedLatencies[p99Index] || 0;
-    
+
     // Update Redis metrics if available
     this.updateRedisMetrics();
   }
-  
+
   /**
    * Update Redis metrics
    */
@@ -192,7 +198,7 @@ class RealtimeMonitor {
     if (!this.redis) {
       return;
     }
-    
+
     try {
       // Store metrics in Redis
       await this.redis.set(`realtime:metrics:${this.instanceId}`, {
@@ -203,7 +209,7 @@ class RealtimeMonitor {
       console.error("[RealtimeMonitor] Failed to update Redis metrics:", error);
     }
   }
-  
+
   /**
    * Get current metrics
    * 
@@ -212,7 +218,7 @@ class RealtimeMonitor {
   getMetrics(): Metrics {
     return { ...this.metrics };
   }
-  
+
   /**
    * Get metrics from all instances
    * 
@@ -223,7 +229,7 @@ class RealtimeMonitor {
     if (!this.redis) {
       return { [this.instanceId]: this.metrics };
     }
-    
+
     try {
       // Get all instance metrics
       const instanceKeys = await this.redis.keys('realtime:metrics:*');
@@ -233,23 +239,24 @@ class RealtimeMonitor {
           return { key, data };
         })
       );
-      
-      // Convert to object
+
+      // Convert to object with proper typing
       return instanceMetrics.reduce((acc, { key, data }) => {
-        if (data && data.metrics) {
+        const metricsData = data as RedisMetricsData | null;
+        if (metricsData?.metrics) {
           const instanceId = key.replace('realtime:metrics:', '');
-          acc[instanceId] = data.metrics;
+          acc[instanceId] = metricsData.metrics;
         }
         return acc;
       }, {} as { [instanceId: string]: Metrics });
     } catch (error) {
       console.error("[RealtimeMonitor] Failed to get all instance metrics:", error);
-      
+
       // Fall back to local metrics
       return { [this.instanceId]: this.metrics };
     }
   }
-  
+
   /**
    * Reset metrics
    */
@@ -276,9 +283,9 @@ class RealtimeMonitor {
         other: 0
       }
     };
-    
+
     this.latencies = [];
-    
+
     // Update Redis metrics if available
     this.updateRedisMetrics();
   }

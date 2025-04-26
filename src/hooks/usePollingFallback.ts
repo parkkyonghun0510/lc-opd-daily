@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react';
 
 /**
  * Polling fallback for browsers that don't support SSE
- * 
+ *
  * This hook provides a fallback mechanism for real-time updates
  * using polling instead of SSE.
  */
@@ -21,43 +21,43 @@ export function usePollingFallback(options: {
     onUpdate,
     enabled = true
   } = options;
-  
+
   const { data: session } = useSession();
   const [lastUpdate, setLastUpdate] = useState<any>(null);
   const [isPolling, setIsPolling] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Refs to track polling state
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
-  
-  // Check if SSE is supported
-  const isSSESupported = typeof EventSource !== 'undefined';
-  
+
+  // We no longer need to check if SSE is supported here
+  // as it's now handled in the parent hook
+
   // Fetch updates
   const fetchUpdates = useCallback(async () => {
-    // Don't fetch if not enabled or if SSE is supported
-    if (!enabled || isSSESupported) {
+    // Don't fetch if not enabled
+    if (!enabled) {
       return;
     }
-    
+
     // Don't fetch if not authenticated
     if (!session?.user?.id) {
       return;
     }
-    
+
     // Create a new abort controller for this request
     abortControllerRef.current = new AbortController();
-    
+
     try {
       setIsPolling(true);
       setError(null);
-      
+
       // Add a timestamp to prevent caching
       const url = new URL(endpoint, window.location.origin);
       url.searchParams.append('_t', Date.now().toString());
       url.searchParams.append('userId', session.user.id);
-      
+
       // Fetch updates
       const response = await fetch(url.toString(), {
         method: 'GET',
@@ -66,16 +66,16 @@ export function usePollingFallback(options: {
         },
         signal: abortControllerRef.current.signal
       });
-      
+
       if (!response.ok) {
         throw new Error(`Error fetching updates: ${response.status} ${response.statusText}`);
       }
-      
+
       const data = await response.json();
-      
+
       // Update state
       setLastUpdate(data);
-      
+
       // Call the update handler
       if (onUpdate) {
         onUpdate(data);
@@ -85,56 +85,52 @@ export function usePollingFallback(options: {
       if (err instanceof Error && err.name === 'AbortError') {
         return;
       }
-      
+
       console.error('Error polling for updates:', err);
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
       setIsPolling(false);
     }
-  }, [endpoint, enabled, isSSESupported, session, onUpdate]);
-  
+  }, [endpoint, enabled, session, onUpdate]);
+
   // Set up polling
   useEffect(() => {
-    // Don't set up polling if SSE is supported
-    if (isSSESupported) {
-      return;
-    }
-    
+    // SSE support is now handled in the parent hook via the enabled prop
+
     // Don't set up polling if not enabled
     if (!enabled) {
       return;
     }
-    
+
     // Don't set up polling if not authenticated
     if (!session?.user?.id) {
       return;
     }
-    
+
     // Initial fetch
     fetchUpdates();
-    
+
     // Set up interval
     intervalRef.current = setInterval(fetchUpdates, interval);
-    
+
     // Clean up
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
-      
+
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
         abortControllerRef.current = null;
       }
     };
-  }, [fetchUpdates, interval, enabled, isSSESupported, session]);
-  
+  }, [fetchUpdates, interval, enabled, session]);
+
   return {
     lastUpdate,
     isPolling,
     error,
-    isSSESupported,
     refresh: fetchUpdates
   };
 }

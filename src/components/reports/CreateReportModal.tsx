@@ -714,7 +714,7 @@ export function CreateReportModal({
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={isSubmitting || (reportType === "actual" && planData.planReportId && planData.planReportStatus !== "approved")}
+            disabled={isSubmitting || (reportType === "actual" && !!planData.planReportId && planData.planReportStatus !== "approved")}
             className="dark:bg-blue-700 dark:hover:bg-blue-600 text-sm"
           >
             {isSubmitting ? "Creating..." : "Create Report"}

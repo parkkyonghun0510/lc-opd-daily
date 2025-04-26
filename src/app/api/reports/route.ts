@@ -7,9 +7,9 @@ import { sendToNotificationQueue } from "@/lib/queue/sqs";
 import { getUsersForNotification } from "@/utils/notificationTargeting";
 import { NotificationType } from "@/utils/notificationTemplates";
 // Import the broadcast function
-import { broadcastDashboardUpdate } from "@/app/api/dashboard/sse/route";
+import { broadcastDashboardUpdate } from "@/lib/events/dashboard-broadcaster";
 import { DashboardEventTypes } from "@/lib/events/dashboard-events";
-import { sanitizeString, sanitizeCommentArray } from "@/utils/sanitize";
+import { sanitizeString } from "@/utils/sanitize";
 
 interface ReportData {
   branchId: string;
