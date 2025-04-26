@@ -136,7 +136,7 @@ export async function POST(
     // Add the new comment to the array
     commentArray.push(newComment);
 
-    // Format the comment for legacy support
+    // Format the comment for legacy support in conversation style
     const commentWithMeta = status === "approved"
       ? `[COMMENT ${formattedTimestamp} by ${approverName}]: ${comments || "Report approved"}`
       : `[REJECTION ${formattedTimestamp}]: ${comments || "Report rejected"}`;

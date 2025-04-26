@@ -11,6 +11,8 @@ import { createDirectNotifications } from "@/utils/createDirectNotification";
 import { broadcastDashboardUpdate, DashboardEventTypes } from "@/lib/events/dashboardEvents";
 import { CommentItem } from "@/types/reports";
 import { v4 as uuidv4 } from "uuid";
+import { format } from "date-fns";
+import { sanitizeString } from "@/utils/sanitize";
 
 // POST /api/reports/[id]/approve-hybrid - Approve or reject a report using hybrid realtime approach
 export async function POST(
@@ -106,10 +108,11 @@ export async function POST(
 
     const approverName = approver?.name || "Unknown Approver";
 
-    // Format the comment with metadata
-    const commentWithMeta = comments
-      ? `[${new Date().toISOString()}] ${status.toUpperCase()} by ${approverName}: ${comments}`
-      : `[${new Date().toISOString()}] ${status.toUpperCase()} by ${approverName}`;
+    // Format the comment with metadata in conversation style
+    const timestamp = format(new Date(), "yyyy-MM-dd HH:mm:ss");
+    const commentWithMeta = status === "approved"
+      ? `[COMMENT ${timestamp} by ${approverName}]: ${comments || "Report approved"}`
+      : `[REJECTION ${timestamp}]: ${comments || "Report rejected"}`;
 
     // Create a structured comment for the commentArray
     const commentItem: CommentItem = {
@@ -136,10 +139,39 @@ export async function POST(
       data: {
         status,
         // Store approval/rejection comments if provided
-        comments: updatedComments,
+        comments: sanitizeString(updatedComments),
         commentArray: commentArray,
       },
     });
+
+    // Also create a record in the ReportComment model (new approach)
+    try {
+      // Create a more descriptive comment message
+      let commentMessage = "";
+      if (status === "approved") {
+        commentMessage = comments ?
+          `Approved: ${comments}` :
+          "Report has been approved";
+      } else {
+        commentMessage = comments ?
+          `Rejected: ${comments}` :
+          "Report has been rejected";
+      }
+
+      const sanitizedContent = sanitizeString(commentMessage);
+
+      await prisma.reportComment.create({
+        data: {
+          reportId,
+          userId: token.sub as string,
+          content: sanitizedContent,
+        }
+      });
+      console.log("[INFO] Created ReportComment record for report approval/rejection in hybrid mode");
+    } catch (commentError) {
+      console.error("Error creating ReportComment record (non-critical):", commentError);
+      // We don't want to fail the approval process if this fails
+    }
 
     // Create an audit log entry for the approval/rejection
     try {

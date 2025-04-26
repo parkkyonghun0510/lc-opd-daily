@@ -103,7 +103,8 @@ export function CreateReportModal({
     writeOffsPlan: number | null;
     ninetyPlusPlan: number | null;
     planReportId: string | null;
-  }>({ writeOffsPlan: null, ninetyPlusPlan: null, planReportId: null });
+    planReportStatus: string | null;
+  }>({ writeOffsPlan: null, ninetyPlusPlan: null, planReportId: null, planReportStatus: null });
 
   // Use a ref to track which combinations we've already fetched
   const fetchedCombinations = React.useRef<Set<string>>(new Set());
@@ -171,17 +172,28 @@ export function CreateReportModal({
               setPlanData({
                 writeOffsPlan: planReport.writeOffs,
                 ninetyPlusPlan: planReport.ninetyPlus,
-                planReportId: planReport.id
+                planReportId: planReport.id,
+                planReportStatus: planReport.status
               });
               // Set the planReportId in the form data as well
               updateField("planReportId", planReport.id);
             } else {
-              setPlanData({ writeOffsPlan: null, ninetyPlusPlan: null, planReportId: null });
+              setPlanData({
+                writeOffsPlan: null,
+                ninetyPlusPlan: null,
+                planReportId: null,
+                planReportStatus: null
+              });
               updateField("planReportId", null);
             }
           } catch (error) {
             console.error("Error loading plan data");
-            setPlanData({ writeOffsPlan: null, ninetyPlusPlan: null, planReportId: null });
+            setPlanData({
+              writeOffsPlan: null,
+              ninetyPlusPlan: null,
+              planReportId: null,
+              planReportStatus: null
+            });
             updateField("planReportId", null);
           } finally {
             // Set loading state to false after fetching (regardless of success/failure)
@@ -278,7 +290,12 @@ export function CreateReportModal({
       fetchedCombinations.current.clear();
 
       // Clear plan data
-      setPlanData({ writeOffsPlan: null, ninetyPlusPlan: null, planReportId: null });
+      setPlanData({
+        writeOffsPlan: null,
+        ninetyPlusPlan: null,
+        planReportId: null,
+        planReportStatus: null
+      });
     }
 
     // Reset the initialization flag when the modal closes
@@ -681,11 +698,25 @@ export function CreateReportModal({
             </div>
           )}
         </div>
+        {/* Show warning if this is an actual report and plan report is not approved */}
+        {reportType === "actual" && planData.planReportId && planData.planReportStatus !== "approved" && (
+          <Alert variant="destructive" className="mt-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              The plan report for this date must be approved before you can submit an actual report.
+            </AlertDescription>
+          </Alert>
+        )}
+
         <DialogFooter className="sticky bottom-0 bg-background dark:bg-gray-800 z-10 pt-4 border-t dark:border-gray-700">
           <Button variant="outline" onClick={onClose} className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 text-sm">
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={isSubmitting} className="dark:bg-blue-700 dark:hover:bg-blue-600 text-sm">
+          <Button
+            onClick={handleSubmit}
+            disabled={isSubmitting || (reportType === "actual" && planData.planReportId && planData.planReportStatus !== "approved")}
+            className="dark:bg-blue-700 dark:hover:bg-blue-600 text-sm"
+          >
             {isSubmitting ? "Creating..." : "Create Report"}
           </Button>
         </DialogFooter>

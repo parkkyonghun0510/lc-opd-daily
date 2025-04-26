@@ -59,13 +59,10 @@ export async function GET(request: NextRequest) {
     const accessibleBranchIds = accessibleBranches.map(branch => branch.id);
 
     // Build where clause
-    const where: any = {
-      branchId: {
-        in: accessibleBranchIds
-      }
-    };
+    const where: any = {};
 
-    if (branchId) {
+    // Handle branch filtering
+    if (branchId && branchId.trim() !== "") {
       // If specific branch is requested, verify access
       if (!accessibleBranchIds.includes(branchId)) {
         return NextResponse.json(
@@ -74,6 +71,12 @@ export async function GET(request: NextRequest) {
         );
       }
       where.branchId = branchId;
+    } else {
+      // If no branch ID is provided or it's empty (All My Branches option),
+      // filter by all accessible branches
+      where.branchId = {
+        in: accessibleBranchIds
+      };
     }
 
     if (status) {
@@ -354,6 +357,14 @@ export async function POST(request: NextRequest) {
         if (!planReport) {
           return NextResponse.json(
             { error: "A plan report must exist before submitting an actual report" },
+            { status: 400 }
+          );
+        }
+
+        // Check if the plan report is approved
+        if (planReport.status !== "approved") {
+          return NextResponse.json(
+            { error: "The plan report must be approved before submitting an actual report" },
             { status: 400 }
           );
         }
@@ -639,8 +650,20 @@ export async function PATCH(request: NextRequest) {
     const accessibleBranches = await getAccessibleBranches(token.sub as string);
     const canAccessBranch = accessibleBranches.some(b => b.id === existingReport.branchId);
 
-    // Basic check: User must have access to the report's branch
-    if (!canAccessBranch) {
+    // Check if this is the user's own rejected report
+    const isOwnReport = existingReport.submittedBy === token.sub;
+    const isRejectedReport = existingReport.status === "rejected";
+    const isOwnRejectedReport = isOwnReport && isRejectedReport;
+
+    // Basic check: User must have access to the report's branch OR it must be their own rejected report
+    if (!canAccessBranch && !isOwnRejectedReport) {
+      console.log("[REPORT PATCH] Branch access denied. User:", token.sub,
+        "Role:", userRole,
+        "Report Branch:", existingReport.branchId,
+        "Accessible Branches:", accessibleBranches.map(b => b.id),
+        "Is Own Report:", isOwnReport,
+        "Is Rejected Report:", isRejectedReport);
+
       return NextResponse.json(
         { error: "Forbidden - You do not have access to this branch's reports" },
         { status: 403 }
@@ -648,40 +671,50 @@ export async function PATCH(request: NextRequest) {
     }
 
     // More granular check: Can the user edit reports in general?
-    // Or, if it's their own report and they have edit permission for own reports?
-    // (Add more specific logic based on your RBAC rules if needed)
+    // Or, if it's their own report and has edit permission for own reports?
+    // Or if it's their own rejected report (users can always edit their rejected reports)
     console.log("[REPORT PATCH] User:", token.sub, "Role:", userRole, "Has EDIT_REPORTS:", checkPermission(userRole, Permission.EDIT_REPORTS));
-    if (!checkPermission(userRole, Permission.EDIT_REPORTS)) {
-      // Allow editing own report if they have that specific permission
-      if (!checkPermission(userRole, Permission.EDIT_OWN_REPORTS) || existingReport.submittedBy !== token.sub) {
-        console.log("[REPORT PATCH] Forbidden edit attempt. User:", token.sub, "Role:", userRole, "Report ID:", id, "SubmittedBy:", existingReport.submittedBy);
-        return NextResponse.json(
-          { error: "Forbidden - You do not have permission to edit reports" },
-          { status: 403 }
-        );
-      }
+
+    // Allow edit if:
+    // 1. User has general EDIT_REPORTS permission, OR
+    // 2. User has EDIT_OWN_REPORTS permission AND it's their own report, OR
+    // 3. It's their own rejected report (special case)
+    const canEditGenerally = checkPermission(userRole, Permission.EDIT_REPORTS);
+    const canEditOwnReports = checkPermission(userRole, Permission.EDIT_OWN_REPORTS) && isOwnReport;
+    const canEditRejectedReport = isOwnRejectedReport;
+
+    if (!canEditGenerally && !canEditOwnReports && !canEditRejectedReport) {
+      console.log("[REPORT PATCH] Forbidden edit attempt. User:", token.sub, "Role:", userRole, "Report ID:", id, "SubmittedBy:", existingReport.submittedBy, "Status:", existingReport.status);
+      return NextResponse.json(
+        { error: "Forbidden - You do not have permission to edit this report" },
+        { status: 403 }
+      );
     }
 
     // --- Handle Status Change (Approval/Rejection) --- Requires specific permission
     let statusChangeNotificationType: NotificationType | null = null;
 
-    // If the report is rejected and the owner is resubmitting (not an approver), force status to pending_approval
+    // If the report is rejected and the owner is editing it (not an approver),
+    // automatically set status to pending_approval when they save changes
     if (
       existingReport.status === "rejected" &&
       existingReport.submittedBy === token.sub &&
       !checkPermission(userRole, Permission.APPROVE_REPORTS)
     ) {
+      // Force status to pending_approval when user edits a rejected report
       updateData.status = "pending_approval";
+      console.log("[REPORT PATCH] Auto-resubmitting rejected report:", id);
     }
 
     if (updateData.status && updateData.status !== existingReport.status) {
-      // Allow submitter to change status from 'rejected' to 'pending_approval'
-      if (!(
+      // Special case: Allow users to resubmit their rejected reports
+      const isResubmittingRejectedReport =
         existingReport.status === "rejected" &&
         updateData.status === "pending_approval" &&
-        existingReport.submittedBy === token.sub
-      )) {
-        // Only ADMIN can approve/reject reports, regardless of permissions
+        existingReport.submittedBy === token.sub;
+
+      if (!isResubmittingRejectedReport) {
+        // For all other status changes, only ADMIN can approve/reject reports
         if (userRole !== "ADMIN") {
           return NextResponse.json(
             { error: "Forbidden - Only admins can approve/reject reports" },
@@ -689,11 +722,15 @@ export async function PATCH(request: NextRequest) {
           );
         }
       }
+
       // Determine notification type based on status change
       if (updateData.status === 'approved') {
         statusChangeNotificationType = NotificationType.REPORT_APPROVED;
       } else if (updateData.status === 'rejected') {
         statusChangeNotificationType = NotificationType.REPORT_REJECTED;
+      } else if (isResubmittingRejectedReport) {
+        // Add notification for resubmitted reports
+        statusChangeNotificationType = NotificationType.REPORT_SUBMITTED;
       }
     }
 

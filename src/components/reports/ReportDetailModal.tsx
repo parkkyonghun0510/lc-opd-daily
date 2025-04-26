@@ -2,7 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
-import { Eye, Loader2, MessageSquare, PencilIcon } from "lucide-react";
+import {
+  Eye,
+  Loader2,
+  MessageSquare,
+  PencilIcon,
+  ThumbsUp,
+  MessageSquareReply
+} from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -17,6 +24,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/components/ui/use-toast";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn, formatKHRCurrency } from "@/lib/utils";
 import { Report, CommentItem as CommentItemType } from "@/types/reports";
 import { UserDisplayName } from "@/components/user/UserDisplayName";
@@ -263,12 +277,12 @@ export const CommentConversation = ({
     }
 
     return (
-      <div className="space-y-3">
+      <div className="space-y-4">
         {result.conversation?.map((entry, index) => (
           <div
             key={index}
             className={cn(
-              "p-3 rounded-md",
+              "p-3 rounded-md transition-all duration-200 hover:shadow-md",
               entry.type === 'rejection'
                 ? "bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800"
                 : entry.type === 'comment'
@@ -276,44 +290,109 @@ export const CommentConversation = ({
                   : "bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800"
             )}
           >
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-1">
-              <span className={cn(
-                "text-xs font-medium",
-                entry.type === 'rejection'
-                  ? "text-red-800 dark:text-red-300"
-                  : entry.type === 'comment'
-                    ? "text-blue-800 dark:text-blue-300"
-                    : "text-green-800 dark:text-green-300"
-              )}>
-                {entry.type === 'rejection'
-                  ? "Rejection Feedback"
-                  : entry.type === 'comment'
-                    ? `Comment by ${entry.author}`
-                    : "Resubmission"}
-              </span>
-              {entry.date && (
-                <span className={cn(
-                  "text-xs",
+            <div className="flex items-start gap-3">
+              {/* User Avatar */}
+              <Avatar className="h-8 w-8 ring-2 ring-transparent hover:ring-blue-200 dark:hover:ring-blue-800 transition-all duration-200">
+                <AvatarImage
+                  src={`https://api.dicebear.com/7.x/initials/svg?seed=${entry.author || 'System'}`}
+                  alt={entry.author || 'System'}
+                />
+                <AvatarFallback
+                  className={cn(
+                    "text-white",
+                    entry.type === 'rejection'
+                      ? "bg-gradient-to-br from-red-400 to-red-600"
+                      : entry.type === 'comment'
+                        ? "bg-gradient-to-br from-blue-400 to-blue-600"
+                        : "bg-gradient-to-br from-green-400 to-green-600"
+                  )}
+                >
+                  {(entry.author || 'S').charAt(0).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+
+              <div className="flex-1">
+                {/* Comment Header */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-1">
+                  <div className="flex items-center gap-2">
+                    <span className={cn(
+                      "text-sm font-medium",
+                      entry.type === 'rejection'
+                        ? "text-red-800 dark:text-red-300"
+                        : entry.type === 'comment'
+                          ? "text-blue-800 dark:text-blue-300"
+                          : "text-green-800 dark:text-green-300"
+                    )}>
+                      {entry.type === 'rejection'
+                        ? "System"
+                        : entry.type === 'comment'
+                          ? entry.author
+                          : entry.author || "User"}
+                    </span>
+                    <span className={cn(
+                      "text-xs",
+                      entry.type === 'rejection'
+                        ? "text-red-700 dark:text-red-400 bg-red-100 dark:bg-red-900/40 px-1.5 py-0.5 rounded-full"
+                        : entry.type === 'comment'
+                          ? "text-blue-700 dark:text-blue-400"
+                          : "text-green-700 dark:text-green-400 bg-green-100 dark:bg-green-900/40 px-1.5 py-0.5 rounded-full"
+                    )}>
+                      {entry.type === 'rejection'
+                        ? "Rejection"
+                        : entry.type === 'comment'
+                          ? ""
+                          : "Resubmission"}
+                    </span>
+                    {entry.date && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="text-xs text-gray-500 cursor-default">
+                              {entry.date}
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{entry.date}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
+                  </div>
+                </div>
+
+                {/* Comment Content */}
+                <p className={cn(
+                  "text-sm whitespace-pre-wrap leading-relaxed",
                   entry.type === 'rejection'
-                    ? "text-red-700 dark:text-red-400"
+                    ? "text-red-800 dark:text-red-200"
                     : entry.type === 'comment'
-                      ? "text-blue-700 dark:text-blue-400"
-                      : "text-green-700 dark:text-green-400"
+                      ? "text-blue-800 dark:text-blue-200"
+                      : "text-green-800 dark:text-green-200"
                 )}>
-                  {entry.date}
-                </span>
-              )}
+                  {entry.text}
+                </p>
+
+                {/* Reaction buttons - simplified version */}
+                <div className="mt-2 flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs flex items-center gap-1 h-6 px-2 transition-all duration-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  >
+                    <ThumbsUp className="h-3 w-3" />
+                  </Button>
+
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs flex items-center gap-1 h-6 px-2 transition-all duration-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  >
+                    <MessageSquareReply className="h-3 w-3" />
+                    Reply
+                  </Button>
+                </div>
+              </div>
             </div>
-            <p className={cn(
-              "text-sm whitespace-pre-wrap",
-              entry.type === 'rejection'
-                ? "text-red-800 dark:text-red-200"
-                : entry.type === 'comment'
-                  ? "text-blue-800 dark:text-blue-200"
-                  : "text-green-800 dark:text-green-200"
-            )}>
-              {entry.text}
-            </p>
           </div>
         ))}
       </div>

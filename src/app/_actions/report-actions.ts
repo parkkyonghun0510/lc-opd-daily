@@ -13,6 +13,8 @@ import { createDirectNotifications } from "@/utils/createDirectNotification";
 import { Permission, UserRole, checkPermission } from "@/lib/auth/roles";
 import { broadcastDashboardUpdate } from "@/app/api/dashboard/sse/route";
 import { DashboardEventTypes } from "@/lib/events/dashboard-events";
+import { format } from "date-fns";
+import { sanitizeString } from "@/utils/sanitize";
 
 /**
  * Server action to approve or reject a report
@@ -96,23 +98,6 @@ export async function approveReportAction(
       };
     }
 
-    // Update the report status
-    const updatedReport = await prisma.report.update({
-      where: { id: reportId },
-      data: {
-        status,
-        // Store approval/rejection comments if provided
-        comments: comments || report.comments,
-      },
-    });
-
-    // Transform Decimal fields to numbers before returning to client
-    const transformedReport = {
-      ...updatedReport,
-      writeOffs: Number(updatedReport.writeOffs),
-      ninetyPlus: Number(updatedReport.ninetyPlus),
-    };
-
     // Get approver's name for notifications
     const approver = await prisma.user.findUnique({
       where: { id: session.user.id },
@@ -120,6 +105,63 @@ export async function approveReportAction(
     });
 
     const approverName = approver?.name || 'A manager';
+
+    // Format the comment for legacy support in conversation style
+    const timestamp = format(new Date(), "yyyy-MM-dd HH:mm:ss");
+    const commentWithMeta = status === "approved"
+      ? `[COMMENT ${timestamp} by ${approverName}]: ${comments || "Report approved"}`
+      : `[REJECTION ${timestamp}]: ${comments || "Report rejected"}`;
+
+    // Add the comment to existing comments or create new comments (legacy format)
+    const updatedComments = report.comments
+      ? `${report.comments}\n\n${commentWithMeta}`
+      : commentWithMeta;
+
+    // Update the report status
+    const updatedReport = await prisma.report.update({
+      where: { id: reportId },
+      data: {
+        status,
+        // Store approval/rejection comments if provided
+        comments: sanitizeString(updatedComments),
+      },
+    });
+
+    // Also create a record in the ReportComment model (new approach)
+    try {
+      // Create a more descriptive comment message
+      let commentMessage = "";
+      if (status === "approved") {
+        commentMessage = comments ?
+          `Approved: ${comments}` :
+          "Report has been approved";
+      } else {
+        commentMessage = comments ?
+          `Rejected: ${comments}` :
+          "Report has been rejected";
+      }
+
+      const sanitizedContent = sanitizeString(commentMessage);
+
+      await prisma.reportComment.create({
+        data: {
+          reportId,
+          userId: session.user.id,
+          content: sanitizedContent,
+        }
+      });
+      console.log("[INFO] Created ReportComment record for report approval/rejection");
+    } catch (commentError) {
+      console.error("Error creating ReportComment record (non-critical):", commentError);
+      // We don't want to fail the approval process if this fails
+    }
+
+    // Transform Decimal fields to numbers before returning to client
+    const transformedReport = {
+      ...updatedReport,
+      writeOffs: Number(updatedReport.writeOffs),
+      ninetyPlus: Number(updatedReport.ninetyPlus),
+    };
 
     // Create an audit log entry for the approval/rejection
     try {
@@ -318,6 +360,20 @@ export async function fetchPendingReportsAction(type?: string) {
             name: true,
             code: true
           }
+        },
+        ReportComment: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                username: true,
+              },
+            },
+          },
+          orderBy: {
+            createdAt: 'asc',
+          },
         }
       },
       orderBy: {
@@ -362,7 +418,21 @@ export async function getReportDetailsAction(id: string) {
     const report = await prisma.report.findUnique({
       where: { id },
       include: {
-        branch: true
+        branch: true,
+        ReportComment: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                username: true,
+              },
+            },
+          },
+          orderBy: {
+            createdAt: 'asc',
+          },
+        }
       }
     });
 

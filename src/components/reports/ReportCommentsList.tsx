@@ -4,16 +4,76 @@ import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, MessageSquare, Send } from "lucide-react";
+import {
+  Loader2,
+  MessageSquare,
+  Send,
+  CheckCircle,
+  XCircle,
+  Shield,
+  User
+} from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import { sanitizeString } from "@/utils/clientSanitize";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 
 import { ReportCommentType } from "@/types/reports";
 
 // Use the ReportCommentType from types/reports.ts
 type ReportComment = ReportCommentType;
+
+// Define comment types for visual styling
+type CommentType = 'regular' | 'approval' | 'rejection' | 'system';
+
+// Helper function to determine comment type and extract the actual content
+const processComment = (comment: ReportComment): { type: CommentType; content: string } => {
+  const content = comment.content;
+  const lowerContent = content.toLowerCase();
+
+  // Check for approval comments
+  if (
+    lowerContent.includes('report approved') ||
+    lowerContent.includes('approved the report') ||
+    lowerContent.startsWith('approved:') ||
+    lowerContent.startsWith('approved') ||
+    lowerContent.includes('report has been approved')
+  ) {
+    // For comments that start with "Approved: ", remove the prefix to avoid duplication
+    if (content.startsWith('Approved: ')) {
+      return { type: 'approval', content: content.substring(10) };
+    }
+
+    // Don't strip the content - show the full message
+    return { type: 'approval', content };
+  }
+
+  // Check for rejection comments
+  if (
+    lowerContent.includes('report rejected') ||
+    lowerContent.includes('rejected the report') ||
+    lowerContent.startsWith('rejected:') ||
+    lowerContent.startsWith('rejected') ||
+    lowerContent.includes('report has been rejected')
+  ) {
+    // For comments that start with "Rejected: ", remove the prefix to avoid duplication
+    if (content.startsWith('Rejected: ')) {
+      return { type: 'rejection', content: content.substring(10) };
+    }
+
+    // Don't strip the content - show the full message
+    return { type: 'rejection', content };
+  }
+
+  // Check for system comments
+  if (comment.user?.name === 'System' || !comment.user) {
+    return { type: 'system', content };
+  }
+
+  // Default to regular comment
+  return { type: 'regular', content };
+};
 
 interface ReportCommentsListProps {
   reportId: string;
@@ -167,146 +227,215 @@ export function ReportCommentsList({ reportId, initialComments = [] }: ReportCom
         </div>
       ) : (
         <div className="space-y-3">
-          {comments.map((comment) => (
-            <div
-              key={comment.id}
-              className="p-3 bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 transition-all duration-200 hover:shadow-md"
-            >
-              <div className="flex items-start gap-3">
-                {/* User Avatar */}
-                <div className="flex-shrink-0">
-                  <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 text-white flex items-center justify-center font-medium shadow-sm transition-transform duration-200 hover:scale-110 ring-2 ring-transparent hover:ring-blue-200 dark:hover:ring-blue-800">
-                    {comment.user?.name ? comment.user.name.charAt(0).toUpperCase() : (comment.user?.username ? comment.user.username.charAt(0).toUpperCase() : 'U')}
-                  </div>
-                </div>
+          {comments.map((comment) => {
+            const { type: commentType, content: commentContent } = processComment(comment);
 
-                <div className="flex-1">
-                  <div className="flex justify-between items-start">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-sm">
-                        {comment.user?.name || comment.user?.username || 'User'}
-                      </span>
-                      <span className="text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 cursor-default transition-colors duration-200" title={new Date(comment.createdAt).toLocaleString()}>
-                        {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
-                      </span>
+            // Determine background and border colors based on comment type
+            const bgColorClass = {
+              'regular': 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700',
+              'approval': 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800',
+              'rejection': 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800',
+              'system': 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'
+            }[commentType];
+
+            // Determine avatar gradient based on comment type
+            const avatarGradient = {
+              'regular': 'from-blue-400 to-blue-600 hover:ring-blue-200 dark:hover:ring-blue-800',
+              'approval': 'from-green-400 to-green-600 hover:ring-green-200 dark:hover:ring-green-800',
+              'rejection': 'from-red-400 to-red-600 hover:ring-red-200 dark:hover:ring-red-800',
+              'system': 'from-purple-400 to-purple-600 hover:ring-purple-200 dark:hover:ring-purple-800'
+            }[commentType];
+
+            // Determine icon based on comment type
+            const CommentIcon = {
+              'regular': User,
+              'approval': CheckCircle,
+              'rejection': XCircle,
+              'system': Shield
+            }[commentType];
+
+            return (
+              <div
+                key={comment.id}
+                className={`p-3 rounded-md border transition-all duration-200 hover:shadow-md ${bgColorClass}`}
+              >
+                <div className="flex items-start gap-3">
+                  {/* User Avatar with Icon */}
+                  <div className="flex-shrink-0">
+                    <div className={`h-8 w-8 rounded-full bg-gradient-to-br ${avatarGradient} text-white flex items-center justify-center font-medium shadow-sm transition-transform duration-200 hover:scale-110 ring-2 ring-transparent`}>
+                      <CommentIcon className="h-4 w-4" />
+                    </div>
+                  </div>
+
+                  <div className="flex-1">
+                    <div className="flex justify-between items-start">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-sm">
+                          {comment.user?.name || comment.user?.username || 'User'}
+                        </span>
+
+                        {/* Comment type badge */}
+                        {commentType !== 'regular' && (
+                          <Badge variant={
+                            commentType === 'approval' ? 'success' :
+                              commentType === 'rejection' ? 'destructive' :
+                                'secondary'
+                          } className="text-xs px-1 py-0">
+                            {commentType === 'approval' ? 'Approved' :
+                              commentType === 'rejection' ? 'Rejected' :
+                                'System'}
+                          </Badge>
+                        )}
+
+                        <span className="text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 cursor-default transition-colors duration-200" title={new Date(comment.createdAt).toLocaleString()}>
+                          {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
+                        </span>
+                      </div>
+
+                      {/* Delete button - only visible to comment author or admin */}
+                      {(session?.user?.id === comment.userId || session?.user?.role === "ADMIN") && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0 text-gray-500 hover:text-red-500 transition-colors duration-200"
+                          onClick={() => handleDeleteComment(comment.id)}
+                        >
+                          <span className="sr-only">Delete</span>
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="h-4 w-4"
+                          >
+                            <path d="M3 6h18" />
+                            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                            <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                          </svg>
+                        </Button>
+                      )}
                     </div>
 
-                    {/* Delete button - only visible to comment author or admin */}
-                    {(session?.user?.id === comment.userId || session?.user?.role === "ADMIN") && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 w-6 p-0 text-gray-500 hover:text-red-500 transition-colors duration-200"
-                        onClick={() => handleDeleteComment(comment.id)}
-                      >
-                        <span className="sr-only">Delete</span>
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className="h-4 w-4"
+                    <div className={cn(
+                      "mt-1 text-sm whitespace-pre-wrap leading-relaxed",
+                      commentType === 'approval' && "text-green-800 dark:text-green-200",
+                      commentType === 'rejection' && "text-red-800 dark:text-red-200",
+                      commentType === 'system' && "text-blue-800 dark:text-blue-200"
+                    )}>
+                      {/* For approval/rejection comments, add a prefix icon */}
+                      {commentType === 'approval' && (
+                        <span className="inline-flex items-center mr-1 text-green-600 dark:text-green-400">
+                          <CheckCircle className="h-4 w-4 mr-1" />
+                          <strong>Approved</strong>&nbsp;
+                        </span>
+                      )}
+                      {commentType === 'rejection' && (
+                        <span className="inline-flex items-center mr-1 text-red-600 dark:text-red-400">
+                          <XCircle className="h-4 w-4 mr-1" />
+                          <strong>Rejected</strong>&nbsp;
+                        </span>
+                      )}
+                      {commentType === 'system' && (
+                        <span className="inline-flex items-center mr-1 text-blue-600 dark:text-blue-400">
+                          <Shield className="h-4 w-4 mr-1" />
+                          <strong>System</strong>&nbsp;
+                        </span>
+                      )}
+
+                      {commentContent.split(' ').map((word, i) => {
+                        // Simple URL detection
+                        if (word.startsWith('http://') || word.startsWith('https://')) {
+                          return (
+                            <span key={i}>
+                              <a
+                                href={word}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 hover:underline transition-colors duration-200"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toast({
+                                    title: "Link Clicked",
+                                    description: `Opening ${word}`,
+                                  });
+                                }}
+                              >
+                                {word}
+                              </a>
+                              {' '}
+                            </span>
+                          );
+                        }
+                        // Hashtag detection
+                        else if (word.startsWith('#')) {
+                          return (
+                            <span key={i}>
+                              <span
+                                className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 cursor-pointer hover:underline transition-colors duration-200"
+                                onClick={() => {
+                                  toast({
+                                    title: "Hashtag Clicked",
+                                    description: `Searching for ${word}`,
+                                  });
+                                }}
+                              >
+                                {word}
+                              </span>
+                              {' '}
+                            </span>
+                          );
+                        }
+                        // Mention detection
+                        else if (word.startsWith('@')) {
+                          return (
+                            <span key={i}>
+                              <span
+                                className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 cursor-pointer hover:underline transition-colors duration-200"
+                                onClick={() => {
+                                  toast({
+                                    title: "User Mentioned",
+                                    description: `Viewing profile of ${word.substring(1)}`,
+                                  });
+                                }}
+                              >
+                                {word}
+                              </span>
+                              {' '}
+                            </span>
+                          );
+                        }
+                        // Regular word
+                        return <span key={i}>{word} </span>;
+                      })}
+                    </div>
+
+                    {/* Reaction buttons could be added here in the future */}
+                    {commentType === 'regular' && (
+                      <div className="mt-2 flex justify-end">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-xs flex items-center gap-1 h-6 px-2 transition-all duration-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                          onClick={() => {
+                            toast({
+                              title: "Reply Feature",
+                              description: "Reply functionality would be implemented here in a future update.",
+                            });
+                          }}
                         >
-                          <path d="M3 6h18" />
-                          <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-                          <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-                        </svg>
-                      </Button>
+                          <MessageSquare className="h-3 w-3" />
+                          Reply
+                        </Button>
+                      </div>
                     )}
-                  </div>
-
-                  <div className="mt-1 text-sm whitespace-pre-wrap leading-relaxed">
-                    {comment.content.split(' ').map((word, i) => {
-                      // Simple URL detection
-                      if (word.startsWith('http://') || word.startsWith('https://')) {
-                        return (
-                          <span key={i}>
-                            <a
-                              href={word}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 hover:underline transition-colors duration-200"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                toast({
-                                  title: "Link Clicked",
-                                  description: `Opening ${word}`,
-                                });
-                              }}
-                            >
-                              {word}
-                            </a>
-                            {' '}
-                          </span>
-                        );
-                      }
-                      // Hashtag detection
-                      else if (word.startsWith('#')) {
-                        return (
-                          <span key={i}>
-                            <span
-                              className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 cursor-pointer hover:underline transition-colors duration-200"
-                              onClick={() => {
-                                toast({
-                                  title: "Hashtag Clicked",
-                                  description: `Searching for ${word}`,
-                                });
-                              }}
-                            >
-                              {word}
-                            </span>
-                            {' '}
-                          </span>
-                        );
-                      }
-                      // Mention detection
-                      else if (word.startsWith('@')) {
-                        return (
-                          <span key={i}>
-                            <span
-                              className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 cursor-pointer hover:underline transition-colors duration-200"
-                              onClick={() => {
-                                toast({
-                                  title: "User Mentioned",
-                                  description: `Viewing profile of ${word.substring(1)}`,
-                                });
-                              }}
-                            >
-                              {word}
-                            </span>
-                            {' '}
-                          </span>
-                        );
-                      }
-                      // Regular word
-                      return <span key={i}>{word} </span>;
-                    })}
-                  </div>
-
-                  {/* Reaction buttons could be added here in the future */}
-                  <div className="mt-2 flex justify-end">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-xs flex items-center gap-1 h-6 px-2 transition-all duration-200 hover:bg-gray-100 dark:hover:bg-gray-700"
-                      onClick={() => {
-                        toast({
-                          title: "Reply Feature",
-                          description: "Reply functionality would be implemented here in a future update.",
-                        });
-                      }}
-                    >
-                      <MessageSquare className="h-3 w-3" />
-                      Reply
-                    </Button>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
