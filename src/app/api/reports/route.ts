@@ -9,6 +9,7 @@ import { NotificationType } from "@/utils/notificationTemplates";
 // Import the broadcast function
 import { broadcastDashboardUpdate } from "@/app/api/dashboard/sse/route";
 import { DashboardEventTypes } from "@/lib/events/dashboard-events";
+import { sanitizeString, sanitizeCommentArray } from "@/utils/sanitize";
 
 interface ReportData {
   branchId: string;
@@ -16,7 +17,9 @@ interface ReportData {
   reportType: "plan" | "actual";
   writeOffs: number;
   ninetyPlus: number;
-  comments?: string;
+  comments?: string; // @deprecated - Use initialComment instead
+  commentArray?: any[]; // @deprecated - Use ReportComment model instead
+  initialComment?: string; // New field for initial comment to be stored in ReportComment
 }
 
 interface UpdateReportData {
@@ -56,13 +59,10 @@ export async function GET(request: NextRequest) {
     const accessibleBranchIds = accessibleBranches.map(branch => branch.id);
 
     // Build where clause
-    const where: any = {
-      branchId: {
-        in: accessibleBranchIds
-      }
-    };
+    const where: any = {};
 
-    if (branchId) {
+    // Handle branch filtering
+    if (branchId && branchId.trim() !== "") {
       // If specific branch is requested, verify access
       if (!accessibleBranchIds.includes(branchId)) {
         return NextResponse.json(
@@ -71,6 +71,12 @@ export async function GET(request: NextRequest) {
         );
       }
       where.branchId = branchId;
+    } else {
+      // If no branch ID is provided or it's empty (All My Branches option),
+      // filter by all accessible branches
+      where.branchId = {
+        in: accessibleBranchIds
+      };
     }
 
     if (status) {
@@ -91,20 +97,23 @@ export async function GET(request: NextRequest) {
       //console.log("[DEBUG] Normalized reportDate string:", reportDate);
       //console.log("[DEBUG] Using reportDateISO for Prisma query:", reportDateISO);
 
-      where.date = new Date(reportDateISO);
+      // Pass date as a string to match Prisma query expectations
+      where.date = reportDateISO;
     } else if (startDate || endDate) {
       where.date = {};
       if (startDate) {
         // Ensure startDate is interpreted as the beginning of the day
         const start = new Date(startDate);
         start.setHours(0, 0, 0, 0);
-        where.date.gte = start.toISOString();
+        // Pass as string instead of DateTime
+        where.date.gte = start.toISOString(); // Convert to ISO 8601 string
       }
       if (endDate) {
         // Ensure endDate is interpreted as the end of the day
         const end = new Date(endDate);
         end.setHours(23, 59, 59, 999);
-        where.date.lte = end.toISOString(); // Use lte for endDate
+        // Pass as string instead of DateTime
+        where.date.lte = end.toISOString(); // Convert to ISO 8601 string
       }
     }
 
@@ -253,7 +262,7 @@ export async function POST(request: NextRequest) {
       where: {
         branchId: reportData.branchId,
         reportType: reportData.reportType,
-        date: new Date(reportDateISO),
+        date: reportDateISO, // Pass as string to match Prisma query expectations
       },
     });
 
@@ -297,10 +306,21 @@ export async function POST(request: NextRequest) {
       select: { name: true }
     });
 
-    // Create the base report data with correct types
-    const baseReportData = {
-      date: reportDate.toISOString(),
-      // reportDate: reportDateStr,
+    // We're going to skip handling comments in the report creation
+    // and instead use the ReportComment model to add comments separately
+    // This avoids UTF-8 encoding issues with the comments field
+    console.log("[DEBUG] Using ReportComment model for comments instead of storing in Report.");
+
+    // Store any comments temporarily to add after report creation
+    // Use initialComment field if available, fall back to comments for backward compatibility
+    const initialComment = reportData.initialComment || reportData.comments;
+
+    // Set comments to null in the report data
+    const sanitizedComments = null;
+
+    // Validate that all data is in the correct format before proceeding
+    const baseReportData: any = {
+      date: reportDateISO, // Pass as string to match Prisma query expectations
       branchId: reportData.branchId,
       writeOffs: reportData.writeOffs || 0,
       ninetyPlus: reportData.ninetyPlus || 0,
@@ -308,57 +328,146 @@ export async function POST(request: NextRequest) {
       status: reportStatus,
       submittedBy: token.sub as string,
       submittedAt: new Date().toISOString(),
-      comments: reportData.comments || null,
+      comments: sanitizedComments, // Already sanitized comments
     };
 
+    // IMPORTANT: We're completely disabling commentArray for now due to persistent UTF-8 encoding issues
+    // Do not include commentArray in the baseReportData at all
+    console.log("[DEBUG] commentArray field is disabled for report creation to avoid UTF-8 encoding issues");
+
     let report;
-    // For actual reports, find and validate corresponding plan report
-    if (reportData.reportType === "actual") {
-      // Find the corresponding plan report for the same day
-      const planStartOfDay = new Date(reportDate);
-      planStartOfDay.setHours(0, 0, 0, 0);
-      const planEndOfDay = new Date(reportDate);
-      planEndOfDay.setHours(23, 59, 59, 999);
 
-      const planReport = await prisma.report.findFirst({
-        where: {
-          // date: {
-          //   gte: planStartOfDay.toISOString(),
-          //   lt: planEndOfDay.toISOString(),
-          // },
-          date: reportDate.toISOString(),
-          branchId: reportData.branchId,
-          reportType: "plan"
+    try {
+      // For actual reports, find and validate corresponding plan report
+      if (reportData.reportType === "actual") {
+        // Find the corresponding plan report for the same day
+        const planStartOfDay = new Date(reportDate);
+        planStartOfDay.setHours(0, 0, 0, 0);
+        const planEndOfDay = new Date(reportDate);
+        planEndOfDay.setHours(23, 59, 59, 999);
+
+        const planReport = await prisma.report.findFirst({
+          where: {
+            date: reportDateISO, // Pass as string to match Prisma query expectations
+            branchId: reportData.branchId,
+            reportType: "plan"
+          }
+        });
+
+        if (!planReport) {
+          return NextResponse.json(
+            { error: "A plan report must exist before submitting an actual report" },
+            { status: 400 }
+          );
         }
-      });
 
-      if (!planReport) {
-        return NextResponse.json(
-          { error: "A plan report must exist before submitting an actual report" },
-          { status: 400 }
-        );
+        // Check if the plan report is approved
+        if (planReport.status !== "approved") {
+          return NextResponse.json(
+            { error: "The plan report must be approved before submitting an actual report" },
+            { status: 400 }
+          );
+        }
+
+        // Double-check data before inserting
+        console.log("[DEBUG] Creating actual report with plan report ID:", planReport.id);
+
+        // Create the report with additional error handling
+        report = await prisma.report.create({
+          data: {
+            ...baseReportData,
+            planReportId: planReport.id
+          },
+          include: {
+            branch: true,
+            planReport: true,
+            actualReports: true,
+          },
+        });
+      } else {
+        // Double-check data before inserting
+        console.log("[DEBUG] Creating plan report with data:", JSON.stringify({
+          date: baseReportData.date,
+          branchId: baseReportData.branchId,
+          reportType: baseReportData.reportType,
+          // Don't log sensitive data
+        }));
+
+        // Debug log: Check for null bytes and unexpected nulls in baseReportData
+        const hasNullByte = JSON.stringify(baseReportData).includes('\u0000');
+
+        // More thorough check for null bytes in all fields
+        const stringFields = Object.entries(baseReportData)
+          .filter(([_, v]) => typeof v === 'string')
+          .map(([k, v]) => ({
+            field: k,
+            hasNullByte: (v as string).includes('\u0000'),
+            value: v
+          }));
+
+        // We've disabled commentArray to avoid UTF-8 encoding issues
+        const commentArrayCheck = { disabled: true, reason: 'Disabled to avoid UTF-8 encoding issues' };
+
+        console.log("DEBUG: baseReportData before create", {
+          ...baseReportData,
+          hasNullByte,
+          nullFields: Object.entries(baseReportData).filter(([_, v]) => v === null),
+          stringFieldsCheck: stringFields,
+          commentArrayCheck
+        });
+
+        // Create the report with additional error handling
+        report = await prisma.report.create({
+          data: baseReportData,
+          include: {
+            branch: true,
+            planReport: true,
+            actualReports: true,
+          },
+        });
+      }
+    } catch (createError) {
+      console.error("Error during report creation:", createError);
+
+      // Debug log: Check error payload type and value
+      if (typeof createError === "object" && createError !== null) {
+        console.error("DEBUG: createError keys", Object.keys(createError));
+        if ("payload" in createError) {
+          console.error("DEBUG: createError.payload", createError.payload);
+        }
+      } else {
+        console.error("DEBUG: createError is not an object or is null", createError);
       }
 
-      report = await prisma.report.create({
-        data: {
-          ...baseReportData,
-          planReportId: planReport.id
-        },
-        include: {
-          branch: true,
-          planReport: true,
-          actualReports: true,
-        },
-      });
-    } else {
-      report = await prisma.report.create({
-        data: baseReportData,
-        include: {
-          branch: true,
-          planReport: true,
-          actualReports: true,
-        },
-      });
+      // Check for specific PostgreSQL error codes
+      if (createError instanceof Error) {
+        const errorMessage = createError.message || '';
+
+        // Check for UTF-8 encoding issues (PostgreSQL error code 22021)
+        if (errorMessage.includes('22021') || errorMessage.includes('invalid byte sequence for encoding')) {
+          console.error("UTF-8 encoding error detected in report data");
+
+          // Try to identify which field has the issue
+          let problematicField = "unknown";
+          if (errorMessage.includes("comments")) {
+            problematicField = "comments";
+          } else if (errorMessage.includes("commentArray")) {
+            problematicField = "commentArray";
+          }
+
+          return NextResponse.json(
+            {
+              error: "Invalid characters detected in the report data. Please remove any special characters or emojis and try again.",
+              details: `The system detected invalid UTF-8 characters that cannot be stored in the database. The issue may be in the ${problematicField} field.`,
+              field: problematicField
+            },
+            { status: 400 }
+          );
+        }
+      }
+
+      // Re-throw to be caught by the outer catch block
+      throw createError;
     }
 
     // Send notifications if report needs approval
@@ -390,18 +499,68 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // If there was an initial comment, create a ReportComment record
+    if (initialComment) {
+      try {
+        // Sanitize the comment text to avoid UTF-8 encoding issues
+        const sanitizedContent = sanitizeString(initialComment);
+
+        if (sanitizedContent) {
+          // Create a comment using the ReportComment model
+          await prisma.reportComment.create({
+            data: {
+              reportId: report.id,
+              userId: token.sub as string,
+              content: sanitizedContent,
+            }
+          });
+
+          console.log("[DEBUG] Created ReportComment for the initial comment");
+        }
+      } catch (commentError) {
+        console.error("Error creating initial ReportComment (non-critical):", commentError);
+        // We don't want to fail the report creation if the comment creation fails
+      }
+    }
+
     // Convert Decimal to number for JSON serialization
-    const serializedReport = {
+    const serializedReport: any = {
       ...report,
       writeOffs: Number(report.writeOffs),
       ninetyPlus: Number(report.ninetyPlus),
-      // Also handle any nested decimal values
-      planReport: report.planReport ? {
+    };
+
+    // Handle nested planReport if it exists
+    if (report.planReport) {
+      serializedReport.planReport = {
         ...report.planReport,
         writeOffs: Number(report.planReport.writeOffs),
         ninetyPlus: Number(report.planReport.ninetyPlus),
-      } : null,
-    };
+      };
+    }
+
+    // Broadcast the report submission via SSE for real-time updates
+    if (reportStatus === "pending_approval") {
+      try {
+        broadcastDashboardUpdate(
+          DashboardEventTypes.REPORT_SUBMITTED,
+          {
+            reportId: report.id,
+            branchId: report.branchId,
+            branchName: branch?.name || "Unknown Branch",
+            status: reportStatus,
+            writeOffs: Number(report.writeOffs),
+            ninetyPlus: Number(report.ninetyPlus),
+            date: reportDate.toISOString().split('T')[0],
+            reportType: report.reportType,
+            submittedBy: token.sub,
+            submitterName: submitter?.name || "Unknown User",
+          }
+        );
+      } catch (sseError) {
+        console.error("Error broadcasting SSE event (non-critical):", sseError);
+      }
+    }
 
     return NextResponse.json({
       message: "Report created successfully",
@@ -410,8 +569,45 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("Error creating report:", error);
+
+    // Check for specific PostgreSQL error codes
+    if (error instanceof Error) {
+      const errorMessage = error.message || '';
+
+      // Check for UTF-8 encoding issues (PostgreSQL error code 22021)
+      if (errorMessage.includes('22021') || errorMessage.includes('invalid byte sequence for encoding')) {
+        console.error("UTF-8 encoding error detected in report data");
+
+        // Try to identify which field has the issue
+        let problematicField = "unknown";
+        if (errorMessage.includes("comments")) {
+          problematicField = "comments";
+        } else if (errorMessage.includes("commentArray")) {
+          problematicField = "commentArray";
+        }
+
+        return NextResponse.json(
+          {
+            error: "Invalid characters detected in the report data. Please remove any special characters or emojis and try again.",
+            details: `The system detected invalid UTF-8 characters that cannot be stored in the database. The issue may be in the ${problematicField} field.`,
+            field: problematicField
+          },
+          { status: 400 }
+        );
+      }
+
+      // Check for unique constraint violations (PostgreSQL error code 23505)
+      if (errorMessage.includes('23505') || errorMessage.includes('unique constraint')) {
+        return NextResponse.json(
+          { error: "A report already exists for this date, branch, and type" },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Generic error response for other cases
     return NextResponse.json(
-      { error: "Failed to create report" },
+      { error: "Failed to create report. Please try again or contact support if the issue persists." },
       { status: 500 }
     );
   }
@@ -454,8 +650,20 @@ export async function PATCH(request: NextRequest) {
     const accessibleBranches = await getAccessibleBranches(token.sub as string);
     const canAccessBranch = accessibleBranches.some(b => b.id === existingReport.branchId);
 
-    // Basic check: User must have access to the report's branch
-    if (!canAccessBranch) {
+    // Check if this is the user's own rejected report
+    const isOwnReport = existingReport.submittedBy === token.sub;
+    const isRejectedReport = existingReport.status === "rejected";
+    const isOwnRejectedReport = isOwnReport && isRejectedReport;
+
+    // Basic check: User must have access to the report's branch OR it must be their own rejected report
+    if (!canAccessBranch && !isOwnRejectedReport) {
+      console.log("[REPORT PATCH] Branch access denied. User:", token.sub,
+        "Role:", userRole,
+        "Report Branch:", existingReport.branchId,
+        "Accessible Branches:", accessibleBranches.map(b => b.id),
+        "Is Own Report:", isOwnReport,
+        "Is Rejected Report:", isRejectedReport);
+
       return NextResponse.json(
         { error: "Forbidden - You do not have access to this branch's reports" },
         { status: 403 }
@@ -463,40 +671,50 @@ export async function PATCH(request: NextRequest) {
     }
 
     // More granular check: Can the user edit reports in general?
-    // Or, if it's their own report and they have edit permission for own reports?
-    // (Add more specific logic based on your RBAC rules if needed)
+    // Or, if it's their own report and has edit permission for own reports?
+    // Or if it's their own rejected report (users can always edit their rejected reports)
     console.log("[REPORT PATCH] User:", token.sub, "Role:", userRole, "Has EDIT_REPORTS:", checkPermission(userRole, Permission.EDIT_REPORTS));
-    if (!checkPermission(userRole, Permission.EDIT_REPORTS)) {
-      // Allow editing own report if they have that specific permission
-      if (!checkPermission(userRole, Permission.EDIT_OWN_REPORTS) || existingReport.submittedBy !== token.sub) {
-        console.log("[REPORT PATCH] Forbidden edit attempt. User:", token.sub, "Role:", userRole, "Report ID:", id, "SubmittedBy:", existingReport.submittedBy);
-        return NextResponse.json(
-          { error: "Forbidden - You do not have permission to edit reports" },
-          { status: 403 }
-        );
-      }
+
+    // Allow edit if:
+    // 1. User has general EDIT_REPORTS permission, OR
+    // 2. User has EDIT_OWN_REPORTS permission AND it's their own report, OR
+    // 3. It's their own rejected report (special case)
+    const canEditGenerally = checkPermission(userRole, Permission.EDIT_REPORTS);
+    const canEditOwnReports = checkPermission(userRole, Permission.EDIT_OWN_REPORTS) && isOwnReport;
+    const canEditRejectedReport = isOwnRejectedReport;
+
+    if (!canEditGenerally && !canEditOwnReports && !canEditRejectedReport) {
+      console.log("[REPORT PATCH] Forbidden edit attempt. User:", token.sub, "Role:", userRole, "Report ID:", id, "SubmittedBy:", existingReport.submittedBy, "Status:", existingReport.status);
+      return NextResponse.json(
+        { error: "Forbidden - You do not have permission to edit this report" },
+        { status: 403 }
+      );
     }
 
     // --- Handle Status Change (Approval/Rejection) --- Requires specific permission
     let statusChangeNotificationType: NotificationType | null = null;
 
-    // If the report is rejected and the owner is resubmitting (not an approver), force status to pending_approval
+    // If the report is rejected and the owner is editing it (not an approver),
+    // automatically set status to pending_approval when they save changes
     if (
       existingReport.status === "rejected" &&
       existingReport.submittedBy === token.sub &&
       !checkPermission(userRole, Permission.APPROVE_REPORTS)
     ) {
+      // Force status to pending_approval when user edits a rejected report
       updateData.status = "pending_approval";
+      console.log("[REPORT PATCH] Auto-resubmitting rejected report:", id);
     }
 
     if (updateData.status && updateData.status !== existingReport.status) {
-      // Allow submitter to change status from 'rejected' to 'pending_approval'
-      if (!(
+      // Special case: Allow users to resubmit their rejected reports
+      const isResubmittingRejectedReport =
         existingReport.status === "rejected" &&
         updateData.status === "pending_approval" &&
-        existingReport.submittedBy === token.sub
-      )) {
-        // Only ADMIN can approve/reject reports, regardless of permissions
+        existingReport.submittedBy === token.sub;
+
+      if (!isResubmittingRejectedReport) {
+        // For all other status changes, only ADMIN can approve/reject reports
         if (userRole !== "ADMIN") {
           return NextResponse.json(
             { error: "Forbidden - Only admins can approve/reject reports" },
@@ -504,11 +722,15 @@ export async function PATCH(request: NextRequest) {
           );
         }
       }
+
       // Determine notification type based on status change
       if (updateData.status === 'approved') {
         statusChangeNotificationType = NotificationType.REPORT_APPROVED;
       } else if (updateData.status === 'rejected') {
         statusChangeNotificationType = NotificationType.REPORT_REJECTED;
+      } else if (isResubmittingRejectedReport) {
+        // Add notification for resubmitted reports
+        statusChangeNotificationType = NotificationType.REPORT_SUBMITTED;
       }
     }
 
@@ -519,6 +741,17 @@ export async function PATCH(request: NextRequest) {
     }
     if (prismaUpdateData.ninetyPlus !== undefined) {
       prismaUpdateData.ninetyPlus = Number(prismaUpdateData.ninetyPlus);
+    }
+
+    // Remove legacy comment fields from update data
+    // Comments should now be handled through the ReportComment model
+    if (prismaUpdateData.comments !== undefined) {
+      console.log("[DEPRECATED] Removing 'comments' field from update data. Use ReportComment model instead.");
+      delete prismaUpdateData.comments;
+    }
+    if (prismaUpdateData.commentArray !== undefined) {
+      console.log("[DEPRECATED] Removing 'commentArray' field from update data. Use ReportComment model instead.");
+      delete prismaUpdateData.commentArray;
     }
 
     // Update the report
@@ -540,7 +773,7 @@ export async function PATCH(request: NextRequest) {
         // Include other fields that might affect dashboard aggregates
         writeOffs: Number(updatedReport.writeOffs),
         ninetyPlus: Number(updatedReport.ninetyPlus),
-        date: updatedReport.date.toISOString().split('T')[0],
+        date: new Date(updatedReport.date).toISOString().split('T')[0], // Convert Date to string
         reportType: updatedReport.reportType,
       }
     );
@@ -556,12 +789,12 @@ export async function PATCH(request: NextRequest) {
         if (targetUsers.length > 0) {
           const notificationData = {
             reportId: updatedReport.id,
-            reportDate: updatedReport.date.toISOString().split('T')[0],
+            reportDate: new Date(updatedReport.date).toISOString().split('T')[0], // Convert Date to string
             branchName: updatedReport.branch.name,
             status: updatedReport.status,
             actorName: token.name || 'System',
-            // Add comments if rejection includes them
-            comments: updateData.comments || undefined
+            // Don't include comments in notification data anymore
+            // Comments should be fetched from ReportComment model if needed
           };
 
           await sendToNotificationQueue({

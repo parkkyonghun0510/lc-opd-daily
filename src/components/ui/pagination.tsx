@@ -49,13 +49,14 @@ export function Pagination({
   const pageNumbers = getPageNumbers();
 
   return (
-    <div className="flex items-center gap-1">
+    <nav aria-label="Pagination" className="inline-flex flex-wrap items-center justify-center gap-1">
       {/* Previous button */}
       <Button
         variant="outline"
         size="icon"
         onClick={() => onPageChange(currentPage - 1)}
         disabled={currentPage === 1}
+        className="h-8 w-8"
       >
         <ChevronLeft className="h-4 w-4" />
         <span className="sr-only">Previous page</span>
@@ -70,6 +71,7 @@ export function Pagination({
               variant="outline"
               size="icon"
               disabled
+              className="h-8 w-8"
             >
               <MoreHorizontal className="h-4 w-4" />
               <span className="sr-only">More pages</span>
@@ -83,6 +85,7 @@ export function Pagination({
             variant={currentPage === page ? "default" : "outline"}
             size="icon"
             onClick={() => onPageChange(page as number)}
+            className="h-8 w-8"
           >
             {page}
             <span className="sr-only">Page {page}</span>
@@ -96,10 +99,11 @@ export function Pagination({
         size="icon"
         onClick={() => onPageChange(currentPage + 1)}
         disabled={currentPage === totalPages}
+        className="h-8 w-8"
       >
         <ChevronRight className="h-4 w-4" />
         <span className="sr-only">Next page</span>
       </Button>
-    </div>
+    </nav>
   );
 }

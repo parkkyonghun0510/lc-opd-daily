@@ -8,30 +8,31 @@ datasource db {
 }
 
 model User {
-  id                  String                 @id @default(cuid())
-  email               String                 @unique
-  name                String
-  password            String
-  role                String                 @default("user")
-  branchId            String?
-  isActive            Boolean                @default(true)
-  lastLogin           DateTime?
-  createdAt           DateTime               @default(now())
-  updatedAt           DateTime               @updatedAt
-  failedLoginAttempts Int                    @default(0)
-  lockedUntil         DateTime?
-  username            String                 @unique
-  image               String?
-  preferences         Json?
-  activityLogs        ActivityLog[]
-  branch              Branch?                @relation(fields: [branchId], references: [id])
-  activities          UserActivity[]
-  branchAssignments   UserBranchAssignment[]
-  userRoles           UserRole[]
-  pushSubscriptions   PushSubscription[]
-  notifications       InAppNotification[]     @relation("UserNotifications")
-  telegramSubscription TelegramSubscription?
+  id                   String                 @id @default(cuid())
+  email                String                 @unique
+  name                 String
+  password             String
+  role                 String                 @default("user")
+  branchId             String?
+  isActive             Boolean                @default(true)
+  lastLogin            DateTime?
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+  failedLoginAttempts  Int                    @default(0)
+  lockedUntil          DateTime?
+  username             String                 @unique
+  image                String?
+  preferences          Json?
+  activityLogs         ActivityLog[]
+  notifications        InAppNotification[]    @relation("UserNotifications")
+  pushSubscriptions    PushSubscription[]
+  reportComments       ReportComment[]
   telegramLinkingCodes TelegramLinkingCode[]
+  telegramSubscription TelegramSubscription?
+  branch               Branch?                @relation(fields: [branchId], references: [id])
+  activities           UserActivity[]
+  branchAssignments    UserBranchAssignment[]
+  userRoles            UserRole[]
 
   @@index([branchId])
 }
@@ -67,22 +68,23 @@ model Branch {
 }
 
 model Report {
-  id            String   @id @default(cuid())
-  date          DateTime @db.Date
+  id            String          @id @default(cuid())
   branchId      String
-  writeOffs     Decimal  @db.Decimal(15, 2)
-  ninetyPlus    Decimal  @db.Decimal(15, 2)
-  reportType    String   @default("actual")
-  status        String   @default("pending")
+  writeOffs     Decimal         @db.Decimal(15, 2)
+  ninetyPlus    Decimal         @db.Decimal(15, 2)
+  reportType    String          @default("actual")
+  status        String          @default("pending")
   submittedBy   String
-  submittedAt   DateTime @default(now())
   comments      String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
   planReportId  String?
-  branch        Branch   @relation(fields: [branchId], references: [id])
-  planReport    Report?  @relation("PlanActualRelation", fields: [planReportId], references: [id])
-  actualReports Report[] @relation("PlanActualRelation")
+  date          DateTime        @db.Date
+  submittedAt   DateTime        @default(now())
+  branch        Branch          @relation(fields: [branchId], references: [id])
+  planReport    Report?         @relation("PlanActualRelation", fields: [planReportId], references: [id])
+  actualReports Report[]        @relation("PlanActualRelation")
+  ReportComment ReportComment[]
 
   @@unique([date, branchId, reportType])
   @@index([branchId, date])
@@ -159,25 +161,25 @@ model PushSubscription {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   userId    String?
-  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user      User?    @relation(fields: [userId], references: [id])
 
   @@index([endpoint])
   @@index([userId])
 }
 
 model InAppNotification {
-  id          String    @id @default(cuid())
-  userId      String
-  title       String
-  body        String
-  type        String    // Same as NotificationType in notificationTemplates.ts
-  data        Json?     // Additional data for the notification
-  isRead      Boolean   @default(false)
-  createdAt   DateTime  @default(now())
-  readAt      DateTime?
-  actionUrl   String?   // URL to navigate to when clicked
-  user        User      @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
-  events      NotificationEvent[]
+  id        String              @id @default(cuid())
+  userId    String
+  title     String
+  body      String
+  type      String
+  data      Json?
+  isRead    Boolean             @default(false)
+  createdAt DateTime            @default(now())
+  readAt    DateTime?
+  actionUrl String?
+  user      User                @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  events    NotificationEvent[]
 
   @@index([userId])
   @@index([type])
@@ -186,11 +188,11 @@ model InAppNotification {
 }
 
 model NotificationEvent {
-  id             String   @id @default(cuid())
+  id             String            @id @default(cuid())
   notificationId String
-  event          String   // QUEUED, SENT, DELIVERED, FAILED, CLICKED, CLOSED
-  metadata       Json?    // Additional data about the event
-  timestamp      DateTime @default(now())
+  event          String
+  metadata       Json?
+  timestamp      DateTime          @default(now())
   notification   InAppNotification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
 
   @@index([notificationId])
@@ -205,8 +207,7 @@ model TelegramSubscription {
   username  String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
 }
@@ -217,9 +218,22 @@ model TelegramLinkingCode {
   userId    String
   expiresAt DateTime
   createdAt DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([expiresAt])
+}
+
+model ReportComment {
+  id        String   @id @default(cuid())
+  reportId  String
+  userId    String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  report    Report   @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([reportId])
+  @@index([userId])
 }

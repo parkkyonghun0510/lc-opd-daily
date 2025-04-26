@@ -6,6 +6,7 @@ import { getAccessibleBranches } from '@/lib/auth/branch-access';
 import { UserRole } from '@/lib/auth/roles';
 import { authOptions } from '@/lib/auth'; // Import authOptions
 import { Prisma } from '@prisma/client';
+import { toNumber } from '@/lib/utils/number-helpers';
 
 // Define the structure of the dashboard summary data
 /**
@@ -134,12 +135,12 @@ export async function fetchDashboardSummary(
     ]);
 
     // Calculate total amount and custom aggregations with proper null checking
-    const totalAmount = (reportAggregations._sum?.writeOffs?.toNumber() || 0) +
-      (reportAggregations._sum?.ninetyPlus?.toNumber() || 0);
+    const totalAmount = toNumber(reportAggregations._sum?.writeOffs) +
+      toNumber(reportAggregations._sum?.ninetyPlus);
 
     const customAggregations = options?.customAggregations?.reduce((acc, field) => ({
       ...acc,
-      [field]: ((reportAggregations._sum as Record<string, Prisma.Decimal | null>)?.[field])?.toNumber() || 0
+      [field]: toNumber((reportAggregations._sum as Record<string, any>)?.[field])
     }), {} as Record<string, number>);
 
     // Optimized growth rate calculation with a single query
@@ -171,8 +172,8 @@ export async function fetchDashboardSummary(
       ]);
 
       return {
-        currentRevenue: (current._sum.writeOffs?.toNumber() || 0) + (current._sum.ninetyPlus?.toNumber() || 0),
-        previousRevenue: (previous._sum.writeOffs?.toNumber() || 0) + (previous._sum.ninetyPlus?.toNumber() || 0),
+        currentRevenue: toNumber(current._sum.writeOffs) + toNumber(current._sum.ninetyPlus),
+        previousRevenue: toNumber(previous._sum.writeOffs) + toNumber(previous._sum.ninetyPlus),
       };
     });
 
@@ -242,7 +243,7 @@ export async function fetchDashboardSummary(
         const branchRevenuesMap = new Map(
           branchRevenues.map(b => [
             b.branchId,
-            (b._sum.writeOffs?.toNumber() || 0) + (b._sum.ninetyPlus?.toNumber() || 0)
+            toNumber(b._sum.writeOffs) + toNumber(b._sum.ninetyPlus)
           ])
         );
 
@@ -270,7 +271,7 @@ export async function fetchDashboardSummary(
           title: `${r.reportType} Report - ${new Date(r.date).toLocaleDateString()}`,
           createdAt: r.createdAt.toISOString(),
           status: r.status,
-          amount: (r.writeOffs?.toNumber() || 0) + (r.ninetyPlus?.toNumber() || 0)
+          amount: toNumber(r.writeOffs) + toNumber(r.ninetyPlus)
         }))
       };
     }

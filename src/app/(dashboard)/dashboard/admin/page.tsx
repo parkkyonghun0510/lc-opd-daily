@@ -17,6 +17,7 @@ import { toast } from "@/components/ui/use-toast";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { TrendingUp } from "lucide-react";
+import DashboardStatusIndicator from "@/components/dashboard/DashboardStatusIndicator";
 
 // Metadata can't be exported from a Client Component
 // We'll need to move this to a separate layout.tsx file if needed
@@ -75,7 +76,12 @@ export default function AdminDashboard() {
 
   return (
     <DashboardDataProvider>
-      <div className="container mx-auto py-6 space-y-6">
+      <div className="container mx-auto py-6 space-y-6 relative">
+        {/* Status indicator with absolute positioning */}
+        <div className="absolute top-4 right-4 z-10">
+          <DashboardStatusIndicator />
+        </div>
+
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold">Admin Dashboard</h1>
