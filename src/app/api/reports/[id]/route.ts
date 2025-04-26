@@ -82,13 +82,20 @@ export async function GET(
     }
 
     // If this is an actual report, use the planReport relation
-    const responseData = { ...report } as any;
+    // Convert Decimal objects to numbers
+    const responseData = {
+      ...report,
+      writeOffs: typeof report.writeOffs === 'object' ? Number(report.writeOffs) : report.writeOffs,
+      ninetyPlus: typeof report.ninetyPlus === 'object' ? Number(report.ninetyPlus) : report.ninetyPlus,
+    } as any;
 
     if (report.reportType === "actual") {
       if (report.planReport) {
         // Add plan data with proper type conversion
-        responseData.writeOffsPlan = typeof report.planReport.writeOffs === 'number' ? report.planReport.writeOffs : 0;
-        responseData.ninetyPlusPlan = typeof report.planReport.ninetyPlus === 'number' ? report.planReport.ninetyPlus : 0;
+        responseData.writeOffsPlan = typeof report.planReport.writeOffs === 'object' ? Number(report.planReport.writeOffs) :
+          typeof report.planReport.writeOffs === 'number' ? report.planReport.writeOffs : 0;
+        responseData.ninetyPlusPlan = typeof report.planReport.ninetyPlus === 'object' ? Number(report.planReport.ninetyPlus) :
+          typeof report.planReport.ninetyPlus === 'number' ? report.planReport.ninetyPlus : 0;
         responseData.planReportId = report.planReport.id;
       } else {
         // If no plan report is linked, try to find one (for backwards compatibility)
@@ -102,8 +109,10 @@ export async function GET(
 
         if (planReport) {
           // Add plan data with proper type conversion
-          responseData.writeOffsPlan = typeof planReport.writeOffs === 'number' ? planReport.writeOffs : 0;
-          responseData.ninetyPlusPlan = typeof planReport.ninetyPlus === 'number' ? planReport.ninetyPlus : 0;
+          responseData.writeOffsPlan = typeof planReport.writeOffs === 'object' ? Number(planReport.writeOffs) :
+            typeof planReport.writeOffs === 'number' ? planReport.writeOffs : 0;
+          responseData.ninetyPlusPlan = typeof planReport.ninetyPlus === 'object' ? Number(planReport.ninetyPlus) :
+            typeof planReport.ninetyPlus === 'number' ? planReport.ninetyPlus : 0;
           responseData.planReportId = planReport.id;
 
           // Update the actual report to link it to the plan report

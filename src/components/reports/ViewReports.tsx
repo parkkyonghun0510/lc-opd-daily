@@ -153,11 +153,6 @@ export function ViewReports() {
               You are not assigned to any branches. Please contact your
               administrator to get access.
             </p>
-            <p>
-              If you are an administrator, please go to the{" "}
-              <Link href="/admin/branches">branches {userBranches.length}</Link> page to assign
-              branches to users.
-            </p>
           </CardDescription>
         </CardHeader>
       </Card>
