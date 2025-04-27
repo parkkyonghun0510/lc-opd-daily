@@ -116,7 +116,7 @@ export const handleSessionTimeout = async () => {
   const store = useStore.getState();
 
   // Try to refresh the token first if we have a refresh token
-  if (store.isAuthenticated && store.refreshToken && !store.refreshInProgress) {
+  if (store.isAuthenticated && await store.refreshToken() && !store.refreshInProgress) {
     try {
       // Use the refreshSession function which handles token refresh
       const success = await refreshSession();

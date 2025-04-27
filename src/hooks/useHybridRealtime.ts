@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useSession } from 'next-auth/react';
+import { useAuth } from '@/auth/hooks/useAuth';
 
 // Event types
 export type EventType = 'notification' | 'dashboardUpdate' | 'systemAlert' | string;
@@ -19,14 +19,14 @@ export interface HybridRealtimeOptions {
   // Endpoints
   sseEndpoint?: string;
   pollingEndpoint?: string;
-  
+
   // Configuration
   pollingInterval?: number;
   preferredMethod?: 'sse' | 'polling' | 'auto';
-  
+
   // Event handlers
   eventHandlers?: Record<EventType, (data: any) => void>;
-  
+
   // Debug options
   debug?: boolean;
 }
@@ -43,16 +43,16 @@ export function useHybridRealtime(options: HybridRealtimeOptions = {}) {
     eventHandlers = {},
     debug = false
   } = options;
-  
-  // Session for authentication
-  const { data: session } = useSession();
-  
+
+  // Use the new auth hook instead of useSession
+  const { user, isAuthenticated, needsTokenRefresh, refreshAuthToken } = useAuth();
+
   // State
   const [isConnected, setIsConnected] = useState(false);
   const [activeMethod, setActiveMethod] = useState<'sse' | 'polling' | null>(null);
   const [lastEvent, setLastEvent] = useState<RealtimeEvent | null>(null);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Refs
   const eventSourceRef = useRef<EventSource | null>(null);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -60,67 +60,76 @@ export function useHybridRealtime(options: HybridRealtimeOptions = {}) {
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttemptsRef = useRef<number>(0);
   const maxReconnectAttempts = 5;
-  
+
   // Check if SSE is supported
   const isSSESupported = typeof EventSource !== 'undefined';
-  
+
   // Debug logging
   const log = useCallback((message: string, ...args: any[]) => {
     if (debug) {
       console.log(`[HybridRealtime] ${message}`, ...args);
     }
   }, [debug]);
-  
+
   // Process an event
   const processEvent = useCallback((event: RealtimeEvent) => {
     log('Processing event:', event);
-    
+
     // Update last event
     setLastEvent(event);
-    
+
     // Call the appropriate event handler
     const handler = eventHandlers[event.type];
     if (handler) {
       handler(event.data);
     }
-    
+
     // Also call the wildcard handler if it exists
     const wildcardHandler = eventHandlers['*'];
     if (wildcardHandler) {
       wildcardHandler(event);
     }
   }, [eventHandlers, log]);
-  
+
   // Set up SSE connection
   const setupSSE = useCallback(() => {
     if (!isSSESupported) {
       log('SSE not supported, falling back to polling');
       return false;
     }
-    
-    if (!session?.user?.id) {
-      log('No user session, cannot set up SSE');
+
+    if (!user?.id) {
+      log('No authenticated user, cannot set up SSE');
       return false;
     }
-    
+
+    // Check if token needs refresh before setting up connection
+    if (isAuthenticated && needsTokenRefresh()) {
+      log('Auth token needs refresh, refreshing before SSE setup');
+      refreshAuthToken().catch(err => {
+        log('Error refreshing token:', err);
+      });
+    }
+
     try {
       // Close existing connection if any
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
         eventSourceRef.current = null;
       }
-      
+
       // Create URL with query parameters
       const url = new URL(sseEndpoint, window.location.origin);
       url.searchParams.append('clientType', 'hybrid');
-      url.searchParams.append('role', session.user.role as string || 'user');
+      url.searchParams.append('userId', user.id);
+      url.searchParams.append('role', user.role || 'user');
       url.searchParams.append('_t', Date.now().toString()); // Cache buster
-      
+
       // Create new EventSource
       log('Setting up SSE connection to', url.toString());
       const eventSource = new EventSource(url.toString());
       eventSourceRef.current = eventSource;
-      
+
       // Set up event listeners
       eventSource.onopen = () => {
         log('SSE connection opened');
@@ -129,20 +138,20 @@ export function useHybridRealtime(options: HybridRealtimeOptions = {}) {
         setError(null);
         reconnectAttemptsRef.current = 0;
       };
-      
+
       eventSource.onerror = (err) => {
         log('SSE connection error:', err);
         eventSource.close();
         eventSourceRef.current = null;
         setIsConnected(false);
         setError('SSE connection error');
-        
+
         // Try to reconnect
         reconnectAttemptsRef.current++;
         if (reconnectAttemptsRef.current <= maxReconnectAttempts) {
           const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current - 1), 30000);
           log(`Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current}/${maxReconnectAttempts})`);
-          
+
           reconnectTimeoutRef.current = setTimeout(() => {
             if (preferredMethod === 'sse' || preferredMethod === 'auto') {
               setupSSE();
@@ -154,7 +163,7 @@ export function useHybridRealtime(options: HybridRealtimeOptions = {}) {
           startPolling();
         }
       };
-      
+
       // Listen for specific events
       eventSource.addEventListener('connected', (e) => {
         try {
@@ -167,73 +176,81 @@ export function useHybridRealtime(options: HybridRealtimeOptions = {}) {
           log('Error parsing connected event:', err);
         }
       });
-      
+
       // Generic event listener for all event types
       const handleEvent = (e: MessageEvent) => {
         try {
           const eventType = e.type;
           const data = JSON.parse(e.data);
-          
+
           const event: RealtimeEvent = {
             id: data.id || crypto.randomUUID(),
             type: eventType,
             data,
             timestamp: data.timestamp || Date.now()
           };
-          
+
           processEvent(event);
         } catch (err) {
           log('Error processing event:', err);
         }
       };
-      
+
       // Add listeners for common event types
       eventSource.addEventListener('notification', handleEvent);
       eventSource.addEventListener('dashboardUpdate', handleEvent);
       eventSource.addEventListener('systemAlert', handleEvent);
-      
+
       // Add listeners for custom event types
       Object.keys(eventHandlers).forEach(eventType => {
         if (!['connected', 'notification', 'dashboardUpdate', 'systemAlert', '*'].includes(eventType)) {
           eventSource.addEventListener(eventType, handleEvent);
         }
       });
-      
+
       return true;
     } catch (err) {
       log('Error setting up SSE:', err);
       setError(err instanceof Error ? err.message : 'Unknown error setting up SSE');
       return false;
     }
-  }, [isSSESupported, session, sseEndpoint, log, preferredMethod, processEvent, eventHandlers]);
-  
+  }, [isSSESupported, user, isAuthenticated, needsTokenRefresh, refreshAuthToken, sseEndpoint, log, preferredMethod, processEvent, eventHandlers]);
+
   // Polling function
   const pollForUpdates = useCallback(async () => {
-    if (!session?.user?.id) {
-      log('No user session, cannot poll for updates');
+    if (!user?.id) {
+      log('No authenticated user, cannot poll for updates');
       return;
     }
-    
+
+    // Check if token needs refresh before polling
+    if (isAuthenticated && needsTokenRefresh()) {
+      log('Auth token needs refresh, refreshing before polling');
+      await refreshAuthToken().catch(err => {
+        log('Error refreshing token:', err);
+      });
+    }
+
     try {
       // Create URL with query parameters
       const url = new URL(pollingEndpoint, window.location.origin);
       url.searchParams.append('since', lastPollTimestampRef.current.toString());
       url.searchParams.append('_t', Date.now().toString()); // Cache buster
-      
+
       log('Polling for updates:', url.toString());
-      
+
       // Fetch updates
       const response = await fetch(url.toString());
       if (!response.ok) {
         throw new Error(`Polling error: ${response.status} ${response.statusText}`);
       }
-      
+
       const data = await response.json();
       log('Polling response:', data);
-      
+
       // Update last poll timestamp
       lastPollTimestampRef.current = data.timestamp;
-      
+
       // Process events
       if (data.events && Array.isArray(data.events)) {
         data.events.forEach((event: any) => {
@@ -245,7 +262,7 @@ export function useHybridRealtime(options: HybridRealtimeOptions = {}) {
           });
         });
       }
-      
+
       // Update connection state
       setIsConnected(true);
       setActiveMethod('polling');
@@ -254,8 +271,8 @@ export function useHybridRealtime(options: HybridRealtimeOptions = {}) {
       log('Polling error:', err);
       setError(err instanceof Error ? err.message : 'Unknown polling error');
     }
-  }, [session, pollingEndpoint, log, processEvent]);
-  
+  }, [user, isAuthenticated, needsTokenRefresh, refreshAuthToken, pollingEndpoint, log, processEvent]);
+
   // Start polling
   const startPolling = useCallback(() => {
     // Clear existing interval
@@ -263,14 +280,14 @@ export function useHybridRealtime(options: HybridRealtimeOptions = {}) {
       clearInterval(pollingIntervalRef.current);
       pollingIntervalRef.current = null;
     }
-    
+
     // Initial poll
     pollForUpdates();
-    
+
     // Set up interval
     pollingIntervalRef.current = setInterval(pollForUpdates, pollingInterval);
     log(`Started polling every ${pollingInterval}ms`);
-    
+
     return () => {
       if (pollingIntervalRef.current) {
         clearInterval(pollingIntervalRef.current);
@@ -278,13 +295,13 @@ export function useHybridRealtime(options: HybridRealtimeOptions = {}) {
       }
     };
   }, [pollForUpdates, pollingInterval, log]);
-  
+
   // Initialize connection based on preferred method
   useEffect(() => {
-    if (!session?.user?.id) return;
-    
-    log(`Initializing with preferred method: ${preferredMethod}`);
-    
+    if (!user?.id) return;
+
+    log(`Initializing with preferred method: ${preferredMethod} for user ${user.id}`);
+
     if (preferredMethod === 'sse' && isSSESupported) {
       setupSSE();
     } else if (preferredMethod === 'polling') {
@@ -300,7 +317,7 @@ export function useHybridRealtime(options: HybridRealtimeOptions = {}) {
         startPolling();
       }
     }
-    
+
     // Cleanup function
     return () => {
       // Close SSE connection
@@ -308,39 +325,39 @@ export function useHybridRealtime(options: HybridRealtimeOptions = {}) {
         eventSourceRef.current.close();
         eventSourceRef.current = null;
       }
-      
+
       // Clear polling interval
       if (pollingIntervalRef.current) {
         clearInterval(pollingIntervalRef.current);
         pollingIntervalRef.current = null;
       }
-      
+
       // Clear reconnect timeout
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
         reconnectTimeoutRef.current = null;
       }
     };
-  }, [session, preferredMethod, isSSESupported, setupSSE, startPolling, log]);
-  
+  }, [user, preferredMethod, isSSESupported, setupSSE, startPolling, log]);
+
   // Manual reconnect function
   const reconnect = useCallback(() => {
     log('Manual reconnect requested');
-    
+
     // Reset reconnect attempts
     reconnectAttemptsRef.current = 0;
-    
+
     // Close existing connections
     if (eventSourceRef.current) {
       eventSourceRef.current.close();
       eventSourceRef.current = null;
     }
-    
+
     if (pollingIntervalRef.current) {
       clearInterval(pollingIntervalRef.current);
       pollingIntervalRef.current = null;
     }
-    
+
     // Try to reconnect based on preferred method
     if (preferredMethod === 'sse' && isSSESupported) {
       setupSSE();
@@ -357,7 +374,7 @@ export function useHybridRealtime(options: HybridRealtimeOptions = {}) {
       }
     }
   }, [preferredMethod, isSSESupported, setupSSE, startPolling, log]);
-  
+
   // Return the hook API
   return {
     isConnected,
