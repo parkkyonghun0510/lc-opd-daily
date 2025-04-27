@@ -8,19 +8,24 @@ export const authOptions: NextAuthOptions = {
     CredentialsProvider({
       name: "Credentials",
       credentials: {
-        email: { label: "Email", type: "email" },
+        username: { label: "Username", type: "text" },
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
-          throw new Error("Missing email or password");
+        if (!credentials?.username || !credentials?.password) {
+          throw new Error("Missing username or password");
         }
 
         const prisma = await getPrisma();
 
         // Use prisma to perform the database query
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
+        const user = await prisma.user.findFirst({
+          where: {
+            OR: [
+              { email: credentials.username },
+              { username: credentials.username }
+            ]
+          },
           select: {
             id: true,
             name: true,

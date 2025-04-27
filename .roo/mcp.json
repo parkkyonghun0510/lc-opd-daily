@@ -1,3 +1,16 @@
 {
-  "mcpServers": {}
+  "mcpServers": {
+    "context7-mcp": {
+      "command": "wsl",
+      "args": [
+        "npx",
+        "-y",
+        "@smithery/cli@latest",
+        "run",
+        "@upstash/context7-mcp",
+        "--key",
+        "411e36d4-948a-466c-9ba4-39326940cae7"
+      ]
+    }
+  }
 }

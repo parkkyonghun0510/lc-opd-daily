@@ -1,6 +1,8 @@
-import { useSession } from "next-auth/react";
+// This file is kept for backward compatibility
+// It re-exports the permission hooks from our new authentication system
+import { usePermissions } from '@/auth/hooks/useAuth';
+import { Permission, UserRole } from "@/lib/auth/roles";
 import { useState, useEffect, useMemo } from "react";
-import { Permission, UserRole, checkPermission, mapToPermission } from "@/lib/auth/roles";
 
 interface PermissionState {
   hasPermission: boolean;
@@ -10,54 +12,29 @@ interface PermissionState {
 
 /**
  * Custom hook to check if current user has specific permissions
- * 
+ *
  * @param requiredPermissions Array of permissions to check
  * @param requireAll Whether all permissions are required (true) or any of them (false)
  * @returns Permission state object with loading and result
  */
 export function usePermissionCheck(
-  requiredPermissions: Permission[], 
+  requiredPermissions: Permission[],
   requireAll: boolean = false
 ): PermissionState {
-  const { data: session, status } = useSession();
+  const { hasPermission: checkPermission, hasAllPermissions, hasAnyPermission } = usePermissions();
   const [state, setState] = useState<PermissionState>({
     hasPermission: false,
-    isLoading: true,
+    isLoading: false,
     error: null,
   });
 
   useEffect(() => {
-    if (status === "loading") {
-      setState({
-        hasPermission: false,
-        isLoading: true,
-        error: null,
-      });
-      return;
-    }
-
-    if (status === "unauthenticated" || !session?.user) {
-      setState({
-        hasPermission: false,
-        isLoading: false,
-        error: "Not authenticated",
-      });
-      return;
-    }
-
     try {
-      const userRole = session.user.role as string;
-      
-      // Check each permission
-      const results = requiredPermissions.map(permission => 
-        checkPermission(userRole, permission)
-      );
-      
-      // Determine final result based on requireAll flag
-      const hasPermission = requireAll 
-        ? results.every(Boolean) 
-        : results.some(Boolean);
-      
+      // Check permissions based on requireAll flag
+      const hasPermission = requireAll
+        ? hasAllPermissions(requiredPermissions)
+        : hasAnyPermission(requiredPermissions);
+
       setState({
         hasPermission,
         isLoading: false,
@@ -70,7 +47,7 @@ export function usePermissionCheck(
         error: error instanceof Error ? error.message : "Unknown error",
       });
     }
-  }, [session, status, requiredPermissions, requireAll]);
+  }, [requiredPermissions, requireAll, hasAllPermissions, hasAnyPermission]);
 
   return state;
 }
@@ -79,27 +56,19 @@ export function usePermissionCheck(
  * Hook to check multiple permissions at once and get detailed results
  */
 export function useMultiplePermissions(permissions: Permission[]) {
-  const { data: session, status } = useSession();
-  
+  const { hasPermission, isLoading } = usePermissions();
+
   const permissionResults = useMemo(() => {
-    if (status !== "authenticated" || !session?.user) {
-      return permissions.reduce((acc, permission) => {
-        acc[permission] = false;
-        return acc;
-      }, {} as Record<Permission, boolean>);
-    }
-    
-    const userRole = session.user.role as string;
     return permissions.reduce((acc, permission) => {
-      acc[permission] = checkPermission(userRole, permission);
+      acc[permission] = hasPermission(permission);
       return acc;
     }, {} as Record<Permission, boolean>);
-  }, [session, status, permissions]);
-  
+  }, [permissions, hasPermission]);
+
   return {
     permissionResults,
-    isLoading: status === "loading",
-    isAuthenticated: status === "authenticated",
+    isLoading,
+    isAuthenticated: !isLoading,
   };
 }
 
@@ -107,23 +76,12 @@ export function useMultiplePermissions(permissions: Permission[]) {
  * Hook to check if user has a specific role
  */
 export function useRoleCheck(role: UserRole | UserRole[]) {
-  const { data: session, status } = useSession();
-  
-  const hasRole = useMemo(() => {
-    if (status !== "authenticated" || !session?.user) {
-      return false;
-    }
-    
-    const userRole = session.user.role as string;
-    return Array.isArray(role) 
-      ? role.includes(userRole as UserRole)
-      : userRole === role;
-  }, [session, status, role]);
-  
+  const { hasRole, isLoading } = usePermissions();
+
   return {
-    hasRole,
-    isLoading: status === "loading",
-    isAuthenticated: status === "authenticated",
+    hasRole: hasRole(role),
+    isLoading,
+    isAuthenticated: !isLoading,
   };
 }
 
@@ -132,41 +90,18 @@ export function useRoleCheck(role: UserRole | UserRole[]) {
  * Useful for complex UI that needs to adapt to multiple permissions
  */
 export function useAllPermissions() {
-  const { data: session, status } = useSession();
-  
+  const { hasPermission, isLoading } = usePermissions();
+
   const allPermissions = useMemo(() => {
-    const defaultMap = Object.values(Permission).reduce((acc, permission) => {
-      acc[permission] = false;
-      return acc;
-    }, {} as Record<Permission, boolean>);
-    
-    if (status !== "authenticated" || !session?.user) {
-      return defaultMap;
-    }
-    
-    const userRole = session.user.role as string;
-    
     return Object.values(Permission).reduce((acc, permission) => {
-      acc[permission] = checkPermission(userRole, permission);
+      acc[permission] = hasPermission(permission);
       return acc;
     }, {} as Record<Permission, boolean>);
-  }, [session, status]);
-  
+  }, [hasPermission]);
+
   return {
     permissions: allPermissions,
-    isLoading: status === "loading",
-    isAuthenticated: status === "authenticated",
+    isLoading,
+    isAuthenticated: !isLoading,
   };
 }
-
-// Usage example:
-/*
-function MyProtectedComponent() {
-  const { hasPermission, isLoading } = usePermissionCheck([Permission.VIEW_REPORTS]);
-  
-  if (isLoading) return <div>Loading...</div>;
-  if (!hasPermission) return <div>Access denied</div>;
-  
-  return <div>Protected content</div>;
-}
-*/ 
