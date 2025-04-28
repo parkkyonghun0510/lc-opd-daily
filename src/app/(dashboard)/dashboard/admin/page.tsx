@@ -16,7 +16,7 @@ import { fetchAdminStats } from "@/lib/api";
 import { toast } from "@/components/ui/use-toast";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { TrendingUp } from "lucide-react";
+import { TrendingUp, RefreshCw } from "lucide-react";
 import DashboardStatusIndicator from "@/components/dashboard/DashboardStatusIndicator";
 import { exposeDebugUtils } from "@/auth/utils/debug";
 import { PermissionDebugger } from "@/auth/components/PermissionDebugger";
@@ -138,6 +138,11 @@ export default function AdminDashboard() {
                     <Link href="/dashboard/consolidated" passHref>
                       <Button variant="outline">
                         <TrendingUp className="mr-2 h-4 w-4" /> Consolidated View
+                      </Button>
+                    </Link>
+                    <Link href="/admin/tools/migrate-comments" passHref>
+                      <Button variant="outline">
+                        <RefreshCw className="mr-2 h-4 w-4" /> Migrate Comments
                       </Button>
                     </Link>
                   </div>

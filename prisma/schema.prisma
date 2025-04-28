@@ -229,11 +229,15 @@ model ReportComment {
   reportId  String
   userId    String
   content   String
+  parentId  String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   report    Report   @relation(fields: [reportId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent    ReportComment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: SetNull)
+  replies   ReportComment[] @relation("CommentReplies")
 
   @@index([reportId])
   @@index([userId])
+  @@index([parentId])
 }

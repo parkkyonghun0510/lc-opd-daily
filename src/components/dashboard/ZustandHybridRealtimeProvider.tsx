@@ -53,12 +53,21 @@ export function ZustandHybridRealtimeProvider({
         console.log('[ZustandHybridRealtime] Received dashboard update:', data);
       }
 
+      // Ensure data has the expected structure
+      const normalizedData = {
+        ...data,
+        id: data.id || crypto.randomUUID(),
+        timestamp: data.timestamp || Date.now(),
+        type: data.type || 'dashboardUpdate'
+      };
+
       // Set the new updates flag
       setHasNewUpdates(true);
 
       // Show a toast notification
       if (showToasts) {
-        toast.info('New dashboard data is available', {
+        toast.info(normalizedData.title || 'New dashboard data is available', {
+          description: normalizedData.message || normalizedData.body || 'Dashboard has been updated',
           action: {
             label: 'Refresh',
             onClick: () => {
@@ -79,7 +88,7 @@ export function ZustandHybridRealtimeProvider({
       // Dispatch a custom event that components can listen for
       if (typeof window !== 'undefined') {
         const event = new CustomEvent('dashboard-update', {
-          detail: data,
+          detail: normalizedData,
           bubbles: true,
           cancelable: true
         });
@@ -93,10 +102,23 @@ export function ZustandHybridRealtimeProvider({
         console.log('[ZustandHybridRealtime] Received notification:', data);
       }
 
+      // Ensure data has the expected structure
+      const normalizedData = {
+        ...data,
+        id: data.id || crypto.randomUUID(),
+        timestamp: data.timestamp || Date.now(),
+        title: data.title || 'New notification',
+        message: data.message || data.body || 'You have a new notification',
+        type: data.type || 'info'
+      };
+
       // Show a toast notification
       if (showToasts) {
-        toast.info(data.title || 'New notification', {
-          description: data.message || data.body || 'You have a new notification',
+        const toastType = normalizedData.type === 'error' ? toast.error :
+          normalizedData.type === 'warning' ? toast.warning : toast.info;
+
+        toastType(normalizedData.title, {
+          description: normalizedData.message,
         });
       }
     },
@@ -107,10 +129,23 @@ export function ZustandHybridRealtimeProvider({
         console.log('[ZustandHybridRealtime] Received system alert:', data);
       }
 
+      // Ensure data has the expected structure
+      const normalizedData = {
+        ...data,
+        id: data.id || crypto.randomUUID(),
+        timestamp: data.timestamp || Date.now(),
+        title: data.title || 'System alert',
+        message: data.message || data.body || 'System alert received',
+        type: data.type || 'warning'
+      };
+
       // Show a toast notification
       if (showToasts) {
-        toast.warning(data.title || 'System alert', {
-          description: data.message || data.body || 'System alert received',
+        const toastType = normalizedData.type === 'error' ? toast.error :
+          normalizedData.type === 'warning' ? toast.warning : toast.info;
+
+        toastType(normalizedData.title, {
+          description: normalizedData.message,
         });
       }
     },
@@ -121,12 +156,21 @@ export function ZustandHybridRealtimeProvider({
         console.log(`[ZustandHybridRealtime] Received ${user?.role} update:`, data);
       }
 
+      // Ensure data has the expected structure
+      const normalizedData = {
+        ...data,
+        id: data.id || crypto.randomUUID(),
+        timestamp: data.timestamp || Date.now(),
+        type: data.type || `${user?.role?.toLowerCase() || 'user'}Update`
+      };
+
       // Set the new updates flag
       setHasNewUpdates(true);
 
       // Show a toast notification
       if (showToasts) {
-        toast.info(`New ${user?.role} data is available`, {
+        toast.info(normalizedData.title || `New ${user?.role} data is available`, {
+          description: normalizedData.message || normalizedData.body || `${user?.role} dashboard has been updated`,
           action: {
             label: 'Refresh',
             onClick: () => {

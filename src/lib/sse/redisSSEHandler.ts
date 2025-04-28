@@ -26,7 +26,7 @@ interface SSEEvent<T = any> {
 
 /**
  * Redis-backed SSE Handler for multi-instance support
- * 
+ *
  * This handler uses Redis to track clients across multiple server instances,
  * allowing for broadcasting events to all connected clients regardless of
  * which server instance they're connected to.
@@ -119,12 +119,19 @@ class RedisSSEHandler {
         try {
             const { userId, eventType, data } = event;
 
+            // Ensure the event data has a proper structure
+            const eventData = {
+                ...data,
+                id: data.id || crypto.randomUUID(),
+                timestamp: data.timestamp || Date.now()
+            };
+
             // If the event is for a specific user, send it only to that user
             if (userId) {
                 // Find local clients for this user
                 for (const client of this.clients.values()) {
                     if (client.userId === userId) {
-                        this.sendEvent(client.response, { type: eventType, data });
+                        this.sendEvent(client.response, { type: eventType, data: eventData });
                     }
                 }
             }
@@ -132,7 +139,7 @@ class RedisSSEHandler {
             else {
                 // Send to all local clients
                 for (const client of this.clients.values()) {
-                    this.sendEvent(client.response, { type: eventType, data });
+                    this.sendEvent(client.response, { type: eventType, data: eventData });
                 }
             }
         } catch (error) {
@@ -258,10 +265,17 @@ class RedisSSEHandler {
     async sendEventToUser(userId: string, eventType: string, data: any) {
         let localSentCount = 0;
 
+        // Ensure the event has a unique ID and timestamp
+        const eventData = {
+            ...data,
+            id: data.id || crypto.randomUUID(),
+            timestamp: data.timestamp || Date.now()
+        };
+
         // Send to local clients
         for (const client of this.clients.values()) {
             if (client.userId === userId) {
-                this.sendEvent(client.response, { type: eventType, data });
+                this.sendEvent(client.response, { type: eventType, data: eventData });
                 localSentCount++;
             }
         }
@@ -270,7 +284,7 @@ class RedisSSEHandler {
         await this.publishEvent({
             userId,
             eventType,
-            data
+            data: eventData
         });
 
         if (localSentCount > 0) {
@@ -284,15 +298,22 @@ class RedisSSEHandler {
      * Broadcast an event to all connected clients
      */
     async broadcastEvent(eventType: string, data: any) {
+        // Ensure the event has a unique ID and timestamp
+        const eventData = {
+            ...data,
+            id: data.id || crypto.randomUUID(),
+            timestamp: data.timestamp || Date.now()
+        };
+
         // Send to all local clients
         for (const client of this.clients.values()) {
-            this.sendEvent(client.response, { type: eventType, data });
+            this.sendEvent(client.response, { type: eventType, data: eventData });
         }
 
         // Publish to Redis for other instances
         await this.publishEvent({
             eventType,
-            data
+            data: eventData
         });
 
         console.log(`[SSE] Broadcast '${eventType}' event to all clients (${this.clients.size} local)`);

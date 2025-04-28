@@ -3,14 +3,14 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { NotificationType } from '@/utils/notificationTemplates';
 import { getUsersForNotification } from '@/utils/notificationTargeting';
-import { sendToNotificationQueue } from '@/lib/queue/sqs';
+import { sendNotification } from '@/lib/notifications/redisNotificationService';
 import { prisma } from '@/lib/prisma';
 
 /**
  * Create in-app notifications in the database
  */
 async function createInAppNotifications(
-  type: NotificationType, 
+  type: NotificationType,
   data: Record<string, any>,
   userIds: string[]
 ) {
@@ -83,7 +83,7 @@ export async function POST(request: Request) {
 
     // Parse notification data
     const data = await request.json();
-    
+
     // Validate notification data
     if (!data.type || !Object.values(NotificationType).includes(data.type)) {
       return NextResponse.json({ error: 'Invalid notification type' }, { status: 400 });
@@ -104,29 +104,20 @@ export async function POST(request: Request) {
       });
     }
 
-    // Create in-app notifications immediately
-    let inAppCount = 0;
-    if (data.createInApp !== false) {
-      inAppCount = await createInAppNotifications(
-        data.type,
-        data.data || {},
-        targetUserIds
-      );
-    }
-
-    // Send to SQS for push notifications and other processing
-    const result = await sendToNotificationQueue({
+    // Send notification using Redis service
+    // This will create in-app notifications and send real-time notifications
+    const notificationId = await sendNotification({
       type: data.type,
       data: data.data || {},
       userIds: targetUserIds,
-      timestamp: new Date().toISOString()
+      priority: data.priority || 'normal',
+      idempotencyKey: data.idempotencyKey
     });
 
     return NextResponse.json({
       success: true,
-      messageId: result.MessageId,
-      userCount: targetUserIds.length,
-      inAppCount
+      notificationId,
+      userCount: targetUserIds.length
     });
   } catch (error) {
     console.error('Error sending notification:', error);

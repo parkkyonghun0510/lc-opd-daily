@@ -1,3 +1,5 @@
+"use client";
+
 import { ReactNode, useEffect, useState } from "react";
 import { useStore } from "@/auth/store";
 import { hasPermission, hasBranchAccess } from "@/auth/store/actions";
