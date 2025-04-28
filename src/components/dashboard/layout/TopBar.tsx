@@ -79,7 +79,13 @@ export function TopBar() {
         <Greeting />
       </div>
 
-      <div className="flex items-center space-x-4">
+      <div className="flex items-center space-x-4 relative">
+        {/* Branch Switcher */}
+        {!isLoading && (
+          <div className="hidden md:block">
+            <BranchSwitcher />
+          </div>
+        )}
         {/* Theme Toggle Button */}
         <Button
           variant="ghost"
@@ -151,11 +157,12 @@ export function TopBar() {
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>My Account</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                  <div className="flex items-center space-x-2 w-full">
+                {/* Show BranchSwitcher in mobile menu */}
+                <div className="md:hidden relative">
+                  <div className="px-3 py-3 min-w-[200px] max-w-[280px] w-full">
                     <BranchSwitcher />
                   </div>
-                </DropdownMenuItem>
+                </div>
                 <DropdownMenuItem
                   onClick={() => router.push("/dashboard/profile")}
                 >
