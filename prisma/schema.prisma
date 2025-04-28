@@ -81,7 +81,6 @@ model Report {
   planReportId  String?
   submittedAt   String
   date          DateTime        @db.Date
-  commentArray  Json?
   branch        Branch          @relation(fields: [branchId], references: [id])
   planReport    Report?         @relation("PlanActualRelation", fields: [planReportId], references: [id])
   actualReports Report[]        @relation("PlanActualRelation")
