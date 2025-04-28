@@ -1,6 +1,8 @@
 # Notification Queue System
 
-This document explains how the notification queue system works and how to set it up for production use.
+This document explains the architecture, setup, and usage of the asynchronous notification queue system in the LC-OPD-Daily project. The system leverages AWS SQS to decouple notification processing from API requests, improving responsiveness and scalability.
+
+It complements the [Notification Worker](./notification-worker.md), which processes queued notifications, and the [Error Handling Guide](./error-handling-guide.md).
 
 ## Overview
 
@@ -81,9 +83,12 @@ To send a notification, make a POST request to `/api/push/send` with the followi
 ```
 
 The API will:
-1. Queue the notification message in SQS
-2. Create in-app notifications immediately
+
+1. Queue the notification message in SQS asynchronously (non-blocking)
+2. Create in-app notifications immediately in the database
 3. Return a success response with the message ID
+
+The actual push notification delivery is handled separately by the [Notification Worker](./notification-worker.md).
 
 ## Troubleshooting
 
@@ -122,4 +127,12 @@ To scale the notification system:
 
 1. Run multiple worker processes on different machines
 2. Configure the SQS queue for higher throughput
+## Related Documentation
+
+- [Notification Worker](./notification-worker.md)
+- [Code Organization](./code-organization.md)
+- [Error Handling Guide](./error-handling-guide.md)
+- [Performance Optimizations](./performance-optimizations.md)
+- [Production Deployment](./production-deployment.md)
+
 3. Monitor queue depth and adjust number of workers accordingly 

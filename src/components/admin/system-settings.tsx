@@ -20,12 +20,34 @@ export function SystemSettings() {
     setSettings((prev) => ({ ...prev, [key]: value }));
   };
 
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
   const handleSave = async () => {
+    setIsSaving(true);
+    setSaveSuccess(false);
+    setSaveError(null);
     try {
-      // TODO: Implement API call to save system settings
-      console.log("Saving settings:", settings);
-    } catch (error) {
+      const res = await fetch("/api/system-settings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(settings),
+      });
+      if (!res.ok) {
+        throw new Error("Failed to save settings");
+      }
+      setSaveSuccess(true);
+      // If you use a toast/notification system, show success toast here
+      // toast.success("Settings saved successfully");
+    } catch (error: any) {
+      setSaveError(error.message || "Unknown error");
+      // toast.error("Failed to save settings");
       console.error("Error saving settings:", error);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -137,7 +159,15 @@ export function SystemSettings() {
       </div>
 
       <div className="flex justify-end">
-        <Button onClick={handleSave}>Save Changes</Button>
+        <Button onClick={handleSave} disabled={isSaving}>
+          {isSaving ? "Saving..." : "Save Changes"}
+        </Button>
+        {saveSuccess && (
+          <span className="text-green-600 ml-4">Settings saved!</span>
+        )}
+        {saveError && (
+          <span className="text-red-600 ml-4">{saveError}</span>
+        )}
       </div>
     </div>
   );

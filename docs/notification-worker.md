@@ -1,6 +1,8 @@
 # Notification Worker Setup
 
-This document explains how to set up and run the notification worker, which processes notifications from the AWS SQS queue.
+This document explains how to configure, run, and manage the background notification worker in the LC-OPD-Daily project. The worker continuously polls the AWS SQS queue, processes notification messages, stores in-app notifications, and sends push notifications.
+
+It complements the [Notification Queue](./notification-queue.md), which describes how notifications are enqueued, and the [Error Handling Guide](./error-handling-guide.md).
 
 ## Prerequisites
 
@@ -100,7 +102,17 @@ The notification worker:
 3. Sends push notifications to subscribed devices (if configured)
 4. Deletes processed messages from the queue
 
-The worker runs continuously and will automatically:
-- Retry failed messages
-- Reconnect on network errors
-- Restart if it crashes 
+The worker runs continuously and is designed for resilience:
+
+- It automatically retries failed messages
+- Reconnects on network errors
+- Restarts if it crashes (managed by PM2)
+- Can be scaled horizontally by running multiple worker instances
+
+## Related Documentation
+
+- [Notification Queue](./notification-queue.md)
+- [Code Organization](./code-organization.md)
+- [Error Handling Guide](./error-handling-guide.md)
+- [Performance Optimizations](./performance-optimizations.md)
+- [Production Deployment](./production-deployment.md)

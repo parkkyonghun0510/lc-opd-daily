@@ -24,8 +24,8 @@ dirs.forEach(dir => {
     
     // Write the modified content back
     fs.writeFileSync(filePath, content);
-    console.log(`Fixed imports in ${filePath}`);
+    //console.log(`Fixed imports in ${filePath}`);
   });
 });
 
-console.log('Path fixing completed'); 
+//console.log('Path fixing completed'); 

@@ -4,7 +4,7 @@ import { PrismaClient } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getUsersForNotification } from '@/utils/notificationTargeting';
 import { NotificationType, generateNotificationContent } from '@/utils/notificationTemplates';
-import { sendToNotificationQueue } from '@/lib/queue/sqs';
+import { sendNotification } from '@/lib/notifications/redisNotificationService';
 
 // Initialize web-push with VAPID keys
 const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '';
@@ -47,40 +47,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'No users to notify' }, { status: 400 });
     }
 
-    // Queue the notification for background processing
-    const queueResult = await sendToNotificationQueue({
+    // Send notification using Redis service
+    // This will create in-app notifications and send real-time notifications
+    const notificationId = await sendNotification({
       type,
       data,
       userIds: targetUserIds,
-      timestamp: new Date().toISOString(),
+      priority: data.priority || 'normal',
+      idempotencyKey: data.idempotencyKey
     });
-
-    // Create in-app notifications immediately
-    const notificationContent = generateNotificationContent(type as NotificationType, data);
-    
-    // Check if notification model exists in Prisma schema
-    const inAppNotifications = await Promise.all(
-      targetUserIds.map(userId => 
-        prisma.inAppNotification.create({
-          data: {
-            userId,
-            title: notificationContent.title,
-            body: notificationContent.body,
-            type: type,
-            data: data,
-            isRead: false,
-            actionUrl: notificationContent.url,
-          }
-        })
-      )
-    );
 
     return NextResponse.json({
       success: true,
-      message: 'Notification queued successfully',
-      messageId: queueResult.MessageId || 'unknown',
-      inAppNotificationsCount: inAppNotifications.length,
-      targetUsers: targetUserIds.length,
+      message: 'Notification sent successfully',
+      notificationId,
+      userCount: targetUserIds.length
     });
   } catch (error: any) {
     console.error('Error sending notification:', error);
@@ -89,4 +70,4 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
-} 
+}

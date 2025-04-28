@@ -11,6 +11,7 @@ const toNumber = (value: any): number => {
 
 // GET /api/dashboard/data - Get dashboard data
 export async function GET(request: NextRequest) {
+  //console.log("[Dashboard API] Received request at:", new Date().toISOString());
   try {
     // Authenticate user
     const token = await getToken({ req: request });
@@ -119,13 +120,23 @@ export async function GET(request: NextRequest) {
         ? 100
         : ((currentAmount - previousAmount) / previousAmount) * 100;
 
-    return NextResponse.json({
+    const responseData = {
       data: {
         totalUsers,
         totalReports,
         totalAmount,
         growthRate: Math.round(growthRate * 100) / 100, // Round to 2 decimal places
       },
+    };
+
+    //console.log("[Dashboard API] Sending response:", JSON.stringify(responseData, null, 2));
+
+    return NextResponse.json(responseData, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      }
     });
   } catch (error) {
     console.error("Error fetching dashboard data:", error);

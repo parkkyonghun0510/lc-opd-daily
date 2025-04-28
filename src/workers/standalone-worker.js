@@ -86,7 +86,7 @@ async function deleteMessage(receiptHandle) {
 
     await sqsClient.send(command);
     if (process.env.NODE_ENV !== 'production') {
-      console.log('Message deleted from queue:', receiptHandle);
+      //console.log('Message deleted from queue:', receiptHandle);
     }
   } catch (error) {
     console.error('Error deleting message from SQS:', error);
@@ -108,15 +108,15 @@ async function processNotificationMessage(message) {
     // Skip if no user IDs are provided
     if (!notification.userIds || notification.userIds.length === 0) {
       if (process.env.NODE_ENV !== 'production') {
-        console.log('No users to notify, skipping');
+        //console.log('No users to notify, skipping');
       }
       return true;
     }
 
     if (process.env.NODE_ENV === 'production') {
-      console.log(`Processing ${notification.type} for ${notification.userIds.length} users`);
+      //console.log(`Processing ${notification.type} for ${notification.userIds.length} users`);
     } else {
-      console.log(`Processing notification of type ${notification.type} for ${notification.userIds.length} users`);
+      //console.log(`Processing notification of type ${notification.type} for ${notification.userIds.length} users`);
     }
     
     // Get all push subscriptions for the target users
@@ -129,7 +129,7 @@ async function processNotificationMessage(message) {
     });
 
     if (process.env.NODE_ENV !== 'production') {
-      console.log(`Found ${subscriptions.length} push subscriptions`);
+      //console.log(`Found ${subscriptions.length} push subscriptions`);
     }
 
     // Generate notification content
@@ -187,9 +187,9 @@ async function processNotificationMessage(message) {
     }
 
     if (process.env.NODE_ENV === 'production') {
-      console.log(`Notification results: ${successCount} sent, ${failCount} failed`);
+      //console.log(`Notification results: ${successCount} sent, ${failCount} failed`);
     } else {
-      console.log(`Processed notification: ${successCount} successes, ${failCount} failures`);
+      //console.log(`Processed notification: ${successCount} successes, ${failCount} failures`);
     }
     
     return true;
@@ -236,7 +236,7 @@ async function sendNotificationWithRetry(
     // If subscription is invalid or expired, remove it
     if (error.statusCode === 410 || error.statusCode === 404) {
       if (process.env.NODE_ENV !== 'production') {
-        console.log(`Subscription expired or invalid, deleting: ${subscription.id}`);
+        //console.log(`Subscription expired or invalid, deleting: ${subscription.id}`);
       }
       await prisma.pushSubscription.delete({
         where: { id: subscription.id },
@@ -247,7 +247,7 @@ async function sendNotificationWithRetry(
     // Retry the notification if we haven't exceeded max retries
     if (retryCount < MAX_RETRIES) {
       if (process.env.NODE_ENV !== 'production') {
-        console.log(`Retrying notification (${retryCount + 1}/${MAX_RETRIES})`);
+        //console.log(`Retrying notification (${retryCount + 1}/${MAX_RETRIES})`);
       }
       await new Promise(resolve => setTimeout(resolve, RETRY_DELAY * (retryCount + 1))); // Exponential backoff
       return sendNotificationWithRetry(subscription, notificationContent, retryCount + 1);
@@ -265,15 +265,15 @@ async function shutdown() {
   if (isShuttingDown) return;
   isShuttingDown = true;
   
-  console.log('Shutting down notification worker...');
+  //console.log('Shutting down notification worker...');
   try {
     await prisma.$disconnect();
-    console.log('Database connection closed');
+    //console.log('Database connection closed');
   } catch (error) {
     console.error('Error disconnecting from database:', error);
   }
   
-  console.log('Worker shutdown complete');
+  //console.log('Worker shutdown complete');
   process.exit(0);
 }
 
@@ -281,7 +281,7 @@ async function shutdown() {
  * Main worker function that continuously polls the notification queue
  */
 export async function startNotificationWorker() {
-  console.log(`Starting notification worker in ${process.env.NODE_ENV || 'development'} mode`);
+  //console.log(`Starting notification worker in ${process.env.NODE_ENV || 'development'} mode`);
   
   // Set up signal handlers for graceful shutdown
   process.on('SIGTERM', shutdown);
@@ -299,7 +299,7 @@ export async function startNotificationWorker() {
       }
       
       if (process.env.NODE_ENV !== 'production') {
-        console.log(`Received ${messages.length} notification messages`);
+        //console.log(`Received ${messages.length} notification messages`);
       }
       
       // Process each message
@@ -318,7 +318,7 @@ export async function startNotificationWorker() {
         if (success && message.ReceiptHandle) {
           await deleteMessage(message.ReceiptHandle);
           if (process.env.NODE_ENV !== 'production') {
-            console.log(`Deleted processed message: ${message.MessageId}`);
+            //console.log(`Deleted processed message: ${message.MessageId}`);
           }
         }
       }

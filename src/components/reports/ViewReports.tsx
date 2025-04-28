@@ -8,6 +8,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   CalendarIcon,
   ChevronLeftIcon,
@@ -15,6 +16,7 @@ import {
   PlusIcon,
   PencilIcon,
   Eye,
+  MessageSquare,
 } from "lucide-react";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
@@ -78,15 +80,11 @@ import { ReportFilters } from "@/components/reports/ReportFilters";
 import { useRouter } from "next/navigation";
 import { Separator } from "@/components/ui/separator";
 import { ReportDetailModal, CommentConversation } from "@/components/reports/ReportDetailModal";
+import { CommentItem as CommentItemType } from "@/types/reports";
+import { useAccessibleBranches } from "@/hooks/useAccessibleBranches";
 
-// Define an extended type for reports with user information
-interface ReportWithUser extends Report {
-  user?: {
-    id: string;
-    name: string;
-    username?: string;
-  } | null;
-}
+// Import the ReportWithUser type from ReportDetailModal
+import type { ReportWithUser } from "@/components/reports/ReportDetailModal";
 
 export function ViewReports() {
   const { data: session } = useSession();
@@ -101,6 +99,9 @@ export function ViewReports() {
   const [status, setStatus] = useState<string | undefined>(undefined);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [viewingReport, setViewingReport] = useState<ReportWithUser | null>(null);
+
+  // Use the useAccessibleBranches hook for robust, DRY access
+  const { branches: accessibleBranches, loading: branchesLoading, error: branchesError } = useAccessibleBranches();
 
   // Use the useReports hook for all data management
   const {
@@ -132,8 +133,11 @@ export function ViewReports() {
     initialEndDate: undefined,
   });
 
+  // Prefer accessibleBranches, fallback to userBranches for backward compatibility
+  const branchesToUse = accessibleBranches && accessibleBranches.length > 0 ? accessibleBranches : (userBranches || []);
+
   // If user has no branches assigned, show error message
-  if (!userBranches || userBranches.length === 0) {
+  if (!branchesToUse || branchesToUse.length === 0) {
     return (
       <Card>
         <CardHeader>
@@ -142,11 +146,6 @@ export function ViewReports() {
             <p>
               You are not assigned to any branches. Please contact your
               administrator to get access.
-            </p>
-            <p>
-              If you are an administrator, please go to the{" "}
-              <Link href="/admin/branches">branches {userBranches.length}</Link> page to assign
-              branches to users.
             </p>
           </CardDescription>
         </CardHeader>
@@ -176,11 +175,11 @@ export function ViewReports() {
     // Only allow editing if user has access to the branch
     if (
       session?.user?.role !== "ADMIN" &&
-      session?.user?.branchId !== report.branch.id
+      !branchesToUse.some((b) => b.id === report.branch.id)
     ) {
       toast({
         title: "Access Denied",
-        description: "You can only edit reports for your assigned branch.",
+        description: "You can only edit reports for your accessible branches.",
         variant: "destructive",
       });
       return;
@@ -205,12 +204,13 @@ export function ViewReports() {
 
   const handleViewDetailsClick = (report: Report) => {
     // Create a ReportWithUser from the Report type to match what the modal expects
-    const reportWithUser: ReportWithUser = {
+    // Use type assertion to avoid type errors
+    const reportWithUser = {
       ...report,
       // Add any additional properties needed for ReportWithUser type
       user: null // The actual user data will be displayed via UserDisplayName component
-    };
-    
+    } as ReportWithUser;
+
     setViewingReport(reportWithUser);
     setIsViewModalOpen(true);
   };
@@ -263,12 +263,28 @@ export function ViewReports() {
         writeOffs: writeOffsNum,
         ninetyPlus: ninetyPlusNum,
       };
-      
+
       // Only add comments to payload if user entered some text
       if (editComments.trim()) {
-        updatePayload.comments = editComments;
+        // Format the comment as part of the conversation
+        const timestamp = format(new Date(), "yyyy-MM-dd HH:mm:ss");
+        const userName = session?.user?.name || "User";
+
+        // If there are existing comments, append to them in conversation format
+        if (editingReport.comments) {
+          if (editingReport.status === "rejected") {
+            // For rejected reports, format as a resubmission
+            updatePayload.comments = `${editingReport.comments}\n[RESUBMISSION ${timestamp}]: ${editComments.trim()}`;
+          } else {
+            // For other reports, format as a regular comment
+            updatePayload.comments = `${editingReport.comments}\n[COMMENT ${timestamp} by ${userName}]: ${editComments.trim()}`;
+          }
+        } else {
+          // If no existing comments, just use the new comment
+          updatePayload.comments = editComments.trim();
+        }
       }
-      
+
       const response = await fetch(`/api/reports`, {
         method: "PATCH",
         headers: {
@@ -277,7 +293,15 @@ export function ViewReports() {
         body: JSON.stringify(updatePayload),
       });
 
+
+
       if (!response.ok) {
+        console.log('Resubmitting report:', {
+          reportId: editingReport.id,
+          reportStatus: editingReport.status,
+          currentUser: session?.user?.id,
+          submittedBy: editingReport.submittedBy
+        });
         const error = await response.json();
         throw new Error(error.error || "Failed to update report");
       }
@@ -286,7 +310,7 @@ export function ViewReports() {
 
       toast({
         title: "Success",
-        description: editingReport.status === "rejected" 
+        description: editingReport.status === "rejected"
           ? "Report resubmitted successfully. Waiting for approval."
           : "Report updated successfully",
       });
@@ -410,7 +434,7 @@ export function ViewReports() {
             <span>No reports match your filter criteria</span>
           ) : null}
         </div>
-        
+
         <div className="flex gap-2 w-full sm:w-auto justify-between sm:justify-end">
           <Button
             onClick={() => handleCreateClick("plan")}
@@ -468,9 +492,9 @@ export function ViewReports() {
                       <TableCell>
                         <Badge
                           variant={
-                            report.status === "approved" ? "default" : 
-                            report.status === "rejected" ? "destructive" : 
-                            "secondary"
+                            report.status === "approved" ? "default" :
+                              report.status === "rejected" ? "destructive" :
+                                "secondary"
                           }
                           className="capitalize"
                         >
@@ -499,25 +523,25 @@ export function ViewReports() {
                             </Tooltip>
                           </TooltipProvider>
 
-                          {(report.status === "pending" || 
+                          {(report.status === "pending" ||
                             report.status === "rejected") && (
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleEditClick(report)}
-                                  >
-                                    <PencilIcon className="h-4 w-4" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Edit Report</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          )}
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => handleEditClick(report)}
+                                    >
+                                      <PencilIcon className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Edit Report</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -537,16 +561,16 @@ export function ViewReports() {
                     </div>
                     <Badge
                       variant={
-                        report.status === "approved" ? "default" : 
-                        report.status === "rejected" ? "destructive" : 
-                        "secondary"
+                        report.status === "approved" ? "default" :
+                          report.status === "rejected" ? "destructive" :
+                            "secondary"
                       }
                       className="capitalize"
                     >
                       {report.status.replace("_", " ")}
                     </Badge>
                   </div>
-                  
+
                   <div className="grid grid-cols-2 gap-3 mb-3">
                     <div>
                       <div className="text-xs text-gray-500">Write-offs</div>
@@ -567,7 +591,7 @@ export function ViewReports() {
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="flex justify-end space-x-2 pt-2 border-t border-gray-100 dark:border-gray-700">
                     <Button
                       variant="outline"
@@ -578,7 +602,7 @@ export function ViewReports() {
                       <Eye className="h-4 w-4 mr-1" />
                       View
                     </Button>
-                    
+
                     {(report.status === "pending" || report.status === "rejected") && (
                       <Button
                         variant="outline"
@@ -594,7 +618,7 @@ export function ViewReports() {
                 </div>
               ))}
             </div>
-            
+
             <div className="p-4 border-t border-gray-200 dark:border-gray-700">
               <PaginationControl
                 currentPage={pagination.page}
@@ -635,27 +659,97 @@ export function ViewReports() {
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="comments">Comments</Label>
+              <div className="flex items-center justify-between mb-2">
+                <Label htmlFor="comments" className="flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4" />
+                  Comment History
+                </Label>
+                <Badge variant="outline" className="text-xs">
+                  Conversation Thread
+                </Badge>
+              </div>
               {editingReport && editingReport.comments && (
-                <div className="mb-2 p-3 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md">
-                  <div className="mb-1 text-xs text-gray-500 dark:text-gray-400 font-medium">Previous Comments:</div>
-                  <CommentConversation comments={editingReport.comments} />
+                <div className="mb-2 p-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-sm">
+                  <CommentConversation
+                    comments={editingReport.comments}
+                    commentArray={editingReport.commentArray}
+                    reportId={editingReport.id}
+                    onReplyAdded={() => { }}
+                  />
                 </div>
               )}
-              <Textarea
-                id="comments"
-                value={editComments}
-                onChange={(e) => setEditComments(e.target.value)}
-                placeholder={editingReport && editingReport.status === "rejected" 
-                  ? "Add your response to the rejection feedback..." 
-                  : "Enter new comments..."}
-                className="min-h-[100px]"
-              />
-              {editingReport && editingReport.status === "rejected" && (
-                <p className="text-xs text-gray-500 mt-1">
-                  Your comments will be visible to managers reviewing this resubmission.
-                </p>
-              )}
+              <div className="mt-4">
+                <div className="flex items-center justify-between mb-2">
+                  <Label htmlFor="response" className="text-sm font-medium flex items-center gap-1">
+                    <MessageSquare className="h-3.5 w-3.5 mr-1" />
+                    {editingReport && editingReport.status === "rejected" ? (
+                      <>Add Your Response<span className="text-red-500">*</span></>
+                    ) : (
+                      "Add to Conversation"
+                    )}
+                  </Label>
+                  {editingReport && editingReport.status === "rejected" && (
+                    <Badge variant="destructive" className="text-xs">
+                      Resubmission Required
+                    </Badge>
+                  )}
+                </div>
+
+                <div className="flex items-start gap-3 mb-2">
+                  {/* User Avatar */}
+                  <Avatar className="h-8 w-8 ring-2 ring-transparent hover:ring-blue-200 dark:hover:ring-blue-800 transition-all duration-200">
+                    <AvatarImage
+                      src={`https://api.dicebear.com/7.x/initials/svg?seed=${session?.user?.name || 'User'}`}
+                      alt={session?.user?.name || 'User'}
+                    />
+                    <AvatarFallback className="bg-gradient-to-br from-blue-400 to-blue-600 text-white">
+                      {session?.user?.name ? session.user.name.charAt(0).toUpperCase() : 'U'}
+                    </AvatarFallback>
+                  </Avatar>
+
+                  <div className="flex-1">
+                    <Textarea
+                      id="response"
+                      value={editComments}
+                      onChange={(e) => setEditComments(e.target.value)}
+                      placeholder={editingReport && editingReport.status === "rejected"
+                        ? "Explain how you've addressed the rejection feedback..."
+                        : "Add your comment to the conversation..."}
+                      className="min-h-[100px] resize-none border-gray-300 focus:border-blue-500"
+                    />
+
+                    <div className="flex items-center justify-between mt-2">
+                      <p className="text-xs text-gray-500">
+                        {editingReport && editingReport.status === "rejected"
+                          ? "Your response will be added to the conversation thread."
+                          : "Your comment will be added to the conversation history."}
+                      </p>
+
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 px-2 text-gray-500 hover:text-blue-600"
+                        >
+                          <span className="sr-only">Add emoji</span>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-smile"><circle cx="12" cy="12" r="10" /><path d="M8 14s1.5 2 4 2 4-2 4-2" /><line x1="9" x2="9.01" y1="9" y2="9" /><line x1="15" x2="15.01" y1="9" y2="9" /></svg>
+                        </Button>
+
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 px-2 text-gray-500 hover:text-blue-600"
+                        >
+                          <span className="sr-only">Attach file</span>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-paperclip"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48" /></svg>
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
           <DialogFooter>
@@ -666,14 +760,26 @@ export function ViewReports() {
             >
               Cancel
             </Button>
-            <Button onClick={handleUpdateReport} disabled={isSubmitting}>
+            <Button
+              onClick={handleUpdateReport}
+              disabled={isSubmitting}
+              variant={editingReport && editingReport.status === "rejected" ? "default" : "default"}
+              className={editingReport && editingReport.status === "rejected"
+                ? "bg-green-600 hover:bg-green-700 text-white"
+                : ""}
+            >
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Updating...
+                  {editingReport && editingReport.status === "rejected" ? "Resubmitting..." : "Updating..."}
                 </>
               ) : (
-                editingReport && editingReport.status === "rejected" ? "Resubmit Report" : "Update Report"
+                <>
+                  {editingReport && editingReport.status === "rejected" && (
+                    <MessageSquare className="mr-2 h-4 w-4" />
+                  )}
+                  {editingReport && editingReport.status === "rejected" ? "Resubmit Report" : "Update Report"}
+                </>
               )}
             </Button>
           </DialogFooter>

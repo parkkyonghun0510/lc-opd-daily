@@ -15,7 +15,7 @@ async function createTestTelegramSubscription() {
       return;
     }
     
-    console.log(`Creating test Telegram subscription for user: ${user.email} (${user.id})`);
+    //console.log(`Creating test Telegram subscription for user: ${user.email} (${user.id})`);
     
     // Check if subscription already exists
     const existingSub = await prisma.telegramSubscription.findUnique({
@@ -23,7 +23,7 @@ async function createTestTelegramSubscription() {
     });
     
     if (existingSub) {
-      console.log(`User already has a Telegram subscription with chat ID: ${existingSub.chatId}`);
+      //console.log(`User already has a Telegram subscription with chat ID: ${existingSub.chatId}`);
       return;
     }
     
@@ -36,8 +36,8 @@ async function createTestTelegramSubscription() {
       }
     });
     
-    console.log(`Created test Telegram subscription with ID: ${subscription.id}`);
-    console.log(`Chat ID: ${subscription.chatId}`);
+    //console.log(`Created test Telegram subscription with ID: ${subscription.id}`);
+    //console.log(`Chat ID: ${subscription.chatId}`);
     
   } catch (error) {
     console.error('Error creating test subscription:', error);

@@ -28,14 +28,14 @@ export function RoleBasedNavigation({ children }: RoleBasedNavigationProps) {
         .join("")}` as keyof typeof permissions;
       
       // For debugging - log the permission request and result
-      console.log(`Permission check for ${permission}: ${Boolean(permissions[permissionKey])}`);
+      //console.log(`Permission check for ${permission}: ${Boolean(permissions[permissionKey])}`);
       
       return permissions[permissionKey] ?? false;
     };
 
     const hasRole = (role: UserRole) => {
       // For debugging - log the role check
-      console.log(`Role check for ${role}: ${userData?.role === role}`);
+      //console.log(`Role check for ${role}: ${userData?.role === role}`);
       return userData?.role === role;
     };
 
@@ -67,8 +67,8 @@ export function RoleBasedNavigation({ children }: RoleBasedNavigationProps) {
   }
 
   // Debugging - log user role and permission data
-  console.log("User role:", userData.role);
-  console.log("User permissions:", permissions);
+  //console.log("User role:", userData.role);
+  //console.log("User permissions:", permissions);
 
   return <>{children(permissionUtils)}</>;
 }

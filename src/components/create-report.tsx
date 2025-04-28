@@ -1,6 +1,7 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { sanitizeString, sanitizeFormData } from "@/utils/clientSanitize";
 import {
   Card,
   CardContent,
@@ -29,6 +30,8 @@ import { cn } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/use-toast";
 import { KHCurrencyInput } from "@/components/ui/currency-input";
+import { useSSE } from "@/hooks/useSSE";
+import { DashboardEventTypes } from "@/lib/events/dashboardEvents";
 
 type Branch = {
   id: string;
@@ -46,6 +49,29 @@ export default function CreateReport() {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const lastSubmittedReportId = useRef<string | null>(null);
+
+  // Set up SSE connection for real-time updates
+  const { lastEvent } = useSSE({
+    sseEndpoint: '/api/dashboard/sse',
+    eventHandlers: {
+      dashboardUpdate: (data: any) => {
+        // Handle report status update events (approval/rejection)
+        if (data && (data.type === 'reportApproved' || data.type === 'reportRejected') &&
+          data.reportId === lastSubmittedReportId.current) {
+          console.log('Report status updated:', data);
+
+          // Show a toast notification about the status change
+          const statusText = data.status === 'approved' ? 'approved' : 'rejected';
+          toast({
+            title: `Report ${statusText.charAt(0).toUpperCase() + statusText.slice(1)}`,
+            description: `Your report has been ${statusText}${data.comments ? `: ${data.comments}` : '.'}`,
+            duration: 8000,
+          });
+        }
+      }
+    }
+  });
 
   // Fetch branches on component mount
   useEffect(() => {
@@ -98,24 +124,35 @@ export default function CreateReport() {
     setIsSubmitting(true);
 
     try {
+      // Sanitize form data before submission - we'll handle comments separately
+      const sanitizedData = sanitizeFormData({
+        date: date.toISOString(),
+        branchId,
+        writeOffs: parseFloat(writeOffs),
+        ninetyPlus: parseFloat(ninetyPlus),
+        // Use initialComment field instead of comments for the ReportComment model
+        initialComment: sanitizeString(comments) || '',
+        // The API will get the submittedBy from the JWT token
+      });
+
       const response = await fetch("/api/reports", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          date: date.toISOString(),
-          branchId,
-          writeOffs: parseFloat(writeOffs),
-          ninetyPlus: parseFloat(ninetyPlus),
-          comments,
-          // The API will get the submittedBy from the JWT token
-        }),
+        body: JSON.stringify(sanitizedData),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || "Failed to submit report");
+      }
+
+      const responseData = await response.json();
+
+      // Store the report ID for SSE tracking
+      if (responseData.data && responseData.data.id) {
+        lastSubmittedReportId.current = responseData.data.id;
       }
 
       toast({
@@ -232,7 +269,7 @@ export default function CreateReport() {
               id="comments"
               placeholder="Add any additional comments or notes"
               value={comments}
-              onChange={(e) => setComments(e.target.value)}
+              onChange={(e) => setComments(sanitizeString(e.target.value) || '')}
             />
           </div>
 

@@ -71,8 +71,8 @@ export async function POST(req: NextRequest) {
 
     // Get target users based on branch hierarchy
     const targetUserIds = await getUsersForNotification(
-      notificationType as NotificationType,
-      notificationData
+      notificationType,
+      { branchId, includeSubBranches, includeParentBranches }
     );
 
     // Send notifications
@@ -112,4 +112,4 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
-} 
+}

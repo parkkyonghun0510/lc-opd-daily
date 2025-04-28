@@ -88,11 +88,11 @@ async function login() {
 }
 
 async function testSessionExpiry() {
-  console.log("📝 Testing Session Expiration");
-  console.log("------------------------------------");
+  //console.log("📝 Testing Session Expiration");
+  //console.log("------------------------------------");
 
   // 1. Login and get token
-  console.log("\n1. Logging in to get session token:");
+  //console.log("\n1. Logging in to get session token:");
   const token = await login();
 
   if (!token) {
@@ -102,18 +102,18 @@ async function testSessionExpiry() {
     return;
   }
 
-  console.log("✅ Successfully obtained session token");
+  //console.log("✅ Successfully obtained session token");
 
   // 2. Test with valid token immediately
-  console.log("\n2. Testing protected endpoint with fresh token:");
+  //console.log("\n2. Testing protected endpoint with fresh token:");
   const endpoint = "/api/users";
   let result = await testEndpoint(endpoint, token);
 
-  console.log(`Status: ${result.status} (${result.statusText})`);
+  //console.log(`Status: ${result.status} (${result.statusText})`);
   if (result.status >= 200 && result.status < 300) {
-    console.log("✅ Fresh token works as expected");
+    //console.log("✅ Fresh token works as expected");
   } else {
-    console.log("❌ ISSUE: Fresh token was rejected!");
+    //console.log("❌ ISSUE: Fresh token was rejected!");
     return;
   }
 
@@ -121,30 +121,30 @@ async function testSessionExpiry() {
   // Note: You should set the session maxAge to a small value (like 60 seconds)
   // in your NextAuth config for testing purposes
   const waitTime = 65; // seconds (slightly longer than expiry time)
-  console.log(`\n3. Waiting ${waitTime} seconds for token to expire...`);
+  //console.log(`\n3. Waiting ${waitTime} seconds for token to expire...`);
 
   for (let i = 0; i < waitTime; i++) {
     process.stdout.write(".");
     await setTimeout(1000);
   }
-  console.log("\nWait complete!");
+  //console.log("\nWait complete!");
 
   // 4. Test with expired token
-  console.log("\n4. Testing protected endpoint with expired token:");
+  //console.log("\n4. Testing protected endpoint with expired token:");
   result = await testEndpoint(endpoint, token);
 
-  console.log(`Status: ${result.status} (${result.statusText})`);
+  //console.log(`Status: ${result.status} (${result.statusText})`);
   if (result.status === 401) {
-    console.log("✅ Expired token correctly rejected");
+    //console.log("✅ Expired token correctly rejected");
   } else {
-    console.log("❌ SECURITY ISSUE: Expired token was accepted!");
+    //console.log("❌ SECURITY ISSUE: Expired token was accepted!");
   }
 
   // 5. Summary
-  console.log("\n5. Session Expiry Test Summary:");
-  console.log("------------------------------------");
-  console.log("Testing complete. Check the logs above for any issues.");
-  console.log(
+  //console.log("\n5. Session Expiry Test Summary:");
+  //console.log("------------------------------------");
+  //console.log("Testing complete. Check the logs above for any issues.");
+  //console.log(
     "Remember to reset your session maxAge to the appropriate value (e.g., 30 days) after testing."
   );
 }

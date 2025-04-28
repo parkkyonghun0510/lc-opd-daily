@@ -14,7 +14,7 @@ export async function recordCacheHit(key: string) {
   await saveMetrics(metrics);
 
   // Log for monitoring
-  console.log(`Cache HIT for key: ${key}`);
+  //console.log(`Cache HIT for key: ${key}`);
 }
 
 export async function recordCacheMiss(key: string) {
@@ -23,7 +23,7 @@ export async function recordCacheMiss(key: string) {
   await saveMetrics(metrics);
 
   // Log for monitoring
-  console.log(`Cache MISS for key: ${key}`);
+  //console.log(`Cache MISS for key: ${key}`);
 }
 
 async function getMetrics(): Promise<CacheMetrics> {

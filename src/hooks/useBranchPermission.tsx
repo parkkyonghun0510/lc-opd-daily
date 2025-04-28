@@ -31,15 +31,15 @@ export function useBranchPermission(
     }
 
     // Debug log
-    console.log("useBranchPermission checking for branchId:", branchId);
-    console.log("User session:", session?.user);
+    //console.log("useBranchPermission checking for branchId:", branchId);
+    //console.log("User session:", session?.user);
 
     // Reset if branchId changes
     setResult((prev) => ({ ...prev, loading: true, error: null }));
 
     // Special case for admins - they should always have access
     if (session?.user?.role === 'ADMIN') {
-      console.log("Admin user detected - granting full access regardless of branch");
+      //console.log("Admin user detected - granting full access regardless of branch");
       setResult({
         hasAccess: true,
         permission: BranchAccessPermission.ADMIN,
@@ -52,7 +52,7 @@ export function useBranchPermission(
     // Don't check if no branchId or no session
     if (!branchId || !session) {
       const errorMsg = !session ? "Not authenticated" : "No branch ID provided";
-      console.log("Branch permission error:", errorMsg);
+      //console.log("Branch permission error:", errorMsg);
       
       setResult({
         hasAccess: false,
@@ -65,7 +65,7 @@ export function useBranchPermission(
 
     const checkBranchAccess = async () => {
       try {
-        console.log("Fetching branch access for:", branchId);
+        //console.log("Fetching branch access for:", branchId);
         const response = await fetch(`/api/branch-access?branchId=${branchId}`);
 
         if (!response.ok) {
@@ -74,7 +74,7 @@ export function useBranchPermission(
         }
 
         const data = await response.json();
-        console.log("Branch access response:", data);
+        //console.log("Branch access response:", data);
 
         // Determine permission level based on user role
         let permission = BranchAccessPermission.NONE;
@@ -97,7 +97,7 @@ export function useBranchPermission(
           }
         }
 
-        console.log("Final branch permission:", permission);
+        //console.log("Final branch permission:", permission);
         setResult({
           hasAccess: data.hasAccess,
           permission,
@@ -121,7 +121,7 @@ export function useBranchPermission(
     // For users with assigned branch matching the current branch, 
     // grant access without API call
     if (session.user?.branchId === branchId) {
-      console.log("User's assigned branch matches requested branch - granting access");
+      //console.log("User's assigned branch matches requested branch - granting access");
       
       let permission = BranchAccessPermission.NONE;
       switch (session.user?.role) {

@@ -14,7 +14,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const isCompactMode = useCompactMode();
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="flex min-h-screen h-full bg-gray-50 dark:bg-gray-900">
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         <TopBar />
@@ -26,7 +26,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         >
           <div
             className={cn(
-              "mx-auto",
+              "mx-auto pb-8", /* Added padding at the bottom to ensure content doesn't get cut off */
               isCompactMode ? "max-w-5xl space-y-3" : "max-w-7xl space-y-6"
             )}
           >

@@ -27,19 +27,19 @@ export interface Report {
 }
 
 /**
- * Fetch all pending reports 
+ * Fetch all pending reports
  * @param type Optional filter for report type ('plan' or 'actual')
  */
 export async function fetchPendingReports(type?: string): Promise<Report[]> {
   try {
     const url = type ? `/api/reports/pending?type=${type}` : '/api/reports/pending';
     const response = await fetch(url);
-    
+
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.error || 'Failed to fetch pending reports');
     }
-    
+
     const data = await response.json();
     return data.reports || [];
   } catch (error) {
@@ -56,7 +56,7 @@ export async function fetchPendingReports(type?: string): Promise<Report[]> {
  * @param notifyUsers Whether to send notifications to users
  */
 export async function approveReport(
-  reportId: string, 
+  reportId: string,
   status: 'approved' | 'rejected',
   comments?: string,
   notifyUsers: boolean = true
@@ -73,25 +73,25 @@ export async function approveReport(
         notifyUsers,
       }),
     });
-    
+
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.error || `Failed to ${status} report`);
     }
-    
+
     const result = await response.json();
-    
+
     // Show success confirmation to the user
     if (typeof window !== 'undefined') {
       const actionName = status === 'approved' ? 'approved' : 'rejected';
       const message = document.createElement('div');
       message.textContent = `Report ${actionName} successfully.`;
-      
+
       if (notifyUsers) {
         message.textContent += ` Notifications sent.`;
       }
     }
-    
+
     return result;
   } catch (error) {
     console.error(`Error ${status === 'approved' ? 'approving' : 'rejecting'} report:`, error);
@@ -106,12 +106,12 @@ export async function approveReport(
 export async function fetchReportById(id: string): Promise<Report> {
   try {
     const response = await fetch(`/api/reports/${id}`);
-    
+
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.error || `Failed to fetch report with ID ${id}`);
     }
-    
+
     return await response.json();
   } catch (error) {
     console.error(`Error fetching report ${id}:`, error);
@@ -139,12 +139,12 @@ export async function createReport(
         sendNotifications
       }),
     });
-    
+
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.error || 'Failed to create report');
     }
-    
+
     return await response.json();
   } catch (error) {
     console.error('Error creating report:', error);
@@ -160,21 +160,107 @@ export async function createReport(
 export async function updateReport(id: string, reportData: Partial<Report>): Promise<Report> {
   try {
     const response = await fetch(`/api/reports/${id}`, {
-      method: 'PATCH', 
+      method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(reportData),
     });
-    
+
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.error || `Failed to update report with ID ${id}`);
     }
-    
+
     return await response.json();
   } catch (error) {
     console.error(`Error updating report ${id}:`, error);
     throw error;
   }
-} 
+}
+
+/**
+ * Fetch approval history
+ * @param options Options for filtering and pagination
+ */
+export async function fetchApprovalHistory(options: {
+  page?: number;
+  limit?: number;
+  branchId?: string;
+  reportType?: string;
+  status?: string;
+  dateRange?: { from?: Date; to?: Date };
+  searchTerm?: string;
+} = {}): Promise<{
+  approvalHistory: Array<{
+    id: string;
+    reportId: string;
+    branchId: string;
+    branchName: string;
+    reportDate: string;
+    reportType: string;
+    status: string;
+    comments: string;
+    approvedBy: string;
+    approverName: string;
+    timestamp: string;
+  }>;
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}> {
+  try {
+    // Use server action directly
+    const result = await fetch('/api/reports/approval-history', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(options),
+    });
+
+    if (!result.ok) {
+      const error = await result.json();
+      throw new Error(error.error || 'Failed to fetch approval history');
+    }
+
+    return await result.json();
+  } catch (error) {
+    console.error('Error fetching approval history:', error);
+    throw error;
+  }
+}
+
+/**
+ * Fetch pending and rejected reports
+ * @param type Optional filter for report type ('plan' or 'actual')
+ * @param includeRejected Whether to include rejected reports
+ */
+export async function fetchPendingAndRejectedReports(
+  type?: string,
+  includeRejected: boolean = true
+): Promise<Report[]> {
+  try {
+    // Build query parameters
+    const params = new URLSearchParams();
+    if (type) params.append('type', type);
+    params.append('includeRejected', includeRejected.toString());
+
+    const url = `/api/reports/pending-and-rejected?${params.toString()}`;
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to fetch pending and rejected reports');
+    }
+
+    const data = await response.json();
+    return data.reports || [];
+  } catch (error) {
+    console.error('Error fetching pending and rejected reports:', error);
+    throw error;
+  }
+}

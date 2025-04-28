@@ -23,8 +23,8 @@ ENV NODE_ENV production
 # Generate Prisma client
 RUN npx prisma generate
 
-# Build the application
-RUN npm run build
+# Build the application with force option to bypass dependency errors
+RUN npm run build:production:force
 
 # Production image, copy all the files and run next
 FROM base AS runner
@@ -74,4 +74,4 @@ ENV PORT 3000
 ENV HOSTNAME "0.0.0.0"
 
 # Use PM2 to start both the app and worker
-CMD ["pm2-runtime", "ecosystem.production.config.cjs"] 
+CMD ["pm2-runtime", "ecosystem.production.config.cjs"]

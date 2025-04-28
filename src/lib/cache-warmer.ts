@@ -9,7 +9,7 @@ const toNumber = (value: any): number => {
 
 async function warmStatsCache() {
   try {
-    console.log("🔄 Warming stats cache...");
+    //console.log("🔄 Warming stats cache...");
 
     const prisma = await getPrisma();
     const stats = {
@@ -23,7 +23,7 @@ async function warmStatsCache() {
       ex: CACHE_TTL.STATS,
     });
 
-    console.log("✅ Stats cache warmed successfully");
+    //console.log("✅ Stats cache warmed successfully");
   } catch (error) {
     console.error("❌ Error warming stats cache:", error);
   }
@@ -31,7 +31,7 @@ async function warmStatsCache() {
 
 async function warmChartsCache() {
   try {
-    console.log("🔄 Warming charts cache...");
+    //console.log("🔄 Warming charts cache...");
 
     const prisma = await getPrisma();
     const chartData = {
@@ -43,7 +43,7 @@ async function warmChartsCache() {
       ex: CACHE_TTL.CHARTS,
     });
 
-    console.log("✅ Charts cache warmed successfully");
+    //console.log("✅ Charts cache warmed successfully");
   } catch (error) {
     console.error("❌ Error warming charts cache:", error);
   }
@@ -198,10 +198,10 @@ async function getUserGrowthData() {
 }
 
 export async function warmCache() {
-  console.log("🚀 Starting cache warming...");
+  //console.log("🚀 Starting cache warming...");
   const prisma = await getPrisma();
   await Promise.all([warmStatsCache(), warmChartsCache()]);
-  console.log("✨ Cache warming completed");
+  //console.log("✨ Cache warming completed");
 }
 
 export { warmChartsCache };

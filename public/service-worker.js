@@ -68,16 +68,16 @@ self.addEventListener('push', (event) => {
 
   try {
     const payload = event.data.json();
-    
+
     // Skip showing validation notifications entirely
     if (payload.tag === 'subscription-validation' && payload.silent === true) {
-      console.log('Skipping validation notification display');
+      //console.log('Skipping validation notification display');
       return;
     }
-    
+
     // Generate notification ID if not provided
     const notificationId = payload.id || `notification-${Date.now()}`;
-    
+
     // Track that we received the notification
     if (payload.id) {
       event.waitUntil(
@@ -87,7 +87,7 @@ self.addEventListener('push', (event) => {
         })
       );
     }
-    
+
     // Show notification
     const title = payload.title || 'Notification';
     const options = {
@@ -104,7 +104,7 @@ self.addEventListener('push', (event) => {
       requireInteraction: payload.requireInteraction || false,
       silent: payload.silent || false
     };
-    
+
     event.waitUntil(
       self.registration.showNotification(title, options)
     );
@@ -116,11 +116,27 @@ self.addEventListener('push', (event) => {
 // Notification click event
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  
+
   const notificationData = event.notification.data || {};
   const notificationId = notificationData.notificationId;
-  const url = notificationData.url || '/';
-  
+  let url = notificationData.url || '/';
+
+  // Handle report URLs - redirect to dashboard with report ID parameter
+  if (url.startsWith('/reports/') && url.split('/').length >= 3) {
+    const reportId = url.split('/')[2].split('#')[0]; // Extract report ID and remove any hash
+    if (reportId) {
+      // Redirect to dashboard with report ID parameter
+      url = `/dashboard?viewReport=${reportId}`;
+
+      // Handle specific actions
+      if (url.includes('#reply')) {
+        url += '&action=reply';
+      } else if (url.includes('#edit')) {
+        url += '&action=edit';
+      }
+    }
+  }
+
   // Track notification click if we have an ID
   if (notificationId) {
     event.waitUntil(
@@ -130,7 +146,7 @@ self.addEventListener('notificationclick', (event) => {
       })
     );
   }
-  
+
   // Open the application and navigate to the URL
   event.waitUntil(
     clients.matchAll({ type: 'window' }).then((clientsList) => {
@@ -142,7 +158,7 @@ self.addEventListener('notificationclick', (event) => {
           return;
         }
       }
-      
+
       // If no window is open, open a new one
       if (clients.openWindow) {
         return clients.openWindow(url);
@@ -155,7 +171,7 @@ self.addEventListener('notificationclick', (event) => {
 self.addEventListener('notificationclose', (event) => {
   const notificationData = event.notification.data || {};
   const notificationId = notificationData.notificationId;
-  
+
   // Track notification close if we have an ID
   if (notificationId) {
     event.waitUntil(
@@ -170,14 +186,14 @@ self.addEventListener('fetch', (event) => {
   if (event.request.url.includes('/api/notifications/track')) {
     return;
   }
-  
+
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       // Return cached response if available
       if (cachedResponse) {
         return cachedResponse;
       }
-      
+
       // Otherwise fetch from network
       return fetch(event.request)
         .then((response) => {
@@ -209,7 +225,7 @@ self.addEventListener('fetch', (event) => {
 self.addEventListener('periodicsync', (event) => {
   if (event.tag === 'notifications-sync') {
     event.waitUntil(
-      fetch('/api/notifications/sync', { 
+      fetch('/api/notifications/sync', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -220,4 +236,4 @@ self.addEventListener('periodicsync', (event) => {
       })
     );
   }
-}); 
+});

@@ -3,9 +3,9 @@ import { SQSClient, GetQueueAttributesCommand } from '@aws-sdk/client-sqs';
 import 'dotenv/config';
 
 async function testSQSConnection() {
-  console.log('Testing SQS connection...');
-  console.log('AWS Region:', process.env.AWS_REGION);
-  console.log('Queue URL:', process.env.AWS_SQS_NOTIFICATION_QUEUE_URL);
+  //console.log('Testing SQS connection...');
+  //console.log('AWS Region:', process.env.AWS_REGION);
+  //console.log('Queue URL:', process.env.AWS_SQS_NOTIFICATION_QUEUE_URL);
   
   try {
     // Initialize SQS client
@@ -25,8 +25,8 @@ async function testSQSConnection() {
     
     const response = await sqsClient.send(command);
     
-    console.log('SQS Connection successful!');
-    console.log('Queue details:', response.Attributes);
+    //console.log('SQS Connection successful!');
+    //console.log('Queue details:', response.Attributes);
     return true;
   } catch (error) {
     console.error('Error connecting to SQS:', error);
