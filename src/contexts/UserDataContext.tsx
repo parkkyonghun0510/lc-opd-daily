@@ -12,6 +12,7 @@ import {
   updateUserProfile,
   updateUserPreferences,
 } from "@/app/_actions/user-actions";
+// Removed SSE hook import to reduce connection count
 
 // Default preferences - needed for mock data in development
 const defaultPreferences: UserPreferences = {
@@ -47,7 +48,7 @@ const UserDataContext = createContext<UserDataContextType | undefined>(
 // Add this helper function to fix legacy avatar URLs that point to the production domain in development
 export function fixAvatarUrl(url: string | null | undefined): string | undefined {
   if (!url) return undefined;
-  
+
   // If we're in development and S3 URLs might not work correctly
   if (process.env.NODE_ENV === 'development') {
     // If it's an S3 URL or a production URL
@@ -58,7 +59,7 @@ export function fixAvatarUrl(url: string | null | undefined): string | undefined
       return `/api/placeholder/avatar?seed=${filename}`;
     }
   }
-  
+
   return url;
 }
 
@@ -72,6 +73,9 @@ export function UserDataProvider({ children }: { children: React.ReactNode }) {
   const [persistentError, setPersistentError] = useState(false);
   const MAX_RETRIES = 3;
 
+  // Removed SSE hook usage to reduce connection count
+  // We'll use polling instead of SSE for user data updates
+
   // Initial data fetch
   useEffect(() => {
     if (status === "authenticated") {
@@ -83,7 +87,7 @@ export function UserDataProvider({ children }: { children: React.ReactNode }) {
             setIsLoading(false);
             setRetryCount(prev => prev + 1);
             setServerError("Server connection error. Please try refreshing the page.");
-            
+
             if (retryCount >= MAX_RETRIES - 1) {
               console.warn("Max retry attempts reached when fetching user data");
               setPersistentError(true);
@@ -97,20 +101,15 @@ export function UserDataProvider({ children }: { children: React.ReactNode }) {
     }
   }, [status, router, userData, isLoading, retryCount]);
 
-  // Clear auth data if we have persistent errors
-  const handleClearAuth = useCallback(() => {
-    clearAuthData();
-    window.location.href = "/login?cleared=true";
-  }, []);
-
+  // Define refreshUserData function before using it in useEffect
   const refreshUserData = useCallback(async () => {
     try {
       setIsLoading(true);
-      
+
       // Add a timeout to the fetch operation to prevent hanging indefinitely
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000);
-      
+
       let result;
       try {
         result = await fetchUserData();
@@ -168,7 +167,7 @@ export function UserDataProvider({ children }: { children: React.ReactNode }) {
           await signOut({ redirect: true, callbackUrl: "/login?error=No+branch+assigned" });
           return;
         }
-        
+
         setUserData(result.data as UserData);
         setServerError(null);
         // Reset retry count on successful fetch
@@ -183,6 +182,28 @@ export function UserDataProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(false);
     }
   }, []);
+
+  // Set up polling for user data updates instead of SSE
+  useEffect(() => {
+    if (!userData || !userData.id) return;
+
+    // Poll for user data updates every 2 minutes
+    const pollingInterval = setInterval(() => {
+      refreshUserData().catch(err =>
+        console.error("Error refreshing user data during polling:", err)
+      );
+    }, 2 * 60 * 1000); // 2 minutes
+
+    return () => clearInterval(pollingInterval);
+  }, [userData?.id, refreshUserData]);
+
+  // Clear auth data if we have persistent errors
+  const handleClearAuth = useCallback(() => {
+    clearAuthData();
+    window.location.href = "/login?cleared=true";
+  }, []);
+
+  // refreshUserData is already defined above
 
   const updateUserData = useCallback(async (newData: Partial<UserData>) => {
     try {
@@ -279,6 +300,9 @@ export function UserDataProvider({ children }: { children: React.ReactNode }) {
     updateUserData,
     updatePreferences,
     handleClearAuth,
+    // Include SSE status if needed by consumers, though typically not directly exposed
+    // isSseConnected,
+    // sseError,
   }), [userData, isLoading, serverError, persistentError, refreshUserData, updateUserData, updatePreferences, handleClearAuth]);
 
   return (

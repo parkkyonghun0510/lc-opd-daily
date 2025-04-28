@@ -9,10 +9,10 @@ const envPath = path.resolve(__dirname, '.env');
 let envConfig = {};
 
 if (fs.existsSync(envLocalPath)) {
-  console.log(`Loading environment from ${envLocalPath}`);
+  //console.log(`Loading environment from ${envLocalPath}`);
   envConfig = dotenv.parse(fs.readFileSync(envLocalPath));
 } else if (fs.existsSync(envPath)) {
-  console.log(`Loading environment from ${envPath}`);
+  //console.log(`Loading environment from ${envPath}`);
   envConfig = dotenv.parse(fs.readFileSync(envPath));
 } else {
   console.warn('No .env.local or .env file found!');

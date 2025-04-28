@@ -3,7 +3,7 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function linkPlanActualReports() {
-  console.log('Starting to link plan and actual reports...');
+  //console.log('Starting to link plan and actual reports...');
   
   try {
     // Get all actual reports that don't have a plan report linked
@@ -14,7 +14,7 @@ async function linkPlanActualReports() {
       }
     });
     
-    console.log(`Found ${actualReports.length} actual reports without linked plan reports`);
+    //console.log(`Found ${actualReports.length} actual reports without linked plan reports`);
     
     let successCount = 0;
     let failureCount = 0;
@@ -37,7 +37,7 @@ async function linkPlanActualReports() {
           data: { planReportId: planReport.id }
         });
         
-        console.log(`Linked actual report ${actualReport.id} to plan report ${planReport.id}`);
+        //console.log(`Linked actual report ${actualReport.id} to plan report ${planReport.id}`);
         successCount++;
       } else {
         console.warn(`No plan report found for date=${actualReport.date}, branchId=${actualReport.branchId}`);
@@ -45,7 +45,7 @@ async function linkPlanActualReports() {
       }
     }
     
-    console.log(`Completed linking reports. Success: ${successCount}, Failure: ${failureCount}`);
+    //console.log(`Completed linking reports. Success: ${successCount}, Failure: ${failureCount}`);
   } catch (error) {
     console.error('Error linking reports:', error);
   } finally {
@@ -54,5 +54,5 @@ async function linkPlanActualReports() {
 }
 
 linkPlanActualReports()
-  .then(() => console.log('Migration completed'))
+  .then(() => //console.log('Migration completed'))
   .catch(e => console.error('Migration failed:', e)); 

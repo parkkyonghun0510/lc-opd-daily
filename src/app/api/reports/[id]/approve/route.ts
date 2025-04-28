@@ -8,6 +8,11 @@ import { sendToNotificationQueue } from "@/lib/queue/sqs";
 import { getUsersForNotification } from "@/utils/notificationTargeting";
 import { hasBranchAccess } from "@/lib/auth/branch-access";
 import { createDirectNotifications } from "@/utils/createDirectNotification";
+import { broadcastDashboardUpdate } from "@/lib/events/dashboard-broadcaster";
+import { DashboardEventTypes } from "@/lib/events/dashboard-events";
+import { CommentItem } from "@/types/reports";
+import { v4 as uuidv4 } from "uuid";
+import { sanitizeString } from "@/utils/sanitize";
 
 // POST /api/reports/[id]/approve - Approve or reject a report
 export async function POST(
@@ -36,7 +41,7 @@ export async function POST(
     const url = new URL(request.url);
     const pathParts = url.pathname.split('/');
     const reportId = pathParts[pathParts.length - 2]; // Get the ID from the URL path
-    
+
     const { status, comments, notifyUsers = true } = await request.json();
 
     if (!reportId) {
@@ -79,8 +84,8 @@ export async function POST(
     // Only allow pending reports to be approved/rejected
     if (report.status !== "pending" && report.status !== "pending_approval") {
       return NextResponse.json(
-        { 
-          error: `Report cannot be ${status}. Current status is: ${report.status}` 
+        {
+          error: `Report cannot be ${status}. Current status is: ${report.status}`
         },
         { status: 400 }
       );
@@ -95,30 +100,44 @@ export async function POST(
       );
     }
 
+    // Get approver's name for notifications
+    const approver = await prisma.user.findUnique({
+      where: { id: token.sub as string },
+      select: { name: true, id: true }
+    });
+
+    const approverName = approver?.name || 'A manager';
+
+    // Create timestamp for the comment
+    const timestamp = new Date().toISOString();
+    const formattedTimestamp = new Date().toLocaleString();
+
+    // Format the comment for legacy support in conversation style
+    const commentWithMeta = status === "approved"
+      ? `[COMMENT ${formattedTimestamp} by ${approverName}]: ${comments || "Report approved"}`
+      : `[REJECTION ${formattedTimestamp}]: ${comments || "Report rejected"}`;
+
+    // Add the comment to existing comments or create new comments (legacy format)
+    const updatedComments = report.comments
+      ? `${report.comments}\n\n${commentWithMeta}`
+      : commentWithMeta;
+
     // Update the report status
     const updatedReport = await prisma.report.update({
       where: { id: reportId },
       data: {
         status,
         // Store approval/rejection comments if provided
-        comments: comments || report.comments,
+        comments: sanitizeString(updatedComments), // Sanitize legacy comments
       },
     });
 
-    // Get approver's name for notifications
-    const approver = await prisma.user.findUnique({
-      where: { id: token.sub as string },
-      select: { name: true, id: true }
-    });
-    
-    const approverName = approver?.name || 'A manager';
-
     // Create an audit log entry for the approval/rejection
     try {
-      const actionType = status === "approved" 
-        ? AuditAction.REPORT_APPROVED 
+      const actionType = status === "approved"
+        ? AuditAction.REPORT_APPROVED
         : AuditAction.REPORT_REJECTED;
-      
+
       await createServerAuditLog({
         userId: token.sub as string,
         action: actionType,
@@ -145,25 +164,25 @@ export async function POST(
     // Send notifications if enabled
     if (notifyUsers) {
       try {
-        console.log(`Preparing to send notifications for report ${report.id}, status: ${status}`);
-        
-        const notificationType = status === "approved" 
-          ? NotificationType.REPORT_APPROVED 
+        //console.log(`Preparing to send notifications for report ${report.id}, status: ${status}`);
+
+        const notificationType = status === "approved"
+          ? NotificationType.REPORT_APPROVED
           : NotificationType.REPORT_REJECTED;
-        
-        console.log(`Notification type: ${notificationType}`);
-        
+
+        // Notify relevant users
         const targetUsers = await getUsersForNotification(notificationType, {
-          reportId: report.id,
-          branchId: report.branchId,
+          reportId: updatedReport.id,
+          submittedBy: updatedReport.submittedBy,
+          branchId: updatedReport.branchId,
           approverName,
-          comments: comments || ""
+          comments,
         });
-        
-        console.log(`Found ${targetUsers.length} target users for notification`);
+
+        //console.log(`Found ${targetUsers.length} target users for notification`);
         if (targetUsers.length > 0) {
-          console.log(`Target users: ${targetUsers.join(', ')}`);
-          
+          //console.log(`Target users: ${targetUsers.join(', ')}`);
+
           const queueData = {
             type: notificationType,
             data: {
@@ -175,31 +194,31 @@ export async function POST(
             },
             userIds: targetUsers
           };
-          
-          console.log(`Sending to notification queue:`, JSON.stringify(queueData, null, 2));
-          
+
+          //console.log(`Sending to notification queue:`, JSON.stringify(queueData, null, 2));
+
           let sqsSent = false;
           try {
             const result = await sendToNotificationQueue(queueData);
-            console.log(`Notification sent to queue successfully:`, result);
+            //console.log(`Notification sent to queue successfully:`, result);
             sqsSent = true;
           } catch (sqsError) {
             console.error("Error sending to SQS queue:", sqsError);
             // Continue to fallback method
           }
-          
+
           // Fallback: Create notifications directly in database if SQS fails
           if (!sqsSent) {
-            console.log("Using fallback: Creating notifications directly in database");
-            
+            //console.log("Using fallback: Creating notifications directly in database");
+
             try {
               // Generate title and body based on notification type
               let title = status === "approved" ? "Report Approved" : "Report Rejected";
-              let body = status === "approved" 
+              let body = status === "approved"
                 ? `Your report has been approved by ${approverName}.`
                 : `Your report has been rejected${comments ? ` with reason: ${comments}` : ""}.`;
               let actionUrl = `/reports/${report.id}`;
-              
+
               // Use the utility function to create direct notifications
               const result = await createDirectNotifications(
                 notificationType,
@@ -216,18 +235,46 @@ export async function POST(
                   method: "fallback-api"
                 }
               );
-              
-              console.log(`Successfully created ${result.count} direct notifications as fallback`);
+
+              //console.log(`Successfully created ${result.count} direct notifications as fallback`);
             } catch (dbError) {
               console.error("Error creating direct notifications:", dbError);
             }
           }
         } else {
-          console.log(`No target users found, skipping notification`);
+          //console.log(`No target users found, skipping notification`);
         }
       } catch (notificationError) {
         console.error("Error sending notifications (non-critical):", notificationError);
       }
+    }
+
+    // Broadcast the status change via SSE for real-time updates
+    try {
+      const eventType = status === "approved"
+        ? DashboardEventTypes.REPORT_STATUS_UPDATED
+        : DashboardEventTypes.REPORT_STATUS_UPDATED;
+
+      broadcastDashboardUpdate(
+        eventType,
+        {
+          reportId: report.id,
+          branchId: report.branchId,
+          branchName: report.branch.name,
+          status: status,
+          previousStatus: report.status,
+          writeOffs: Number(report.writeOffs),
+          ninetyPlus: Number(report.ninetyPlus),
+          date: new Date(report.date).toISOString().split('T')[0],
+          reportType: report.reportType,
+          approvedBy: token.sub,
+          approverName: approverName,
+          comments: comments || "",
+          timestamp: new Date().toISOString()
+        }
+      );
+    } catch (sseError) {
+      console.error("Error broadcasting SSE event (non-critical):", sseError);
     }
 
     return NextResponse.json({
@@ -242,4 +289,4 @@ export async function POST(
       { status: 500 }
     );
   }
-} 
+}

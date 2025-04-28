@@ -4,11 +4,11 @@ import webpush from 'web-push';
 
 export async function POST() {
   try {
-    console.log('Starting cleanup of push subscriptions...');
-    
+    //console.log('Starting cleanup of push subscriptions...');
+
     // Get all subscriptions
     const subscriptions = await prisma.pushSubscription.findMany();
-    console.log(`Found ${subscriptions.length} subscriptions to check`);
+    //console.log(`Found ${subscriptions.length} subscriptions to check`);
 
     const validSubscriptions = [];
     const invalidSubscriptions = [];
@@ -53,7 +53,7 @@ export async function POST() {
           },
         },
       });
-      console.log(`Deleted ${invalidSubscriptions.length} invalid subscriptions`);
+      //console.log(`Deleted ${invalidSubscriptions.length} invalid subscriptions`);
     }
 
     return NextResponse.json({

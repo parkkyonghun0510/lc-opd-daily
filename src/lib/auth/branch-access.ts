@@ -76,77 +76,75 @@ function isSubBranch(
   return false;
 }
 
-// Get all branches a user can access
+/**
+ * Recursively collect all descendant branches for a given set of branch IDs.
+ * @param rootIds - The starting branch IDs
+ * @param allBranches - All branches in the system
+ * @returns All descendant branches (including the roots)
+ */
+function collectDescendantBranches(rootIds: string[], allBranches: Branch[]): Branch[] {
+  const branchMap = new Map<string, Branch>();
+  allBranches.forEach((b) => branchMap.set(b.id, b));
+  const result = new Map<string, Branch>();
+  const stack = [...rootIds];
+  while (stack.length) {
+    const currentId = stack.pop();
+    if (!currentId || result.has(currentId)) continue;
+    const branch = branchMap.get(currentId);
+    if (branch) {
+      result.set(branch.id, branch);
+      // Find children
+      allBranches.forEach((b) => {
+        if (b.parentId === branch.id) stack.push(b.id);
+      });
+    }
+  }
+  return Array.from(result.values());
+}
+
+/**
+ * Get all branches a user can access, including all sub-branches for branch managers.
+ * @param userId - The user ID
+ * @returns Branch[] user can access
+ */
 export async function getAccessibleBranches(userId: string): Promise<Branch[]> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     include: {
       branch: true,
-      branchAssignments: {
-        include: {
-          branch: true,
-        },
-      },
-      userRoles: {
-        include: {
-          role: true,
-          branch: true,
-        },
-      },
+      branchAssignments: { include: { branch: true } },
+      userRoles: { include: { role: true, branch: true } },
     },
   });
+  if (!user) return [];
 
-  if (!user) {
-    return [];
-  }
-
-  // If user is admin, they have access to all branches
+  // Admin: all branches
   if (user.role === "ADMIN") {
-    const allBranches = await prisma.branch.findMany({
-      where: { isActive: true },
-    });
-    return allBranches;
+    return await prisma.branch.findMany({ where: { isActive: true } });
   }
 
-  // For branch managers, get their assigned branches and sub-branches
+  // Branch Manager: assigned + all descendants
   if (user.role === "BRANCH_MANAGER") {
-    const assignedBranches = await prisma.branch.findMany({
-      where: {
-        OR: [
-          { id: user.branchId || "" },
-          {
-            id: {
-              in: user.branchAssignments.map(assignment => assignment.branchId),
-            },
-          },
-        ],
-        isActive: true,
-      },
-    });
-
-    // Get all sub-branches
-    const subBranches = await prisma.branch.findMany({
-      where: {
-        parentId: {
-          in: assignedBranches.map(branch => branch.id),
-        },
-        isActive: true,
-      },
-    });
-
-    return [...assignedBranches, ...subBranches];
+    // 1. Get all active branches
+    const allBranches = await prisma.branch.findMany({ where: { isActive: true } });
+    // 2. Collect assigned branch IDs
+    const assignedIds = [
+      ...(user.branchId ? [user.branchId] : []),
+      ...user.branchAssignments.map((a) => a.branchId),
+    ];
+    // 3. Recursively collect all descendants
+    return collectDescendantBranches(assignedIds, allBranches);
   }
 
-  // For other roles, only get their assigned branch
+  // Other roles: just their branch
   if (user.branchId) {
-    const branch = await prisma.branch.findUnique({
-      where: { id: user.branchId },
-    });
+    const branch = await prisma.branch.findUnique({ where: { id: user.branchId } });
     return branch ? [branch] : [];
   }
 
   return [];
 }
+
 
 export async function hasBranchAccess(userId: string, branchId: string): Promise<boolean> {
   const accessibleBranches = await getAccessibleBranches(userId);

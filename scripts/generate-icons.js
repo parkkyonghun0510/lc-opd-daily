@@ -33,7 +33,7 @@ async function generateIcons() {
         })
         .toFile(path.join(process.cwd(), 'public', 'icons', `icon-${size}x${size}.png`));
       
-      console.log(`Generated ${size}x${size} icon`);
+      //console.log(`Generated ${size}x${size} icon`);
     }
 
     // Generate special icons for shortcuts
@@ -51,8 +51,8 @@ async function generateIcons() {
       })
       .toFile(path.join(process.cwd(), 'public', 'icons', 'reports.png'));
 
-    console.log('Generated shortcut icons');
-    console.log('All icons generated successfully!');
+    //console.log('Generated shortcut icons');
+    //console.log('All icons generated successfully!');
   } catch (error) {
     console.error('Error generating icons:', error);
   }

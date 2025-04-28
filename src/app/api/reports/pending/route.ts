@@ -43,42 +43,75 @@ export async function GET(request: NextRequest) {
       };
     }
 
-    // Fetch pending reports
-    const pendingReports = await prisma.report.findMany({
-      where: whereCondition,
-      include: {
-        branch: true,
-        planReport: true,
-        actualReports: true,
-      },
-      orderBy: [{ date: "desc" }, { createdAt: "desc" }],
-    });
+    // Fetch pending reports with a more resilient approach
+    try {
+      // First, get the report IDs that match our criteria
+      const reportIds = await prisma.report.findMany({
+        where: whereCondition,
+        select: { id: true },
+        orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+      });
 
-    // Manually fetch user data for submitted reports
-    const reportsWithUsers = await Promise.all(
-      pendingReports.map(async (report) => {
-        let userData = null;
-        if (report.submittedBy) {
-          try {
-            const user = await prisma.user.findUnique({
-              where: { id: report.submittedBy },
-              select: { id: true, name: true, username: true },
-            });
-            userData = user;
-          } catch (e) {
-            console.error(`Error fetching user for report ${report.id}:`, e);
-          }
+      // Then fetch each report individually with error handling
+      const pendingReportsPromises = reportIds.map(async ({ id }) => {
+        try {
+          return await prisma.report.findUnique({
+            where: { id },
+            include: {
+              branch: true,
+              planReport: true,
+              actualReports: true,
+            },
+          });
+        } catch (error) {
+          console.error(`Error fetching report ${id}:`, error);
+          // Return a minimal report object with the ID
+          return { id, error: "Failed to load complete report data" };
         }
-        
-        return {
-          ...report,
-          user: userData,
-        };
-      })
-    );
+      });
 
-    // Return simplified array of reports
-    return NextResponse.json({ reports: reportsWithUsers });
+      const pendingReportsResults = await Promise.all(pendingReportsPromises);
+      // Filter out null results and reports with missing branches
+      const pendingReports = pendingReportsResults.filter(
+        (report): report is any => {
+          if (!report) return false;
+          if ('error' in report) return false;
+          return report.branch !== null;
+        }
+      );
+
+      // Manually fetch user data for submitted reports
+      const reportsWithUsers = await Promise.all(
+        pendingReports.map(async (report) => {
+          let userData = null;
+          if (report.submittedBy) {
+            try {
+              const user = await prisma.user.findUnique({
+                where: { id: report.submittedBy },
+                select: { id: true, name: true, username: true },
+              });
+              userData = user;
+            } catch (e) {
+              console.error(`Error fetching user for report ${report.id}:`, e);
+            }
+          }
+
+          return {
+            ...report,
+            user: userData,
+          };
+        })
+      );
+
+      // Return simplified array of reports
+      return NextResponse.json({ reports: reportsWithUsers });
+    } catch (innerError) {
+      console.error("Error processing pending reports:", innerError);
+      return NextResponse.json(
+        { error: "Failed to process pending reports" },
+        { status: 500 }
+      );
+    }
   } catch (error) {
     console.error("Error fetching pending reports:", error);
     return NextResponse.json(

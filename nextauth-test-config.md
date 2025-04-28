@@ -65,7 +65,7 @@ export const authOptions: NextAuthOptions = {
 
     // Add a signIn callback for testing
     async signIn({ user, account, profile, email, credentials }) {
-      console.log("Sign-in attempt", { user, account });
+      //console.log("Sign-in attempt", { user, account });
       // Add custom validation logic for testing
       return true;
     },
