@@ -506,13 +506,20 @@ export const createHybridRealtimeSlice: StateCreator<
     get().pollForUpdates();
 
     // Set up interval for regular polling
-    const intervalId = setInterval(() => {
-      get().pollForUpdates();
-    }, pollingInterval || 10000);
+    // Use setTimeout for more precise intervals
+    const scheduleNextPoll = () => {
+      const intervalId = setTimeout(async () => {
+        await get().pollForUpdates();
+        scheduleNextPoll();
+      }, pollingInterval || 10000);
+      return intervalId;
+    };
+
+    const intervalId = scheduleNextPoll();
 
     // Store interval ID in window object (since we can't store functions in Zustand state)
     if (typeof window !== 'undefined') {
-      (window as any).__hybridRealtimePollingInterval = intervalId;
+      (window as Window & { __hybridRealtimePollingInterval?: NodeJS.Timeout }).__hybridRealtimePollingInterval = intervalId;
     }
 
     get().setIsPolling(true);
@@ -525,9 +532,9 @@ export const createHybridRealtimeSlice: StateCreator<
 
   stopPolling: () => {
     // Clear polling interval
-    if (typeof window !== 'undefined' && (window as any).__hybridRealtimePollingInterval) {
-      clearInterval((window as any).__hybridRealtimePollingInterval);
-      (window as any).__hybridRealtimePollingInterval = null;
+    if (typeof window !== 'undefined' && (window as Window & { __hybridRealtimePollingInterval?: NodeJS.Timeout }).__hybridRealtimePollingInterval) {
+      clearTimeout((window as Window & { __hybridRealtimePollingInterval?: NodeJS.Timeout }).__hybridRealtimePollingInterval);
+      (window as Window & { __hybridRealtimePollingInterval?: NodeJS.Timeout }).__hybridRealtimePollingInterval = undefined;
     }
 
     get().setIsPolling(false);
@@ -540,12 +547,13 @@ export const createHybridRealtimeSlice: StateCreator<
   pollForUpdates: async () => {
     const { pollingEndpoint, debug } = get().options;
     const lastPollTimestamp = get().lastPollTimestamp;
+    const currentPollStart = Date.now();
 
     try {
       // Create URL with query parameters
       const url = new URL(pollingEndpoint || '/api/realtime/polling', window.location.origin);
-      url.searchParams.append('since', lastPollTimestamp.toString());
-      url.searchParams.append('_t', Date.now().toString()); // Cache buster
+      url.searchParams.append('since', (Math.floor(lastPollTimestamp / 1000) * 1000).toString()); // Round to seconds
+      url.searchParams.append('_t', currentPollStart.toString());
 
       if (debug) console.log('[HybridRealtime] Polling for updates:', url.toString());
 
@@ -558,10 +566,11 @@ export const createHybridRealtimeSlice: StateCreator<
       const data = await response.json();
       if (debug) console.log('[HybridRealtime] Polling response:', data);
 
-      // Update last poll timestamp
-      get().setLastPollTimestamp(data.timestamp || Date.now());
+      // Update last poll timestamp before processing events to avoid gaps
+      // Use the start time of this poll as the next since parameter
+      get().setLastPollTimestamp(currentPollStart);
 
-      // Process events
+      // Process events in chronological order
       if (data.events && Array.isArray(data.events)) {
         data.events.forEach((event: any) => {
           get().processEvent({

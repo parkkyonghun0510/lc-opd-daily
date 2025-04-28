@@ -58,7 +58,7 @@ export function BranchSwitcher() {
   }
 
   return (
-    <div className="w-full px-2">
+    <div className="w-full">
       <BranchSelector
         userId={userData.id}
         value={selectedBranch}
