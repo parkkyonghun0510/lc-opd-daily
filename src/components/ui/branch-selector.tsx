@@ -46,7 +46,7 @@ export function BranchSelector({
   // Filter branches based on search query
   const filteredBranches = useMemo(() => {
     if (!searchQuery) return branches;
-    
+
     const query = searchQuery.toLowerCase();
     return branches.filter(
       (branch) =>
@@ -95,19 +95,28 @@ export function BranchSelector({
       onValueChange={onChange}
       disabled={disabled || loading || branches.length === 0}
     >
-      <SelectTrigger className={className} id={id}>
+      <SelectTrigger
+        className={`w-full ${className}`}
+        id={id}
+      >
         <Building2 className="h-4 w-4 mr-2" />
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
-      <SelectContent>
-        <div className="flex items-center px-2 pb-2">
-          <Search className="h-4 w-4 mr-2 text-muted-foreground" />
-          <Input
-            placeholder="Search branches..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-8"
-          />
+      <SelectContent
+        className="z-[100] min-w-[200px] w-[var(--radix-select-trigger-width)] max-w-[min(calc(100vw-2rem),400px)]"
+        position="popper"
+        sideOffset={4}
+      >
+        <div className="sticky top-0 bg-popover border-b">
+          <div className="flex items-center px-3 py-3">
+            <Search className="h-4 w-4 mr-2 text-muted-foreground flex-shrink-0" />
+            <Input
+              placeholder="Search branches..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-9 px-3"
+            />
+          </div>
         </div>
         {showAllOption && (
           <SelectItem key="all-branches" value="">
@@ -116,8 +125,15 @@ export function BranchSelector({
         )}
         {filteredBranches.length > 0 ? (
           filteredBranches.map((branch) => (
-            <SelectItem key={branch.id} id={branch.id} value={branch.id}>
-              {branch.name} ({branch.code})
+            <SelectItem
+              key={branch.id}
+              id={branch.id}
+              value={branch.id}
+              className="py-3 px-3"
+            >
+              <span className="block truncate">
+                {branch.name} ({branch.code})
+              </span>
             </SelectItem>
           ))
         ) : (
