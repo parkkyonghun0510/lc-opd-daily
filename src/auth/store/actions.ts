@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { signIn } from 'next-auth/react';
 import { trackAuthEvent, AuthEventType } from '@/auth/utils/analytics';
 import { UserPreferences } from '@/app/types';
+import { ROLE_PERMISSIONS, UserRole, Permission } from '@/lib/auth/roles';
 
 /**
  * Action creator for refreshing the session
@@ -268,19 +269,49 @@ export const updatePreferencesOptimistic = async (
 export const hasPermission = (permission: string) => {
   const store = useStore.getState();
 
-  // Define permission mappings based on roles
+  // Convert the enum-based permissions to string arrays for easier handling
   const rolePermissions: Record<string, string[]> = {
-    'ADMIN': ['VIEW_REPORTS', 'CREATE_REPORTS', 'EDIT_REPORTS', 'DELETE_REPORTS', 'APPROVE_REPORTS', 'MANAGE_USERS', 'MANAGE_BRANCHES', 'VIEW_ANALYTICS'],
-    'BRANCH_MANAGER': ['VIEW_REPORTS', 'CREATE_REPORTS', 'EDIT_REPORTS', 'APPROVE_REPORTS', 'VIEW_ANALYTICS'],
-    'SUPERVISOR': ['VIEW_REPORTS', 'CREATE_REPORTS', 'EDIT_REPORTS', 'VIEW_ANALYTICS'],
-    'USER': ['VIEW_REPORTS', 'CREATE_REPORTS', 'EDIT_REPORTS'],
+    'ADMIN': ROLE_PERMISSIONS[UserRole.ADMIN].map(p => p.toString()),
+    'BRANCH_MANAGER': ROLE_PERMISSIONS[UserRole.BRANCH_MANAGER].map(p => p.toString()),
+    'SUPERVISOR': ROLE_PERMISSIONS[UserRole.SUPERVISOR].map(p => p.toString()),
+    'USER': ROLE_PERMISSIONS[UserRole.USER].map(p => p.toString()),
   };
 
   // Get user role
   const role = store.user?.role || '';
 
+  // For debugging permission issues
+  const debug = false; // Set to true to enable debug logging
+
+  // Check if the role exists
+  if (!role) {
+    if (debug) console.log(`Permission check failed: No role defined for user`);
+    return false;
+  }
+
+  // Check if the role is valid
+  if (!rolePermissions[role]) {
+    if (debug) console.log(`Permission check failed: Unknown role "${role}"`);
+    return false;
+  }
+
+  // Check if the permission exists in any role (to catch typos)
+  const allPermissions = Object.values(rolePermissions).flat();
+  if (!allPermissions.includes(permission)) {
+    if (debug) console.log(`Permission check warning: Unknown permission "${permission}"`);
+    // Continue with the check anyway, as this might be a new permission
+  }
+
+  // Log detailed debug information if enabled
+  if (debug) {
+    console.log(`Permission check: ${permission} for role ${role}`);
+    console.log(`User has role: ${role}`);
+    console.log(`Role has permissions:`, rolePermissions[role]);
+    console.log(`Has permission: ${rolePermissions[role]?.includes(permission)}`);
+  }
+
   // Check if the role has the permission
-  return rolePermissions[role]?.includes(permission) || false;
+  return rolePermissions[role].includes(permission);
 };
 
 /**
@@ -296,4 +327,52 @@ export const hasBranchAccess = (branchId: string) => {
 
   // Check if user is assigned to this branch
   return store.user?.branchId === branchId;
+};
+
+/**
+ * Utility function to debug permission issues
+ * This can be called from the browser console to diagnose permission problems
+ */
+export const debugPermissions = () => {
+  const store = useStore.getState();
+
+  if (!store.user) {
+    console.log('No authenticated user found');
+    return {
+      authenticated: false,
+      user: null,
+      permissions: []
+    };
+  }
+
+  const role = store.user.role;
+
+  // Use the same permission mapping as in hasPermission
+  const rolePermissions: Record<string, string[]> = {
+    'ADMIN': ROLE_PERMISSIONS[UserRole.ADMIN].map(p => p.toString()),
+    'BRANCH_MANAGER': ROLE_PERMISSIONS[UserRole.BRANCH_MANAGER].map(p => p.toString()),
+    'SUPERVISOR': ROLE_PERMISSIONS[UserRole.SUPERVISOR].map(p => p.toString()),
+    'USER': ROLE_PERMISSIONS[UserRole.USER].map(p => p.toString()),
+  };
+
+  const userPermissions = rolePermissions[role] || [];
+
+  console.log('=== Permission Debug Information ===');
+  console.log(`User: ${store.user.name} (${store.user.email})`);
+  console.log(`Role: ${role}`);
+  console.log(`Branch ID: ${store.user.branchId || 'None'}`);
+  console.log(`Authenticated: ${store.isAuthenticated}`);
+  console.log(`Admin: ${store.isAdmin()}`);
+  console.log(`Permissions (${userPermissions.length}):`);
+  userPermissions.forEach(permission => {
+    console.log(`- ${permission}`);
+  });
+
+  return {
+    authenticated: store.isAuthenticated,
+    user: store.user,
+    role,
+    permissions: userPermissions,
+    hasPermission: (permission: string) => userPermissions.includes(permission)
+  };
 };

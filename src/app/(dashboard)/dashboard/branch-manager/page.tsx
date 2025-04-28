@@ -4,8 +4,9 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useUserData } from "@/contexts/UserDataContext";
 import RoleBasedDashboard from "@/components/dashboard/RoleBasedDashboard";
-import { DashboardDataProvider } from "@/contexts/DashboardDataContext";
+import { ZustandDashboardProvider } from "@/components/dashboard/ZustandDashboardProvider";
 import { UserRole } from "@/lib/auth/roles";
+import { BranchManagerLoadingGuard } from "@/auth/components/RoleBasedLoadingGuard";
 
 export default function BranchManagerDashboardPage() {
   const router = useRouter();
@@ -18,8 +19,10 @@ export default function BranchManagerDashboardPage() {
   }, [userData, router]);
 
   return (
-    <DashboardDataProvider>
-      <RoleBasedDashboard />
-    </DashboardDataProvider>
+    <ZustandDashboardProvider debug={process.env.NODE_ENV === 'development'}>
+      <BranchManagerLoadingGuard>
+        <RoleBasedDashboard />
+      </BranchManagerLoadingGuard>
+    </ZustandDashboardProvider>
   );
 }

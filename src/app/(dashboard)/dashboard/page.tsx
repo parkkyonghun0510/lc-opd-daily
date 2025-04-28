@@ -4,12 +4,15 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useUserData } from "@/contexts/UserDataContext";
 import RoleBasedDashboard from "@/components/dashboard/RoleBasedDashboard";
-import { DashboardDataProvider } from "@/contexts/DashboardDataContext";
+import { ZustandDashboardProvider } from "@/components/dashboard/ZustandDashboardProvider";
+import { RoleBasedLoadingGuard } from "@/auth/components/RoleBasedLoadingGuard";
 
 export default function DashboardPage() {
   return (
-    <DashboardDataProvider>
-      <RoleBasedDashboard />
-    </DashboardDataProvider>
+    <ZustandDashboardProvider debug={process.env.NODE_ENV === 'development'}>
+      <RoleBasedLoadingGuard>
+        <RoleBasedDashboard />
+      </RoleBasedLoadingGuard>
+    </ZustandDashboardProvider>
   );
 }

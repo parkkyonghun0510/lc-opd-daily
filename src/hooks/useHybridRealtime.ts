@@ -1,12 +1,16 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useEffect, useCallback, useState, useMemo } from 'react';
 import { useAuth } from '@/auth/hooks/useAuth';
+import { useDashboardStore } from '@/stores/dashboardStore';
 
-// Event types
-export type EventType = 'notification' | 'dashboardUpdate' | 'systemAlert' | string;
+// Define simplified types for the hook
+export type ConnectionMethod = 'polling';
+export type ConnectionStatus = 'connected' | 'disconnected';
+export type EventType = string;
+export type EventHandler = (data: any) => void;
+export type EventHandlersMap = Record<string, EventHandler>;
 
-// Event data structure
 export interface RealtimeEvent {
   id: string;
   type: EventType;
@@ -14,227 +18,98 @@ export interface RealtimeEvent {
   timestamp: number;
 }
 
-// Hook options
 export interface HybridRealtimeOptions {
-  // Endpoints
-  sseEndpoint?: string;
   pollingEndpoint?: string;
-
-  // Configuration
   pollingInterval?: number;
-  preferredMethod?: 'sse' | 'polling' | 'auto';
-
-  // Event handlers
-  eventHandlers?: Record<EventType, (data: any) => void>;
-
-  // Debug options
+  eventHandlers?: EventHandlersMap;
+  clientMetadata?: Record<string, string>;
   debug?: boolean;
 }
 
 /**
- * Hook for hybrid real-time updates using SSE with polling fallback
+ * Simplified hook for real-time updates using polling
+ *
+ * This version replaces the hybrid SSE/polling approach with a simpler polling-only approach
+ * to avoid conflicts with Zustand state management.
+ *
+ * @example
+ * ```tsx
+ * const {
+ *   isConnected,
+ *   activeMethod,
+ *   lastEvent,
+ *   error,
+ *   reconnect
+ * } = useHybridRealtime({
+ *   eventHandlers: {
+ *     notification: (data) => {
+ *       toast.info(data.title, { description: data.message });
+ *     }
+ *   },
+ *   debug: true
+ * });
+ * ```
  */
 export function useHybridRealtime(options: HybridRealtimeOptions = {}) {
-  const {
-    sseEndpoint = '/api/realtime/sse',
-    pollingEndpoint = '/api/realtime/polling',
-    pollingInterval = 10000,
-    preferredMethod = 'auto',
-    eventHandlers = {},
-    debug = false
-  } = options;
+  // Get auth state
+  const { user, isAuthenticated } = useAuth();
 
-  // Use the new auth hook instead of useSession
-  const { user, isAuthenticated, needsTokenRefresh, refreshAuthToken } = useAuth();
+  // Get dashboard store actions
+  const { setConnectionStatus, setConnectionError } = useDashboardStore();
 
   // State
   const [isConnected, setIsConnected] = useState(false);
-  const [activeMethod, setActiveMethod] = useState<'sse' | 'polling' | null>(null);
   const [lastEvent, setLastEvent] = useState<RealtimeEvent | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
+  const [lastPollTime, setLastPollTime] = useState(0);
 
-  // Refs
-  const eventSourceRef = useRef<EventSource | null>(null);
-  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const lastPollTimestampRef = useRef<number>(0);
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const reconnectAttemptsRef = useRef<number>(0);
-  const maxReconnectAttempts = 5;
+  // Default options
+  const defaultOptions = {
+    pollingEndpoint: '/api/realtime/polling',
+    pollingInterval: 10000, // 10 seconds
+    eventHandlers: {},
+    clientMetadata: {},
+    debug: false
+  };
 
-  // Check if SSE is supported
-  const isSSESupported = typeof EventSource !== 'undefined';
+  // Merge options with defaults
+  const mergedOptions = useMemo(() => ({
+    ...defaultOptions,
+    ...options,
+    clientMetadata: {
+      ...defaultOptions.clientMetadata,
+      ...(options.clientMetadata || {}),
+      userId: user?.id,
+      role: user?.role || 'user'
+    }
+  }), [
+    options.pollingEndpoint,
+    options.pollingInterval,
+    options.debug,
+    // Deep compare event handlers by stringifying them
+    JSON.stringify(Object.keys(options.eventHandlers || {})),
+    user?.id,
+    user?.role
+  ]);
 
   // Debug logging
   const log = useCallback((message: string, ...args: any[]) => {
-    if (debug) {
-      console.log(`[HybridRealtime] ${message}`, ...args);
+    if (mergedOptions.debug) {
+      console.log(`[SimpleRealtime] ${message}`, ...args);
     }
-  }, [debug]);
+  }, [mergedOptions.debug]);
 
-  // Process an event
-  const processEvent = useCallback((event: RealtimeEvent) => {
-    log('Processing event:', event);
-
-    // Update last event
-    setLastEvent(event);
-
-    // Call the appropriate event handler
-    const handler = eventHandlers[event.type];
-    if (handler) {
-      handler(event.data);
-    }
-
-    // Also call the wildcard handler if it exists
-    const wildcardHandler = eventHandlers['*'];
-    if (wildcardHandler) {
-      wildcardHandler(event);
-    }
-  }, [eventHandlers, log]);
-
-  // Set up SSE connection
-  const setupSSE = useCallback(() => {
-    if (!isSSESupported) {
-      log('SSE not supported, falling back to polling');
-      return false;
-    }
-
-    if (!user?.id) {
-      log('No authenticated user, cannot set up SSE');
-      return false;
-    }
-
-    // Check if token needs refresh before setting up connection
-    if (isAuthenticated && needsTokenRefresh()) {
-      log('Auth token needs refresh, refreshing before SSE setup');
-      refreshAuthToken().catch(err => {
-        log('Error refreshing token:', err);
-      });
-    }
-
-    try {
-      // Close existing connection if any
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-        eventSourceRef.current = null;
-      }
-
-      // Create URL with query parameters
-      const url = new URL(sseEndpoint, window.location.origin);
-      url.searchParams.append('clientType', 'hybrid');
-      url.searchParams.append('userId', user.id);
-      url.searchParams.append('role', user.role || 'user');
-      url.searchParams.append('_t', Date.now().toString()); // Cache buster
-
-      // Create new EventSource
-      log('Setting up SSE connection to', url.toString());
-      const eventSource = new EventSource(url.toString());
-      eventSourceRef.current = eventSource;
-
-      // Set up event listeners
-      eventSource.onopen = () => {
-        log('SSE connection opened');
-        setIsConnected(true);
-        setActiveMethod('sse');
-        setError(null);
-        reconnectAttemptsRef.current = 0;
-      };
-
-      eventSource.onerror = (err) => {
-        log('SSE connection error:', err);
-        eventSource.close();
-        eventSourceRef.current = null;
-        setIsConnected(false);
-        setError('SSE connection error');
-
-        // Try to reconnect
-        reconnectAttemptsRef.current++;
-        if (reconnectAttemptsRef.current <= maxReconnectAttempts) {
-          const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current - 1), 30000);
-          log(`Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current}/${maxReconnectAttempts})`);
-
-          reconnectTimeoutRef.current = setTimeout(() => {
-            if (preferredMethod === 'sse' || preferredMethod === 'auto') {
-              setupSSE();
-            }
-          }, delay);
-        } else {
-          log('Maximum reconnection attempts reached, falling back to polling');
-          setActiveMethod('polling');
-          startPolling();
-        }
-      };
-
-      // Listen for specific events
-      eventSource.addEventListener('connected', (e) => {
-        try {
-          const data = JSON.parse(e.data);
-          log('Connected event:', data);
-          setIsConnected(true);
-          setActiveMethod('sse');
-          setError(null);
-        } catch (err) {
-          log('Error parsing connected event:', err);
-        }
-      });
-
-      // Generic event listener for all event types
-      const handleEvent = (e: MessageEvent) => {
-        try {
-          const eventType = e.type;
-          const data = JSON.parse(e.data);
-
-          const event: RealtimeEvent = {
-            id: data.id || crypto.randomUUID(),
-            type: eventType,
-            data,
-            timestamp: data.timestamp || Date.now()
-          };
-
-          processEvent(event);
-        } catch (err) {
-          log('Error processing event:', err);
-        }
-      };
-
-      // Add listeners for common event types
-      eventSource.addEventListener('notification', handleEvent);
-      eventSource.addEventListener('dashboardUpdate', handleEvent);
-      eventSource.addEventListener('systemAlert', handleEvent);
-
-      // Add listeners for custom event types
-      Object.keys(eventHandlers).forEach(eventType => {
-        if (!['connected', 'notification', 'dashboardUpdate', 'systemAlert', '*'].includes(eventType)) {
-          eventSource.addEventListener(eventType, handleEvent);
-        }
-      });
-
-      return true;
-    } catch (err) {
-      log('Error setting up SSE:', err);
-      setError(err instanceof Error ? err.message : 'Unknown error setting up SSE');
-      return false;
-    }
-  }, [isSSESupported, user, isAuthenticated, needsTokenRefresh, refreshAuthToken, sseEndpoint, log, preferredMethod, processEvent, eventHandlers]);
-
-  // Polling function
+  // Poll for updates
   const pollForUpdates = useCallback(async () => {
-    if (!user?.id) {
-      log('No authenticated user, cannot poll for updates');
-      return;
-    }
-
-    // Check if token needs refresh before polling
-    if (isAuthenticated && needsTokenRefresh()) {
-      log('Auth token needs refresh, refreshing before polling');
-      await refreshAuthToken().catch(err => {
-        log('Error refreshing token:', err);
-      });
-    }
+    if (!isAuthenticated || !user?.id) return;
 
     try {
       // Create URL with query parameters
-      const url = new URL(pollingEndpoint, window.location.origin);
-      url.searchParams.append('since', lastPollTimestampRef.current.toString());
+      const url = new URL(mergedOptions.pollingEndpoint || '/api/realtime/polling', window.location.origin);
+      url.searchParams.append('since', lastPollTime.toString());
+      url.searchParams.append('userId', user.id);
+      url.searchParams.append('role', user.role || 'USER');
       url.searchParams.append('_t', Date.now().toString()); // Cache buster
 
       log('Polling for updates:', url.toString());
@@ -248,139 +123,155 @@ export function useHybridRealtime(options: HybridRealtimeOptions = {}) {
       const data = await response.json();
       log('Polling response:', data);
 
-      // Update last poll timestamp
-      lastPollTimestampRef.current = data.timestamp;
+      // Update last poll time
+      setLastPollTime(data.timestamp || Date.now());
 
       // Process events
       if (data.events && Array.isArray(data.events)) {
         data.events.forEach((event: any) => {
-          processEvent({
-            id: event.id,
+          const realtimeEvent: RealtimeEvent = {
+            id: event.id || crypto.randomUUID(),
             type: event.type,
             data: event.data,
-            timestamp: event.timestamp
-          });
+            timestamp: event.timestamp || Date.now()
+          };
+
+          // Set last event
+          setLastEvent(realtimeEvent);
+
+          // Call event handlers
+          const eventHandlers = mergedOptions.eventHandlers || {};
+
+          // Call specific handler if exists
+          if (event.type && typeof event.type === 'string' && event.type in eventHandlers) {
+            (eventHandlers as any)[event.type](event.data);
+          }
+
+          // Call wildcard handler if exists
+          if ('*' in eventHandlers) {
+            (eventHandlers as any)['*'](realtimeEvent);
+          }
         });
       }
 
       // Update connection state
       setIsConnected(true);
-      setActiveMethod('polling');
       setError(null);
+
+      // Update dashboard store
+      setConnectionStatus(true, 'polling');
+      setConnectionError(null);
     } catch (err) {
       log('Polling error:', err);
-      setError(err instanceof Error ? err.message : 'Unknown polling error');
-    }
-  }, [user, isAuthenticated, needsTokenRefresh, refreshAuthToken, pollingEndpoint, log, processEvent]);
+      const errorMessage = err instanceof Error ? err.message : 'Unknown polling error';
+      setError(errorMessage);
+      setIsConnected(false);
 
-  // Start polling
-  const startPolling = useCallback(() => {
+      // Update dashboard store
+      setConnectionStatus(false, null);
+      setConnectionError(errorMessage);
+    }
+  }, [isAuthenticated, user, lastPollTime, mergedOptions, log, setConnectionStatus, setConnectionError]);
+
+  // This function was removed to avoid circular dependencies
+  // The functionality is now directly in the useEffect hook
+
+  // This function was removed to avoid circular dependencies
+  // The functionality is now directly in the disconnect method
+
+  // Reconnect function
+  const reconnect = useCallback(() => {
+    log('Manual reconnect requested');
+
     // Clear existing interval
-    if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current);
-      pollingIntervalRef.current = null;
+    if (pollingInterval) {
+      clearInterval(pollingInterval);
+      setPollingInterval(null);
+    }
+
+    // Reset state
+    setLastPollTime(0);
+
+    // Trigger a new poll immediately
+    pollForUpdates();
+
+    // Set up a new interval
+    const interval = setInterval(() => {
+      pollForUpdates();
+    }, mergedOptions.pollingInterval || 10000);
+
+    setPollingInterval(interval);
+    log(`Reconnected: polling every ${mergedOptions.pollingInterval}ms`);
+  }, [pollingInterval, mergedOptions.pollingInterval, pollForUpdates, log]);
+
+  // Initialize polling when component mounts or options change
+  useEffect(() => {
+    if (!isAuthenticated || !user?.id) {
+      log('Not authenticated, skipping polling setup');
+      return;
+    }
+
+    log('Setting up polling with options:', mergedOptions);
+
+    // Stop any existing polling
+    if (pollingInterval) {
+      clearInterval(pollingInterval);
     }
 
     // Initial poll
     pollForUpdates();
 
-    // Set up interval
-    pollingIntervalRef.current = setInterval(pollForUpdates, pollingInterval);
-    log(`Started polling every ${pollingInterval}ms`);
+    // Set up interval for regular polling
+    const interval = setInterval(() => {
+      pollForUpdates();
+    }, mergedOptions.pollingInterval || 10000);
 
+    setPollingInterval(interval);
+    log(`Started polling every ${mergedOptions.pollingInterval}ms`);
+
+    // Cleanup function - use a ref to the current interval
+    const currentInterval = pollingInterval;
     return () => {
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
-        pollingIntervalRef.current = null;
+      if (currentInterval) {
+        clearInterval(currentInterval);
+        log('Stopped polling on cleanup');
       }
     };
-  }, [pollForUpdates, pollingInterval, log]);
-
-  // Initialize connection based on preferred method
-  useEffect(() => {
-    if (!user?.id) return;
-
-    log(`Initializing with preferred method: ${preferredMethod} for user ${user.id}`);
-
-    if (preferredMethod === 'sse' && isSSESupported) {
-      setupSSE();
-    } else if (preferredMethod === 'polling') {
-      startPolling();
-    } else if (preferredMethod === 'auto') {
-      // Try SSE first, fall back to polling if not supported
-      if (isSSESupported) {
-        const success = setupSSE();
-        if (!success) {
-          startPolling();
-        }
-      } else {
-        startPolling();
-      }
-    }
-
-    // Cleanup function
-    return () => {
-      // Close SSE connection
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-        eventSourceRef.current = null;
-      }
-
-      // Clear polling interval
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
-        pollingIntervalRef.current = null;
-      }
-
-      // Clear reconnect timeout
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
-        reconnectTimeoutRef.current = null;
-      }
-    };
-  }, [user, preferredMethod, isSSESupported, setupSSE, startPolling, log]);
-
-  // Manual reconnect function
-  const reconnect = useCallback(() => {
-    log('Manual reconnect requested');
-
-    // Reset reconnect attempts
-    reconnectAttemptsRef.current = 0;
-
-    // Close existing connections
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close();
-      eventSourceRef.current = null;
-    }
-
-    if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current);
-      pollingIntervalRef.current = null;
-    }
-
-    // Try to reconnect based on preferred method
-    if (preferredMethod === 'sse' && isSSESupported) {
-      setupSSE();
-    } else if (preferredMethod === 'polling') {
-      startPolling();
-    } else if (preferredMethod === 'auto') {
-      if (isSSESupported) {
-        const success = setupSSE();
-        if (!success) {
-          startPolling();
-        }
-      } else {
-        startPolling();
-      }
-    }
-  }, [preferredMethod, isSSESupported, setupSSE, startPolling, log]);
+  }, [
+    isAuthenticated,
+    user?.id,
+    mergedOptions.pollingInterval,
+    mergedOptions.pollingEndpoint,
+    pollForUpdates,
+    log
+  ]);
 
   // Return the hook API
   return {
+    // Basic state
     isConnected,
-    activeMethod,
+    activeMethod: 'polling' as ConnectionMethod,
     lastEvent,
     error,
-    reconnect
+    connectionStatus: isConnected ? 'connected' as ConnectionStatus : 'disconnected' as ConnectionStatus,
+
+    // Actions
+    reconnect,
+    disconnect: () => {
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+        setPollingInterval(null);
+        setIsConnected(false);
+        setConnectionStatus(false, null);
+        log('Disconnected');
+      }
+    },
+
+    // Dummy selectors for compatibility
+    getCachedEvents: () => [] as RealtimeEvent[],
+    getTimeSinceLastEvent: () => lastEvent ? Date.now() - lastEvent.timestamp : Infinity,
+
+    // Helpers
+    isSSESupported: () => false
   };
 }

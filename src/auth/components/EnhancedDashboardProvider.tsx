@@ -5,6 +5,7 @@ import { fetchDashboardSummary, fetchUserDashboardData } from '@/app/_actions/da
 import { useAuth } from '@/auth/hooks/useAuth';
 import { toast } from '@/components/ui/use-toast';
 import { AuthenticatedSSE } from './AuthenticatedSSE';
+import { MinimalLoadingIndicator } from './GlobalLoadingIndicator';
 
 interface EnhancedDashboardContextType {
   dashboardData: any;
@@ -26,10 +27,10 @@ export function EnhancedDashboardProvider({ children }: { children: React.ReactN
   const [isConnected, setIsConnected] = useState(false);
   const [connectionMethod, setConnectionMethod] = useState<'sse' | 'polling' | null>(null);
   const [hasNewUpdates, setHasNewUpdates] = useState(false);
-  
+
   // Use the new auth hook
   const { user, isAuthenticated } = useAuth();
-  
+
   // Get role from the auth store
   const role = user?.role || 'USER';
 
@@ -80,7 +81,7 @@ export function EnhancedDashboardProvider({ children }: { children: React.ReactN
   // Auto-refresh every 5 minutes
   useEffect(() => {
     if (!isAuthenticated) return;
-    
+
     const interval = setInterval(fetchData, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, [fetchData, isAuthenticated]);
@@ -90,34 +91,34 @@ export function EnhancedDashboardProvider({ children }: { children: React.ReactN
     // Handle dashboard updates
     dashboardUpdate: (data: any) => {
       console.log('Received dashboard update:', data);
-      
+
       // Set the new updates flag
       setHasNewUpdates(true);
-      
+
       // Show a toast notification
       toast({
         title: 'Dashboard Updated',
         description: `New dashboard data is available.`,
         duration: 5000,
       });
-      
+
       // Automatically refresh data when we receive an update
       fetchData();
-      
+
       // Dispatch a custom event that components can listen for
       if (typeof window !== 'undefined') {
         const event = new CustomEvent('dashboard-update', { detail: data });
         window.dispatchEvent(event);
       }
     },
-    
+
     // Handle role-specific updates
     [`${role.toLowerCase()}Update`]: (data: any) => {
       console.log(`Received ${role.toLowerCase()} update:`, data);
       setHasNewUpdates(true);
       fetchData();
     },
-    
+
     // Handle connection status updates
     connectionStatus: (data: any) => {
       setIsConnected(data.connected);
@@ -149,12 +150,17 @@ export function EnhancedDashboardProvider({ children }: { children: React.ReactN
         clearNewUpdates
       }}
     >
+      {/* Include the loading indicator */}
+      <MinimalLoadingIndicator />
+
       {/* Include the AuthenticatedSSE component */}
-      <AuthenticatedSSE 
+      <AuthenticatedSSE
         eventHandlers={eventHandlers}
         preferredMethod="auto"
         debug={process.env.NODE_ENV === 'development'}
       />
+
+      {/* Render children */}
       {children}
     </EnhancedDashboardContext.Provider>
   );

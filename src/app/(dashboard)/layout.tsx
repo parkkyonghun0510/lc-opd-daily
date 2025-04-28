@@ -1,7 +1,7 @@
 "use client";
 
 import { DashboardLayout } from "@/components/dashboard/layout/DashboardLayout";
-import { EnhancedDashboardProvider } from "@/auth/components/EnhancedDashboardProvider";
+import { ZustandDashboardProvider } from "@/components/dashboard/ZustandDashboardProvider";
 
 export default function RootLayout({
   children,
@@ -9,8 +9,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <EnhancedDashboardProvider>
+    <ZustandDashboardProvider debug={process.env.NODE_ENV === 'development'}>
       <DashboardLayout>{children}</DashboardLayout>
-    </EnhancedDashboardProvider>
+    </ZustandDashboardProvider>
   );
 }

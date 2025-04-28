@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { useStore } from "@/stores/advanced/store";
 import { hasPermission, hasBranchAccess } from "@/stores/advanced/actions";
 import { Loader2 } from "lucide-react";
@@ -16,10 +16,10 @@ interface AdvancedPermissionGateProps {
 
 /**
  * AdvancedPermissionGate component
- * 
+ *
  * Controls access to UI components based on user permissions and roles.
  * Uses the advanced Zustand store for state management.
- * 
+ *
  * @example
  * <AdvancedPermissionGate
  *   permissions={["VIEW_REPORTS"]}
@@ -40,38 +40,48 @@ export function AdvancedPermissionGate({
 }: AdvancedPermissionGateProps) {
   const { isLoading, isAuthenticated, user } = useStore();
 
-  // Show loading state if still loading
+  // Track access state
+  const [hasAccess, setHasAccess] = useState(false);
+
+  // Check permissions and update access state
+  useEffect(() => {
+    // Default to no access if not authenticated
+    if (!isAuthenticated || !user) {
+      setHasAccess(false);
+      return;
+    }
+
+    // Start with access granted
+    let accessGranted = true;
+
+    // Check permissions if specified
+    if (permissions.length > 0) {
+      if (requireAll) {
+        // Must have all permissions
+        accessGranted = permissions.every(permission => hasPermission(permission));
+      } else {
+        // Must have at least one permission
+        accessGranted = permissions.some(permission => hasPermission(permission));
+      }
+    }
+
+    // Check roles if specified and still has access
+    if (roles.length > 0 && accessGranted) {
+      accessGranted = roles.includes(user.role);
+    }
+
+    // Check branch access if specified and still has access
+    if (branchId && accessGranted) {
+      accessGranted = hasBranchAccess(branchId);
+    }
+
+    // Update access state
+    setHasAccess(accessGranted);
+  }, [isAuthenticated, user, permissions, roles, requireAll, branchId]);
+
+  // Show loading state if needed
   if (isLoading && showLoading) {
     return <>{loadingComponent}</>;
-  }
-
-  // If not authenticated, show fallback
-  if (!isAuthenticated || !user) {
-    return <>{fallback}</>;
-  }
-
-  // Determine if access is granted
-  let hasAccess = true;
-
-  // Check permissions if needed
-  if (permissions.length > 0) {
-    if (requireAll) {
-      // Must have all permissions
-      hasAccess = permissions.every(permission => hasPermission(permission));
-    } else {
-      // Must have at least one permission
-      hasAccess = permissions.some(permission => hasPermission(permission));
-    }
-  }
-
-  // Check roles if needed
-  if (roles.length > 0 && hasAccess) {
-    hasAccess = roles.includes(user.role);
-  }
-
-  // Check branch access if needed
-  if (branchId && hasAccess) {
-    hasAccess = hasBranchAccess(branchId);
   }
 
   // Render children if access granted, otherwise fallback

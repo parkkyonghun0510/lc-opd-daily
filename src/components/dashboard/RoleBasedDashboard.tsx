@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, FileText, Clock, ShieldCheck, TrendingUp, AlertCircle, RefreshCw } from 'lucide-react';
 import { useUserData } from '@/contexts/UserDataContext';
-import { useDashboardData } from '@/contexts/DashboardDataContext';
+import { useZustandDashboard } from '@/hooks/useZustandDashboard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from '@/components/ui/button';
@@ -114,12 +114,14 @@ const RoleBasedDashboard: React.FC = () => {
     refreshDashboardData,
     reconnect,
     hasNewUpdates: contextHasNewUpdates,
-    clearNewUpdates
-  } = useDashboardData();
+    clearNewUpdates,
+    role: storeRole
+  } = useZustandDashboard();
 
   const [hasNewUpdates, setHasNewUpdates] = useState(false);
 
-  const displayRole = userData?.computedFields.accessLevel || 'User';
+  // Use the role from the Zustand store if available, otherwise fall back to userData
+  const displayRole = storeRole || userData?.computedFields.accessLevel || 'User';
 
   // Redirect to role-specific dashboard
   useEffect(() => {
@@ -179,6 +181,8 @@ const RoleBasedDashboard: React.FC = () => {
   if (!isConnected) {
     return <ConnectionStatus onReconnect={reconnect} />;
   }
+
+  // We don't need to show a loading state here anymore since we're using AuthLoadingGuard
 
   // Define role-specific content components
   const dashboardContentMap: Record<string, React.ComponentType<DashboardContentProps>> = {

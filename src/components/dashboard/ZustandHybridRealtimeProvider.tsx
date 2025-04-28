@@ -1,0 +1,228 @@
+'use client';
+
+import { useEffect, useMemo } from 'react';
+import { useAuth } from '@/auth/hooks/useAuth';
+import { useDashboardStore } from '@/stores/dashboardStore';
+import { useHybridRealtime } from '@/hooks/useHybridRealtime';
+import { EventType, EventHandlersMap } from '@/auth/store/slices/hybridRealtimeSlice';
+import { toast } from 'sonner';
+
+interface ZustandHybridRealtimeProviderProps {
+  children: React.ReactNode;
+  autoRefreshInterval?: number;
+  debug?: boolean;
+  showToasts?: boolean;
+}
+
+/**
+ * ZustandHybridRealtimeProvider component
+ *
+ * Provides real-time updates using the hybrid realtime hook with Zustand for state management.
+ * This component is specifically designed for dashboard data and integrates with the dashboard store.
+ *
+ * @example
+ * ```tsx
+ * <ZustandHybridRealtimeProvider debug={process.env.NODE_ENV === 'development'}>
+ *   <DashboardContent />
+ * </ZustandHybridRealtimeProvider>
+ * ```
+ */
+export function ZustandHybridRealtimeProvider({
+  children,
+  autoRefreshInterval = 10000,
+  debug = false,
+  showToasts = true
+}: ZustandHybridRealtimeProviderProps) {
+  // Get auth state from Zustand store
+  const { user, isAuthenticated } = useAuth();
+
+  // Get dashboard state from Zustand store
+  const {
+    setConnectionStatus,
+    setHasNewUpdates,
+    fetchDashboardData,
+    setConnectionError,
+    clearNewUpdates
+  } = useDashboardStore();
+
+  // Create event handlers
+  const eventHandlers = useMemo<EventHandlersMap>(() => ({
+    // Handle dashboard updates
+    dashboardUpdate: (data: any) => {
+      if (debug) {
+        console.log('[ZustandHybridRealtime] Received dashboard update:', data);
+      }
+
+      // Set the new updates flag
+      setHasNewUpdates(true);
+
+      // Show a toast notification
+      if (showToasts) {
+        toast.info('New dashboard data is available', {
+          action: {
+            label: 'Refresh',
+            onClick: () => {
+              if (user?.role) {
+                fetchDashboardData(user.role);
+                clearNewUpdates();
+              }
+            }
+          }
+        });
+      }
+
+      // Automatically refresh data when we receive an update
+      if (user?.role) {
+        fetchDashboardData(user.role);
+      }
+
+      // Dispatch a custom event that components can listen for
+      if (typeof window !== 'undefined') {
+        const event = new CustomEvent('dashboard-update', {
+          detail: data,
+          bubbles: true,
+          cancelable: true
+        });
+        window.dispatchEvent(event);
+      }
+    },
+
+    // Handle notifications
+    notification: (data: any) => {
+      if (debug) {
+        console.log('[ZustandHybridRealtime] Received notification:', data);
+      }
+
+      // Show a toast notification
+      if (showToasts) {
+        toast.info(data.title || 'New notification', {
+          description: data.message || data.body || 'You have a new notification',
+        });
+      }
+    },
+
+    // Handle system alerts
+    systemAlert: (data: any) => {
+      if (debug) {
+        console.log('[ZustandHybridRealtime] Received system alert:', data);
+      }
+
+      // Show a toast notification
+      if (showToasts) {
+        toast.warning(data.title || 'System alert', {
+          description: data.message || data.body || 'System alert received',
+        });
+      }
+    },
+
+    // Handle role-specific updates
+    [`${user?.role?.toLowerCase() || 'user'}Update`]: (data: any) => {
+      if (debug) {
+        console.log(`[ZustandHybridRealtime] Received ${user?.role} update:`, data);
+      }
+
+      // Set the new updates flag
+      setHasNewUpdates(true);
+
+      // Show a toast notification
+      if (showToasts) {
+        toast.info(`New ${user?.role} data is available`, {
+          action: {
+            label: 'Refresh',
+            onClick: () => {
+              if (user?.role) {
+                fetchDashboardData(user.role);
+                clearNewUpdates();
+              }
+            }
+          }
+        });
+      }
+
+      // Automatically refresh data when we receive an update
+      if (user?.role) {
+        fetchDashboardData(user.role);
+      }
+    },
+
+    // Wildcard handler for all events
+    '*': (event: any) => {
+      if (debug && event?.type) {
+        console.log(`[ZustandHybridRealtime] Received generic event (${event.type}):`, event);
+      }
+    }
+  }), [user?.role, debug, showToasts, setHasNewUpdates, fetchDashboardData, clearNewUpdates]);
+
+  // Use the hybrid realtime hook
+  const {
+    isConnected,
+    activeMethod,
+    connectionStatus,
+    error,
+    reconnect,
+    getCachedEvents,
+    getTimeSinceLastEvent
+  } = useHybridRealtime({
+    sseEndpoint: '/api/realtime/sse',
+    pollingEndpoint: '/api/realtime/polling',
+    pollingInterval: autoRefreshInterval,
+    preferredMethod: 'auto',
+    eventHandlers,
+    maxReconnectAttempts: 10,
+    reconnectBackoffFactor: 1.5,
+    enableCache: true,
+    debug,
+    clientMetadata: {
+      component: 'ZustandHybridRealtimeProvider',
+      role: user?.role || 'user'
+    }
+  });
+
+  // Update dashboard store with connection status
+  useEffect(() => {
+    setConnectionStatus(isConnected, activeMethod);
+  }, [isConnected, activeMethod, setConnectionStatus]);
+
+  // Update dashboard store with connection error
+  useEffect(() => {
+    setConnectionError(error);
+  }, [error, setConnectionError]);
+
+  // Listen for reconnect requests
+  useEffect(() => {
+    const handleReconnectRequest = () => {
+      if (debug) {
+        console.log('[ZustandHybridRealtime] Reconnect requested');
+      }
+      reconnect();
+    };
+
+    window.addEventListener('sse-reconnect-requested', handleReconnectRequest);
+
+    return () => {
+      window.removeEventListener('sse-reconnect-requested', handleReconnectRequest);
+    };
+  }, [reconnect, debug]);
+
+  // Log connection status changes in debug mode
+  useEffect(() => {
+    if (debug) {
+      console.log(`[ZustandHybridRealtime] Connection status: ${connectionStatus}`);
+      console.log(`[ZustandHybridRealtime] Active method: ${activeMethod || 'none'}`);
+
+      // Log time since last event
+      const timeSinceLastEvent = getTimeSinceLastEvent();
+      if (timeSinceLastEvent !== Infinity) {
+        console.log(`[ZustandHybridRealtime] Time since last event: ${Math.round(timeSinceLastEvent / 1000)}s`);
+      }
+
+      // Log cached events count
+      const dashboardEvents = getCachedEvents('dashboardUpdate');
+      if (dashboardEvents.length > 0) {
+        console.log(`[ZustandHybridRealtime] Cached dashboard events: ${dashboardEvents.length}`);
+      }
+    }
+  }, [connectionStatus, activeMethod, debug, getTimeSinceLastEvent, getCachedEvents]);
+
+  return <>{children}</>;
+}

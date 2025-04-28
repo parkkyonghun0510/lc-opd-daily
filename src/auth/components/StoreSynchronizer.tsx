@@ -57,7 +57,7 @@ export function StoreSynchronizer({
         // Check if token needs refresh
         if (useStore.getState().needsTokenRefresh()) {
           // Try to silently refresh the token
-          await useStore.getState().refreshAuthToken();
+          await useStore.getState().refreshToken();
         }
 
         // Sync user data
@@ -90,7 +90,7 @@ export function StoreSynchronizer({
         // Check if token needs refresh
         if (useStore.getState().needsTokenRefresh()) {
           // Try to silently refresh the token
-          await useStore.getState().refreshAuthToken();
+          await useStore.getState().refreshToken();
         }
 
         // Check if session has expired
@@ -123,7 +123,7 @@ export function StoreSynchronizer({
       // Check if token needs refresh
       if (useStore.getState().needsTokenRefresh()) {
         // Try to silently refresh the token
-        await useStore.getState().refreshAuthToken();
+        await useStore.getState().refreshToken();
       }
 
       // Check if session has expired

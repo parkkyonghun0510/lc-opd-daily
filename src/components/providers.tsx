@@ -11,9 +11,10 @@ import { Toaster as SonnerToaster } from "sonner";
 import { PushNotificationButton } from "@/components/PushNotificationButton";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 
-// Import new auth components
+// Import auth components
 import { StoreSynchronizer } from "@/auth/components/StoreSynchronizer";
 import { SessionActivityTracker } from "@/auth/components/SessionActivityTracker";
+import { HybridRealtimeProvider } from "@/components/providers/HybridRealtimeProvider";
 
 // Separate component to use the useUserData hook
 function AppContent({ children }: { children: React.ReactNode }) {
@@ -69,7 +70,14 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <UserDataProvider>
           <NotificationProvider>
             <NextAuthProvider>
-              <AppContent>{children}</AppContent>
+              <HybridRealtimeProvider
+                options={{
+                  pollingInterval: 15000, // 15 seconds
+                  debug: process.env.NODE_ENV === 'development'
+                }}
+              >
+                <AppContent>{children}</AppContent>
+              </HybridRealtimeProvider>
             </NextAuthProvider>
           </NotificationProvider>
         </UserDataProvider>

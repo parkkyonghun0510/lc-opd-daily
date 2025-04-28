@@ -1,40 +1,37 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { useStore } from '@/auth/store';
-import { useHybridRealtime } from '@/hooks/useHybridRealtime';
+import { useAuth } from '@/auth/hooks/useAuth';
+import { useHybridRealtime, EventHandlersMap } from '@/hooks/useHybridRealtime';
 
 interface AuthenticatedSSEProps {
-  eventHandlers: Record<string, (data: any) => void>;
-  preferredMethod?: 'sse' | 'polling' | 'auto';
+  eventHandlers: EventHandlersMap;
   debug?: boolean;
 }
 
 /**
  * AuthenticatedSSE component
  *
- * Provides authenticated SSE connections that stay in sync with the auth store.
- * Handles token refresh and reconnection when authentication state changes.
+ * Provides authenticated polling connections that stay in sync with the auth store.
+ * This is a simplified version that uses polling instead of SSE to avoid conflicts.
  */
 export function AuthenticatedSSE({
   eventHandlers,
-  preferredMethod = 'auto',
   debug = false
 }: AuthenticatedSSEProps) {
-  const { user, isAuthenticated, needsTokenRefresh, refreshAuthToken } = useStore();
+  const { user, isAuthenticated } = useAuth();
   const lastUserIdRef = useRef<string | null>(null);
-  
-  // Use the hybrid realtime hook
+
+  // Use the simplified realtime hook
   const {
     isConnected,
     activeMethod,
     reconnect
   } = useHybridRealtime({
     eventHandlers,
-    preferredMethod,
     debug
   });
-  
+
   // Reconnect when user changes
   useEffect(() => {
     if (user?.id !== lastUserIdRef.current) {
@@ -42,17 +39,15 @@ export function AuthenticatedSSE({
       reconnect();
     }
   }, [user?.id, reconnect]);
-  
-  // Check for token refresh needs
+
+  // Debug logging
   useEffect(() => {
-    if (isAuthenticated && needsTokenRefresh()) {
-      refreshAuthToken().then(() => {
-        // Reconnect after token refresh
-        reconnect();
-      });
+    if (debug) {
+      console.log(`[AuthenticatedSSE] Connection status: ${isConnected ? 'connected' : 'disconnected'}`);
+      console.log(`[AuthenticatedSSE] Active method: ${activeMethod || 'none'}`);
     }
-  }, [isAuthenticated, needsTokenRefresh, refreshAuthToken, reconnect]);
-  
+  }, [isConnected, activeMethod, debug]);
+
   // This component doesn't render anything
   return null;
 }

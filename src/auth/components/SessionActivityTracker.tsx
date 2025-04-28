@@ -72,7 +72,7 @@ export function SessionActivityTracker({
     // Check if token needs refresh
     if (useStore.getState().needsTokenRefresh() && !useStore.getState().refreshInProgress) {
       // Try to silently refresh the token
-      useStore.getState().refreshAuthToken().catch(error => {
+      useStore.getState().refreshToken().catch(error => {
         console.error('Error during silent token refresh:', error);
       });
     }
@@ -162,7 +162,7 @@ export function SessionActivityTracker({
     try {
       // First try to refresh the token if needed
       if (useStore.getState().needsTokenRefresh()) {
-        await useStore.getState().refreshAuthToken();
+        await useStore.getState().refreshToken();
       }
 
       // Then refresh the session
