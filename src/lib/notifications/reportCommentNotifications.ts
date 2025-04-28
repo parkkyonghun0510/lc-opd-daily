@@ -98,7 +98,7 @@ export async function processCommentNotification(
       commenterName: comment.user?.name || 'Unknown User',
       title: getNotificationTitle(notificationType, report.branch?.name),
       body: getNotificationBody(notificationType, comment.content, comment.user?.name),
-      actionUrl: `/reports/${reportId}`,
+      actionUrl: `/dashboard?viewReport=${reportId}&action=reply`,
     };
 
     // Send notification using Redis service

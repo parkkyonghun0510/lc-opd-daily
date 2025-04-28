@@ -22,6 +22,7 @@ import { exposeDebugUtils } from "@/auth/utils/debug";
 import { PermissionDebugger } from "@/auth/components/PermissionDebugger";
 import { MinimalLoadingIndicator } from "@/auth/components/GlobalLoadingIndicator";
 import { AdminLoadingGuard } from "@/auth/components/RoleBasedLoadingGuard";
+import { ReportViewHandler } from "@/components/dashboard/ReportViewHandler";
 
 // Metadata can't be exported from a Client Component
 // We'll need to move this to a separate layout.tsx file if needed
@@ -167,6 +168,7 @@ export default function AdminDashboard() {
               </Tabs>
             )}
           </PermissionGate>
+          <ReportViewHandler />
         </AdminLoadingGuard>
       </div>
     </ZustandDashboardProvider>

@@ -70,8 +70,8 @@ model Branch {
 model Report {
   id            String          @id @default(cuid())
   branchId      String
-  writeOffs     Decimal         @db.Decimal(15, 2)
-  ninetyPlus    Decimal         @db.Decimal(15, 2)
+  writeOffs     Float
+  ninetyPlus    Float
   reportType    String          @default("actual")
   status        String          @default("pending")
   submittedBy   String
@@ -79,8 +79,9 @@ model Report {
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
   planReportId  String?
+  submittedAt   String
   date          DateTime        @db.Date
-  submittedAt   DateTime        @default(now())
+  commentArray  Json?
   branch        Branch          @relation(fields: [branchId], references: [id])
   planReport    Report?         @relation("PlanActualRelation", fields: [planReportId], references: [id])
   actualReports Report[]        @relation("PlanActualRelation")
@@ -88,8 +89,6 @@ model Report {
 
   @@unique([date, branchId, reportType])
   @@index([branchId, date])
-  @@index([submittedBy, status])
-  @@index([reportType, status])
   @@index([date, status])
   @@index([planReportId])
 }
@@ -225,17 +224,17 @@ model TelegramLinkingCode {
 }
 
 model ReportComment {
-  id        String   @id @default(cuid())
+  id        String          @id @default(cuid())
   reportId  String
   userId    String
   content   String
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
   parentId  String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  report    Report   @relation(fields: [reportId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  parent    ReportComment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: SetNull)
+  parent    ReportComment?  @relation("CommentReplies", fields: [parentId], references: [id])
   replies   ReportComment[] @relation("CommentReplies")
+  report    Report          @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([reportId])
   @@index([userId])

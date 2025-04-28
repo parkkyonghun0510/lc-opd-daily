@@ -65,6 +65,7 @@ interface ReportDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   onEdit?: (report: Report) => void;
+  initialAction?: string; // 'reply', 'edit', 'approve', etc.
 }
 
 // Helper function to format comment history as a conversation
@@ -403,9 +404,10 @@ export const CommentConversation = ({
   return <p className="text-gray-500 italic">No comments available</p>;
 };
 
-export function ReportDetailModal({ report, isOpen, onClose, onEdit }: ReportDetailModalProps) {
+export function ReportDetailModal({ report, isOpen, onClose, onEdit, initialAction }: ReportDetailModalProps) {
   const [refreshedReport, setRefreshedReport] = useState<ReportWithUser | null>(null);
   const [replyingToComment, setReplyingToComment] = useState<string | null>(null);
+  const [showCommentSection, setShowCommentSection] = useState(false);
 
   // Use either the refreshed report or the original passed report
   const displayReport = refreshedReport || report;
@@ -414,10 +416,23 @@ export function ReportDetailModal({ report, isOpen, onClose, onEdit }: ReportDet
   useEffect(() => {
     if (!isOpen) {
       setRefreshedReport(null);
+      setShowCommentSection(false);
     } else if (report && report.id !== refreshedReport?.id) {
       setRefreshedReport(null);
+
+      // Handle initial action if provided
+      if (initialAction) {
+        if (initialAction === 'reply') {
+          setShowCommentSection(true);
+        } else if (initialAction === 'edit' && onEdit) {
+          // Call onEdit with a slight delay to ensure the modal is fully rendered
+          setTimeout(() => {
+            onEdit(report);
+          }, 100);
+        }
+      }
     }
-  }, [isOpen, report, refreshedReport]);
+  }, [isOpen, report, refreshedReport, initialAction, onEdit]);
 
   // Function to refresh the report details after adding a comment
   const refreshReportDetails = async (reportId: string) => {
@@ -561,9 +576,13 @@ export function ReportDetailModal({ report, isOpen, onClose, onEdit }: ReportDet
                 <ReportCommentsList
                   reportId={displayReport.id}
                   initialComments={displayReport.ReportComment}
+                  autoFocusCommentForm={showCommentSection}
                 />
               ) : (
-                <ReportCommentsList reportId={displayReport.id} />
+                <ReportCommentsList
+                  reportId={displayReport.id}
+                  autoFocusCommentForm={showCommentSection}
+                />
               )}
             </div>
           </div>

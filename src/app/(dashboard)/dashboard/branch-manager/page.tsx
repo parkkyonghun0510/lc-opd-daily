@@ -7,6 +7,7 @@ import RoleBasedDashboard from "@/components/dashboard/RoleBasedDashboard";
 import { ZustandDashboardProvider } from "@/components/dashboard/ZustandDashboardProvider";
 import { UserRole } from "@/lib/auth/roles";
 import { BranchManagerLoadingGuard } from "@/auth/components/RoleBasedLoadingGuard";
+import { ReportViewHandler } from "@/components/dashboard/ReportViewHandler";
 
 export default function BranchManagerDashboardPage() {
   const router = useRouter();
@@ -22,6 +23,7 @@ export default function BranchManagerDashboardPage() {
     <ZustandDashboardProvider debug={process.env.NODE_ENV === 'development'}>
       <BranchManagerLoadingGuard>
         <RoleBasedDashboard />
+        <ReportViewHandler />
       </BranchManagerLoadingGuard>
     </ZustandDashboardProvider>
   );

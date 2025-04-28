@@ -81,9 +81,10 @@ const processComment = (comment: ReportComment): { type: CommentType; content: s
 interface ReportCommentsListProps {
   reportId: string;
   initialComments?: ReportComment[];
+  autoFocusCommentForm?: boolean;
 }
 
-export function ReportCommentsList({ reportId, initialComments = [] }: ReportCommentsListProps) {
+export function ReportCommentsList({ reportId, initialComments = [], autoFocusCommentForm = false }: ReportCommentsListProps) {
   const { data: session } = useSession();
   const [comments, setComments] = useState<ReportComment[]>(initialComments);
   const [newComment, setNewComment] = useState("");
@@ -521,7 +522,7 @@ export function ReportCommentsList({ reportId, initialComments = [] }: ReportCom
                 value={newComment}
                 onChange={(e) => setNewComment(e.target.value)}
                 className="min-h-[80px] resize-none border-0 focus-visible:ring-0 focus-visible:ring-offset-0 p-0 shadow-none dark:bg-transparent dark:text-gray-200 dark:placeholder:text-gray-400 text-sm transition-all duration-200 leading-relaxed"
-                autoFocus
+                autoFocus={autoFocusCommentForm}
               />
 
               <div className="flex justify-between items-center mt-2">

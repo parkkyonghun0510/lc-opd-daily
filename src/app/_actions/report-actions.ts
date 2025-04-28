@@ -224,7 +224,7 @@ export async function approveReportAction(
               comments: comments || "",
               title,
               body,
-              actionUrl: `/reports/${report.id}`,
+              actionUrl: `/dashboard?viewReport=${report.id}`,
               date: new Date(report.date).toISOString().split('T')[0],
               reportType: report.reportType
             },
