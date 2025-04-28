@@ -588,6 +588,7 @@ export const createHybridRealtimeSlice: StateCreator<
       options: {
         enableCache = true,
         maxCacheSize = 100,
+        cacheTTL = 24 * 60 * 60 * 1000, // 24 hours
         debug = false
       },
       cachedEvents
@@ -596,27 +597,49 @@ export const createHybridRealtimeSlice: StateCreator<
     if (!enableCache) return;
 
     try {
-      // Get existing events for this type
-      const events = cachedEvents.get(event.type) || [];
+      // Ensure the event has a proper structure
+      const normalizedEvent = {
+        id: event.id || crypto.randomUUID(),
+        type: event.type,
+        data: event.data,
+        timestamp: event.timestamp || Date.now()
+      };
 
-      // Add the new event at the beginning (most recent first)
-      events.unshift(event);
+      // Get existing events for this type
+      const events = cachedEvents.get(normalizedEvent.type) || [];
+
+      // Check if this event already exists (by ID)
+      const existingIndex = events.findIndex(e => e.id === normalizedEvent.id);
+
+      if (existingIndex >= 0) {
+        // Update existing event
+        events[existingIndex] = normalizedEvent;
+      } else {
+        // Add the new event at the beginning (most recent first)
+        events.unshift(normalizedEvent);
+      }
+
+      // Remove expired events (older than cacheTTL)
+      const now = Date.now();
+      const filteredEvents = events.filter(e =>
+        (now - e.timestamp) < cacheTTL
+      );
 
       // Limit the cache size
-      if (events.length > maxCacheSize) {
-        events.length = maxCacheSize;
+      if (filteredEvents.length > maxCacheSize) {
+        filteredEvents.length = maxCacheSize;
       }
 
       // Update the cache
       set(state => ({
-        cachedEvents: new Map(state.cachedEvents).set(event.type, events)
+        cachedEvents: new Map(state.cachedEvents).set(normalizedEvent.type, filteredEvents)
       }));
 
       // Persist to localStorage if available
       if (typeof window !== 'undefined') {
         try {
-          const cacheKey = `hybrid-realtime-cache-${event.type}`;
-          localStorage.setItem(cacheKey, JSON.stringify(events));
+          const cacheKey = `hybrid-realtime-cache-${normalizedEvent.type}`;
+          localStorage.setItem(cacheKey, JSON.stringify(filteredEvents));
         } catch (err) {
           if (debug) {
             console.warn('[HybridRealtime] Failed to persist event to localStorage:', err);
@@ -635,6 +658,7 @@ export const createHybridRealtimeSlice: StateCreator<
       options: {
         enableCache = true,
         eventHandlers = {},
+        cacheTTL = 24 * 60 * 60 * 1000, // 24 hours
         debug = false
       }
     } = get();
@@ -651,6 +675,7 @@ export const createHybridRealtimeSlice: StateCreator<
       ]);
 
       const newCachedEvents = new Map();
+      const now = Date.now();
 
       cachedEventTypes.forEach(eventType => {
         try {
@@ -660,22 +685,39 @@ export const createHybridRealtimeSlice: StateCreator<
           if (cachedData) {
             const events = JSON.parse(cachedData);
             if (Array.isArray(events) && events.length > 0) {
-              newCachedEvents.set(eventType, events);
+              // Filter out expired events
+              const validEvents = events.filter(e =>
+                e && e.timestamp && (now - e.timestamp) < cacheTTL
+              );
 
-              // Process the most recent event
-              const mostRecentEvent = events[0];
-              if (mostRecentEvent) {
-                // Update last event
-                get().setLastEvent(mostRecentEvent);
+              if (validEvents.length > 0) {
+                newCachedEvents.set(eventType, validEvents);
 
-                // Call the event handler
-                if (eventHandlers[eventType]) {
-                  eventHandlers[eventType](mostRecentEvent.data);
+                // Process the most recent event
+                const mostRecentEvent = validEvents[0];
+                if (mostRecentEvent) {
+                  // Ensure the event has a proper structure
+                  const normalizedEvent = {
+                    id: mostRecentEvent.id || crypto.randomUUID(),
+                    type: mostRecentEvent.type || eventType,
+                    data: mostRecentEvent.data,
+                    timestamp: mostRecentEvent.timestamp || now
+                  };
+
+                  // Update last event
+                  get().setLastEvent(normalizedEvent);
+
+                  // Call the event handler
+                  if (eventHandlers[eventType]) {
+                    eventHandlers[eventType](normalizedEvent.data);
+                  }
+
+                  if (debug) {
+                    console.log(`[HybridRealtime] Loaded cached event for ${eventType}:`, normalizedEvent);
+                  }
                 }
-
-                if (debug) {
-                  console.log(`[HybridRealtime] Loaded cached event for ${eventType}:`, mostRecentEvent);
-                }
+              } else if (debug) {
+                console.log(`[HybridRealtime] All cached events for ${eventType} have expired`);
               }
             }
           }
@@ -701,30 +743,46 @@ export const createHybridRealtimeSlice: StateCreator<
 
     if (debug) console.log('[HybridRealtime] Processing event:', event);
 
+    // Ensure the event has a proper structure
+    const normalizedEvent = {
+      id: event.id || crypto.randomUUID(),
+      type: event.type,
+      data: event.data,
+      timestamp: event.timestamp || Date.now()
+    };
+
     // Update last event
-    get().setLastEvent(event);
+    get().setLastEvent(normalizedEvent);
 
     // Cache the event
-    get().cacheEvent(event);
+    get().cacheEvent(normalizedEvent);
 
     // Call the appropriate event handler
-    if (eventHandlers && eventHandlers[event.type]) {
-      eventHandlers[event.type](event.data);
+    if (eventHandlers && eventHandlers[normalizedEvent.type]) {
+      eventHandlers[normalizedEvent.type](normalizedEvent.data);
     }
 
     // Also call the wildcard handler if it exists
     if (eventHandlers && eventHandlers['*']) {
-      eventHandlers['*'](event);
+      eventHandlers['*'](normalizedEvent);
     }
 
     // Dispatch a DOM event for components to listen for
     if (typeof window !== 'undefined') {
-      const domEvent = new CustomEvent(`hybrid-realtime-${event.type}`, {
-        detail: event,
+      const domEvent = new CustomEvent(`hybrid-realtime-${normalizedEvent.type}`, {
+        detail: normalizedEvent,
         bubbles: true,
         cancelable: true
       });
       window.dispatchEvent(domEvent);
+
+      // Also dispatch a generic event that all components can listen for
+      const genericEvent = new CustomEvent('hybrid-realtime-event', {
+        detail: normalizedEvent,
+        bubbles: true,
+        cancelable: true
+      });
+      window.dispatchEvent(genericEvent);
     }
   },
 

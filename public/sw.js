@@ -16,7 +16,7 @@ const APP_SHELL = [
 // Install event - cache app shell
 self.addEventListener("install", (event) => {
   self.skipWaiting();
-  
+
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(APP_SHELL);
@@ -45,11 +45,11 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   // Skip non-GET requests
   if (event.request.method !== "GET") return;
-  
+
   // Skip requests from other origins
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin) return;
-  
+
   // Cache API endpoints selectively (if needed)
   if (url.pathname.startsWith('/api/')) {
     // Network first for API requests, with offline fallback
@@ -66,8 +66,8 @@ self.addEventListener("fetch", (event) => {
                 return caches.match(OFFLINE_URL);
               }
               return new Response(
-                JSON.stringify({ error: 'No internet connection' }), 
-                { 
+                JSON.stringify({ error: 'No internet connection' }),
+                {
                   status: 503,
                   headers: { 'Content-Type': 'application/json' }
                 }
@@ -77,7 +77,7 @@ self.addEventListener("fetch", (event) => {
     );
     return;
   }
-  
+
   // Stale-While-Revalidate for regular content
   event.respondWith(
     caches.match(event.request).then(cachedResponse => {
@@ -99,7 +99,7 @@ self.addEventListener("fetch", (event) => {
           }
           throw error;
         });
-        
+
       // Return cached response immediately or wait for network
       return cachedResponse || fetchPromise;
     })
@@ -109,16 +109,16 @@ self.addEventListener("fetch", (event) => {
 // Push event - handle push notifications
 self.addEventListener('push', (event) => {
   if (!event.data) return;
-  
+
   try {
     const data = event.data.json();
-    
+
     // Skip showing validation notifications entirely
     if (data.tag === 'subscription-validation' && data.silent === true) {
       //console.log('Skipping validation notification display');
       return;
     }
-    
+
     // Default notification options
     const options = {
       body: data.body || 'You have a new notification',
@@ -137,12 +137,12 @@ self.addEventListener('push', (event) => {
     if (data.actions) {
       options.actions = data.actions;
     }
-    
+
     // Add tag if provided
     if (data.tag) {
       options.tag = data.tag;
     }
-    
+
     // Add silent option if provided
     if (data.silent) {
       options.silent = data.silent;
@@ -167,17 +167,41 @@ self.addEventListener('notificationclick', (event) => {
   if (event.action) {
     switch (event.action) {
       case 'approve':
-        urlToOpen = `/reports/${notificationData.reportId || ''}/approve`;
+        if (notificationData.reportId) {
+          urlToOpen = `/dashboard?viewReport=${notificationData.reportId}&action=approve`;
+        }
         break;
       case 'revise':
-        urlToOpen = `/reports/${notificationData.reportId || ''}/edit`;
+        if (notificationData.reportId) {
+          urlToOpen = `/dashboard?viewReport=${notificationData.reportId}&action=edit`;
+        }
         break;
       case 'reply':
-        urlToOpen = `/reports/${notificationData.reportId || ''}#reply`;
+        if (notificationData.reportId) {
+          urlToOpen = `/dashboard?viewReport=${notificationData.reportId}&action=reply`;
+        }
         break;
       case 'viewAll':
-        urlToOpen = '/approvals';
+        urlToOpen = '/dashboard?tab=approvals';
         break;
+    }
+  }
+
+  // Handle report URLs - redirect to dashboard with report ID parameter
+  if (urlToOpen.startsWith('/reports/') && urlToOpen.split('/').length >= 3) {
+    const reportId = urlToOpen.split('/')[2].split('#')[0]; // Extract report ID and remove any hash
+    if (reportId) {
+      // Redirect to dashboard with report ID parameter
+      urlToOpen = `/dashboard?viewReport=${reportId}`;
+
+      // Handle specific actions
+      if (urlToOpen.includes('#reply')) {
+        urlToOpen += '&action=reply';
+      } else if (urlToOpen.includes('#edit')) {
+        urlToOpen += '&action=edit';
+      } else if (urlToOpen.includes('/approve')) {
+        urlToOpen += '&action=approve';
+      }
     }
   }
 
@@ -188,13 +212,18 @@ self.addEventListener('notificationclick', (event) => {
       includeUncontrolled: true
     })
     .then((clientList) => {
-      // Try to find an existing window with the target URL
+      // Try to find an existing window to focus
       for (const client of clientList) {
-        if (client.url === urlToOpen && 'focus' in client) {
-          return client.focus();
+        if ('focus' in client) {
+          client.focus();
+          // Navigate to the URL
+          if (client.url !== urlToOpen) {
+            client.navigate(urlToOpen);
+          }
+          return;
         }
       }
-      
+
       // Open new window if no matching window found
       if (clients.openWindow) {
         return clients.openWindow(urlToOpen);
@@ -210,11 +239,11 @@ self.addEventListener('notificationclick', (event) => {
 self.addEventListener('notificationclose', (event) => {
   const notification = event.notification;
   const data = notification.data || {};
-  
+
   // Could implement analytics in production
   if (data.timestamp) {
     const timeOpen = Date.now() - data.timestamp;
     // Analytics placeholder - implement actual analytics if needed
     // //console.log('Notification closed:', { type: data.type, timeOpen });
   }
-}); 
+});

@@ -129,10 +129,16 @@ export function useHybridRealtime(options: HybridRealtimeOptions = {}) {
       // Process events
       if (data.events && Array.isArray(data.events)) {
         data.events.forEach((event: any) => {
+          // Ensure the event has a proper structure
           const realtimeEvent: RealtimeEvent = {
             id: event.id || crypto.randomUUID(),
             type: event.type,
-            data: event.data,
+            data: {
+              ...event.data,
+              id: event.data?.id || event.id || crypto.randomUUID(),
+              timestamp: event.data?.timestamp || event.timestamp || Date.now(),
+              type: event.data?.type || event.type
+            },
             timestamp: event.timestamp || Date.now()
           };
 
@@ -144,12 +150,30 @@ export function useHybridRealtime(options: HybridRealtimeOptions = {}) {
 
           // Call specific handler if exists
           if (event.type && typeof event.type === 'string' && event.type in eventHandlers) {
-            (eventHandlers as any)[event.type](event.data);
+            (eventHandlers as any)[event.type](realtimeEvent.data);
           }
 
           // Call wildcard handler if exists
           if ('*' in eventHandlers) {
             (eventHandlers as any)['*'](realtimeEvent);
+          }
+
+          // Dispatch a DOM event for components to listen for
+          if (typeof window !== 'undefined') {
+            const domEvent = new CustomEvent(`realtime-${realtimeEvent.type}`, {
+              detail: realtimeEvent,
+              bubbles: true,
+              cancelable: true
+            });
+            window.dispatchEvent(domEvent);
+
+            // Also dispatch a generic event that all components can listen for
+            const genericEvent = new CustomEvent('realtime-event', {
+              detail: realtimeEvent,
+              bubbles: true,
+              cancelable: true
+            });
+            window.dispatchEvent(genericEvent);
           }
         });
       }
@@ -267,8 +291,30 @@ export function useHybridRealtime(options: HybridRealtimeOptions = {}) {
       }
     },
 
-    // Dummy selectors for compatibility
-    getCachedEvents: () => [] as RealtimeEvent[],
+    // Selectors
+    getCachedEvents: (eventType?: string) => {
+      // If no event type is provided, return an empty array
+      if (!eventType) return [] as RealtimeEvent[];
+
+      // Try to get cached events from localStorage
+      try {
+        if (typeof window !== 'undefined') {
+          const cacheKey = `hybrid-realtime-cache-${eventType}`;
+          const cachedData = localStorage.getItem(cacheKey);
+
+          if (cachedData) {
+            const events = JSON.parse(cachedData);
+            if (Array.isArray(events)) {
+              return events as RealtimeEvent[];
+            }
+          }
+        }
+      } catch (err) {
+        log('Error getting cached events:', err);
+      }
+
+      return [] as RealtimeEvent[];
+    },
     getTimeSinceLastEvent: () => lastEvent ? Date.now() - lastEvent.timestamp : Infinity,
 
     // Helpers

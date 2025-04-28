@@ -3,14 +3,14 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { NotificationType } from '@/utils/notificationTemplates';
 import { getUsersForNotification } from '@/utils/notificationTargeting';
-import { sendToNotificationQueue } from '@/lib/queue/sqs';
+import { sendNotification } from '@/lib/notifications/redisNotificationService';
 import { prisma } from '@/lib/prisma';
 
 /**
  * Create in-app notifications in the database
  */
 async function createInAppNotifications(
-  type: NotificationType, 
+  type: NotificationType,
   data: Record<string, any>,
   userIds: string[]
 ) {
@@ -23,27 +23,27 @@ async function createInAppNotifications(
     case NotificationType.REPORT_SUBMITTED:
       title = 'New Report Submitted';
       body = `A new report has been submitted by ${data.submitterName || 'a user'} and requires review.`;
-      actionUrl = data.reportId ? `/reports/${data.reportId}` : '/reports';
+      actionUrl = data.reportId ? `/dashboard?viewReport=${data.reportId}` : '/dashboard';
       break;
     case NotificationType.REPORT_APPROVED:
       title = 'Report Approved';
       body = `Your report has been approved by ${data.approverName || 'a manager'}.`;
-      actionUrl = data.reportId ? `/reports/${data.reportId}` : '/reports';
+      actionUrl = data.reportId ? `/dashboard?viewReport=${data.reportId}` : '/dashboard';
       break;
     case NotificationType.REPORT_REJECTED:
       title = 'Report Rejected';
       body = `Your report has been rejected${data.reason ? ` for the following reason: ${data.reason}` : ''}.`;
-      actionUrl = data.reportId ? `/reports/${data.reportId}` : '/reports';
+      actionUrl = data.reportId ? `/dashboard?viewReport=${data.reportId}` : '/dashboard';
       break;
     case NotificationType.REPORT_REMINDER:
       title = 'Report Reminder';
       body = `You have a report due for ${data.date || 'today'}.`;
-      actionUrl = '/reports/create';
+      actionUrl = '/dashboard?tab=create';
       break;
     case NotificationType.REPORT_OVERDUE:
       title = 'Report Overdue';
       body = `Your report for ${data.date || 'a recent date'} is now overdue.`;
-      actionUrl = '/reports/create';
+      actionUrl = '/dashboard?tab=create';
       break;
   }
 
@@ -83,7 +83,7 @@ export async function POST(request: Request) {
 
     // Parse notification data
     const data = await request.json();
-    
+
     // Validate notification data
     if (!data.type || !Object.values(NotificationType).includes(data.type)) {
       return NextResponse.json({ error: 'Invalid notification type' }, { status: 400 });
@@ -104,29 +104,20 @@ export async function POST(request: Request) {
       });
     }
 
-    // Create in-app notifications immediately
-    let inAppCount = 0;
-    if (data.createInApp !== false) {
-      inAppCount = await createInAppNotifications(
-        data.type,
-        data.data || {},
-        targetUserIds
-      );
-    }
-
-    // Send to SQS for push notifications and other processing
-    const result = await sendToNotificationQueue({
+    // Send notification using Redis service
+    // This will create in-app notifications and send real-time notifications
+    const notificationId = await sendNotification({
       type: data.type,
       data: data.data || {},
       userIds: targetUserIds,
-      timestamp: new Date().toISOString()
+      priority: data.priority || 'normal',
+      idempotencyKey: data.idempotencyKey
     });
 
     return NextResponse.json({
       success: true,
-      messageId: result.MessageId,
-      userCount: targetUserIds.length,
-      inAppCount
+      notificationId,
+      userCount: targetUserIds.length
     });
   } catch (error) {
     console.error('Error sending notification:', error);

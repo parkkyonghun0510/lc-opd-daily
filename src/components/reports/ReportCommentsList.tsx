@@ -11,13 +11,16 @@ import {
   CheckCircle,
   XCircle,
   Shield,
-  User
+  User,
+  Bell,
+  BellOff
 } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import { sanitizeString } from "@/utils/clientSanitize";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { requestNotificationPermission, getNotificationStatus } from "@/utils/pushNotifications";
 
 import { ReportCommentType } from "@/types/reports";
 
@@ -78,14 +81,17 @@ const processComment = (comment: ReportComment): { type: CommentType; content: s
 interface ReportCommentsListProps {
   reportId: string;
   initialComments?: ReportComment[];
+  autoFocusCommentForm?: boolean;
 }
 
-export function ReportCommentsList({ reportId, initialComments = [] }: ReportCommentsListProps) {
+export function ReportCommentsList({ reportId, initialComments = [], autoFocusCommentForm = false }: ReportCommentsListProps) {
   const { data: session } = useSession();
   const [comments, setComments] = useState<ReportComment[]>(initialComments);
   const [newComment, setNewComment] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [isRequestingPermission, setIsRequestingPermission] = useState(false);
 
   // Fetch comments if not provided initially
   useEffect(() => {
@@ -93,6 +99,16 @@ export function ReportCommentsList({ reportId, initialComments = [] }: ReportCom
       fetchComments();
     }
   }, [reportId, initialComments.length]);
+
+  // Check notification permission status on mount
+  useEffect(() => {
+    const checkNotificationStatus = () => {
+      const status = getNotificationStatus();
+      setNotificationsEnabled(status.isGranted);
+    };
+
+    checkNotificationStatus();
+  }, []);
 
   const fetchComments = async () => {
     if (!reportId) return;
@@ -117,6 +133,36 @@ export function ReportCommentsList({ reportId, initialComments = [] }: ReportCom
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Handle enabling push notifications
+  const handleEnableNotifications = async () => {
+    setIsRequestingPermission(true);
+    try {
+      const subscription = await requestNotificationPermission();
+      if (subscription) {
+        setNotificationsEnabled(true);
+        toast({
+          title: "Notifications Enabled",
+          description: "You will now receive push notifications for comments on this report.",
+        });
+      } else {
+        toast({
+          title: "Notifications Not Enabled",
+          description: "Please allow notifications in your browser settings to receive updates.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error enabling notifications:", error);
+      toast({
+        title: "Error",
+        description: "Failed to enable notifications. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRequestingPermission(false);
     }
   };
 
@@ -160,6 +206,26 @@ export function ReportCommentsList({ reportId, initialComments = [] }: ReportCom
           title: "Success",
           description: "Comment added successfully",
         });
+
+        // If notifications are not enabled, suggest enabling them
+        if (!notificationsEnabled && getNotificationStatus().isSupported) {
+          toast({
+            title: "Enable Notifications",
+            description: "Enable push notifications to get updates on this report?",
+            action: (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleEnableNotifications}
+                className="mt-2"
+              >
+                <Bell className="h-4 w-4 mr-2" />
+                Enable
+              </Button>
+            ),
+            duration: 10000,
+          });
+        }
       }
     } catch (error) {
       console.error("Error adding comment:", error);
@@ -456,12 +522,12 @@ export function ReportCommentsList({ reportId, initialComments = [] }: ReportCom
                 value={newComment}
                 onChange={(e) => setNewComment(e.target.value)}
                 className="min-h-[80px] resize-none border-0 focus-visible:ring-0 focus-visible:ring-offset-0 p-0 shadow-none dark:bg-transparent dark:text-gray-200 dark:placeholder:text-gray-400 text-sm transition-all duration-200 leading-relaxed"
-                autoFocus
+                autoFocus={autoFocusCommentForm}
               />
 
               <div className="flex justify-between items-center mt-2">
-                {/* Emoji buttons */}
-                <div className="flex space-x-1">
+                {/* Emoji buttons and notification toggle */}
+                <div className="flex space-x-1 items-center">
                   {['😊', '👍', '🎉', '❤️', '🔥'].map((emoji) => (
                     <Button
                       key={emoji}
@@ -480,6 +546,30 @@ export function ReportCommentsList({ reportId, initialComments = [] }: ReportCom
                       <span role="img" aria-label="emoji" className="text-lg transform transition-transform duration-200 group-hover:scale-125">{emoji}</span>
                     </Button>
                   ))}
+
+                  {/* Notification toggle button */}
+                  {getNotificationStatus().isSupported && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className={cn(
+                        "ml-2 rounded-full transition-all duration-200 hover:scale-110 focus:scale-110 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-800",
+                        notificationsEnabled ? "text-blue-500 dark:text-blue-400" : "text-gray-500 dark:text-gray-400"
+                      )}
+                      onClick={handleEnableNotifications}
+                      disabled={isRequestingPermission}
+                      title={notificationsEnabled ? "Notifications enabled" : "Enable notifications"}
+                    >
+                      {isRequestingPermission ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : notificationsEnabled ? (
+                        <Bell className="h-4 w-4" />
+                      ) : (
+                        <BellOff className="h-4 w-4" />
+                      )}
+                    </Button>
+                  )}
                 </div>
 
                 <Button

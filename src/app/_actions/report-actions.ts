@@ -6,11 +6,10 @@ import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/prisma";
 import { AuditAction, createServerAuditLog } from "@/lib/audit";
 import { NotificationType } from "@/utils/notificationTemplates";
-import { sendToNotificationQueue } from "@/lib/queue/sqs";
 import { getUsersForNotification } from "@/utils/notificationTargeting";
 import { hasBranchAccess } from "@/lib/auth/branch-access";
-import { createDirectNotifications } from "@/utils/createDirectNotification";
 import { Permission, UserRole, checkPermission } from "@/lib/auth/roles";
+import { sendNotification } from "@/lib/redis/enhancedRedisNotificationService";
 import { broadcastDashboardUpdate } from "@/lib/events/dashboard-broadcaster";
 import { DashboardEventTypes } from "@/lib/events/dashboard-events";
 import { format } from "date-fns";
@@ -195,11 +194,10 @@ export async function approveReportAction(
     // Send notifications if enabled
     if (notifyUsers) {
       try {
-        //console.log(`Preparing to send notifications for report ${report.id}, status: ${status}`);
-
         const notificationType = status === "approved"
           ? NotificationType.REPORT_APPROVED
           : NotificationType.REPORT_REJECTED;
+
         const targetUsers = await getUsersForNotification(notificationType, {
           reportId: report.id,
           submittedBy: report.submittedBy,
@@ -208,70 +206,34 @@ export async function approveReportAction(
           comments: comments || ""
         });
 
-        //console.log(`Found ${targetUsers.length} target users for notification`);
         if (targetUsers.length > 0) {
-          //console.log(`Target users: ${targetUsers.join(', ')}`);
+          // Generate title and body based on notification type
+          let title = status === "approved" ? "Report Approved" : "Report Rejected";
+          let body = status === "approved"
+            ? `Your report has been approved by ${approverName}.`
+            : `Your report has been rejected${comments ? ` with reason: ${comments}` : ""}.`;
 
-          const queueData = {
+          // Send notification using enhanced Redis notification service
+          const notificationId = await sendNotification({
             type: notificationType,
             data: {
               reportId: report.id,
               branchId: report.branchId,
               branchName: report.branch.name,
               approverName,
-              comments: comments || ""
+              comments: comments || "",
+              title,
+              body,
+              actionUrl: `/dashboard?viewReport=${report.id}`,
+              date: new Date(report.date).toISOString().split('T')[0],
+              reportType: report.reportType
             },
-            userIds: targetUsers
-          };
+            userIds: targetUsers,
+            priority: 'high', // Approval/rejection notifications are high priority
+            idempotencyKey: `report-${report.id}-${status}-${Date.now()}`
+          });
 
-          //console.log(`Sending to notification queue:`, JSON.stringify(queueData, null, 2));
-
-          let sqsSent = false;
-          try {
-            const result = await sendToNotificationQueue(queueData);
-            //console.log(`Notification sent to queue successfully:`, result);
-            sqsSent = true;
-          } catch (sqsError) {
-            console.error("Error sending to SQS queue:", sqsError);
-            // Continue to fallback method
-          }
-
-          // Fallback: Create notifications directly in database if SQS fails
-          if (!sqsSent) {
-            //console.log("Using fallback: Creating notifications directly in database");
-
-            try {
-              // Generate title and body based on notification type
-              let title = status === "approved" ? "Report Approved" : "Report Rejected";
-              let body = status === "approved"
-                ? `Your report has been approved by a manager.`
-                : `Your report has been rejected${comments ? ` with reason: ${comments}` : ""}.`;
-              let actionUrl = `/reports/${report.id}`;
-
-              // Use the utility function to create direct notifications
-              const result = await createDirectNotifications(
-                notificationType,
-                title,
-                body,
-                targetUsers,
-                actionUrl,
-                {
-                  reportId: report.id,
-                  branchId: report.branchId,
-                  branchName: report.branch.name,
-                  approverName,
-                  comments: comments || "",
-                  method: "fallback-server-action"
-                }
-              );
-
-              //console.log(`Successfully created ${result.count} direct notifications as fallback`);
-            } catch (dbError) {
-              console.error("Error creating direct notifications:", dbError);
-            }
-          }
-        } else {
-          //console.log(`No target users found, skipping notification`);
+          console.log(`Notification sent via enhanced Redis service: ${notificationId}`);
         }
       } catch (notificationError) {
         console.error("Error sending notifications (non-critical):", notificationError);

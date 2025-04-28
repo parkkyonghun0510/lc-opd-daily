@@ -123,42 +123,47 @@ async function createInAppNotifications(
     case NotificationType.REPORT_SUBMITTED:
       title = 'New Report Submitted';
       body = `A new report has been submitted by ${data.submitterName || 'a user'} and requires review.`;
-      actionUrl = data.reportId ? `/reports/${data.reportId}` : '/reports';
+      actionUrl = data.reportId ? `/dashboard?viewReport=${data.reportId}` : '/dashboard';
       break;
     case NotificationType.REPORT_APPROVED:
       title = 'Report Approved';
       body = `Your report has been approved by ${data.approverName || 'a manager'}.`;
-      actionUrl = data.reportId ? `/reports/${data.reportId}` : '/reports';
+      actionUrl = data.reportId ? `/dashboard?viewReport=${data.reportId}` : '/dashboard';
       break;
     case NotificationType.REPORT_REJECTED:
       title = 'Report Rejected';
       body = `Your report has been rejected${data.reason ? ` for the following reason: ${data.reason}` : ''}.`;
-      actionUrl = data.reportId ? `/reports/${data.reportId}` : '/reports';
+      actionUrl = data.reportId ? `/dashboard?viewReport=${data.reportId}` : '/dashboard';
       break;
     case NotificationType.REPORT_REMINDER:
       title = 'Report Reminder';
       body = `You have a report due for ${data.date || 'today'}.`;
-      actionUrl = '/reports/create';
+      actionUrl = '/dashboard?tab=create';
       break;
     case NotificationType.REPORT_OVERDUE:
       title = 'Report Overdue';
       body = `Your report for ${data.date || 'a recent date'} is now overdue.`;
-      actionUrl = '/reports/create';
+      actionUrl = '/dashboard?tab=create';
       break;
     case NotificationType.REPORT_NEEDS_REVISION:
       title = 'Report Needs Revision';
       body = `Your report requires revision${data.reason ? `: ${data.reason}` : ''}.`;
-      actionUrl = data.reportId ? `/reports/${data.reportId}/edit` : '/reports';
+      actionUrl = data.reportId ? `/dashboard?viewReport=${data.reportId}&action=edit` : '/dashboard';
       break;
     case NotificationType.APPROVAL_PENDING:
       title = 'Reports Pending Approval';
       body = `There are ${data.count || 'several'} reports waiting for your approval.`;
-      actionUrl = '/dashboard/reports/pending';
+      actionUrl = '/dashboard?tab=approvals';
       break;
     case NotificationType.COMMENT_ADDED:
       title = 'New Comment';
       body = `${data.commenter || 'Someone'} commented on a report.`;
-      actionUrl = data.reportId ? `/reports/${data.reportId}` : '/reports';
+      actionUrl = data.reportId ? `/dashboard?viewReport=${data.reportId}&action=reply` : '/dashboard';
+      break;
+    case NotificationType.COMMENT_REPLY:
+      title = 'New Reply to Your Comment';
+      body = `${data.commenterName || 'Someone'} replied to your comment.`;
+      actionUrl = data.reportId ? `/dashboard?viewReport=${data.reportId}&action=reply` : '/dashboard';
       break;
     case NotificationType.SYSTEM_NOTIFICATION:
       title = data.title || 'System Notification';

@@ -16,12 +16,13 @@ import { fetchAdminStats } from "@/lib/api";
 import { toast } from "@/components/ui/use-toast";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { TrendingUp } from "lucide-react";
+import { TrendingUp, RefreshCw } from "lucide-react";
 import DashboardStatusIndicator from "@/components/dashboard/DashboardStatusIndicator";
 import { exposeDebugUtils } from "@/auth/utils/debug";
 import { PermissionDebugger } from "@/auth/components/PermissionDebugger";
 import { MinimalLoadingIndicator } from "@/auth/components/GlobalLoadingIndicator";
 import { AdminLoadingGuard } from "@/auth/components/RoleBasedLoadingGuard";
+import { ReportViewHandler } from "@/components/dashboard/ReportViewHandler";
 
 // Metadata can't be exported from a Client Component
 // We'll need to move this to a separate layout.tsx file if needed
@@ -140,6 +141,11 @@ export default function AdminDashboard() {
                         <TrendingUp className="mr-2 h-4 w-4" /> Consolidated View
                       </Button>
                     </Link>
+                    <Link href="/admin/tools/migrate-comments" passHref>
+                      <Button variant="outline">
+                        <RefreshCw className="mr-2 h-4 w-4" /> Migrate Comments
+                      </Button>
+                    </Link>
                   </div>
                 </div>
 
@@ -162,6 +168,7 @@ export default function AdminDashboard() {
               </Tabs>
             )}
           </PermissionGate>
+          <ReportViewHandler />
         </AdminLoadingGuard>
       </div>
     </ZustandDashboardProvider>
