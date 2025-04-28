@@ -12,7 +12,7 @@ export default function HybridRealtimeDemo() {
   // State for events
   const [events, setEvents] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState('auto');
-  
+
   // Use the hybrid realtime hook
   const {
     isConnected,
@@ -21,7 +21,7 @@ export default function HybridRealtimeDemo() {
     error,
     reconnect
   } = useHybridRealtime({
-    preferredMethod: activeTab as 'auto' | 'sse' | 'polling',
+    // preferredMethod is not supported in the simplified version
     debug: true,
     eventHandlers: {
       // Handle all events with the wildcard handler
@@ -38,7 +38,7 @@ export default function HybridRealtimeDemo() {
       }
     }
   });
-  
+
   // Test sending an event
   const sendTestEvent = async () => {
     try {
@@ -52,28 +52,28 @@ export default function HybridRealtimeDemo() {
           message: 'Test message from client'
         })
       });
-      
+
       if (!response.ok) {
         throw new Error(`Error: ${response.status} ${response.statusText}`);
       }
-      
+
       const data = await response.json();
       console.log('Test event sent:', data);
     } catch (err) {
       console.error('Error sending test event:', err);
     }
   };
-  
+
   // Change the connection method
   const changeMethod = (method: string) => {
     setActiveTab(method);
   };
-  
+
   // Format timestamp
   const formatTime = (timestamp: number) => {
     return new Date(timestamp).toLocaleTimeString();
   };
-  
+
   return (
     <div className="space-y-6">
       <Card>
@@ -86,7 +86,7 @@ export default function HybridRealtimeDemo() {
         <CardContent>
           <div className="flex items-center space-x-4 mb-4">
             <div>
-              Status: 
+              Status:
               {isConnected ? (
                 <Badge variant="success" className="ml-2">Connected</Badge>
               ) : (
@@ -94,27 +94,27 @@ export default function HybridRealtimeDemo() {
               )}
             </div>
             <div>
-              Method: 
+              Method:
               <Badge variant="outline" className="ml-2">
                 {activeMethod || 'None'}
               </Badge>
             </div>
           </div>
-          
+
           {error && (
             <Alert variant="destructive" className="mb-4">
               <AlertTitle>Error</AlertTitle>
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
-          
+
           <Tabs value={activeTab} onValueChange={changeMethod}>
             <TabsList className="mb-4">
               <TabsTrigger value="auto">Auto (Recommended)</TabsTrigger>
               <TabsTrigger value="sse">SSE Only</TabsTrigger>
               <TabsTrigger value="polling">Polling Only</TabsTrigger>
             </TabsList>
-            
+
             <TabsContent value="auto">
               <p>Auto mode uses SSE when available and falls back to polling when necessary.</p>
             </TabsContent>
@@ -131,7 +131,7 @@ export default function HybridRealtimeDemo() {
           <Button onClick={sendTestEvent}>Send Test Event</Button>
         </CardFooter>
       </Card>
-      
+
       <Card>
         <CardHeader>
           <CardTitle>Recent Events</CardTitle>

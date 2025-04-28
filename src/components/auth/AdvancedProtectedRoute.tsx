@@ -2,8 +2,8 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useStore } from "@/stores/advanced/store";
-import { hasPermission } from "@/stores/advanced/actions";
+import { useStore } from "@/auth/store";
+import { hasPermission } from "@/auth/store/actions";
 import { Loader2 } from "lucide-react";
 
 interface AdvancedProtectedRouteProps {
@@ -17,10 +17,10 @@ interface AdvancedProtectedRouteProps {
 
 /**
  * AdvancedProtectedRoute component
- * 
+ *
  * Wraps a page or component to ensure the user is authenticated and has the required permissions.
  * Uses the advanced Zustand store for state management.
- * 
+ *
  * @example
  * <AdvancedProtectedRoute permissions={["VIEW_REPORTS"]}>
  *   <ReportsPage />

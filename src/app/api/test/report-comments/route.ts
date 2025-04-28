@@ -43,14 +43,14 @@ export async function GET(request: NextRequest) {
 
     const testReport = await prisma.report.create({
       data: {
-        date: randomDate,
+        date: randomDate.toISOString(), // Convert Date to string
         branchId: branch.id,
         writeOffs: 0,
         ninetyPlus: 0,
         reportType: "plan",
         status: "pending",
         submittedBy: testUserId,
-        submittedAt: new Date(),
+        submittedAt: new Date().toISOString(), // Convert Date to string
       },
     });
     console.log("Test report created:", testReport.id);

@@ -31,7 +31,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/use-toast";
 import { KHCurrencyInput } from "@/components/ui/currency-input";
 import { useSSE } from "@/hooks/useSSE";
-import { DashboardEventTypes } from "@/lib/events/dashboard-events";
+import { DashboardEventTypes } from "@/lib/events/dashboardEvents";
 
 type Branch = {
   id: string;
@@ -53,11 +53,11 @@ export default function CreateReport() {
 
   // Set up SSE connection for real-time updates
   const { lastEvent } = useSSE({
-    endpoint: '/api/dashboard/sse',
+    sseEndpoint: '/api/dashboard/sse',
     eventHandlers: {
-      dashboardUpdate: (data) => {
+      dashboardUpdate: (data: any) => {
         // Handle report status update events (approval/rejection)
-        if (data.type === DashboardEventTypes.REPORT_STATUS_UPDATED &&
+        if (data && (data.type === 'reportApproved' || data.type === 'reportRejected') &&
           data.reportId === lastSubmittedReportId.current) {
           console.log('Report status updated:', data);
 

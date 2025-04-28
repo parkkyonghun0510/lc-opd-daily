@@ -8,7 +8,7 @@ import { rateLimiter } from "@/lib/rate-limit";
 // GET /api/reports/[id]/report-comments - Get all comments for a report
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const token = await getToken({ req: request });
@@ -20,7 +20,7 @@ export async function GET(
       );
     }
 
-    const reportId = params.id;
+    const { id: reportId } = await params;
 
     // Check if the report exists
     const report = await prisma.report.findUnique({
@@ -65,7 +65,7 @@ export async function GET(
 // POST /api/reports/[id]/report-comments - Add a comment to a report
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const token = await getToken({ req: request });
@@ -77,7 +77,7 @@ export async function POST(
       );
     }
 
-    const reportId = params.id;
+    const { id: reportId } = await params;
     const { content, parentId } = await request.json();
 
     if (!content) {
@@ -165,7 +165,14 @@ export async function POST(
 
     // Process notification for the new comment
     try {
-      const notificationId = await processCommentNotification(comment, reportId);
+      // Convert Date objects to strings for the notification system
+      const commentForNotification = {
+        ...comment,
+        createdAt: comment.createdAt.toISOString(),
+        updatedAt: comment.updatedAt.toISOString()
+      };
+
+      const notificationId = await processCommentNotification(commentForNotification, reportId);
       if (notificationId) {
         console.log(`Notification sent for comment: ${notificationId}`);
       }

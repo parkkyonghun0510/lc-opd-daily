@@ -156,7 +156,6 @@ export function EnhancedDashboardProvider({ children }: { children: React.ReactN
       {/* Include the AuthenticatedSSE component */}
       <AuthenticatedSSE
         eventHandlers={eventHandlers}
-        preferredMethod="auto"
         debug={process.env.NODE_ENV === 'development'}
       />
 

@@ -19,14 +19,14 @@ export async function GET(request: NextRequest) {
     // Create a test report
     const testReport = await prisma.report.create({
       data: {
-        date: new Date(),
+        date: new Date().toISOString(), // Convert Date to string
         branchId: "clsqnvnxs0000ufwxgxvx9yjl", // Replace with a valid branch ID
         writeOffs: 0,
         ninetyPlus: 0,
         reportType: "plan",
         status: "pending",
         submittedBy: token.sub as string,
-        submittedAt: new Date(),
+        submittedAt: new Date().toISOString(), // Convert Date to string
       },
     });
 

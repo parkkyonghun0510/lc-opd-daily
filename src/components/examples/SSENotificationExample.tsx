@@ -10,65 +10,66 @@ import { toast } from 'sonner';
 
 /**
  * SSE Notification Example Component
- * 
+ *
  * This component demonstrates how to use SSE for real-time notifications.
  */
 export function SSENotificationExample() {
   const [notifications, setNotifications] = useState<any[]>([]);
-  
+
   // Use the SSE hook to connect to the SSE endpoint
   const { isConnected, error, lastEvent, reconnect, closeConnection } = useSSE({
+    sseEndpoint: '/api/sse',
     // Configure event handlers for different event types
     eventHandlers: {
       // Handle notification events
-      notification: (data) => {
-        toast.info(data.title, {
-          description: data.message,
+      notification: (data: any) => {
+        toast.info(data.title || 'Notification', {
+          description: data.message || 'New notification received',
         });
-        
+
         // Add the notification to our local state
         setNotifications((prev) => [data, ...prev].slice(0, 10));
       },
-      
+
       // Handle system alert events
-      systemAlert: (data) => {
-        const toastType = data.type === 'error' ? toast.error : 
-                         data.type === 'warning' ? toast.warning : toast.info;
-        
-        toastType(data.message);
+      systemAlert: (data: any) => {
+        const toastType = data.type === 'error' ? toast.error :
+          data.type === 'warning' ? toast.warning : toast.info;
+
+        toastType(data.message || 'System alert');
       },
-      
+
       // Handle ping events (optional, for debugging)
-      ping: (data) => {
+      ping: (data: any) => {
         console.log('Ping received:', data);
       }
     },
-    
+
     // Enable debug logging
     debug: true,
-    
+
     // Enable client-side caching of events
     enableCache: true
   });
-  
+
   // Function to trigger a test notification
   const triggerTestNotification = async () => {
     try {
       const response = await fetch('/api/test-notification', {
         method: 'POST',
       });
-      
+
       if (!response.ok) {
         throw new Error('Failed to trigger test notification');
       }
-      
+
       toast.success('Test notification triggered');
     } catch (error) {
       console.error('Error triggering test notification:', error);
       toast.error('Failed to trigger test notification');
     }
   };
-  
+
   return (
     <Card className="w-full max-w-md mx-auto">
       <CardHeader>
@@ -82,14 +83,14 @@ export function SSENotificationExample() {
           Receive notifications in real-time using Server-Sent Events (SSE)
         </CardDescription>
       </CardHeader>
-      
+
       <CardContent>
         {error && (
           <div className="bg-destructive/10 text-destructive p-3 rounded-md mb-4">
             Connection error: {error.toString()}
           </div>
         )}
-        
+
         <div className="space-y-4">
           <div className="flex flex-col gap-2">
             <h3 className="text-sm font-medium">Recent Notifications</h3>
@@ -111,9 +112,9 @@ export function SSENotificationExample() {
               </div>
             )}
           </div>
-          
+
           <Separator />
-          
+
           <div>
             <h3 className="text-sm font-medium mb-2">Last Event</h3>
             {lastEvent ? (
@@ -125,7 +126,7 @@ export function SSENotificationExample() {
                   </span>
                 </div>
                 <pre className="text-xs mt-2 overflow-auto max-h-24">
-                  {JSON.stringify(lastEvent.payload, null, 2)}
+                  {/* {JSON.stringify(lastEvent.payload, null, 2)} */}
                 </pre>
               </div>
             ) : (
@@ -134,7 +135,7 @@ export function SSENotificationExample() {
           </div>
         </div>
       </CardContent>
-      
+
       <CardFooter className="flex justify-between">
         <div className="flex gap-2">
           {isConnected ? (
@@ -147,7 +148,7 @@ export function SSENotificationExample() {
             </Button>
           )}
         </div>
-        
+
         <Button onClick={triggerTestNotification}>
           Trigger Test Notification
         </Button>

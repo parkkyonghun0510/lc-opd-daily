@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useSSE, SSEEventType } from './useSSE';
+import useSSE from './useSSE';
+import { EventType as SSEEventType } from '@/auth/store/slices/hybridRealtimeSlice';
 import { usePollingFallback } from './usePollingFallback';
 
 /**
@@ -65,7 +66,7 @@ export function useRealTimeUpdates(options: RealTimeUpdatesOptions = {}) {
     lastEvent: sseLastEvent,
     reconnect: sseReconnect
   } = useSSE({
-    endpoint: sseEndpoint,
+    sseEndpoint: sseEndpoint,
     eventHandlers,
     enableCache,
     debug

@@ -7,7 +7,7 @@ import { rateLimiter } from "@/lib/rate-limit";
 // DELETE /api/reports/[id]/report-comments/[commentId] - Delete a comment
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string; commentId: string } }
+  { params }: { params: Promise<{ id: string; commentId: string }> }
 ) {
   try {
     const token = await getToken({ req: request });
@@ -19,7 +19,7 @@ export async function DELETE(
       );
     }
 
-    const { id: reportId, commentId } = params;
+    const { id: reportId, commentId } = await params;
 
     // Get the existing comment
     const existingComment = await prisma.reportComment.findUnique({
@@ -78,7 +78,7 @@ export async function DELETE(
 // PATCH /api/reports/[id]/report-comments/[commentId] - Update a comment
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string; commentId: string } }
+  { params }: { params: Promise<{ id: string; commentId: string }> }
 ) {
   try {
     const token = await getToken({ req: request });
@@ -90,7 +90,7 @@ export async function PATCH(
       );
     }
 
-    const { id: reportId, commentId } = params;
+    const { id: reportId, commentId } = await params;
     const { content } = await request.json();
 
     if (!content) {
@@ -170,11 +170,11 @@ export async function PATCH(
     });
   } catch (error) {
     console.error("Error updating report comment:", error);
-    
+
     // Check for specific PostgreSQL error codes
     if (error instanceof Error) {
       const errorMessage = error.message || '';
-      
+
       // Check for UTF-8 encoding issues (PostgreSQL error code 22021)
       if (errorMessage.includes('22021') || errorMessage.includes('invalid byte sequence for encoding')) {
         return NextResponse.json(
@@ -186,7 +186,7 @@ export async function PATCH(
         );
       }
     }
-    
+
     return NextResponse.json(
       { error: "Failed to update comment" },
       { status: 500 }

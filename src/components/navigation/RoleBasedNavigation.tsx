@@ -79,7 +79,7 @@ export function RoleBasedNavigation() {
       name: 'History',
       href: '/dashboard/history',
       icon: <History className="h-5 w-5" />,
-      permissions: [Permission.VIEW_HISTORY],
+      permissions: [Permission.VIEW_AUDIT_LOGS],
     },
     {
       name: 'Settings',

@@ -18,7 +18,7 @@ export const refreshSession = async () => {
     // Check if we have a refresh token
     if (store.refreshToken) {
       // Try to use the refresh token first
-      const success = await store.refreshToken();
+      const success = await store.refreshAuthToken();
       if (success) {
         // Update the session expiry time (30 minutes from now)
         const sessionExpiresAt = Date.now() + 30 * 60 * 1000;
@@ -117,7 +117,7 @@ export const handleSessionTimeout = async () => {
   const store = useStore.getState();
 
   // Try to refresh the token first if we have a refresh token
-  if (store.isAuthenticated && await store.refreshToken() && !store.refreshInProgress) {
+  if (store.isAuthenticated && await store.refreshAuthToken() && !store.refreshInProgress) {
     try {
       // Use the refreshSession function which handles token refresh
       const success = await refreshSession();

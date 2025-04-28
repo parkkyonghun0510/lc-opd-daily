@@ -30,7 +30,7 @@ export const useDashboardSSE = () => {
     error,
     reconnect
   } = useSSE({
-    endpoint: '/api/dashboard/sse',
+    sseEndpoint: '/api/dashboard/sse',
     clientMetadata: {
       type: 'dashboard',
       role: role
@@ -63,7 +63,7 @@ export const useDashboardSSE = () => {
   // Transform the generic SSE event into a dashboard-specific format
   const lastEventData = lastEvent ? {
     type: lastEvent.type,
-    payload: lastEvent.payload
+    payload: lastEvent.data
   } : null;
 
   return {

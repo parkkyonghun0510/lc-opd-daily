@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useCallback, useRef } from 'react';
-import { useStore } from '@/stores/advanced/store';
-import { handleSessionTimeout, refreshSession } from '@/stores/advanced/actions';
+import { useStore } from '@/auth/store';
+import { handleSessionTimeout, refreshSession } from '@/auth/store/actions';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
@@ -18,7 +18,7 @@ interface SessionActivityTrackerProps {
 
 /**
  * SessionActivityTracker component
- * 
+ *
  * Tracks user activity and manages session timeouts.
  * Shows a warning dialog before the session expires.
  */
@@ -27,14 +27,14 @@ export function SessionActivityTracker({
   expiryTime = 30,  // Default session expiry time is 30 minutes
   checkInterval = 30, // Check every 30 seconds
 }: SessionActivityTrackerProps) {
-  const { 
-    isAuthenticated, 
-    updateLastActivity, 
-    timeUntilExpiry, 
-    isSessionExpired, 
-    logout 
+  const {
+    isAuthenticated,
+    updateLastActivity,
+    timeUntilExpiry,
+    isSessionExpired,
+    logout
   } = useStore();
-  
+
   const [showWarning, setShowWarning] = useState(false);
   const [timeLeft, setTimeLeft] = useState(0);
   const warningDisplayed = useRef(false);
@@ -70,16 +70,16 @@ export function SessionActivityTracker({
     if (remainingTime <= warningTimeMs && !warningDisplayed.current) {
       warningDisplayed.current = true;
       setShowWarning(true);
-      
+
       // Calculate time left in seconds
       const timeLeftSecs = Math.max(0, Math.floor(remainingTime / 1000));
       setTimeLeft(timeLeftSecs);
-      
+
       // Start countdown timer
       if (timerInterval.current) {
         clearInterval(timerInterval.current);
       }
-      
+
       timerInterval.current = setInterval(() => {
         setTimeLeft(prev => {
           if (prev <= 1) {
@@ -102,23 +102,23 @@ export function SessionActivityTracker({
 
     // Events to track for activity
     const events = ['mousedown', 'keypress', 'scroll', 'mousemove', 'touchstart'];
-    
+
     // Add event listeners
     events.forEach(event => {
       window.addEventListener(event, handleUserActivity);
     });
-    
+
     // Set up session checker
     const sessionChecker = setInterval(checkSessionStatus, checkInterval * 1000);
-    
+
     // Cleanup
     return () => {
       events.forEach(event => {
         window.removeEventListener(event, handleUserActivity);
       });
-      
+
       clearInterval(sessionChecker);
-      
+
       if (timerInterval.current) {
         clearInterval(timerInterval.current);
       }
@@ -130,7 +130,7 @@ export function SessionActivityTracker({
     if (!isAuthenticated) {
       warningDisplayed.current = false;
       setShowWarning(false);
-      
+
       if (timerInterval.current) {
         clearInterval(timerInterval.current);
       }
@@ -147,12 +147,12 @@ export function SessionActivityTracker({
   // Extend session
   const extendSession = async () => {
     const success = await refreshSession();
-    
+
     if (success) {
       // Reset warning state
       warningDisplayed.current = false;
       setShowWarning(false);
-      
+
       if (timerInterval.current) {
         clearInterval(timerInterval.current);
       }

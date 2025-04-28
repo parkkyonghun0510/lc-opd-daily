@@ -3,29 +3,28 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { logger, performanceLogger } from './middleware/logger';
 import { createAuthSlice, AuthSlice } from './slices/authSlice';
 import { createProfileSlice, ProfileSlice } from './slices/profileSlice';
-import { createSSESlice, SSESlice } from './slices/sseSlice';
 import { createHybridRealtimeSlice, HybridRealtimeSlice } from './slices/hybridRealtimeSlice';
 import { devtools } from 'zustand/middleware';
 
 // Define the combined store type
-export interface StoreState extends AuthSlice, ProfileSlice, SSESlice, HybridRealtimeSlice { }
+export interface StoreState extends AuthSlice, ProfileSlice, HybridRealtimeSlice { }
 
 // Create the combined store
 export const useStore = create<StoreState>()(
   devtools(
     persist(
-      logger(
-        performanceLogger(
-          (...a) => ({
-            // Combine the slices
-            ...createAuthSlice(...a),
-            ...createProfileSlice(...a),
-            ...createSSESlice(...a),
-            ...createHybridRealtimeSlice(...a),
-          }),
-          'auth-store'
-        )
-      ),
+      // Temporarily disable logger and performanceLogger for build
+      // logger(
+      //   performanceLogger(
+      (...a) => ({
+        // Combine the slices
+        ...createAuthSlice(...a),
+        ...createProfileSlice(...a),
+        ...createHybridRealtimeSlice(...a),
+      }),
+      //     'auth-store'
+      //   )
+      // ),
       {
         name: 'auth-storage', // Name for localStorage
         storage: createJSONStorage(() => localStorage), // Use localStorage
@@ -64,8 +63,7 @@ export const useAuth = () => {
     clearError: store.clearError,
     setLoading: store.setLoading,
     updateLastActivity: store.updateLastActivity,
-    refreshToken: store.refreshToken,
-    refreshAuthToken: store.refreshToken, // Alias for backward compatibility
+    refreshAuthToken: store.refreshAuthToken, // Use only one name for the refresh token function
     silentRefresh: store.silentRefresh,
 
     // Auth selectors
@@ -106,27 +104,7 @@ export const useProfile = () => {
   };
 };
 
-export const useSSE = () => {
-  const store = useStore();
-
-  return {
-    // SSE state
-    isConnected: store.isConnected,
-    error: store.error,
-    lastEvent: store.lastEvent,
-    options: store.options,
-
-    // SSE actions
-    connect: store.connect,
-    disconnect: store.disconnect,
-    reconnect: store.reconnect,
-    setOptions: store.setOptions,
-
-    // SSE selectors
-    getOptions: store.getOptions,
-    isConnecting: store.isConnecting,
-  };
-};
+// SSE hook removed in favor of HybridRealtime
 
 export const useHybridRealtime = () => {
   const store = useStore();

@@ -37,7 +37,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useSSE } from "@/hooks/useSSE";
-import { DashboardEventTypes } from "@/lib/events/dashboard-events";
+import { DashboardEventTypes } from "@/lib/events/dashboardEvents";
 import { fetchPendingReportsAction } from "@/app/_actions/report-actions";
 import { Pagination } from "@/components/ui/pagination";
 import {
@@ -417,11 +417,11 @@ export default function ApprovalsPage() {
 
   // Set up SSE connection for real-time updates
   const { } = useSSE({
-    endpoint: '/api/dashboard/sse',
+    sseEndpoint: '/api/dashboard/sse',
     eventHandlers: {
-      dashboardUpdate: (data) => {
+      dashboardUpdate: (data: any) => {
         // Handle report submission events
-        if (data.type === DashboardEventTypes.REPORT_SUBMITTED) {
+        if (data && data.type === 'reportSubmitted') {
           console.log('New report submitted:', data);
           // Set the notification flag
           setNewReportNotification(true);
@@ -436,7 +436,7 @@ export default function ApprovalsPage() {
           });
         }
         // Handle report status update events (approval/rejection)
-        else if (data.type === DashboardEventTypes.REPORT_STATUS_UPDATED) {
+        else if (data && (data.type === 'reportApproved' || data.type === 'reportRejected')) {
           console.log('Report status updated:', data);
 
           // Show a toast notification about the status change

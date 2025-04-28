@@ -21,11 +21,10 @@ export default function RedisNotificationTest() {
   const { toast } = useToast();
 
   // Initialize real-time connection
-  const { 
-    isConnected: realtimeConnected, 
-    connectionMethod: realtimeMethod,
-    events,
-    checkConnection,
+  const {
+    isConnected: realtimeConnected,
+    activeMethod: realtimeMethod,
+    lastEvent,
     reconnect
   } = useHybridRealtime();
 
@@ -35,6 +34,9 @@ export default function RedisNotificationTest() {
     setConnectionMethod(realtimeMethod);
   }, [realtimeConnected, realtimeMethod]);
 
+  // Create a mock events array from lastEvent for backward compatibility
+  const events = lastEvent ? [lastEvent] : [];
+
   // Update recent events when new events are received
   useEffect(() => {
     if (events && events.length > 0) {
@@ -42,7 +44,7 @@ export default function RedisNotificationTest() {
         // Add new events to the beginning of the array
         const newEvents = [...events, ...prev];
         // Deduplicate events by id
-        const uniqueEvents = newEvents.filter((event, index, self) => 
+        const uniqueEvents = newEvents.filter((event, index, self) =>
           index === self.findIndex(e => e.id === event.id)
         );
         // Return the first 10 events
@@ -60,7 +62,7 @@ export default function RedisNotificationTest() {
   const sendTestNotification = async () => {
     try {
       setIsLoading(true);
-      
+
       const response = await fetch('/api/test/redis-notification', {
         method: 'POST',
         headers: {
@@ -68,21 +70,21 @@ export default function RedisNotificationTest() {
         },
         body: JSON.stringify({ message, title }),
       });
-      
+
       const data = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(data.error || 'Failed to send notification');
       }
-      
+
       toast({
         title: 'Notification Sent',
         description: `Notification ID: ${data.notificationId}`,
       });
-      
+
       // Update metrics
       setMetrics(data.metrics);
-      
+
       // Update message with current time
       setMessage('This is a test notification sent at ' + new Date().toLocaleTimeString());
     } catch (error) {
@@ -101,7 +103,7 @@ export default function RedisNotificationTest() {
   const sendTestSSENotification = async () => {
     try {
       setIsLoading(true);
-      
+
       const response = await fetch('/api/test/sse-notification', {
         method: 'POST',
         headers: {
@@ -109,13 +111,13 @@ export default function RedisNotificationTest() {
         },
         body: JSON.stringify({ message, title }),
       });
-      
+
       const data = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(data.error || 'Failed to send SSE notification');
       }
-      
+
       toast({
         title: 'SSE Notification Sent',
         description: `Event ID: ${data.eventId}`,
@@ -137,11 +139,11 @@ export default function RedisNotificationTest() {
     try {
       const response = await fetch('/api/test/redis-notification');
       const data = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(data.error || 'Failed to fetch metrics');
       }
-      
+
       setMetrics(data.metrics);
     } catch (error) {
       console.error('Error fetching metrics:', error);
@@ -156,7 +158,8 @@ export default function RedisNotificationTest() {
   // Check Redis connection
   const checkRedisConnection = async () => {
     try {
-      await checkConnection();
+      // Instead of checkConnection (which doesn't exist anymore), just trigger reconnect
+      reconnect();
       toast({
         title: 'Connection Checked',
         description: `Connected using ${realtimeMethod}`,
@@ -175,7 +178,7 @@ export default function RedisNotificationTest() {
     <div className="container mx-auto py-8">
       <h1 className="text-3xl font-bold mb-6">Redis Notification Tester</h1>
       <p className="text-gray-500 mb-8">Test the Redis notification system by sending and receiving notifications in real-time.</p>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
@@ -196,7 +199,7 @@ export default function RedisNotificationTest() {
             </Button>
           </CardFooter>
         </Card>
-        
+
         <Card>
           <CardHeader>
             <CardTitle>Redis Status</CardTitle>
@@ -235,7 +238,7 @@ export default function RedisNotificationTest() {
           </CardFooter>
         </Card>
       </div>
-      
+
       <Card className="mt-6">
         <CardHeader>
           <CardTitle>Send Test Notification</CardTitle>
@@ -273,7 +276,7 @@ export default function RedisNotificationTest() {
           </Button>
         </CardFooter>
       </Card>
-      
+
       <Tabs defaultValue="events" className="mt-6">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="events">Recent Events</TabsTrigger>
@@ -288,7 +291,7 @@ export default function RedisNotificationTest() {
             <CardContent>
               {recentEvents.length > 0 ? (
                 <div className="space-y-4">
-                  {recentEvents.map((event, index) => (
+                  {recentEvents.map((event: any, index: number) => (
                     <div key={event.id || index} className="border rounded-md p-4">
                       <div className="flex justify-between items-start">
                         <div>
@@ -320,7 +323,7 @@ export default function RedisNotificationTest() {
             <CardContent>
               {metrics?.recentNotifications?.length > 0 ? (
                 <div className="space-y-4">
-                  {metrics.recentNotifications.map((notification, index) => (
+                  {metrics.recentNotifications.map((notification: any, index: number) => (
                     <div key={notification.id || index} className="border rounded-md p-4">
                       <div className="flex justify-between items-start">
                         <div>

@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef } from 'react';
-import { useStore } from '@/stores/advanced/store';
-import { synchronizeUserData } from '@/stores/advanced/actions';
+import { useStore } from '@/auth/store';
+import { synchronizeUserData } from '@/auth/store/actions';
 import { useSession } from 'next-auth/react';
 
 interface StoreSynchronizerProps {
@@ -16,7 +16,7 @@ interface StoreSynchronizerProps {
 
 /**
  * StoreSynchronizer component
- * 
+ *
  * Synchronizes the Zustand store with the server at regular intervals
  * and on specific events like window focus and network reconnection.
  */

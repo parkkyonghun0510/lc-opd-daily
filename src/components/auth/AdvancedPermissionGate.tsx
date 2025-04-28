@@ -1,6 +1,6 @@
 import { ReactNode, useEffect, useState } from "react";
-import { useStore } from "@/stores/advanced/store";
-import { hasPermission, hasBranchAccess } from "@/stores/advanced/actions";
+import { useStore } from "@/auth/store";
+import { hasPermission, hasBranchAccess } from "@/auth/store/actions";
 import { Loader2 } from "lucide-react";
 
 interface AdvancedPermissionGateProps {

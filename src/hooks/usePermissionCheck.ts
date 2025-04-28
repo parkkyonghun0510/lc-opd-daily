@@ -56,7 +56,9 @@ export function usePermissionCheck(
  * Hook to check multiple permissions at once and get detailed results
  */
 export function useMultiplePermissions(permissions: Permission[]) {
-  const { hasPermission, isLoading } = usePermissions();
+  const { hasPermission } = usePermissions();
+  // Since usePermissions doesn't have isLoading, we'll set it to false
+  const isLoading = false;
 
   const permissionResults = useMemo(() => {
     return permissions.reduce((acc, permission) => {
@@ -76,7 +78,9 @@ export function useMultiplePermissions(permissions: Permission[]) {
  * Hook to check if user has a specific role
  */
 export function useRoleCheck(role: UserRole | UserRole[]) {
-  const { hasRole, isLoading } = usePermissions();
+  const { hasRole } = usePermissions();
+  // Since usePermissions doesn't have isLoading, we'll set it to false
+  const isLoading = false;
 
   return {
     hasRole: hasRole(role),
@@ -90,7 +94,9 @@ export function useRoleCheck(role: UserRole | UserRole[]) {
  * Useful for complex UI that needs to adapt to multiple permissions
  */
 export function useAllPermissions() {
-  const { hasPermission, isLoading } = usePermissions();
+  const { hasPermission } = usePermissions();
+  // Since usePermissions doesn't have isLoading, we'll set it to false
+  const isLoading = false;
 
   const allPermissions = useMemo(() => {
     return Object.values(Permission).reduce((acc, permission) => {

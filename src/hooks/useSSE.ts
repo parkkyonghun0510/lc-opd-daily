@@ -2,8 +2,8 @@
 
 import { useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
-import { useSSE as useSSEStore } from '@/auth/store';
-import { SSEOptions, SSEEventType, SSEEvent } from '@/auth/store/slices/sseSlice';
+import { useHybridRealtime as useSSEStore } from '@/auth/store';
+import { HybridRealtimeOptions as SSEOptions, EventType as SSEEventType, RealtimeEvent as SSEEvent } from '@/auth/store/slices/hybridRealtimeSlice';
 import { useAuth } from '@/auth/store';
 
 /**
@@ -38,7 +38,7 @@ export function useSSE(options: SSEOptions = {}) {
     required: false,
   });
 
-  const { user, needsTokenRefresh, refreshToken } = useAuth();
+  const { user, needsTokenRefresh, refreshAuthToken } = useAuth();
 
   // Store options in a ref to avoid unnecessary re-renders
   const optionsRef = useRef(options);
@@ -84,7 +84,7 @@ export function useSSE(options: SSEOptions = {}) {
 
     // Initial check
     if (needsTokenRefresh()) {
-      refreshToken().catch(err => {
+      refreshAuthToken().catch(err => {
         console.error('Error refreshing token:', err);
       });
     }
@@ -92,14 +92,14 @@ export function useSSE(options: SSEOptions = {}) {
     // Set up periodic token refresh check
     const tokenCheckInterval = setInterval(() => {
       if (needsTokenRefresh()) {
-        refreshToken().catch(err => {
+        refreshAuthToken().catch(err => {
           console.error('Error refreshing token:', err);
         });
       }
     }, 60000); // Check every minute
 
     return () => clearInterval(tokenCheckInterval);
-  }, [session?.user?.id, status, refreshToken]);
+  }, [session?.user?.id, status, refreshAuthToken]);
 
   return {
     isConnected,

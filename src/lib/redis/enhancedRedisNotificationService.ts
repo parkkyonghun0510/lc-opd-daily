@@ -1,6 +1,6 @@
 /**
  * Enhanced Redis Notification Service
- * 
+ *
  * This service extends the Redis notification service with load balancing,
  * rate limiting, and improved error handling.
  */
@@ -39,7 +39,7 @@ const RATE_LIMITS = {
 
 /**
  * Check if a notification is rate limited
- * 
+ *
  * @param notification - The notification to check
  * @returns Whether the notification is rate limited
  */
@@ -49,55 +49,55 @@ async function isRateLimited(notification: Omit<NotificationMessage, 'id' | 'tim
     if (notification.priority === 'high') {
       return false;
     }
-    
+
     // Check rate limits for each user
     for (const userId of notification.userIds) {
       const userKey = `rate-limit:notification:user:${userId}`;
-      
+
       // Get current count from Redis
       const result = await executeRedisOperation(async (redis) => {
         const count = await redis.get(userKey) as number | null;
-        
+
         if (count === null) {
           // Set initial count with expiry
           await redis.set(userKey, 1, { ex: RATE_LIMITS.USER_NOTIFICATIONS.window });
           return false;
         }
-        
+
         if (count >= RATE_LIMITS.USER_NOTIFICATIONS.max) {
           return true; // Rate limited
         }
-        
+
         // Increment count
         await redis.incr(userKey);
         return false;
       });
-      
+
       if (!result.success || result.data === true) {
         return true; // Rate limited or error
       }
     }
-    
+
     // Check rate limit for notification type
     const typeKey = `rate-limit:notification:type:${notification.type}`;
     const result = await executeRedisOperation(async (redis) => {
       const count = await redis.get(typeKey) as number | null;
-      
+
       if (count === null) {
         // Set initial count with expiry
         await redis.set(typeKey, 1, { ex: RATE_LIMITS.TYPE_NOTIFICATIONS.window });
         return false;
       }
-      
+
       if (count >= RATE_LIMITS.TYPE_NOTIFICATIONS.max) {
         return true; // Rate limited
       }
-      
+
       // Increment count
       await redis.incr(typeKey);
       return false;
     });
-    
+
     return !result.success || result.data === true;
   } catch (error) {
     console.error('Error checking rate limit:', error);
@@ -107,12 +107,12 @@ async function isRateLimited(notification: Omit<NotificationMessage, 'id' | 'tim
 
 /**
  * Send a notification using Redis with load balancing
- * 
+ *
  * This function:
  * 1. Creates in-app notifications in the database
  * 2. Emits real-time notifications via Redis
  * 3. Stores the notification in Redis for tracking
- * 
+ *
  * @param notification - The notification message
  * @returns The notification ID
  */
@@ -124,17 +124,17 @@ export async function sendNotification(
     const isLimited = await isRateLimited(notification);
     if (isLimited) {
       console.warn(`Rate limit exceeded for notification type: ${notification.type}`);
-      
+
       // For rate-limited notifications, we'll still process high-priority ones
       if (notification.priority !== 'high') {
         throw new Error('Rate limit exceeded for notifications');
       }
     }
-    
+
     // Generate a unique ID for the notification
     const id = crypto.randomUUID();
     const timestamp = new Date().toISOString();
-    
+
     // Create the full notification object
     const fullNotification: NotificationMessage = {
       id,
@@ -145,7 +145,7 @@ export async function sendNotification(
       priority: notification.priority || 'normal',
       idempotencyKey: notification.idempotencyKey
     };
-    
+
     // Store notification in Redis using load balancer
     const queueResult = await executeRedisOperation(async (redis) => {
       await redis.lpush(NOTIFICATION_QUEUE_KEY, JSON.stringify(fullNotification));
@@ -153,14 +153,14 @@ export async function sendNotification(
       await redis.ltrim(NOTIFICATION_QUEUE_KEY, 0, 999);
       return true;
     });
-    
+
     if (!queueResult.success) {
       throw queueResult.error || new Error('Failed to queue notification');
     }
-    
+
     // Process the notification immediately
     await processNotification(fullNotification);
-    
+
     return id;
   } catch (error) {
     console.error('Error sending notification:', error);
@@ -170,7 +170,7 @@ export async function sendNotification(
 
 /**
  * Process a notification
- * 
+ *
  * @param notification - The notification to process
  * @returns Whether the notification was processed successfully
  */
@@ -185,20 +185,20 @@ export async function processNotification(notification: NotificationMessage): Pr
       );
       return true;
     });
-    
+
     // 1. Create in-app notifications
     const inAppCount = await createInAppNotifications(
       notification.type as NotificationType,
       notification.data || {},
       notification.userIds
     );
-    
+
     // 2. Emit real-time notifications via Redis
     const notificationContent = generateNotificationContent(
       notification.type as NotificationType,
       notification.data
     );
-    
+
     // Send to each user
     for (const userId of notification.userIds) {
       await emitNotification(
@@ -212,7 +212,7 @@ export async function processNotification(notification: NotificationMessage): Pr
         }
       );
     }
-    
+
     // 3. Store notification in history
     await executeRedisOperation(async (redis) => {
       await redis.lpush(
@@ -223,22 +223,22 @@ export async function processNotification(notification: NotificationMessage): Pr
           inAppCount
         })
       );
-      
+
       // Trim history to prevent unbounded growth
       await redis.ltrim(NOTIFICATION_HISTORY_KEY, 0, MAX_HISTORY_SIZE - 1);
       return true;
     });
-    
+
     // 4. Remove from processing
     await executeRedisOperation(async (redis) => {
       await redis.del(`${NOTIFICATION_PROCESSING_KEY}:${notification.id}`);
       return true;
     });
-    
+
     return true;
   } catch (error) {
     console.error('Error processing notification:', error);
-    
+
     // Store the error in Redis for debugging
     await executeRedisOperation(async (redis) => {
       await redis.set(
@@ -252,14 +252,14 @@ export async function processNotification(notification: NotificationMessage): Pr
       );
       return true;
     });
-    
+
     return false;
   }
 }
 
 /**
  * Create in-app notifications in the database
- * 
+ *
  * @param type - The notification type
  * @param data - The notification data
  * @param userIds - The user IDs to notify
@@ -273,28 +273,28 @@ async function createInAppNotifications(
   try {
     // Generate notification content
     const content = generateNotificationContent(type, data);
-    
+
     // Create notifications for each user
     const notifications = userIds.map(userId => ({
       userId,
       title: data.title || content.title,
       body: data.body || content.body,
       type,
-      actionUrl: data.actionUrl || content.actionUrl,
+      actionUrl: data.actionUrl || content.url,
       isRead: false,
       data
     }));
-    
+
     // Skip if no notifications to create
     if (notifications.length === 0) {
       return 0;
     }
-    
+
     // Insert in-app notifications in bulk
     const result = await prisma.inAppNotification.createMany({
       data: notifications
     });
-    
+
     // Create notification events for tracking
     if (result.count > 0) {
       // Get the created notifications to get their IDs
@@ -306,7 +306,7 @@ async function createInAppNotifications(
         },
         select: { id: true }
       });
-      
+
       // Create events for each notification
       if (createdNotifications.length > 0) {
         await prisma.notificationEvent.createMany({
@@ -321,7 +321,7 @@ async function createInAppNotifications(
         });
       }
     }
-    
+
     return result.count;
   } catch (error) {
     console.error('Error creating in-app notifications:', error);
@@ -331,7 +331,7 @@ async function createInAppNotifications(
 
 /**
  * Get notification metrics
- * 
+ *
  * @returns Notification metrics
  */
 export async function getNotificationMetrics(): Promise<any> {
@@ -340,18 +340,18 @@ export async function getNotificationMetrics(): Promise<any> {
     const result = await executeRedisOperation(async (redis) => {
       // Get queue length
       const queueLength = await redis.llen(NOTIFICATION_QUEUE_KEY);
-      
+
       // Get processing count
       const processingKeys = await redis.keys(`${NOTIFICATION_PROCESSING_KEY}:*`);
       const processingCount = processingKeys.length;
-      
+
       // Get history count
       const historyCount = await redis.llen(NOTIFICATION_HISTORY_KEY);
-      
+
       // Get error count
       const errorKeys = await redis.keys('notifications:errors:*');
       const errorCount = errorKeys.length;
-      
+
       return {
         queueLength,
         processingCount,
@@ -360,14 +360,14 @@ export async function getNotificationMetrics(): Promise<any> {
         timestamp: new Date().toISOString()
       };
     });
-    
+
     if (!result.success) {
       throw result.error || new Error('Failed to get notification metrics');
     }
-    
+
     // Get load balancer stats
     const loadBalancerStats = getRedisLoadBalancer().getStats();
-    
+
     return {
       ...result.data,
       loadBalancer: loadBalancerStats

@@ -141,7 +141,7 @@ export function HybridRealtimeProvider({
     debug: debug || options.debug,
     clientMetadata: {
       ...(options.clientMetadata || {}),
-      userId: user?.id,
+      userId: user?.id || 'anonymous',
       role: user?.role || 'user',
       provider: 'HybridRealtimeProvider'
     }

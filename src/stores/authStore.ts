@@ -8,10 +8,18 @@ export const useAuthStore = useStore;
 
 // Helper hook for checking permissions
 export const useAuthPermissions = () => {
-  const { hasRole } = useAuth();
+  const auth = useAuth();
 
   return {
-    hasRole,
+    hasRole: (role: string | string[]) => {
+      if (!auth.isAuthenticated || !auth.user) return false;
+
+      if (Array.isArray(role)) {
+        return role.includes(auth.user.role);
+      }
+
+      return auth.user.role === role;
+    },
     // Add more permission helpers as needed
   };
 };

@@ -249,7 +249,7 @@ export const createHybridRealtimeSlice: StateCreator<
     // Close SSE connection
     const { eventSource } = get();
     if (eventSource) {
-      eventSource.close();
+      eventSource?.close();
       get().setEventSource(null);
     }
 
@@ -309,7 +309,7 @@ export const createHybridRealtimeSlice: StateCreator<
     // Close connections but don't remove event listeners
     const { eventSource } = get();
     if (eventSource) {
-      eventSource.close();
+      eventSource?.close();
       get().setEventSource(null);
     }
 
@@ -388,7 +388,7 @@ export const createHybridRealtimeSlice: StateCreator<
     try {
       // Close existing connection if any
       if (get().eventSource) {
-        get().eventSource.close();
+        get().eventSource?.close();
         get().setEventSource(null);
       }
 
@@ -413,7 +413,7 @@ export const createHybridRealtimeSlice: StateCreator<
 
       eventSource.onerror = (err) => {
         if (debug) console.log('[HybridRealtime] SSE connection error:', err);
-        eventSource.close();
+        eventSource?.close();
         get().setEventSource(null);
         get().setIsConnected(false);
         get().setError('SSE connection error');
@@ -709,7 +709,7 @@ export const createHybridRealtimeSlice: StateCreator<
 
                   // Call the event handler
                   if (eventHandlers[eventType]) {
-                    eventHandlers[eventType](normalizedEvent.data);
+                    eventHandlers[eventType]?.(normalizedEvent.data);
                   }
 
                   if (debug) {
@@ -759,12 +759,12 @@ export const createHybridRealtimeSlice: StateCreator<
 
     // Call the appropriate event handler
     if (eventHandlers && eventHandlers[normalizedEvent.type]) {
-      eventHandlers[normalizedEvent.type](normalizedEvent.data);
+      eventHandlers[normalizedEvent.type]?.(normalizedEvent.data);
     }
 
     // Also call the wildcard handler if it exists
     if (eventHandlers && eventHandlers['*']) {
-      eventHandlers['*'](normalizedEvent);
+      eventHandlers['*']?.(normalizedEvent);
     }
 
     // Dispatch a DOM event for components to listen for

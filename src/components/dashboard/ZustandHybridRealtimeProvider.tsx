@@ -3,8 +3,7 @@
 import { useEffect, useMemo } from 'react';
 import { useAuth } from '@/auth/hooks/useAuth';
 import { useDashboardStore } from '@/stores/dashboardStore';
-import { useHybridRealtime } from '@/hooks/useHybridRealtime';
-import { EventType, EventHandlersMap } from '@/auth/store/slices/hybridRealtimeSlice';
+import { useHybridRealtime, EventType, EventHandlersMap } from '@/hooks/useHybridRealtime';
 import { toast } from 'sonner';
 
 interface ZustandHybridRealtimeProviderProps {
@@ -207,14 +206,9 @@ export function ZustandHybridRealtimeProvider({
     getCachedEvents,
     getTimeSinceLastEvent
   } = useHybridRealtime({
-    sseEndpoint: '/api/realtime/sse',
     pollingEndpoint: '/api/realtime/polling',
     pollingInterval: autoRefreshInterval,
-    preferredMethod: 'auto',
     eventHandlers,
-    maxReconnectAttempts: 10,
-    reconnectBackoffFactor: 1.5,
-    enableCache: true,
     debug,
     clientMetadata: {
       component: 'ZustandHybridRealtimeProvider',

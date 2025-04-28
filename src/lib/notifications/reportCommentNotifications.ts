@@ -61,13 +61,6 @@ export async function processCommentNotification(
       where: { id: reportId },
       include: {
         branch: true,
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
       },
     });
 
@@ -94,7 +87,7 @@ export async function processCommentNotification(
       commentContent: comment.content,
       commentType: notificationType,
       reportType: report.reportType,
-      submittedBy: report.user?.name || 'Unknown User',
+      submittedBy: 'Unknown User', // We don't have user relation in Report model
       commenterName: comment.user?.name || 'Unknown User',
       title: getNotificationTitle(notificationType, report.branch?.name),
       body: getNotificationBody(notificationType, comment.content, comment.user?.name),
@@ -162,11 +155,11 @@ async function getTargetUsersForComment(
     lowerContent.includes('rejected')
   ) {
     // Get branch managers for this branch
-    const branchManagers = await prisma.userBranch.findMany({
+    const branchManagers = await prisma.userBranchAssignment.findMany({
       where: {
         branchId: report.branchId,
         user: {
-          roles: {
+          userRoles: {
             some: {
               role: {
                 name: 'BRANCH_MANAGER',

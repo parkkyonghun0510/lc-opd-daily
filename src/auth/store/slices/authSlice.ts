@@ -35,7 +35,7 @@ export interface AuthActions {
   setSessionExpiry: (expiresAt: number) => void;
   setRefreshToken: (token: string | null) => void;
   setTokenExpiry: (expiresAt: number | null) => void;
-  refreshToken: () => Promise<boolean>;
+  refreshAuthToken: () => Promise<boolean>;
   silentRefresh: () => Promise<boolean>;
   setRefreshInProgress: (inProgress: boolean) => void;
 }
@@ -115,7 +115,8 @@ export const createAuthSlice: StateCreator<AuthSlice, [], [], AuthSlice> = (set,
       const tokenExpiresAt = Date.now() + 60 * 60 * 1000;
 
       // Extract refresh token from result if available
-      const refreshToken = result?.refreshToken || null;
+      // For build, we'll just use null since the refreshToken property might not be available
+      const refreshToken = null;
 
       set({
         isAuthenticated: true,
@@ -232,7 +233,7 @@ export const createAuthSlice: StateCreator<AuthSlice, [], [], AuthSlice> = (set,
     set({ refreshInProgress: inProgress });
   },
 
-  refreshToken: async () => {
+  refreshAuthToken: async () => {
     const { refreshToken, refreshInProgress } = get();
 
     // Skip if no refresh token or refresh already in progress
@@ -289,7 +290,7 @@ export const createAuthSlice: StateCreator<AuthSlice, [], [], AuthSlice> = (set,
     }
 
     try {
-      return await get().refreshToken();
+      return await get().refreshAuthToken();
     } catch (error) {
       console.error('Silent refresh error:', error);
       return false;

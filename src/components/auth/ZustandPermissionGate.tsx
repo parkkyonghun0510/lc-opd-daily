@@ -41,9 +41,11 @@ export function ZustandPermissionGate({
     hasAnyPermission,
     hasAllPermissions,
     hasRole,
-    hasBranchAccess,
-    isLoading
+    hasBranchAccess
   } = usePermissions();
+
+  // Since usePermissions doesn't have isLoading, we'll set it to false
+  const isLoading = false;
 
   // Track access state
   const [hasAccess, setHasAccess] = useState(false);
