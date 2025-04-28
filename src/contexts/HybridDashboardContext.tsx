@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { fetchDashboardSummary, fetchUserDashboardData } from '@/app/_actions/dashboard-actions';
-import { useUserData } from './UserDataContext';
+import { useAuth } from '@/auth/hooks/useAuth';
 import { useHybridRealtime } from '@/hooks/useHybridRealtime';
 import { toast } from '@/components/ui/use-toast';
 
@@ -24,9 +24,12 @@ export function HybridDashboardProvider({ children }: { children: React.ReactNod
   const [isLoading, setIsLoading] = useState(true);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
-  const { userData } = useUserData();
 
-  const role = userData?.computedFields?.accessLevel || 'USER';
+  // Use the new auth hook instead of UserDataContext
+  const { user, isAuthenticated } = useAuth();
+
+  // Get role from the auth store
+  const role = user?.role || 'USER';
 
   // Use the hybrid realtime hook
   const {
@@ -101,8 +104,10 @@ export function HybridDashboardProvider({ children }: { children: React.ReactNod
 
   // Initial data fetch
   useEffect(() => {
-    fetchData();
-  }, [fetchData, userData?.computedFields?.accessLevel]);
+    if (isAuthenticated) {
+      fetchData();
+    }
+  }, [fetchData, isAuthenticated, user?.role]);
 
   // Auto-refresh every 5 minutes
   useEffect(() => {

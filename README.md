@@ -20,6 +20,55 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Authentication System
+
+This project uses a comprehensive authentication system built with Zustand for state management and NextAuth.js for authentication. The system provides a robust, type-safe, and feature-rich authentication experience.
+
+### Key Features
+
+- **NextAuth.js Integration**: Handles the authentication flow with the server
+- **Zustand State Management**: Provides client-side state management with persistence
+- **Permission-Based Access Control**: Granular control over UI elements and routes
+- **Session Management**: Advanced session timeout handling and refresh functionality
+- **Real-Time Synchronization**: Keeps authentication state in sync with the server
+
+### Documentation
+
+For more information about the authentication system, see the following documentation:
+
+- [Authentication System Overview](src/auth/README.md)
+- [Authentication Components](src/auth/COMPONENTS.md)
+- [Authentication Hooks](src/auth/HOOKS.md)
+- [Migration Guide](src/auth/MIGRATION.md)
+
+### Usage Example
+
+```tsx
+import { useAuth } from '@/auth/hooks/useAuth';
+import { PermissionGate } from '@/auth/components/PermissionGate';
+
+function AdminPanel() {
+  const { user, isAuthenticated } = useAuth();
+
+  if (!isAuthenticated) {
+    return <p>Please log in</p>;
+  }
+
+  return (
+    <div>
+      <h1>Welcome, {user?.name}</h1>
+
+      <PermissionGate
+        permissions={["MANAGE_USERS"]}
+        fallback={<p>You don't have permission to manage users</p>}
+      >
+        <UserManagement />
+      </PermissionGate>
+    </div>
+  );
+}
+```
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

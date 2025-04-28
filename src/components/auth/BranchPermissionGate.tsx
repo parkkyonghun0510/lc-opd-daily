@@ -1,5 +1,5 @@
 // src/components/auth/BranchPermissionGate.tsx
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { Permission } from "@/lib/auth/roles";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useBranchActionPermission } from "@/hooks/useBranchPermission";
@@ -23,7 +23,36 @@ export function BranchPermissionGate({
   showLoading = false,
 }: BranchPermissionGateProps) {
   const { canAny, canAll } = usePermissions();
-  const { hasAccess, loading } = useBranchActionPermission(branchId);
+  const { hasAccess: branchAccess, loading } = useBranchActionPermission(branchId);
+
+  // Track access state
+  const [hasAccess, setHasAccess] = useState(false);
+
+  // Check permissions and update access state
+  useEffect(() => {
+    // Skip if still loading
+    if (loading) {
+      return;
+    }
+
+    // First check if user can access this branch
+    if (!branchAccess) {
+      setHasAccess(false);
+      return;
+    }
+
+    // Then check specific permissions
+    if (permissions.length > 0) {
+      const hasPermission = requireAll
+        ? canAll(permissions)
+        : canAny(permissions);
+
+      setHasAccess(hasPermission);
+    } else {
+      // If no permissions specified, just check branch access
+      setHasAccess(branchAccess);
+    }
+  }, [branchAccess, loading, permissions, requireAll, canAll, canAny]);
 
   // Show loading state
   if (loading && showLoading) {
@@ -34,23 +63,8 @@ export function BranchPermissionGate({
     );
   }
 
-  // First check if user can access this branch
-  if (!hasAccess) {
-    return <>{fallback}</>;
-  }
-
-  // Then check specific permissions
-  if (permissions.length > 0) {
-    const hasPermission = requireAll
-      ? canAll(permissions)
-      : canAny(permissions);
-
-    if (!hasPermission) {
-      return <>{fallback}</>;
-    }
-  }
-
-  return <>{children}</>;
+  // Render based on access state
+  return hasAccess ? <>{children}</> : <>{fallback}</>;
 }
 
 // Example usage:

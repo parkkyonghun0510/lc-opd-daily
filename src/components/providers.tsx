@@ -11,15 +11,20 @@ import { Toaster as SonnerToaster } from "sonner";
 import { PushNotificationButton } from "@/components/PushNotificationButton";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 
+// Import auth components
+import { StoreSynchronizer } from "@/auth/components/StoreSynchronizer";
+import { SessionActivityTracker } from "@/auth/components/SessionActivityTracker";
+import { HybridRealtimeProvider } from "@/components/providers/HybridRealtimeProvider";
+
 // Separate component to use the useUserData hook
 function AppContent({ children }: { children: React.ReactNode }) {
   const { serverError, refreshUserData, persistentError, handleClearAuth } = useUserData();
-  
+
   // Warm up the cache on mount
   useEffect(() => {
     warmCacheAction().catch(console.error);
   }, []);
-  
+
   return (
     <>
       <div className="relative flex min-h-screen flex-col">
@@ -28,8 +33,8 @@ function AppContent({ children }: { children: React.ReactNode }) {
       <div className="fixed bottom-4 right-4 z-50">
         <PushNotificationButton />
       </div>
-      <ServerErrorBoundary 
-        error={serverError} 
+      <ServerErrorBoundary
+        error={serverError}
         onRetry={refreshUserData}
         persistentError={persistentError}
         onClearSession={handleClearAuth}
@@ -48,14 +53,35 @@ export function Providers({ children }: { children: React.ReactNode }) {
         enableSystem
         disableTransitionOnChange
       >
+        {/* Authentication state synchronization */}
+        <StoreSynchronizer
+          syncInterval={300} // 5 minutes
+          syncOnFocus={true}
+          syncOnReconnect={true}
+        />
+
+        {/* Session activity tracking */}
+        <SessionActivityTracker
+          warningTime={25}
+          expiryTime={30}
+          checkInterval={30}
+        />
+
         <UserDataProvider>
           <NotificationProvider>
             <NextAuthProvider>
-              <AppContent>{children}</AppContent>
+              <HybridRealtimeProvider
+                options={{
+                  pollingInterval: 15000, // 15 seconds
+                  debug: process.env.NODE_ENV === 'development'
+                }}
+              >
+                <AppContent>{children}</AppContent>
+              </HybridRealtimeProvider>
             </NextAuthProvider>
           </NotificationProvider>
         </UserDataProvider>
       </ThemeProvider>
     </SessionProvider>
   );
-} 
+}

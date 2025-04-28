@@ -5,7 +5,7 @@ import { SignJWT, jwtVerify } from 'jose';
 
 /**
  * SSE Authentication
- * 
+ *
  * This module provides authentication utilities for SSE connections.
  */
 
@@ -19,7 +19,7 @@ const TOKEN_EXPIRATION = '1h';
 
 /**
  * Generate an SSE token for a user
- * 
+ *
  * This token is used to authenticate SSE connections without requiring
  * the full session cookie on every request.
  */
@@ -34,7 +34,7 @@ export async function generateSSEToken(userId: string, metadata: Record<string, 
       .setIssuedAt()
       .setExpirationTime(TOKEN_EXPIRATION)
       .sign(SECRET_KEY);
-    
+
     return token;
   } catch (error) {
     console.error('[SSE Auth] Error generating token:', error);
@@ -57,7 +57,7 @@ export async function verifySSEToken(token: string) {
 
 /**
  * Authenticate an SSE request
- * 
+ *
  * This function tries multiple authentication methods:
  * 1. Session-based authentication
  * 2. Token-based authentication
@@ -67,7 +67,7 @@ export async function authenticateSSERequest(req: NextRequest) {
   try {
     // Get the URL parameters
     const { searchParams } = new URL(req.url);
-    
+
     // Try to get user from session (most secure)
     try {
       const session = await getServerSession(authOptions);
@@ -81,7 +81,7 @@ export async function authenticateSSERequest(req: NextRequest) {
     } catch (error) {
       console.error("[SSE Auth] Error getting session:", error);
     }
-    
+
     // Try to get user from token (secure)
     const token = searchParams.get('token');
     if (token) {
@@ -95,7 +95,7 @@ export async function authenticateSSERequest(req: NextRequest) {
         };
       }
     }
-    
+
     // Fall back to user ID parameter (least secure, for backward compatibility)
     const userId = searchParams.get('userId');
     if (userId) {
@@ -105,7 +105,7 @@ export async function authenticateSSERequest(req: NextRequest) {
         method: 'parameter'
       };
     }
-    
+
     // No authentication found
     return {
       userId: null,
@@ -125,7 +125,7 @@ export async function authenticateSSERequest(req: NextRequest) {
 
 /**
  * Generate an SSE token endpoint
- * 
+ *
  * This endpoint generates an SSE token for the authenticated user.
  */
 export async function generateSSETokenHandler(req: NextRequest) {
@@ -135,16 +135,23 @@ export async function generateSSETokenHandler(req: NextRequest) {
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    
-    // Generate a token
+
+    // Generate a token with more user data
     const token = await generateSSEToken(session.user.id, {
       name: session.user.name,
       email: session.user.email,
-      role: session.user.role
+      role: session.user.role,
+      branchId: session.user.branchId, // Include branch ID if available
+      lastActivity: Date.now(), // Track last activity for session management
+      tokenCreatedAt: Date.now() // For token refresh logic
     });
-    
-    // Return the token
-    return NextResponse.json({ token });
+
+    // Return the token with expiration info
+    return NextResponse.json({
+      token,
+      expiresAt: Date.now() + (60 * 60 * 1000), // 1 hour from now
+      refreshAfter: Date.now() + (45 * 60 * 1000) // 45 minutes from now (for proactive refresh)
+    });
   } catch (error) {
     console.error('[SSE Auth] Error generating token:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

@@ -1,21 +1,36 @@
 'use client';
 
-import { useDashboardData } from '@/contexts/DashboardDataContext';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { AlertCircle, CheckCircle, RefreshCw, Wifi, WifiOff } from 'lucide-react';
+import { useDashboardStore } from '@/stores/dashboardStore';
 
+// Completely rewritten component to avoid using hooks that might cause infinite loops
 export default function DashboardStatusIndicator() {
-  const {
-    isConnected,
-    connectionMethod,
-    connectionError,
-    refreshDashboardData,
-    reconnect,
-    isLoading
-  } = useDashboardData();
+  // Get state directly from the store instead of using hooks
+  const store = useDashboardStore();
 
+  // Extract only the values we need
+  const isConnected = store.isConnected;
+  const connectionMethod = store.connectionMethod;
+  const connectionError = store.connectionError;
+  const isLoading = store.isLoading;
+
+  // Define handlers that call store methods directly
+  const handleRefresh = () => {
+    const role = 'USER'; // Default role if we can't get it
+    store.refreshDashboardData(role);
+  };
+
+  const handleReconnect = () => {
+    // Dispatch a custom event that the SSE component can listen for
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('sse-reconnect-requested'));
+    }
+  };
+
+  // Render the component with static values
   return (
     <div className="flex items-center space-x-2">
       <TooltipProvider>
@@ -63,7 +78,7 @@ export default function DashboardStatusIndicator() {
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={reconnect}
+                  onClick={handleReconnect}
                   disabled={isLoading}
                   className="text-xs h-7 px-2"
                 >
@@ -72,7 +87,7 @@ export default function DashboardStatusIndicator() {
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={refreshDashboardData}
+                  onClick={handleRefresh}
                   disabled={isLoading}
                   className="text-xs h-7 px-2"
                 >

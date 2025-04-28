@@ -266,3 +266,159 @@
     [Symbol(kTrailersCount)]: 0
   }
 }
+2025-04-27 20:08:58: QueueUrl=https://sqs.ap-southeast-1.amazonaws.com/235494793385/LC-Reports-Queue differs from SQSClient resolved endpoint=https://sqs.us-east-1.amazonaws.com/, using QueueUrl host as endpoint.
+Set [endpoint=string] or [useQueueUrlAsEndpoint=false] on the SQSClient.
+2025-04-27 20:08:58: Error in worker loop: SignatureDoesNotMatch: Credential should be scoped to a valid region. 
+    at throwDefaultError (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@smithy/smithy-client/dist-cjs/index.js:867:20)
+    at /home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@smithy/smithy-client/dist-cjs/index.js:876:5
+    at de_CommandError (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@aws-sdk/client-sqs/dist-cjs/index.js:1309:14)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@smithy/middleware-serde/dist-cjs/index.js:35:20
+    at async /home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@smithy/core/dist-cjs/index.js:167:18
+    at async /home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@smithy/middleware-retry/dist-cjs/index.js:320:38
+    at async /home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@aws-sdk/middleware-sdk-sqs/dist-cjs/index.js:93:18
+    at async /home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@aws-sdk/client-sqs/node_modules/@aws-sdk/middleware-logger/dist-cjs/index.js:33:22
+    at async startWorker (file:///home/pkflutter/project/LC-Report/lc-opd-daily/scripts/standalone-worker.js:213:24) {
+  '$fault': 'client',
+  '$metadata': {
+    httpStatusCode: 403,
+    requestId: '3a80a7cf-919e-5dd0-b178-c747bf354e32',
+    extendedRequestId: undefined,
+    cfId: undefined,
+    attempts: 1,
+    totalRetryDelay: 0
+  },
+  __type: 'com.amazon.coral.service#InvalidSignatureException',
+  Code: 'SignatureDoesNotMatch',
+  Type: 'Sender'
+}
+2025-04-27 20:09:04: QueueUrl=https://sqs.ap-southeast-1.amazonaws.com/235494793385/LC-Reports-Queue differs from SQSClient resolved endpoint=https://sqs.us-east-1.amazonaws.com/, using QueueUrl host as endpoint.
+Set [endpoint=string] or [useQueueUrlAsEndpoint=false] on the SQSClient.
+2025-04-27 20:09:04: Error in worker loop: SignatureDoesNotMatch: Credential should be scoped to a valid region. 
+    at throwDefaultError (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@smithy/smithy-client/dist-cjs/index.js:867:20)
+    at /home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@smithy/smithy-client/dist-cjs/index.js:876:5
+    at de_CommandError (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@aws-sdk/client-sqs/dist-cjs/index.js:1309:14)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@smithy/middleware-serde/dist-cjs/index.js:35:20
+    at async /home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@smithy/core/dist-cjs/index.js:167:18
+    at async /home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@smithy/middleware-retry/dist-cjs/index.js:320:38
+    at async /home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@aws-sdk/middleware-sdk-sqs/dist-cjs/index.js:93:18
+    at async /home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@aws-sdk/client-sqs/node_modules/@aws-sdk/middleware-logger/dist-cjs/index.js:33:22
+    at async startWorker (file:///home/pkflutter/project/LC-Report/lc-opd-daily/scripts/standalone-worker.js:213:24) {
+  '$fault': 'client',
+  '$metadata': {
+    httpStatusCode: 403,
+    requestId: '1cdbadcf-5dc5-5718-8638-cd47737520ba',
+    extendedRequestId: undefined,
+    cfId: undefined,
+    attempts: 1,
+    totalRetryDelay: 0
+  },
+  __type: 'com.amazon.coral.service#InvalidSignatureException',
+  Code: 'SignatureDoesNotMatch',
+  Type: 'Sender'
+}
+2025-04-27 20:09:09: QueueUrl=https://sqs.ap-southeast-1.amazonaws.com/235494793385/LC-Reports-Queue differs from SQSClient resolved endpoint=https://sqs.us-east-1.amazonaws.com/, using QueueUrl host as endpoint.
+Set [endpoint=string] or [useQueueUrlAsEndpoint=false] on the SQSClient.
+2025-04-27 20:09:09: Error in worker loop: SignatureDoesNotMatch: Credential should be scoped to a valid region. 
+    at throwDefaultError (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@smithy/smithy-client/dist-cjs/index.js:867:20)
+    at /home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@smithy/smithy-client/dist-cjs/index.js:876:5
+    at de_CommandError (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@aws-sdk/client-sqs/dist-cjs/index.js:1309:14)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@smithy/middleware-serde/dist-cjs/index.js:35:20
+    at async /home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@smithy/core/dist-cjs/index.js:167:18
+    at async /home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@smithy/middleware-retry/dist-cjs/index.js:320:38
+    at async /home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@aws-sdk/middleware-sdk-sqs/dist-cjs/index.js:93:18
+    at async /home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@aws-sdk/client-sqs/node_modules/@aws-sdk/middleware-logger/dist-cjs/index.js:33:22
+    at async startWorker (file:///home/pkflutter/project/LC-Report/lc-opd-daily/scripts/standalone-worker.js:213:24) {
+  '$fault': 'client',
+  '$metadata': {
+    httpStatusCode: 403,
+    requestId: 'b3ebc6bb-1040-5c1c-8ce4-a6333ef6d203',
+    extendedRequestId: undefined,
+    cfId: undefined,
+    attempts: 1,
+    totalRetryDelay: 0
+  },
+  __type: 'com.amazon.coral.service#InvalidSignatureException',
+  Code: 'SignatureDoesNotMatch',
+  Type: 'Sender'
+}
+2025-04-27 20:09:14: QueueUrl=https://sqs.ap-southeast-1.amazonaws.com/235494793385/LC-Reports-Queue differs from SQSClient resolved endpoint=https://sqs.us-east-1.amazonaws.com/, using QueueUrl host as endpoint.
+Set [endpoint=string] or [useQueueUrlAsEndpoint=false] on the SQSClient.
+2025-04-27 20:09:14: Error in worker loop: SignatureDoesNotMatch: Credential should be scoped to a valid region. 
+    at throwDefaultError (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@smithy/smithy-client/dist-cjs/index.js:867:20)
+    at /home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@smithy/smithy-client/dist-cjs/index.js:876:5
+    at de_CommandError (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@aws-sdk/client-sqs/dist-cjs/index.js:1309:14)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@smithy/middleware-serde/dist-cjs/index.js:35:20
+    at async /home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@smithy/core/dist-cjs/index.js:167:18
+    at async /home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@smithy/middleware-retry/dist-cjs/index.js:320:38
+    at async /home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@aws-sdk/middleware-sdk-sqs/dist-cjs/index.js:93:18
+    at async /home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@aws-sdk/client-sqs/node_modules/@aws-sdk/middleware-logger/dist-cjs/index.js:33:22
+    at async startWorker (file:///home/pkflutter/project/LC-Report/lc-opd-daily/scripts/standalone-worker.js:213:24) {
+  '$fault': 'client',
+  '$metadata': {
+    httpStatusCode: 403,
+    requestId: 'fe4d16d0-8e7d-5028-8e52-7658a0c69d21',
+    extendedRequestId: undefined,
+    cfId: undefined,
+    attempts: 1,
+    totalRetryDelay: 0
+  },
+  __type: 'com.amazon.coral.service#InvalidSignatureException',
+  Code: 'SignatureDoesNotMatch',
+  Type: 'Sender'
+}
+2025-04-27 20:09:19: QueueUrl=https://sqs.ap-southeast-1.amazonaws.com/235494793385/LC-Reports-Queue differs from SQSClient resolved endpoint=https://sqs.us-east-1.amazonaws.com/, using QueueUrl host as endpoint.
+Set [endpoint=string] or [useQueueUrlAsEndpoint=false] on the SQSClient.
+2025-04-27 20:09:19: Error in worker loop: SignatureDoesNotMatch: Credential should be scoped to a valid region. 
+    at throwDefaultError (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@smithy/smithy-client/dist-cjs/index.js:867:20)
+    at /home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@smithy/smithy-client/dist-cjs/index.js:876:5
+    at de_CommandError (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@aws-sdk/client-sqs/dist-cjs/index.js:1309:14)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@smithy/middleware-serde/dist-cjs/index.js:35:20
+    at async /home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@smithy/core/dist-cjs/index.js:167:18
+    at async /home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@smithy/middleware-retry/dist-cjs/index.js:320:38
+    at async /home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@aws-sdk/middleware-sdk-sqs/dist-cjs/index.js:93:18
+    at async /home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@aws-sdk/client-sqs/node_modules/@aws-sdk/middleware-logger/dist-cjs/index.js:33:22
+    at async startWorker (file:///home/pkflutter/project/LC-Report/lc-opd-daily/scripts/standalone-worker.js:213:24) {
+  '$fault': 'client',
+  '$metadata': {
+    httpStatusCode: 403,
+    requestId: '4571ed09-01b1-5623-9989-8d812f7125a1',
+    extendedRequestId: undefined,
+    cfId: undefined,
+    attempts: 1,
+    totalRetryDelay: 0
+  },
+  __type: 'com.amazon.coral.service#InvalidSignatureException',
+  Code: 'SignatureDoesNotMatch',
+  Type: 'Sender'
+}
+2025-04-27 20:09:24: QueueUrl=https://sqs.ap-southeast-1.amazonaws.com/235494793385/LC-Reports-Queue differs from SQSClient resolved endpoint=https://sqs.us-east-1.amazonaws.com/, using QueueUrl host as endpoint.
+Set [endpoint=string] or [useQueueUrlAsEndpoint=false] on the SQSClient.
+2025-04-27 20:09:24: Error in worker loop: SignatureDoesNotMatch: Credential should be scoped to a valid region. 
+    at throwDefaultError (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@smithy/smithy-client/dist-cjs/index.js:867:20)
+    at /home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@smithy/smithy-client/dist-cjs/index.js:876:5
+    at de_CommandError (/home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@aws-sdk/client-sqs/dist-cjs/index.js:1309:14)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@smithy/middleware-serde/dist-cjs/index.js:35:20
+    at async /home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@smithy/core/dist-cjs/index.js:167:18
+    at async /home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@smithy/middleware-retry/dist-cjs/index.js:320:38
+    at async /home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@aws-sdk/middleware-sdk-sqs/dist-cjs/index.js:93:18
+    at async /home/pkflutter/project/LC-Report/lc-opd-daily/node_modules/@aws-sdk/client-sqs/node_modules/@aws-sdk/middleware-logger/dist-cjs/index.js:33:22
+    at async startWorker (file:///home/pkflutter/project/LC-Report/lc-opd-daily/scripts/standalone-worker.js:213:24) {
+  '$fault': 'client',
+  '$metadata': {
+    httpStatusCode: 403,
+    requestId: '0ae5ed46-bc6b-59e3-b421-8dce92ad58e6',
+    extendedRequestId: undefined,
+    cfId: undefined,
+    attempts: 1,
+    totalRetryDelay: 0
+  },
+  __type: 'com.amazon.coral.service#InvalidSignatureException',
+  Code: 'SignatureDoesNotMatch',
+  Type: 'Sender'
+}

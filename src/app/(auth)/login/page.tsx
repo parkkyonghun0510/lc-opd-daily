@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-import { signIn, useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -11,10 +10,12 @@ import { Card } from "@/components/ui/card";
 import { Icons } from "@/components/ui/icons";
 import { clearAuthData } from "@/lib/auth/session-utils";
 import Image from "next/image";
+import { useAuth } from "@/auth/hooks/useAuth";
+import { StoreSynchronizer } from "@/auth/components/StoreSynchronizer";
 
 function DevModeWarning() {
   if (process.env.NODE_ENV !== 'development') return null;
-  
+
   return (
     <div className="mb-6 p-4 border border-amber-200 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-800 rounded-lg">
       <h3 className="text-amber-800 dark:text-amber-400 font-semibold mb-2">Development Mode Notice</h3>
@@ -35,85 +36,57 @@ function DevModeWarning() {
 
 function LoginForm() {
   const router = useRouter();
-  const { status } = useSession();
   const searchParams = useSearchParams();
-  const [isLoading, setIsLoading] = useState(false);
+  const { login, isLoading, isAuthenticated, error, clearError } = useAuth();
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
 
   // Redirect to dashboard if already authenticated
   useEffect(() => {
-    if (status === "authenticated") {
-      //console.log("User already authenticated, redirecting to:", callbackUrl);
+    if (isAuthenticated) {
       router.push(callbackUrl);
     }
 
     // Display error message if present in URL
-    const error = searchParams.get("error");
-    if (error) {
+    const urlError = searchParams.get("error");
+    if (urlError) {
       let errorMessage = "An error occurred during sign in";
-      
+
       // Handle specific error messages
-      if (error.includes("No branch assigned")) {
+      if (urlError.includes("No branch assigned")) {
         errorMessage = "Your account has no branch assigned. Please contact your administrator.";
-      } else if (error.includes("Account is inactive")) {
+      } else if (urlError.includes("Account is inactive")) {
         errorMessage = "Your account is inactive. Please contact your administrator.";
-      } else if (error.includes("Invalid credentials")) {
+      } else if (urlError.includes("Invalid credentials")) {
         errorMessage = "Invalid email or password";
       }
-      
+
       toast.error(errorMessage);
     }
-  }, [status, callbackUrl, router, searchParams]);
+  }, [isAuthenticated, callbackUrl, router, searchParams]);
+
+  // Clear any auth errors when component unmounts
+  useEffect(() => {
+    return () => {
+      if (error) clearError();
+    };
+  }, [error, clearError]);
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setIsLoading(true);
 
-    try {
-      const formData = new FormData(event.currentTarget);
-      const username = formData.get("username") as string;
-      const password = formData.get("password") as string;
+    const formData = new FormData(event.currentTarget);
+    const username = formData.get("username") as string;
+    const password = formData.get("password") as string;
 
-      if (!username || !password) {
-        toast.error("Please enter both username and password");
-        setIsLoading(false);
-        return;
-      }
+    if (!username || !password) {
+      toast.error("Please enter both username and password");
+      return;
+    }
 
-      //console.log("Attempting to sign in with redirect to:", callbackUrl);
+    const success = await login(username, password, callbackUrl);
 
-      const result = await signIn("credentials", {
-        username,
-        password,
-        redirect: false,
-        callbackUrl,
-      });
-
-      if (!result?.ok) {
-        let errorMessage = "Failed to sign in";
-        
-        // Handle specific error messages
-        if (result?.error?.includes("No branch assigned")) {
-          errorMessage = "Your account has no branch assigned. Please contact your administrator.";
-        } else if (result?.error?.includes("Account is inactive")) {
-          errorMessage = "Your account is inactive. Please contact your administrator.";
-        } else if (result?.error?.includes("Invalid credentials")) {
-          errorMessage = "Invalid email or password";
-        }
-        
-        toast.error(errorMessage);
-        setIsLoading(false);
-        return;
-      }
-
-      // Success! Use router.replace for proper client-side navigation
-      toast.success("Signed in successfully");
-      //console.log("Login successful, redirecting to:", callbackUrl);
+    if (success) {
       router.replace(callbackUrl);
-    } catch (error) {
-      console.error("Login error:", error);
-      toast.error("An error occurred during sign in");
-      setIsLoading(false);
     }
   }
 
@@ -137,7 +110,7 @@ function LoginForm() {
             alt="LC Report Logo"
             className="h-16"
           />
-      
+
         </div>
         <h2 className="text-center text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
           Welcome back
@@ -210,7 +183,7 @@ function LoginForm() {
             Contact support
           </a>
         </p>
-        <button 
+        <button
           onClick={clearSessionData}
           className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 underline"
         >
@@ -224,6 +197,9 @@ function LoginForm() {
 export default function LoginPage() {
   return (
     <Suspense fallback={<div>Loading...</div>}>
+      {/* Add the StoreSynchronizer to keep NextAuth and our store in sync */}
+      <StoreSynchronizer />
+
       <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 flex flex-col items-center justify-center p-4">
         <div className="w-full max-w-md space-y-6">
           <DevModeWarning />
