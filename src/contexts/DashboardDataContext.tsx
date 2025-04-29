@@ -87,7 +87,7 @@ export function DashboardDataProvider({ children }: { children: React.ReactNode 
 
       if (response.status === 200 && response.data) {
         setDashboardData(response.data);
-        console.log('Dashboard data fetched successfully:', response.data);
+        // console.log('Dashboard data fetched successfully:', response.data);
       } else {
         console.error('Failed to fetch dashboard data:', response.error);
         setConnectionError(response.error || 'Failed to fetch dashboard data');

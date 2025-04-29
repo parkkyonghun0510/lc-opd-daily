@@ -79,7 +79,7 @@ export function HybridDashboardProvider({ children }: { children: React.ReactNod
       // Check if the response is successful and has data
       if (response.status === 200 && response.data) {
         setDashboardData(response.data);
-        console.log('Dashboard data fetched successfully:', response.data);
+        // console.log('Dashboard data fetched successfully:', response.data);
       } else {
         throw new Error(response.error || 'Failed to fetch dashboard data');
       }

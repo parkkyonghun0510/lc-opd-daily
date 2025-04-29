@@ -96,7 +96,7 @@ export function useHybridRealtime(options: HybridRealtimeOptions = {}) {
   // Debug logging
   const log = useCallback((message: string, ...args: any[]) => {
     if (mergedOptions.debug) {
-      console.log(`[SimpleRealtime] ${message}`, ...args);
+      // console.log(`[SimpleRealtime] ${message}`, ...args);
     }
   }, [mergedOptions.debug]);
 
@@ -112,7 +112,7 @@ export function useHybridRealtime(options: HybridRealtimeOptions = {}) {
       url.searchParams.append('role', user.role || 'USER');
       url.searchParams.append('_t', Date.now().toString()); // Cache buster
 
-      log('Polling for updates:', url.toString());
+      // log('Polling for updates:', url.toString());
 
       // Fetch updates
       const response = await fetch(url.toString());
@@ -121,7 +121,7 @@ export function useHybridRealtime(options: HybridRealtimeOptions = {}) {
       }
 
       const data = await response.json();
-      log('Polling response:', data);
+      // log('Polling response:', data);
 
       // Update last poll time
       setLastPollTime(data.timestamp || Date.now());
@@ -243,7 +243,7 @@ export function useHybridRealtime(options: HybridRealtimeOptions = {}) {
       return;
     }
 
-    log('Setting up polling with options:', mergedOptions);
+    // log('Setting up polling with options:', mergedOptions);
 
     // Stop any existing polling
     if (pollingInterval) {

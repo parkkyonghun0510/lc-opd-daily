@@ -49,12 +49,14 @@ interface Report {
 interface PendingReportProps {
   report: Report;
   branchName: string;
+  branchCode: string;
   onApprovalComplete: () => void;
 }
 
 export function PendingReport({
   report,
   branchName,
+  branchCode,
   onApprovalComplete,
 }: PendingReportProps) {
   // Check if there are any comments
@@ -106,7 +108,7 @@ export function PendingReport({
         <div className="p-4">
           <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
             <div className="flex items-center flex-wrap">
-              <h3 className="text-lg font-medium dark:text-gray-100">{branchName}</h3>
+              <h3 className="text-lg font-medium dark:text-gray-100">{`${branchName}${branchCode ? ` (${branchCode})` : ''}`}</h3>
               <Badge
                 variant="outline"
                 className={cn(
