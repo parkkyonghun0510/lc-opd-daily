@@ -36,6 +36,11 @@ export interface HybridRealtimeOptions {
   reconnectBackoffFactor?: number;
   maxReconnectDelay?: number;
 
+  // Smart polling options
+  smartPolling?: boolean; // Enable smart polling (only poll when needed)
+  pollingTimeout?: number; // How long to continue polling after an action (in ms)
+  minPollingInterval?: number; // Minimum time between polls even when active (in ms)
+
   // Event handlers
   eventHandlers?: EventHandlersMap;
 
@@ -71,6 +76,10 @@ export interface HybridRealtimeState {
   isPolling: boolean;
   lastReconnectTime: number;
   cachedEvents: Map<EventType, RealtimeEvent[]>;
+
+  // Smart polling state
+  isActivePolling: boolean; // Whether active polling is currently enabled
+  lastActionTimestamp: number; // When the last action occurred that required polling
 }
 
 // Actions interface
@@ -96,6 +105,10 @@ export interface HybridRealtimeActions {
   stopPolling: () => void;
   pollForUpdates: () => Promise<void>;
 
+  // Smart polling
+  enableActivePolling: (reason?: string) => void; // Enable active polling (e.g., when user performs an action)
+  checkPollingStatus: () => boolean; // Check if we should be actively polling
+
   // Event handling
   processEvent: (event: RealtimeEvent) => void;
   cacheEvent: (event: RealtimeEvent) => void;
@@ -110,6 +123,8 @@ export interface HybridRealtimeActions {
   setReconnectAttempts: (attempts: number) => void;
   setLastPollTimestamp: (timestamp: number) => void;
   setIsPolling: (isPolling: boolean) => void;
+  setIsActivePolling: (isActivePolling: boolean) => void;
+  setLastActionTimestamp: (timestamp: number) => void;
 }
 
 // Selectors interface
@@ -122,6 +137,8 @@ export interface HybridRealtimeSelectors {
   getReconnectAttempts: () => number;
   getTimeSinceLastEvent: () => number;
   shouldReconnect: () => boolean;
+  isPollingActive: () => boolean; // Check if polling is currently active
+  getTimeSinceLastAction: () => number; // Get time since last action that required polling
 }
 
 // Combined slice type
@@ -136,6 +153,12 @@ const DEFAULT_OPTIONS: HybridRealtimeOptions = {
   maxReconnectAttempts: 5,
   reconnectBackoffFactor: 2,
   maxReconnectDelay: 30000,
+
+  // Smart polling defaults
+  smartPolling: true, // Enable smart polling by default
+  pollingTimeout: 60000, // Continue polling for 1 minute after an action
+  minPollingInterval: 5000, // Minimum 5 seconds between polls when active
+
   eventHandlers: {},
   clientMetadata: {},
   debug: false,
@@ -164,6 +187,10 @@ export const createHybridRealtimeSlice: StateCreator<
   isPolling: false,
   lastReconnectTime: 0,
   cachedEvents: new Map(),
+
+  // Smart polling initial state
+  isActivePolling: false,
+  lastActionTimestamp: 0,
 
   // Actions
   setOptions: (options) => {
@@ -497,7 +524,7 @@ export const createHybridRealtimeSlice: StateCreator<
   },
 
   startPolling: () => {
-    const { pollingInterval, debug } = get().options;
+    const { pollingInterval, debug, smartPolling } = get().options;
 
     // Stop any existing polling
     get().stopPolling();
@@ -509,7 +536,18 @@ export const createHybridRealtimeSlice: StateCreator<
     // Use setTimeout for more precise intervals
     const scheduleNextPoll = () => {
       const intervalId = setTimeout(async () => {
-        await get().pollForUpdates();
+        // Check if we should poll based on smart polling settings
+        const shouldPoll = !smartPolling || get().checkPollingStatus();
+
+        if (shouldPoll) {
+          if (debug && smartPolling) {
+            console.log('[HybridRealtime] Smart polling: Active polling in progress');
+          }
+          await get().pollForUpdates();
+        } else if (debug && smartPolling) {
+          console.log('[HybridRealtime] Smart polling: Skipping poll (no active actions)');
+        }
+
         scheduleNextPoll();
       }, pollingInterval || 10000);
       return intervalId;
@@ -526,7 +564,7 @@ export const createHybridRealtimeSlice: StateCreator<
     get().setActiveMethod('polling');
 
     if (debug) {
-      console.log(`[HybridRealtime] Started polling every ${pollingInterval}ms`);
+      console.log(`[HybridRealtime] Started polling every ${pollingInterval}ms${smartPolling ? ' (smart polling enabled)' : ''}`);
     }
   },
 
@@ -544,10 +582,80 @@ export const createHybridRealtimeSlice: StateCreator<
     }
   },
 
+  // Smart polling methods
+  enableActivePolling: (reason = 'user action') => {
+    const { debug, pollingTimeout = 60000 } = get().options;
+    const now = Date.now();
+
+    // Set active polling state
+    get().setIsActivePolling(true);
+    get().setLastActionTimestamp(now);
+
+    if (debug) {
+      console.log(`[HybridRealtime] Active polling enabled due to: ${reason}`);
+      console.log(`[HybridRealtime] Will continue polling for ${pollingTimeout / 1000} seconds`);
+    }
+
+    // Schedule automatic disabling of active polling after timeout
+    setTimeout(() => {
+      const { lastActionTimestamp } = get();
+      const elapsed = Date.now() - lastActionTimestamp;
+
+      // Only disable if no new actions have occurred since this timeout was scheduled
+      if (elapsed >= pollingTimeout) {
+        get().setIsActivePolling(false);
+
+        if (debug) {
+          console.log('[HybridRealtime] Active polling disabled (timeout reached)');
+        }
+      } else if (debug) {
+        console.log('[HybridRealtime] Active polling continues (new action detected)');
+      }
+    }, pollingTimeout);
+  },
+
+  checkPollingStatus: () => {
+    const { smartPolling, pollingTimeout = 60000, debug } = get().options;
+
+    // If smart polling is disabled, always return true
+    if (!smartPolling) return true;
+
+    const { isActivePolling, lastActionTimestamp } = get();
+
+    // If active polling is explicitly enabled, check if it's still within the timeout
+    if (isActivePolling) {
+      const elapsed = Date.now() - lastActionTimestamp;
+      const stillActive = elapsed < pollingTimeout;
+
+      // If no longer active but flag is still set, update the flag
+      if (!stillActive && isActivePolling) {
+        get().setIsActivePolling(false);
+        if (debug) {
+          console.log('[HybridRealtime] Active polling automatically disabled (timeout reached)');
+        }
+      }
+
+      return stillActive;
+    }
+
+    return false;
+  },
+
   pollForUpdates: async () => {
-    const { pollingEndpoint, debug } = get().options;
+    const { pollingEndpoint, debug, smartPolling, minPollingInterval } = get().options;
     const lastPollTimestamp = get().lastPollTimestamp;
     const currentPollStart = Date.now();
+
+    // Check if we need to respect minimum polling interval
+    if (smartPolling && minPollingInterval) {
+      const timeSinceLastPoll = currentPollStart - lastPollTimestamp;
+      if (timeSinceLastPoll < minPollingInterval) {
+        if (debug) {
+          console.log(`[HybridRealtime] Skipping poll (minimum interval not reached: ${timeSinceLastPoll}ms < ${minPollingInterval}ms)`);
+        }
+        return;
+      }
+    }
 
     try {
       // Create URL with query parameters
@@ -572,6 +680,11 @@ export const createHybridRealtimeSlice: StateCreator<
 
       // Process events in chronological order
       if (data.events && Array.isArray(data.events)) {
+        // If we received events, enable active polling
+        if (data.events.length > 0 && smartPolling) {
+          get().enableActivePolling('received events');
+        }
+
         data.events.forEach((event: any) => {
           get().processEvent({
             id: event.id || crypto.randomUUID(),
@@ -748,7 +861,7 @@ export const createHybridRealtimeSlice: StateCreator<
   },
 
   processEvent: (event) => {
-    const { eventHandlers, debug } = get().options;
+    const { eventHandlers, debug, smartPolling } = get().options;
 
     if (debug) console.log('[HybridRealtime] Processing event:', event);
 
@@ -765,6 +878,11 @@ export const createHybridRealtimeSlice: StateCreator<
 
     // Cache the event
     get().cacheEvent(normalizedEvent);
+
+    // If smart polling is enabled, enable active polling when we receive an event
+    if (smartPolling) {
+      get().enableActivePolling(`received ${normalizedEvent.type} event`);
+    }
 
     // Call the appropriate event handler
     if (eventHandlers && eventHandlers[normalizedEvent.type]) {
@@ -828,6 +946,14 @@ export const createHybridRealtimeSlice: StateCreator<
     set({ isPolling });
   },
 
+  setIsActivePolling: (isActivePolling) => {
+    set({ isActivePolling });
+  },
+
+  setLastActionTimestamp: (lastActionTimestamp) => {
+    set({ lastActionTimestamp });
+  },
+
   // Selectors
   getOptions: () => {
     return get().options;
@@ -867,5 +993,18 @@ export const createHybridRealtimeSlice: StateCreator<
     } = get();
 
     return !isConnected && reconnectAttempts < maxReconnectAttempts;
+  },
+
+  isPollingActive: () => {
+    // If smart polling is disabled, always return true
+    if (!get().options.smartPolling) return true;
+
+    return get().checkPollingStatus();
+  },
+
+  getTimeSinceLastAction: () => {
+    const { lastActionTimestamp } = get();
+    if (!lastActionTimestamp) return Infinity;
+    return Date.now() - lastActionTimestamp;
   }
 });

@@ -219,23 +219,11 @@ export function CreateReportModal({
 
   const handleTemplateSelect = useCallback((template: string) => {
     if (template === "custom") {
-      // Clear the comment array
-      updateField("commentArray", []);
+      // Clear the initial comment
+      updateField("initialComment", "");
     } else {
-      // Create a new comment object with the template text
-      const userName = "User"; // This will be replaced by the server
-      const timestamp = new Date().toLocaleString();
-
-      const newComment: CommentItem = {
-        id: uuidv4(),
-        type: 'comment',
-        text: template,
-        timestamp: timestamp,
-        userId: "", // Will be filled by the server
-        userName: userName
-      };
-
-      updateField("commentArray", [newComment]);
+      // Use the template text as the initial comment
+      updateField("initialComment", template);
     }
   }, [updateField]);
 
@@ -275,7 +263,7 @@ export function CreateReportModal({
         branchId: userBranches.length === 1 ? userBranches[0].id : '',
         writeOffs: 0,
         ninetyPlus: 0,
-        commentArray: [],
+        initialComment: "",
         reportType: reportType,
         planReportId: null,
       };
@@ -563,27 +551,10 @@ export function CreateReportModal({
               <div className="flex-1">
                 <Textarea
                   id="comments"
-                  value={formData.commentArray && formData.commentArray.length > 0 ? formData.commentArray[0].text : ''}
+                  value={formData.initialComment || ''}
                   onChange={(e) => {
                     const text = e.target.value;
-                    const userName = userData?.name || "User"; // Use actual user name if available
-                    const timestamp = new Date().toLocaleString();
-
-                    if (text.trim()) {
-                      // If there's text, create or update the comment
-                      const newComment: CommentItem = {
-                        id: formData.commentArray && formData.commentArray.length > 0 ? formData.commentArray[0].id : uuidv4(),
-                        type: 'comment',
-                        text: text,
-                        timestamp: timestamp,
-                        userId: userData?.id || "", // Use actual user ID if available
-                        userName: userName
-                      };
-                      updateField("commentArray", [newComment]);
-                    } else {
-                      // If the text is empty, clear the comment array
-                      updateField("commentArray", []);
-                    }
+                    updateField("initialComment", text);
                   }}
                   placeholder={`Add any comments about this report...${validationRules?.comments.required
                     ? ` (Minimum ${validationRules.comments.minLength} characters)`
@@ -597,8 +568,8 @@ export function CreateReportModal({
                 <div className="flex justify-between items-center mt-2">
                   {validationRules?.comments.required && (
                     <p className="text-xs text-muted-foreground dark:text-gray-400">
-                      {formData.commentArray && formData.commentArray.length > 0 && formData.commentArray[0].text
-                        ? formData.commentArray[0].text.length
+                      {formData.initialComment
+                        ? formData.initialComment.length
                         : 0}/{validationRules.comments.minLength} characters minimum
                     </p>
                   )}
@@ -613,23 +584,11 @@ export function CreateReportModal({
                         size="sm"
                         className="h-8 w-8 p-0 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 hover:scale-110 focus:scale-110 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-800 group"
                         onClick={() => {
-                          const text = formData.commentArray && formData.commentArray.length > 0
-                            ? formData.commentArray[0].text + ' ' + emoji
+                          const text = formData.initialComment
+                            ? formData.initialComment + ' ' + emoji
                             : emoji;
 
-                          const userName = userData?.name || "User";
-                          const timestamp = new Date().toLocaleString();
-
-                          const newComment: CommentItem = {
-                            id: formData.commentArray && formData.commentArray.length > 0 ? formData.commentArray[0].id : uuidv4(),
-                            type: 'comment',
-                            text: text,
-                            timestamp: timestamp,
-                            userId: userData?.id || "",
-                            userName: userName
-                          };
-
-                          updateField("commentArray", [newComment]);
+                          updateField("initialComment", text);
 
                           toast({
                             title: "Emoji Added",
@@ -645,8 +604,8 @@ export function CreateReportModal({
               </div>
             </div>
 
-            {errors.commentArray && (
-              <p className="text-sm text-red-500">{errors.commentArray}</p>
+            {errors.initialComment && (
+              <p className="text-sm text-red-500">{errors.initialComment}</p>
             )}
           </div>
 

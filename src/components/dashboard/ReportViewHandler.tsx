@@ -5,8 +5,8 @@ import { useSearchParams } from "next/navigation";
 import { ReportDetailModal } from "@/components/reports/ReportDetailModal";
 import { Report } from "@/types/reports";
 
-interface ReportWithUser extends Report {
-  user?: {
+interface ReportWithUser extends Omit<Report, 'user'> {
+  user: {
     id: string;
     name: string;
     username?: string;
@@ -18,7 +18,7 @@ export function ReportViewHandler() {
   const searchParams = useSearchParams();
   const reportId = searchParams.get("viewReport");
   const action = searchParams.get("action");
-  
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [report, setReport] = useState<ReportWithUser | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -36,16 +36,16 @@ export function ReportViewHandler() {
   const fetchReport = async (id: string) => {
     setIsLoading(true);
     setError(null);
-    
+
     try {
       const response = await fetch(`/api/reports/${id}`);
-      
+
       if (!response.ok) {
         throw new Error(`Failed to fetch report: ${response.statusText}`);
       }
-      
+
       const data = await response.json();
-      
+
       if (data.report) {
         // Convert dates to strings if they're Date objects
         const reportWithStringDates = {
@@ -59,7 +59,7 @@ export function ReportViewHandler() {
             updatedAt: comment.updatedAt.toString()
           }))
         };
-        
+
         setReport(reportWithStringDates);
         setIsModalOpen(true);
       } else {

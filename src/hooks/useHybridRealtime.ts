@@ -87,7 +87,7 @@ export function useHybridRealtime(options: HybridRealtimeOptions = {}) {
     options.pollingEndpoint,
     options.pollingInterval,
     options.debug,
-    // Deep compare event handlers by stringifying them
+    // Deep compare event handlers by stringifying them - only compare keys to avoid circular references
     JSON.stringify(Object.keys(options.eventHandlers || {})),
     user?.id,
     user?.role
@@ -127,10 +127,11 @@ export function useHybridRealtime(options: HybridRealtimeOptions = {}) {
       setLastPollTime(data.timestamp || Date.now());
 
       // Process events
-      if (data.events && Array.isArray(data.events)) {
-        data.events.forEach((event: any) => {
+      if (data.events && Array.isArray(data.events) && data.events.length > 0) {
+        // Batch state updates by collecting all events first
+        const eventsToProcess = data.events.map((event: any) => {
           // Ensure the event has a proper structure
-          const realtimeEvent: RealtimeEvent = {
+          return {
             id: event.id || crypto.randomUUID(),
             type: event.type,
             data: {
@@ -140,17 +141,22 @@ export function useHybridRealtime(options: HybridRealtimeOptions = {}) {
               type: event.data?.type || event.type
             },
             timestamp: event.timestamp || Date.now()
-          };
+          } as RealtimeEvent;
+        });
 
-          // Set last event
-          setLastEvent(realtimeEvent);
+        // Set the last event only once with the most recent event
+        if (eventsToProcess.length > 0) {
+          setLastEvent(eventsToProcess[eventsToProcess.length - 1]);
+        }
 
+        // Process each event
+        eventsToProcess.forEach((realtimeEvent: RealtimeEvent) => {
           // Call event handlers
           const eventHandlers = mergedOptions.eventHandlers || {};
 
           // Call specific handler if exists
-          if (event.type && typeof event.type === 'string' && event.type in eventHandlers) {
-            (eventHandlers as any)[event.type](realtimeEvent.data);
+          if (realtimeEvent.type && typeof realtimeEvent.type === 'string' && realtimeEvent.type in eventHandlers) {
+            (eventHandlers as any)[realtimeEvent.type](realtimeEvent.data);
           }
 
           // Call wildcard handler if exists
@@ -178,7 +184,7 @@ export function useHybridRealtime(options: HybridRealtimeOptions = {}) {
         });
       }
 
-      // Update connection state
+      // Update connection state in a single batch
       setIsConnected(true);
       setError(null);
 
@@ -188,6 +194,8 @@ export function useHybridRealtime(options: HybridRealtimeOptions = {}) {
     } catch (err) {
       log('Polling error:', err);
       const errorMessage = err instanceof Error ? err.message : 'Unknown polling error';
+
+      // Update state in a single batch
       setError(errorMessage);
       setIsConnected(false);
 
@@ -253,11 +261,10 @@ export function useHybridRealtime(options: HybridRealtimeOptions = {}) {
     setPollingInterval(interval);
     log(`Started polling every ${mergedOptions.pollingInterval}ms`);
 
-    // Cleanup function - use a ref to the current interval
-    const currentInterval = pollingInterval;
+    // Cleanup function - use a local variable to avoid dependency on state
     return () => {
-      if (currentInterval) {
-        clearInterval(currentInterval);
+      if (interval) {
+        clearInterval(interval);
         log('Stopped polling on cleanup');
       }
     };

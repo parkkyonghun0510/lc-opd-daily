@@ -1,9 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import useSSE from './useSSE';
-import { EventType as SSEEventType } from '@/auth/store/slices/hybridRealtimeSlice';
-import { usePollingFallback } from './usePollingFallback';
+import { useHybridRealtime } from '@/hooks/useHybridRealtime';
+import { EventType as SSEEventType } from '@/hooks/useHybridRealtime';
 
 /**
  * Options for the useRealTimeUpdates hook
@@ -41,10 +40,10 @@ export interface RealTimeUpdatesOptions {
 }
 
 /**
- * Hook for real-time updates with SSE and polling fallback
+ * DEPRECATED: Use useHybridRealtime from @/auth/store directly instead.
  *
- * This hook provides real-time updates using SSE when available,
- * and falls back to polling when SSE is not supported.
+ * This hook is now a simple wrapper around useHybridRealtime which already
+ * handles both SSE and polling with automatic fallback.
  */
 export function useRealTimeUpdates(options: RealTimeUpdatesOptions = {}) {
   const {
@@ -56,80 +55,27 @@ export function useRealTimeUpdates(options: RealTimeUpdatesOptions = {}) {
     debug = false
   } = options;
 
-  // State to track which method is being used
-  const [updateMethod, setUpdateMethod] = useState<'sse' | 'polling' | null>(null);
-
-  // Use SSE for real-time updates
+  // Use the hybrid realtime system which handles both SSE and polling
   const {
-    isConnected: sseConnected,
-    error: sseError,
-    lastEvent: sseLastEvent,
-    reconnect: sseReconnect
-  } = useSSE({
-    sseEndpoint: sseEndpoint,
+    isConnected,
+    error,
+    lastEvent,
+    reconnect,
+    activeMethod
+  } = useHybridRealtime({
+    pollingEndpoint,
+    pollingInterval,
     eventHandlers,
-    enableCache,
     debug
   });
 
-  // Check if SSE is supported
-  const isSSESupported = typeof EventSource !== 'undefined';
-
-  // Use polling as a fallback
-  const {
-    lastUpdate: pollingLastUpdate,
-    isPolling,
-    error: pollingError,
-    refresh: refreshPolling
-  } = usePollingFallback({
-    endpoint: pollingEndpoint,
-    interval: pollingInterval,
-    onUpdate: (data) => {
-      // Process updates from polling
-      if (data?.updates) {
-        data.updates.forEach((update: any) => {
-          const handler = eventHandlers[update.type];
-          if (handler) {
-            handler(update);
-          }
-        });
-      }
-    },
-    enabled: !isSSESupported // Only enable polling if SSE is not supported
-  });
-
-  // Determine which method is being used
-  useEffect(() => {
-    if (isSSESupported && sseConnected) {
-      setUpdateMethod('sse');
-    } else if (!isSSESupported && pollingLastUpdate) {
-      setUpdateMethod('polling');
-    } else {
-      setUpdateMethod(null);
-    }
-  }, [isSSESupported, sseConnected, pollingLastUpdate]);
-
-  // Combine errors
-  const error = sseError || pollingError;
-
-  // Combine last updates
-  const lastUpdate = sseLastEvent || pollingLastUpdate;
-
-  // Refresh function
-  const refresh = useCallback(() => {
-    if (isSSESupported) {
-      sseReconnect();
-    } else {
-      refreshPolling();
-    }
-  }, [isSSESupported, sseReconnect, refreshPolling]);
-
+  // Map the hybrid realtime state to the expected return format
   return {
-    isConnected: sseConnected || (pollingLastUpdate !== null),
-    isLoading: isPolling,
+    isConnected,
+    isLoading: activeMethod === 'polling',
     error,
-    lastUpdate,
-    updateMethod,
-    refresh
+    lastUpdate: lastEvent,
+    updateMethod: activeMethod,
+    refresh: reconnect
   };
 }
