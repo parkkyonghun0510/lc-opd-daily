@@ -3,7 +3,8 @@ export type ReportType = "plan" | "actual";
 // Define ReportStatus type for consistency across the application
 export type ReportStatus = "pending" | "pending_approval" | "approved" | "rejected";
 
-// Define comment types
+// Define comment types (legacy - use ReportCommentType instead)
+// @deprecated Use ReportCommentType instead
 export interface CommentItem {
   id: string;
   type: 'comment' | 'resubmission' | 'rejection' | 'reply';
@@ -18,6 +19,7 @@ export interface CommentItem {
 }
 
 export interface Report {
+  user: any;
   id: string;
   date: string;
   branch: {
@@ -36,10 +38,9 @@ export interface Report {
   updatedAt?: string;
   // Legacy fields - marked as deprecated
   comments?: string; // @deprecated Use ReportComment model instead
-  commentArray?: CommentItem[]; // @deprecated Use ReportComment model instead
   planReportId?: string | null;
   planReport?: Report;
-  // New field for ReportComment relation
+  // ReportComment relation
   ReportComment?: ReportCommentType[];
 }
 

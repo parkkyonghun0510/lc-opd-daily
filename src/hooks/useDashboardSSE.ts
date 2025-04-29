@@ -1,6 +1,6 @@
 'use client';
 
-import { useSSE } from './useSSE';
+import { useHybridRealtime } from '@/hooks/useHybridRealtime';
 import { useUserData } from '@/contexts/UserDataContext';
 
 /**
@@ -13,24 +13,25 @@ export interface DashboardSSEData {
 }
 
 /**
- * Hook for dashboard-specific SSE connections
+ * Hook for dashboard-specific real-time updates
  *
- * This hook uses the standardized useSSE hook with dashboard-specific configuration.
- * It provides real-time updates for dashboard data.
+ * This hook uses the Zustand hybrid realtime system with dashboard-specific configuration.
+ * It provides real-time updates for dashboard data using either SSE or polling.
  */
 export const useDashboardSSE = () => {
   // Get user data to determine role
   const { userData } = useUserData();
   const role = userData?.computedFields?.accessLevel || 'USER';
 
-  // Use the standardized SSE hook with dashboard-specific configuration
+  // Use the hybrid realtime system with dashboard-specific configuration
   const {
     lastEvent,
     isConnected,
     error,
-    reconnect
-  } = useSSE({
-    sseEndpoint: '/api/dashboard/sse',
+    reconnect,
+    activeMethod
+  } = useHybridRealtime({
+    pollingEndpoint: '/api/dashboard/polling',
     clientMetadata: {
       type: 'dashboard',
       role: role
@@ -38,7 +39,7 @@ export const useDashboardSSE = () => {
     eventHandlers: {
       // Handle dashboard updates
       dashboardUpdate: (data) => {
-        console.log('Received dashboard update via SSE:', data);
+        console.log('Received dashboard update via hybrid realtime:', data);
 
         // Dispatch a custom event that components can listen for
         if (typeof window !== 'undefined') {
@@ -48,7 +49,7 @@ export const useDashboardSSE = () => {
       },
       // Handle role-specific updates
       [`${role.toLowerCase()}Update`]: (data) => {
-        console.log(`Received ${role.toLowerCase()} update via SSE:`, data);
+        console.log(`Received ${role.toLowerCase()} update via hybrid realtime:`, data);
 
         // Dispatch a role-specific custom event
         if (typeof window !== 'undefined') {
@@ -60,7 +61,7 @@ export const useDashboardSSE = () => {
     debug: process.env.NODE_ENV === 'development'
   });
 
-  // Transform the generic SSE event into a dashboard-specific format
+  // Transform the generic event into a dashboard-specific format
   const lastEventData = lastEvent ? {
     type: lastEvent.type,
     payload: lastEvent.data
@@ -70,6 +71,7 @@ export const useDashboardSSE = () => {
     lastEventData,
     isConnected,
     error,
-    reconnect
+    reconnect,
+    connectionMethod: activeMethod
   };
 };

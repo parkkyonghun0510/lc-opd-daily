@@ -30,7 +30,7 @@ import { cn } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/use-toast";
 import { KHCurrencyInput } from "@/components/ui/currency-input";
-import { useSSE } from "@/hooks/useSSE";
+import { useHybridRealtime } from "@/hooks/useHybridRealtime";
 import { DashboardEventTypes } from "@/lib/events/dashboardEvents";
 
 type Branch = {
@@ -51,9 +51,9 @@ export default function CreateReport() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const lastSubmittedReportId = useRef<string | null>(null);
 
-  // Set up SSE connection for real-time updates
-  const { lastEvent } = useSSE({
-    sseEndpoint: '/api/dashboard/sse',
+  // Set up hybrid realtime connection for updates (uses polling only)
+  const { lastEvent } = useHybridRealtime({
+    pollingEndpoint: '/api/dashboard/polling',
     eventHandlers: {
       dashboardUpdate: (data: any) => {
         // Handle report status update events (approval/rejection)

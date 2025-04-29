@@ -18,8 +18,7 @@ interface ReportData {
   writeOffs: number;
   ninetyPlus: number;
   comments?: string; // @deprecated - Use initialComment instead
-  commentArray?: any[]; // @deprecated - Use ReportComment model instead
-  initialComment?: string; // New field for initial comment to be stored in ReportComment
+  initialComment?: string; // Field for initial comment to be stored in ReportComment
 }
 
 interface UpdateReportData {
