@@ -182,11 +182,11 @@ export function ReportApproval({
       report.status !== "pending_approval";
 
     if (hasCommentsToShow) {
-      toast({
-        title: `${report.status === "approved" ? "Approval" : "Rejection"} Comments Available`,
-        description: "Click 'View Comments' to see manager feedback.",
-        duration: 5000,
-      });
+      // toast({
+      //   title: `${report.status === "approved" ? "Approval" : "Rejection"} Comments Available`,
+      //   description: "Click 'View Comments' to see manager feedback.",
+      //   duration: 1000,
+      // });
       setHasShownCommentToast(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -263,7 +263,7 @@ export function ReportApproval({
   };
 
   // Only render if the report is in pending status
-  if (report.status !== "pending" && report.status !== "pending_approval") {
+  if (report.status !== "pending_approval") {
     const userRole = session?.user?.role as UserRole || UserRole.USER;
 
     return (
@@ -349,7 +349,7 @@ export function ReportApproval({
             className="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600 text-white"
             size="sm"
             onClick={openApproveDialog}
-            disabled={report.status !== "pending" && report.status !== "pending_approval"}
+            disabled={report.status !== "pending_approval"}
           >
             <CheckCircle className="mr-1 h-4 w-4" />
             Approve
@@ -359,7 +359,7 @@ export function ReportApproval({
             size="sm"
             className="dark:bg-red-700 dark:hover:bg-red-600"
             onClick={openRejectDialog}
-            disabled={report.status !== "pending" && report.status !== "pending_approval"}
+            disabled={report.status !== "pending_approval"}
           >
             <XCircle className="mr-1 h-4 w-4" />
             Reject

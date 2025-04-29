@@ -79,7 +79,7 @@ export const useDashboardStore = create<DashboardState>()(
                 dashboardData: response.data,
                 lastUpdated: Date.now()
               });
-              console.log('Dashboard data fetched successfully:', response.data);
+              // console.log('Dashboard data fetched successfully:', response.data);
             } else {
               console.error('Failed to fetch dashboard data:', response.error);
               set({ 
