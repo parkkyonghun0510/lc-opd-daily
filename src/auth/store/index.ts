@@ -148,6 +148,10 @@ export const useHybridRealtime = () => {
     cacheEvent: store.cacheEvent,
     loadCachedEvents: store.loadCachedEvents,
 
+    // Smart polling
+    enableActivePolling: store.enableActivePolling,
+    checkPollingStatus: store.checkPollingStatus,
+
     // Selectors
     getOptions: store.getOptions,
     isSSESupported: store.isSSESupported,
@@ -156,6 +160,8 @@ export const useHybridRealtime = () => {
     getLastReconnectTime: store.getLastReconnectTime,
     getReconnectAttempts: store.getReconnectAttempts,
     getTimeSinceLastEvent: store.getTimeSinceLastEvent,
-    shouldReconnect: store.shouldReconnect
+    shouldReconnect: store.shouldReconnect,
+    isPollingActive: store.isPollingActive,
+    getTimeSinceLastAction: store.getTimeSinceLastAction
   };
 };

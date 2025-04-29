@@ -51,8 +51,8 @@ export interface ReportComment {
   };
 }
 
-export interface ReportWithUser extends Report {
-  user?: {
+export interface ReportWithUser extends Omit<Report, 'user'> {
+  user: {
     id: string;
     name: string;
     username?: string;
