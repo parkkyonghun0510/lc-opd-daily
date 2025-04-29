@@ -143,6 +143,7 @@ interface ProcessedReport {
 interface Branch {
   id: string;
   name: string;
+  code?: string;
 }
 
 export default function ApprovalsPage() {
@@ -175,7 +176,7 @@ export default function ApprovalsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [branchFilter, setBranchFilter] = useState("all");
   const [reportTypeFilter, setReportTypeFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("pending_approval");
   const [sortField, setSortField] = useState("date");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [dateRange, setDateRange] = useState<{
@@ -233,6 +234,7 @@ export default function ApprovalsPage() {
               branchesRecord[report.branchId] = {
                 id: report.branchId,
                 name: report.branch.name,
+                code: report.branch.code
               };
             }
           } catch (error) {
@@ -243,6 +245,7 @@ export default function ApprovalsPage() {
             branchesRecord[report.branchId] = {
               id: report.branchId,
               name: report.branch?.name || "Unknown Branch",
+              code: report.branch.code || ""
             };
           }
         }
@@ -597,7 +600,7 @@ export default function ApprovalsPage() {
                   value={branchFilter}
                   onValueChange={setBranchFilter}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full" aria-label="Filter by Branch">
                     <SelectValue placeholder="All Branches" />
                   </SelectTrigger>
                   <SelectContent>
@@ -617,7 +620,7 @@ export default function ApprovalsPage() {
                   value={reportTypeFilter}
                   onValueChange={setReportTypeFilter}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full" aria-label="Filter by Report Type">
                     <SelectValue placeholder="All Types" />
                   </SelectTrigger>
                   <SelectContent>
@@ -632,21 +635,38 @@ export default function ApprovalsPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
               <div className="space-y-1">
                 <p className="text-sm font-medium text-gray-500">Status</p>
+                {/* Improved Status Filter Dropdown with pending_approval on top and accessibility */}
                 <Select
                   value={statusFilter}
-                  onValueChange={setStatusFilter}
+                  onValueChange={(value) => setStatusFilter(value)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger
+                    className="w-full"
+                    aria-label="Filter by Status"
+                  >
                     <SelectValue placeholder="All Statuses" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Statuses</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="pending_approval">Pending Approval</SelectItem>
-                    <SelectItem value="approved">Approved</SelectItem>
-                    <SelectItem value="rejected">Rejected</SelectItem>
+                    {(() => {
+                      const statusOptions = [
+                        { value: 'pending_approval', label: 'Pending Approval' },
+                        { value: 'pending', label: 'Pending' },
+                        { value: 'approved', label: 'Approved' },
+                        { value: 'rejected', label: 'Rejected' },
+                      ];
+                      // Always put 'all' at the very top if needed
+                      return [
+                        <SelectItem key="all" value="all" className="cursor-pointer">All Statuses</SelectItem>,
+                        ...statusOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value} className="cursor-pointer">
+                            {option.label}
+                          </SelectItem>
+                        )),
+                      ];
+                    })()}
                   </SelectContent>
                 </Select>
+
               </div>
 
               <div className="space-y-1">
@@ -818,6 +838,7 @@ export default function ApprovalsPage() {
                       }))
                     }}
                     branchName={report.branch?.name || "Unknown Branch"}
+                    branchCode={report.branch?.code || ''}
                     onApprovalComplete={handleApprovalComplete}
                   />
                 ))}
