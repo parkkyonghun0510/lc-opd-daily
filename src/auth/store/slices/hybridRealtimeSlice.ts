@@ -371,7 +371,7 @@ export const createHybridRealtimeSlice: StateCreator<
     );
 
     if (debug) {
-      console.log(`[HybridRealtime] Scheduling reconnect in ${delay}ms (attempt ${nextAttempt}/${maxReconnectAttempts})`);
+      // console.log(`[HybridRealtime] Scheduling reconnect in ${delay}ms (attempt ${nextAttempt}/${maxReconnectAttempts})`);
     }
 
     // Update state
@@ -391,7 +391,7 @@ export const createHybridRealtimeSlice: StateCreator<
 
   reconnect: () => {
     if (get().options.debug) {
-      console.log('[HybridRealtime] Manual reconnect requested');
+      // console.log('[HybridRealtime] Manual reconnect requested');
     }
 
     // Reset reconnect attempts
@@ -453,7 +453,7 @@ export const createHybridRealtimeSlice: StateCreator<
         if (reconnectAttempts <= maxReconnectAttempts) {
           const delay = Math.min(1000 * Math.pow(2, reconnectAttempts - 1), 30000);
           if (debug) {
-            console.log(`[HybridRealtime] Reconnecting in ${delay}ms (attempt ${reconnectAttempts}/${maxReconnectAttempts})`);
+            // console.log(`[HybridRealtime] Reconnecting in ${delay}ms (attempt ${reconnectAttempts}/${maxReconnectAttempts})`);
           }
 
           setTimeout(() => {
@@ -663,7 +663,7 @@ export const createHybridRealtimeSlice: StateCreator<
       url.searchParams.append('since', (Math.floor(lastPollTimestamp / 1000) * 1000).toString()); // Round to seconds
       url.searchParams.append('_t', currentPollStart.toString());
 
-      if (debug) console.log('[HybridRealtime] Polling for updates:', url.toString());
+      // if (debug) console.log('[HybridRealtime] Polling for updates:', url.toString());
 
       // Fetch updates
       const response = await fetch(url.toString());
