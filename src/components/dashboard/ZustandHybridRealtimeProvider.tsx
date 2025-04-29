@@ -11,6 +11,8 @@ interface ZustandHybridRealtimeProviderProps {
   autoRefreshInterval?: number;
   debug?: boolean;
   showToasts?: boolean;
+  smartPolling?: boolean;
+  pollingTimeout?: number;
 }
 
 /**
@@ -30,7 +32,9 @@ export function ZustandHybridRealtimeProvider({
   children,
   autoRefreshInterval = 10000,
   debug = false,
-  showToasts = true
+  showToasts = true,
+  smartPolling = true,
+  pollingTimeout = 60000 // 1 minute
 }: ZustandHybridRealtimeProviderProps) {
   // Get auth state from Zustand store
   const { user, isAuthenticated } = useAuth();
@@ -247,6 +251,7 @@ export function ZustandHybridRealtimeProvider({
     if (debug) {
       console.log(`[ZustandHybridRealtime] Connection status: ${connectionStatus}`);
       console.log(`[ZustandHybridRealtime] Active method: ${activeMethod || 'none'}`);
+      console.log(`[ZustandHybridRealtime] Smart polling: ${smartPolling ? 'enabled' : 'disabled'}`);
 
       // Log time since last event
       const timeSinceLastEvent = getTimeSinceLastEvent();
@@ -260,7 +265,7 @@ export function ZustandHybridRealtimeProvider({
         console.log(`[ZustandHybridRealtime] Cached dashboard events: ${dashboardEvents.length}`);
       }
     }
-  }, [connectionStatus, activeMethod, debug, getTimeSinceLastEvent, getCachedEvents]);
+  }, [connectionStatus, activeMethod, debug, getTimeSinceLastEvent, getCachedEvents, smartPolling]);
 
   return <>{children}</>;
 }

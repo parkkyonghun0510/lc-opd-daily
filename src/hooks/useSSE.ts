@@ -1,20 +1,26 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
-import { useSession } from 'next-auth/react';
-import { useHybridRealtime as useSSEStore } from '@/auth/store';
-import { HybridRealtimeOptions as SSEOptions, EventType as SSEEventType, RealtimeEvent as SSEEvent } from '@/auth/store/slices/hybridRealtimeSlice';
-import { useAuth } from '@/auth/store';
+import { useHybridRealtime, HybridRealtimeOptions as SSEOptions } from '@/hooks/useHybridRealtime';
 
 /**
- * Hook for Server-Sent Events (SSE) connections
+ * DEPRECATED: Use useHybridRealtime from @/auth/store directly instead.
  *
- * This hook manages the lifecycle of an SSE connection and provides
- * a standardized way to handle SSE events.
+ * This hook is a simple wrapper around useHybridRealtime for backward compatibility.
+ * It will be removed in a future version.
  *
  * @example
  * ```tsx
+ * // Old way (deprecated)
  * const { lastEvent, isConnected, error } = useSSE({
+ *   eventHandlers: {
+ *     notification: (data) => {
+ *       toast({ title: data.title, description: data.body });
+ *     }
+ *   }
+ * });
+ *
+ * // New way (recommended)
+ * const { lastEvent, isConnected, error } = useHybridRealtime({
  *   eventHandlers: {
  *     notification: (data) => {
  *       toast({ title: data.title, description: data.body });
@@ -24,82 +30,14 @@ import { useAuth } from '@/auth/store';
  * ```
  */
 export function useSSE(options: SSEOptions = {}) {
+  // Simply forward to the Zustand hybrid realtime hook
   const {
     isConnected,
     error,
     lastEvent,
-    connect,
-    disconnect,
     reconnect,
-    setOptions
-  } = useSSEStore();
-
-  const { data: session, status } = useSession({
-    required: false,
-  });
-
-  const { user, needsTokenRefresh, refreshAuthToken } = useAuth();
-
-  // Store options in a ref to avoid unnecessary re-renders
-  const optionsRef = useRef(options);
-
-  // Update options when they change
-  useEffect(() => {
-    if (JSON.stringify(optionsRef.current) !== JSON.stringify(options)) {
-      optionsRef.current = options;
-      setOptions(options);
-    }
-  }, [options, setOptions]);
-
-  // Connect when the component mounts or session changes
-  useEffect(() => {
-    // Don't connect if not authenticated
-    if (status !== 'authenticated' || !session?.user?.id) {
-      return;
-    }
-
-    // Add user ID to client metadata
-    const updatedOptions = {
-      ...optionsRef.current,
-      clientMetadata: {
-        ...optionsRef.current.clientMetadata,
-        userId: session.user.id
-      }
-    };
-
-    // Connect with the updated options
-    connect(updatedOptions);
-
-    // Disconnect when the component unmounts
-    return () => {
-      disconnect();
-    };
-  }, [session?.user?.id, status, connect, disconnect]);
-
-  // Separate effect for token refresh to avoid dependency cycles
-  useEffect(() => {
-    if (status !== 'authenticated' || !session?.user?.id) {
-      return;
-    }
-
-    // Initial check
-    if (needsTokenRefresh()) {
-      refreshAuthToken().catch(err => {
-        console.error('Error refreshing token:', err);
-      });
-    }
-
-    // Set up periodic token refresh check
-    const tokenCheckInterval = setInterval(() => {
-      if (needsTokenRefresh()) {
-        refreshAuthToken().catch(err => {
-          console.error('Error refreshing token:', err);
-        });
-      }
-    }, 60000); // Check every minute
-
-    return () => clearInterval(tokenCheckInterval);
-  }, [session?.user?.id, status, refreshAuthToken]);
+    disconnect
+  } = useHybridRealtime(options);
 
   return {
     isConnected,

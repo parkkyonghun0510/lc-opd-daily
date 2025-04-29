@@ -141,9 +141,9 @@ export default function AdminDashboard() {
                         <TrendingUp className="mr-2 h-4 w-4" /> Consolidated View
                       </Button>
                     </Link>
-                    <Link href="/admin/tools/migrate-comments" passHref>
+                    <Link href="/dashboard/reports" passHref>
                       <Button variant="outline">
-                        <RefreshCw className="mr-2 h-4 w-4" /> Migrate Comments
+                        <RefreshCw className="mr-2 h-4 w-4" /> OPD Reports
                       </Button>
                     </Link>
                   </div>

@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useUserData } from "@/contexts/UserDataContext";
 import { PendingReport } from "@/components/reports/PendingReport";
 import { getBranchById } from "@/lib/api/branches";
+import { useHybridRealtime } from "@/auth/store";
 import {
   Card,
   CardContent,
@@ -31,13 +32,16 @@ import {
   RefreshCw,
   Bell,
   Calendar,
-  FilterX
+  FilterX,
+  LayoutGrid,
+  LayoutList
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { useSSE } from "@/hooks/useSSE";
-import { DashboardEventTypes } from "@/lib/events/dashboardEvents";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+// Import dashboard events types if needed in the future
+// import { DashboardEventTypes } from "@/lib/events/dashboardEvents";
 import { fetchPendingReportsAction } from "@/app/_actions/report-actions";
 import { Pagination } from "@/components/ui/pagination";
 import {
@@ -47,12 +51,14 @@ import {
 } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { format } from "date-fns";
+import { ApprovalsTable } from "@/components/reports/ApprovalsTable";
 
 type ReportStatus = "pending" | "pending_approval" | "approved" | "rejected";
 
 // API response report type - matches the server response
 // Used as a reference for the ProcessedReport interface
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+// We keep this as documentation even though it's not directly used
+/* eslint-disable-next-line @typescript-eslint/no-unused-vars */
 interface ApiReport {
   id: string;
   branchId: string;
@@ -149,6 +155,15 @@ export default function ApprovalsPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [newReportNotification, setNewReportNotification] = useState<boolean>(false);
+  // Initialize view mode from localStorage if available
+  const [viewMode, setViewMode] = useState<"card" | "table">(() => {
+    // Only run in browser environment
+    if (typeof window !== "undefined") {
+      const savedViewMode = localStorage.getItem("approvalsViewMode");
+      return (savedViewMode === "table" ? "table" : "card");
+    }
+    return "card";
+  });
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -171,9 +186,15 @@ export default function ApprovalsPage() {
   // Reference to track if auto-refresh is needed
   const autoRefreshNeeded = useRef(false);
 
+  // Import the hybrid realtime hook to enable active polling when needed
+  const { enableActivePolling } = useHybridRealtime();
 
+  // Enable active polling when user performs actions that require updates
+  const enablePollingForAction = useCallback((action: string) => {
+    enableActivePolling(`approvals page - ${action}`);
+  }, [enableActivePolling]);
 
-  const loadReports = async () => {
+  const loadReports = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -196,59 +217,8 @@ export default function ApprovalsPage() {
         ninetyPlus: typeof report.ninetyPlus === 'object' ? Number(report.ninetyPlus) : report.ninetyPlus,
       })) as ProcessedReport[];
 
-      // Apply filters in memory
-      let filteredResults = processedReports.filter(report => {
-        // Apply branch filter
-        if (branchFilter !== "all" && report.branchId !== branchFilter) {
-          return false;
-        }
-
-        // Apply report type filter
-        if (reportTypeFilter !== "all" && report.reportType !== reportTypeFilter) {
-          return false;
-        }
-
-        // Apply date range filter
-        if (dateRange.from || dateRange.to) {
-          const reportDate = new Date(report.date);
-          if (dateRange.from && reportDate < dateRange.from) {
-            return false;
-          }
-          if (dateRange.to && reportDate > dateRange.to) {
-            return false;
-          }
-        }
-
-        // Apply search filter
-        if (searchTerm) {
-          const search = searchTerm.toLowerCase();
-          return (
-            report.branch.name.toLowerCase().includes(search) ||
-            (report.user?.name || "").toLowerCase().includes(search) ||
-            (report.user?.username || "").toLowerCase().includes(search) ||
-            report.date.includes(search)
-          );
-        }
-
-        return true;
-      });
-
       // Store all reports for filtering
       setReports(processedReports);
-
-      // Calculate pagination
-      const total = filteredResults.length;
-      const calculatedTotalPages = Math.ceil(total / reportsPerPage);
-      const start = (currentPage - 1) * reportsPerPage;
-      const end = start + reportsPerPage;
-
-      // Apply pagination
-      const paginatedResults = filteredResults.slice(start, end);
-
-      // Update state
-      setFilteredReports(paginatedResults);
-      setTotalReports(total);
-      setTotalPages(calculatedTotalPages);
 
       // Fetch branch data for each report if needed
       const branchesRecord: Record<string, Branch> = { ...branches };
@@ -290,10 +260,17 @@ export default function ApprovalsPage() {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [statusFilter, branches, toast, setLoading, setError, setReports, setRefreshing]);
+
+  // Define handleApprovalComplete after loadReports is defined
+  const handleApprovalComplete = useCallback(() => {
+    enablePollingForAction('approval complete');
+    loadReports();
+  }, [enablePollingForAction, loadReports]);
 
   const handleRefresh = () => {
     setRefreshing(true);
+    enablePollingForAction('manual refresh');
     loadReports();
   };
 
@@ -301,105 +278,116 @@ export default function ApprovalsPage() {
   useEffect(() => {
     if (!reports.length) return;
 
-    let results = [...reports];
+    // Use a function to avoid recreating the filter logic
+    const applyFiltersAndSorting = () => {
+      let results = [...reports];
 
-    // Apply filters in memory
-    results = results.filter(report => {
-      // Apply branch filter
-      if (branchFilter !== "all" && report.branchId !== branchFilter) {
-        return false;
-      }
-
-      // Apply report type filter
-      if (reportTypeFilter !== "all" && report.reportType !== reportTypeFilter) {
-        return false;
-      }
-
-      // Apply date range filter
-      if (dateRange.from || dateRange.to) {
-        const reportDate = new Date(report.date);
-        if (dateRange.from && reportDate < dateRange.from) {
+      // Apply filters in memory
+      results = results.filter(report => {
+        // Apply branch filter
+        if (branchFilter !== "all" && report.branchId !== branchFilter) {
           return false;
         }
-        if (dateRange.to && reportDate > dateRange.to) {
+
+        // Apply report type filter
+        if (reportTypeFilter !== "all" && report.reportType !== reportTypeFilter) {
           return false;
         }
-      }
 
-      // Apply search filter
-      if (searchTerm) {
-        const search = searchTerm.toLowerCase();
-        return (
-          report.branch.name.toLowerCase().includes(search) ||
-          (report.user?.name || "").toLowerCase().includes(search) ||
-          (report.user?.username || "").toLowerCase().includes(search) ||
-          report.date.includes(search)
-        );
-      }
-
-      return true;
-    });
-
-    // Apply sorting with proper type handling
-    results.sort((a, b) => {
-      let valueA: string | number | Date;
-      let valueB: string | number | Date;
-
-      switch (sortField) {
-        case "date":
-          // Convert string dates to Date objects for comparison
-          valueA = new Date(a.date);
-          valueB = new Date(b.date);
-          break;
-        case "branch":
-          valueA = a.branch.name;
-          valueB = b.branch.name;
-          break;
-        case "created":
-          valueA = new Date(a.submittedAt);
-          valueB = new Date(b.submittedAt);
-          break;
-        case "writeOffs":
-          valueA = a.writeOffs;
-          valueB = b.writeOffs;
-          break;
-        case "ninetyPlus":
-          valueA = a.ninetyPlus;
-          valueB = b.ninetyPlus;
-          break;
-        default:
-          valueA = new Date(a.date);
-          valueB = new Date(b.date);
-      }
-
-      if (sortDirection === "asc") {
-        if (valueA instanceof Date && valueB instanceof Date) {
-          return valueA.getTime() - valueB.getTime();
+        // Apply date range filter
+        if (dateRange.from || dateRange.to) {
+          const reportDate = new Date(report.date);
+          if (dateRange.from && reportDate < dateRange.from) {
+            return false;
+          }
+          if (dateRange.to && reportDate > dateRange.to) {
+            return false;
+          }
         }
-        return typeof valueA === 'string'
-          ? valueA.localeCompare(valueB as string)
-          : (valueA as number) - (valueB as number);
-      } else {
-        if (valueA instanceof Date && valueB instanceof Date) {
-          return valueB.getTime() - valueA.getTime();
+
+        // Apply search filter
+        if (searchTerm) {
+          const search = searchTerm.toLowerCase();
+          return (
+            report.branch.name.toLowerCase().includes(search) ||
+            (report.user?.name || "").toLowerCase().includes(search) ||
+            (report.user?.username || "").toLowerCase().includes(search) ||
+            report.date.includes(search)
+          );
         }
-        return typeof valueA === 'string'
-          ? (valueB as string).localeCompare(valueA)
-          : (valueB as number) - (valueA as number);
-      }
-    });
 
-    // Calculate pagination
-    const total = results.length;
-    const calculatedTotalPages = Math.ceil(total / reportsPerPage);
-    const start = (currentPage - 1) * reportsPerPage;
-    const end = start + reportsPerPage;
+        return true;
+      });
 
-    // Apply pagination
-    const paginatedResults = results.slice(start, end);
+      // Apply sorting with proper type handling
+      results.sort((a, b) => {
+        let valueA: string | number | Date;
+        let valueB: string | number | Date;
 
-    // Update state
-    setFilteredReports(paginatedResults);
+        switch (sortField) {
+          case "date":
+            // Convert string dates to Date objects for comparison
+            valueA = new Date(a.date);
+            valueB = new Date(b.date);
+            break;
+          case "branch":
+            valueA = a.branch.name;
+            valueB = b.branch.name;
+            break;
+          case "created":
+            valueA = new Date(a.submittedAt);
+            valueB = new Date(b.submittedAt);
+            break;
+          case "writeOffs":
+            valueA = a.writeOffs;
+            valueB = b.writeOffs;
+            break;
+          case "ninetyPlus":
+            valueA = a.ninetyPlus;
+            valueB = b.ninetyPlus;
+            break;
+          default:
+            valueA = new Date(a.date);
+            valueB = new Date(b.date);
+        }
+
+        if (sortDirection === "asc") {
+          if (valueA instanceof Date && valueB instanceof Date) {
+            return valueA.getTime() - valueB.getTime();
+          }
+          return typeof valueA === 'string'
+            ? valueA.localeCompare(valueB as string)
+            : (valueA as number) - (valueB as number);
+        } else {
+          if (valueA instanceof Date && valueB instanceof Date) {
+            return valueB.getTime() - valueA.getTime();
+          }
+          return typeof valueA === 'string'
+            ? (valueB as string).localeCompare(valueA)
+            : (valueB as number) - (valueA as number);
+        }
+      });
+
+      // Calculate pagination
+      const total = results.length;
+      const calculatedTotalPages = Math.ceil(total / reportsPerPage);
+      const start = (currentPage - 1) * reportsPerPage;
+      const end = start + reportsPerPage;
+
+      // Apply pagination
+      const paginatedResults = results.slice(start, end);
+
+      return {
+        filteredResults: paginatedResults,
+        total,
+        calculatedTotalPages
+      };
+    };
+
+    // Apply filters and update state in a single batch
+    const { filteredResults, total, calculatedTotalPages } = applyFiltersAndSorting();
+
+    setFilteredReports(filteredResults);
     setTotalReports(total);
     setTotalPages(calculatedTotalPages);
   }, [
@@ -409,91 +397,114 @@ export default function ApprovalsPage() {
     sortDirection,
     branchFilter,
     reportTypeFilter,
-    statusFilter,
     dateRange,
-    currentPage,
-    reportsPerPage
+    currentPage
   ]);
 
-  // Set up SSE connection for real-time updates
-  const { } = useSSE({
-    sseEndpoint: '/api/dashboard/sse',
-    eventHandlers: {
-      dashboardUpdate: (data: any) => {
-        // Handle report submission events
-        if (data && data.type === 'reportSubmitted') {
-          console.log('New report submitted:', data);
-          // Set the notification flag
-          setNewReportNotification(true);
-          // Mark that we need to refresh data
-          autoRefreshNeeded.current = true;
+  // We're using the Zustand hybrid realtime system with smart polling
+  // This means polling only happens when needed (after user actions or when events are received)
 
-          // Show a toast notification
-          toast({
-            title: "New Report Submitted",
-            description: `${data.branchName} submitted a new ${data.reportType} report that needs approval.`,
-            duration: 5000,
-          });
-        }
-        // Handle report status update events (approval/rejection)
-        else if (data && (data.type === 'reportApproved' || data.type === 'reportRejected')) {
-          console.log('Report status updated:', data);
+  // Memoize the event handler to prevent unnecessary re-renders
+  // This is used by the hybrid realtime system when events are received
+  // We're keeping this function for future use with the Zustand hybrid realtime system
+  /* eslint-disable-next-line @typescript-eslint/no-unused-vars */
+  const handleDashboardUpdate = useCallback((data: any) => {
+    // Handle report submission events
+    if (data && data.type === 'reportSubmitted') {
+      console.log('New report submitted:', data);
+      // Set the notification flag
+      setNewReportNotification(true);
+      // Mark that we need to refresh data
+      autoRefreshNeeded.current = true;
+      // Enable active polling for new reports
+      enablePollingForAction('new report submitted event');
 
-          // Show a toast notification about the status change
-          const statusText = data.status === 'approved' ? 'approved' : 'rejected';
-          toast({
-            title: `Report ${statusText.charAt(0).toUpperCase() + statusText.slice(1)}`,
-            description: `A report from ${data.branchName} has been ${statusText}.`,
-            duration: 5000,
-          });
-
-          // Use a small delay to avoid UI flicker
-          setTimeout(() => {
-            loadReports();
-          }, 300);
-        }
-      }
+      // Show a toast notification
+      toast({
+        title: "New Report Submitted",
+        description: `${data.branchName} submitted a new ${data.reportType} report that needs approval.`,
+        duration: 5000,
+      });
     }
-  });
+    // Handle report status update events (approval/rejection)
+    else if (data && (data.type === 'reportApproved' || data.type === 'reportRejected')) {
+      console.log('Report status updated:', data);
+      // Enable active polling for status updates
+      enablePollingForAction('report status update event');
 
-  // Load reports when component mounts
+      // Show a toast notification about the status change
+      const statusText = data.status === 'approved' ? 'approved' : 'rejected';
+      toast({
+        title: `Report ${statusText.charAt(0).toUpperCase() + statusText.slice(1)}`,
+        description: `A report from ${data.branchName} has been ${statusText}.`,
+        duration: 5000,
+      });
+
+      // Use a small delay to avoid UI flicker
+      setTimeout(() => {
+        loadReports();
+      }, 300);
+    }
+  }, [toast, loadReports, enablePollingForAction]);
+
+  // Create a ref to track initial render
+  const isInitialRender = useRef(true);
+
+  // Combined effect for initial load and filter changes
   useEffect(() => {
+    if (isInitialRender.current) {
+      isInitialRender.current = false;
+      loadReports();
+      return;
+    }
+
+    // For subsequent renders, only reload when filters change
+    // Enable active polling when filters change
+    enablePollingForAction('filter change');
     loadReports();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [branchFilter, reportTypeFilter, statusFilter, currentPage]);
+
+  // Separate effect for date range changes to avoid dependency cycles
+  useEffect(() => {
+    if (!isInitialRender.current) {
+      enablePollingForAction('date range change');
+      loadReports();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dateRange]);
 
   // Effect to handle auto-refresh when needed
   useEffect(() => {
-    // Check if auto-refresh is needed on component mount or when the flag changes
+    // Check if auto-refresh is needed
     if (autoRefreshNeeded.current) {
+      enablePollingForAction('auto refresh');
       loadReports();
       autoRefreshNeeded.current = false;
       setNewReportNotification(false);
     }
-  }, []);
+  }, [enablePollingForAction, loadReports]);
 
   // Handle new report notification with a separate effect
   useEffect(() => {
     if (newReportNotification) {
       // Add a small delay to avoid multiple refreshes
       const timer = setTimeout(() => {
+        enablePollingForAction('new report notification');
         loadReports();
         setNewReportNotification(false);
       }, 300);
 
       return () => clearTimeout(timer);
     }
-  }, [newReportNotification]);
+  }, [newReportNotification, enablePollingForAction, loadReports]);
 
-  // Reload reports when filters change
+  // Save view mode preference to localStorage
   useEffect(() => {
-    loadReports();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [branchFilter, reportTypeFilter, statusFilter, currentPage, dateRange]);
-
-  const handleApprovalComplete = () => {
-    loadReports();
-  };
+    if (typeof window !== "undefined") {
+      localStorage.setItem("approvalsViewMode", viewMode);
+    }
+  }, [viewMode]);
 
   const toggleSortDirection = () => {
     setSortDirection(sortDirection === "asc" ? "desc" : "asc");
@@ -513,7 +524,28 @@ export default function ApprovalsPage() {
 
       <div className="mt-6 space-y-4">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
-          <div />
+          <div className="flex items-center gap-2">
+            <div className="border rounded-md p-1">
+              <Button
+                variant={viewMode === "card" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setViewMode("card")}
+                className="h-8 px-2"
+              >
+                <LayoutGrid className="h-4 w-4 mr-1" />
+                Cards
+              </Button>
+              <Button
+                variant={viewMode === "table" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setViewMode("table")}
+                className="h-8 px-2"
+              >
+                <LayoutList className="h-4 w-4 mr-1" />
+                Table
+              </Button>
+            </div>
+          </div>
           <div className="flex items-center gap-2">
             {newReportNotification && (
               <div className="flex items-center text-amber-500 animate-pulse">
@@ -717,20 +749,33 @@ export default function ApprovalsPage() {
 
         {loading ? (
           <div className="space-y-4">
-            {[...Array(3)].map((_, i) => (
-              <Card key={i}>
-                <CardContent className="pt-6">
-                  <div className="space-y-2">
-                    <Skeleton className="h-4 w-[250px]" />
-                    <Skeleton className="h-4 w-[200px]" />
-                    <div className="flex gap-2 mt-4">
-                      <Skeleton className="h-8 w-[100px]" />
-                      <Skeleton className="h-8 w-[100px]" />
+            {viewMode === "card" ? (
+              // Card view loading skeleton
+              [...Array(3)].map((_, i) => (
+                <Card key={i}>
+                  <CardContent className="pt-6">
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-[250px]" />
+                      <Skeleton className="h-4 w-[200px]" />
+                      <div className="flex gap-2 mt-4">
+                        <Skeleton className="h-8 w-[100px]" />
+                        <Skeleton className="h-8 w-[100px]" />
+                      </div>
                     </div>
-                  </div>
+                  </CardContent>
+                </Card>
+              ))
+            ) : (
+              // Table view loading skeleton
+              <Card>
+                <CardContent className="pt-6">
+                  <Skeleton className="h-10 w-full mb-2" />
+                  {[...Array(5)].map((_, i) => (
+                    <Skeleton key={i} className="h-12 w-full mb-2" />
+                  ))}
                 </CardContent>
               </Card>
-            ))}
+            )}
           </div>
         ) : filteredReports.length === 0 ? (
           <Card>
@@ -745,36 +790,66 @@ export default function ApprovalsPage() {
           </Card>
         ) : (
           <>
-            <div className="space-y-4">
-              {filteredReports.map((report) => (
-                <PendingReport
-                  key={report.id}
-                  report={{
-                    id: report.id,
-                    date: report.date,
-                    branchId: report.branchId,
-                    writeOffs: typeof report.writeOffs === 'object' ? Number(report.writeOffs) : report.writeOffs,
-                    ninetyPlus: typeof report.ninetyPlus === 'object' ? Number(report.ninetyPlus) : report.ninetyPlus,
-                    status: report.status,
-                    reportType: report.reportType,
-                    content: report.content,
-                    submittedBy: report.submittedBy,
-                    comments: report.comments || undefined,
-                    user: report.user,
-                    createdAt: report.createdAt.toString(),
-                    updatedAt: report.updatedAt.toString(),
-                    // Convert ReportComment dates to strings
-                    ReportComment: report.ReportComment?.map(comment => ({
-                      ...comment,
-                      createdAt: comment.createdAt.toString(),
-                      updatedAt: comment.updatedAt.toString()
-                    }))
-                  }}
-                  branchName={report.branch?.name || "Unknown Branch"}
-                  onApprovalComplete={handleApprovalComplete}
-                />
-              ))}
-            </div>
+            {viewMode === "card" ? (
+              // Card view
+              <div className="space-y-4">
+                {filteredReports.map((report) => (
+                  <PendingReport
+                    key={report.id}
+                    report={{
+                      id: report.id,
+                      date: report.date,
+                      branchId: report.branchId,
+                      writeOffs: typeof report.writeOffs === 'object' ? Number(report.writeOffs) : report.writeOffs,
+                      ninetyPlus: typeof report.ninetyPlus === 'object' ? Number(report.ninetyPlus) : report.ninetyPlus,
+                      status: report.status,
+                      reportType: report.reportType,
+                      content: report.content,
+                      submittedBy: report.submittedBy,
+                      comments: report.comments || undefined,
+                      user: report.user,
+                      createdAt: report.createdAt.toString(),
+                      updatedAt: report.updatedAt.toString(),
+                      // Convert ReportComment dates to strings
+                      ReportComment: report.ReportComment?.map(comment => ({
+                        ...comment,
+                        createdAt: comment.createdAt.toString(),
+                        updatedAt: comment.updatedAt.toString()
+                      }))
+                    }}
+                    branchName={report.branch?.name || "Unknown Branch"}
+                    onApprovalComplete={handleApprovalComplete}
+                  />
+                ))}
+              </div>
+            ) : (
+              // Table view
+              <ApprovalsTable
+                reports={filteredReports.map(report => ({
+                  id: report.id,
+                  date: report.date,
+                  branchId: report.branchId,
+                  writeOffs: typeof report.writeOffs === 'object' ? Number(report.writeOffs) : report.writeOffs,
+                  ninetyPlus: typeof report.ninetyPlus === 'object' ? Number(report.ninetyPlus) : report.ninetyPlus,
+                  status: report.status,
+                  reportType: report.reportType,
+                  content: report.content,
+                  submittedBy: report.submittedBy,
+                  comments: report.comments || undefined,
+                  user: report.user,
+                  createdAt: report.createdAt.toString(),
+                  updatedAt: report.updatedAt.toString(),
+                  branch: report.branch,
+                  // Convert ReportComment dates to strings
+                  ReportComment: report.ReportComment?.map(comment => ({
+                    ...comment,
+                    createdAt: comment.createdAt.toString(),
+                    updatedAt: comment.updatedAt.toString()
+                  }))
+                }))}
+                onApprovalComplete={handleApprovalComplete}
+              />
+            )}
 
             {/* Pagination */}
             {totalPages > 1 && (

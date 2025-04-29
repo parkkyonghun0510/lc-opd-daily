@@ -1,10 +1,9 @@
 import { useState, useEffect } from "react";
 import { z } from "zod";
 import { toast } from "@/components/ui/use-toast";
-import type { ReportType, Branch, CommentItem } from "@/types/reports";
+import type { ReportType, Branch } from "@/types/reports";
 import { format } from "date-fns";
 import { sanitizeString, sanitizeFormData } from "@/utils/clientSanitize";
-import { v4 as uuidv4 } from "uuid";
 
 interface ValidationRules {
   writeOffs: {
@@ -31,7 +30,7 @@ const reportFormSchema = z.object({
   }),
   writeOffs: z.number().min(0, "Write-offs must be a positive number"),
   ninetyPlus: z.number().min(0, "90+ Days must be a positive number"),
-  commentArray: z.array(z.any()).default([]),
+  initialComment: z.string().optional(),
   reportType: z.enum(["plan", "actual"]),
   title: z.string().min(1, "Title is required"),
   planReportId: z.string().nullable().optional(),
@@ -57,7 +56,7 @@ export function useReportForm({
     branchId: userBranches.length === 1 ? userBranches[0].id : "",
     writeOffs: 0,
     ninetyPlus: 0,
-    commentArray: [],
+    initialComment: "",
     reportType,
     title: `${reportType === "plan" ? "Plan" : "Actual"} Report - ${format(new Date(), "yyyy-MM-dd")}`,
     planReportId: null,
@@ -181,20 +180,17 @@ export function useReportForm({
         // NOTE: We show approval warnings but don't block submission
         // These will be handled during the approval workflow
 
-        // Check commentArray requirements - these are required regardless of approval
-        if (validationRules.comments.required &&
-          (!dataToValidate.commentArray || dataToValidate.commentArray.length === 0)) {
-          errors.commentArray = "Comments are required";
+        // Check initialComment requirements - these are required regardless of approval
+        if (validationRules.comments.required && !dataToValidate.initialComment?.trim()) {
+          errors.initialComment = "Comments are required";
         }
 
-        // Check if the first comment meets the minimum length requirement
+        // Check if the comment meets the minimum length requirement
         if (
-          dataToValidate.commentArray &&
-          dataToValidate.commentArray.length > 0 &&
-          dataToValidate.commentArray[0].text &&
-          dataToValidate.commentArray[0].text.length < validationRules.comments.minLength
+          dataToValidate.initialComment &&
+          dataToValidate.initialComment.length < validationRules.comments.minLength
         ) {
-          errors.commentArray = `Comments must be at least ${validationRules.comments.minLength} characters`;
+          errors.initialComment = `Comments must be at least ${validationRules.comments.minLength} characters`;
         }
       }
 
@@ -255,37 +251,19 @@ export function useReportForm({
       // Ensure report type is set correctly and sanitize the data
       const dataToSubmit = sanitizeFormData(validFormData);
 
-      // Ensure commentArray is properly formatted and sanitized
-      if (!dataToSubmit.commentArray || !Array.isArray(dataToSubmit.commentArray)) {
-        dataToSubmit.commentArray = [];
+      // Sanitize the initialComment
+      if (dataToSubmit.initialComment) {
+        dataToSubmit.initialComment = sanitizeString(dataToSubmit.initialComment) || '';
+      } else {
+        dataToSubmit.initialComment = '';
       }
 
-      // Sanitize each comment in the commentArray
-      if (dataToSubmit.commentArray.length > 0) {
-        dataToSubmit.commentArray = dataToSubmit.commentArray.map(comment => {
-          if (comment.text) {
-            return {
-              ...comment,
-              text: sanitizeString(comment.text) || ''
-            };
-          }
-          return comment;
-        });
-      }
-
-      // For backward compatibility with the API, generate a comments string from commentArray
+      // For backward compatibility with the API, generate a comments string from initialComment
       // Add comments field to the dataToSubmit object
       const dataWithComments = {
         ...dataToSubmit,
-        comments: ''
+        comments: dataToSubmit.initialComment || ''
       };
-
-      if (dataToSubmit.commentArray.length > 0) {
-        const firstComment = dataToSubmit.commentArray[0];
-        dataWithComments.comments = firstComment.text || '';
-      } else {
-        dataWithComments.comments = '';
-      }
 
       const response = await fetch("/api/reports", {
         method: "POST",
@@ -395,11 +373,11 @@ export function useReportForm({
         [field]: validDate,
         title: `${reportType === "plan" ? "Plan" : "Actual"} Report - ${format(validDate, "yyyy-MM-dd")}`,
       }));
-    } else if (field === "commentArray") {
-      // Handle commentArray updates directly
+    } else if (field === "initialComment") {
+      // Handle initialComment updates directly
       setFormData((prev) => ({
         ...prev,
-        commentArray: value as CommentItem[]
+        initialComment: value as string
       }));
     } else {
       setFormData((prev) => ({ ...prev, [field]: value }));
@@ -421,7 +399,7 @@ export function useReportForm({
       branchId: '',
       writeOffs: 0,
       ninetyPlus: 0,
-      commentArray: [],
+      initialComment: '',
       reportType: reportType,
       planReportId: null,
     });

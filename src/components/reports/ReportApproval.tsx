@@ -10,11 +10,11 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { 
-  Loader2, 
-  CheckCircle, 
-  XCircle, 
-  AlertTriangle, 
+import {
+  Loader2,
+  CheckCircle,
+  XCircle,
+  AlertTriangle,
   AlertCircle,
   Info,
   User,
@@ -67,15 +67,15 @@ interface ReportApprovalProps {
 const formatCommentHistory = (comments: string) => {
   // Split the comments by the resubmission pattern
   const parts = comments.split(/\[RESUBMISSION ([^:]+)]:/).filter(Boolean);
-  
+
   if (parts.length <= 1) {
     // No resubmission markers, just return the original text
-    return { 
-      hasConversation: false, 
-      formattedComments: comments 
+    return {
+      hasConversation: false,
+      formattedComments: comments
     };
   }
-  
+
   // Format as a conversation with timestamps
   const conversation = [];
   for (let i = 0; i < parts.length; i += 2) {
@@ -95,17 +95,17 @@ const formatCommentHistory = (comments: string) => {
       });
     }
   }
-  
-  return { 
-    hasConversation: true, 
-    conversation 
+
+  return {
+    hasConversation: true,
+    conversation
   };
 };
 
 // Component to render a comment conversation
 const CommentConversation = ({ comments }: { comments: string }) => {
   const result = formatCommentHistory(comments);
-  
+
   if (!result.hasConversation) {
     return (
       <p className="whitespace-pre-wrap">
@@ -113,16 +113,16 @@ const CommentConversation = ({ comments }: { comments: string }) => {
       </p>
     );
   }
-  
+
   return (
     <div className="space-y-3">
       {result.conversation?.map((entry, index) => (
-        <div 
+        <div
           key={index}
           className={cn(
             "p-3 rounded-md",
-            entry.type === 'rejection' 
-              ? "bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800" 
+            entry.type === 'rejection'
+              ? "bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800"
               : "bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800"
           )}
         >
@@ -173,9 +173,15 @@ export function ReportApproval({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasShownCommentToast, setHasShownCommentToast] = useState(false);
 
-  // Show a toast notification for users about available comments
+  // Show a toast notification for users about available comments - with stable dependencies
   useEffect(() => {
-    if (report.comments && !hasShownCommentToast && report.status !== "pending" && report.status !== "pending_approval") {
+    // Use a ref to track if we've shown the toast to avoid dependency on state
+    const hasCommentsToShow = report.comments &&
+      !hasShownCommentToast &&
+      report.status !== "pending" &&
+      report.status !== "pending_approval";
+
+    if (hasCommentsToShow) {
       toast({
         title: `${report.status === "approved" ? "Approval" : "Rejection"} Comments Available`,
         description: "Click 'View Comments' to see manager feedback.",
@@ -183,10 +189,16 @@ export function ReportApproval({
       });
       setHasShownCommentToast(true);
     }
-  }, [report.comments, report.status, hasShownCommentToast]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [report.comments, report.status]);
 
   const handleApprovalAction = async () => {
-    if (!remarks.trim() && isRejectDialogOpen) {
+    // Capture the current dialog state to avoid race conditions
+    const isApproving = isApproveDialogOpen;
+    const isRejecting = isRejectDialogOpen;
+    const currentRemarks = remarks.trim();
+
+    if (!currentRemarks && isRejecting) {
       toast({
         title: "Remarks Required",
         description: "Please provide a reason for rejection",
@@ -198,13 +210,13 @@ export function ReportApproval({
     setIsSubmitting(true);
 
     try {
-      const status = isApproveDialogOpen ? "approved" : "rejected";
-      
+      const status = isApproving ? "approved" : "rejected";
+
       // Use server action instead of fetch API
       const result = await approveReportAction(
-        report.id, 
-        status as 'approved' | 'rejected', 
-        remarks.trim(),
+        report.id,
+        status as 'approved' | 'rejected',
+        currentRemarks,
         true // notifyUsers
       );
 
@@ -217,12 +229,17 @@ export function ReportApproval({
         description: result.message || `Report ${status} successfully`,
       });
 
+      // Reset all state in a single batch to avoid multiple re-renders
       setIsApproveDialogOpen(false);
       setIsRejectDialogOpen(false);
       setRemarks("");
-      onApprovalComplete();
+
+      // Call the callback after state updates
+      setTimeout(() => {
+        onApprovalComplete();
+      }, 0);
     } catch (error) {
-      console.error(`Error ${isApproveDialogOpen ? "approving" : "rejecting"} report:`, error);
+      console.error(`Error ${isApproving ? "approving" : "rejecting"} report:`, error);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : `Failed to process report`,
@@ -248,7 +265,7 @@ export function ReportApproval({
   // Only render if the report is in pending status
   if (report.status !== "pending" && report.status !== "pending_approval") {
     const userRole = session?.user?.role as UserRole || UserRole.USER;
-    
+
     return (
       <div className="space-y-2">
         <div className="flex items-center space-x-2">
@@ -261,7 +278,7 @@ export function ReportApproval({
           >
             {report.status}
           </Badge>
-          
+
           {report.status === "rejected" && (
             <Button
               variant="outline"
@@ -277,7 +294,7 @@ export function ReportApproval({
             </Button>
           )}
         </div>
-        
+
         {report.comments && (
           <div>
             {/* Make comments more discoverable with a prominent button */}
@@ -287,7 +304,7 @@ export function ReportApproval({
               onClick={() => setIsViewCommentsDialogOpen(true)}
               className={cn(
                 "mt-2 w-full justify-start",
-                report.status === "approved" 
+                report.status === "approved"
                   ? "bg-green-100 text-green-800 hover:bg-green-200 border border-green-300"
                   : "bg-red-100 text-red-800 hover:bg-red-200 border border-red-300"
               )}
@@ -296,7 +313,7 @@ export function ReportApproval({
               <span className="font-medium">View {report.status === "approved" ? "Approval" : "Rejection"} Comments</span>
               <Eye className="ml-2 h-4 w-4" />
             </Button>
-            
+
             {/* Role-specific guidance */}
             {(userRole === UserRole.USER || userRole === UserRole.SUPERVISOR) && report.status === "rejected" && (
               <Alert variant="destructive" className="mt-2 py-2">
@@ -307,7 +324,7 @@ export function ReportApproval({
                 </AlertDescription>
               </Alert>
             )}
-            
+
             {userRole === UserRole.BRANCH_MANAGER && (
               <Alert className="mt-2 py-2">
                 <Info className="h-4 w-4" />
@@ -349,7 +366,7 @@ export function ReportApproval({
           </Button>
         </div>
       </PermissionGate>
-      
+
       {/* Show comments directly in the interface if available */}
       {report.comments && (
         <div className="mt-3">
@@ -393,11 +410,11 @@ export function ReportApproval({
               <Label className="dark:text-gray-200">Comments</Label>
               <div className={cn(
                 "mt-2 p-4 rounded-md",
-                (report.status as ReportStatus) === "approved" 
-                  ? "bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800" 
+                (report.status as ReportStatus) === "approved"
+                  ? "bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800"
                   : (report.status as ReportStatus) === "rejected"
-                  ? "bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800"
-                  : "bg-gray-100 dark:bg-gray-700"
+                    ? "bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800"
+                    : "bg-gray-100 dark:bg-gray-700"
               )}>
                 <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 mb-2">
                   <Clock className="h-4 w-4" />
@@ -458,8 +475,8 @@ export function ReportApproval({
             >
               Cancel
             </Button>
-            <Button 
-              onClick={handleApprovalAction} 
+            <Button
+              onClick={handleApprovalAction}
               disabled={isSubmitting}
               className="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600"
             >
@@ -520,9 +537,9 @@ export function ReportApproval({
             >
               Cancel
             </Button>
-            <Button 
-              variant="destructive" 
-              onClick={handleApprovalAction} 
+            <Button
+              variant="destructive"
+              onClick={handleApprovalAction}
               disabled={isSubmitting}
               className="dark:bg-red-700 dark:hover:bg-red-600"
             >
