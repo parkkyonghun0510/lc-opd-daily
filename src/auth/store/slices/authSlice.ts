@@ -158,11 +158,17 @@ export const createAuthSlice: StateCreator<AuthSlice, [], [], AuthSlice> = (set,
         trackAuthEvent(AuthEventType.LOGOUT, {
           userId: user.id,
           username: user.email,
-          role: user.role
+          role: user.role,
+          details: { callbackUrl }
         });
       }
 
-      await signOut({ redirect: false });
+      // Ensure we're preserving the callbackUrl when signing out
+      await signOut({
+        redirect: false,
+        callbackUrl
+      });
+
       set({
         user: null,
         isAuthenticated: false,
@@ -172,7 +178,15 @@ export const createAuthSlice: StateCreator<AuthSlice, [], [], AuthSlice> = (set,
         tokenExpiresAt: null,
         refreshInProgress: false
       });
-      window.location.href = callbackUrl;
+
+      // Ensure the callbackUrl is properly handled
+      // If it already has query parameters, append to them
+      if (callbackUrl.includes('?')) {
+        window.location.href = callbackUrl;
+      } else {
+        // Otherwise, add the current timestamp to prevent caching issues
+        window.location.href = `${callbackUrl}?t=${Date.now()}`;
+      }
     } catch (error) {
       console.error('Logout error:', error);
       set({ isLoading: false });
@@ -244,10 +258,14 @@ export const createAuthSlice: StateCreator<AuthSlice, [], [], AuthSlice> = (set,
     try {
       set({ refreshInProgress: true });
 
-      // Use NextAuth's signIn function with refresh token
+      // Get the current URL to use as callbackUrl if needed
+      const currentUrl = typeof window !== 'undefined' ? window.location.href : '/dashboard';
+
+      // Use NextAuth's signIn function with refresh token and current URL as callbackUrl
       const result = await signIn('refresh', {
         refreshToken,
-        redirect: false
+        redirect: false,
+        callbackUrl: currentUrl
       });
 
       if (!result?.ok) {

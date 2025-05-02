@@ -34,14 +34,13 @@ import {
   Calendar,
   FilterX,
   LayoutGrid,
-  LayoutList
+  LayoutList,
+  Download
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-// Import dashboard events types if needed in the future
-// import { DashboardEventTypes } from "@/lib/events/dashboardEvents";
 import { fetchPendingReportsAction } from "@/app/_actions/report-actions";
 import { Pagination } from "@/components/ui/pagination";
 import {
@@ -52,6 +51,61 @@ import {
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { ApprovalsTable } from "@/components/reports/ApprovalsTable";
+import { useApprovalFilterReducer } from "@/hooks/useApprovalFilterReducer";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { LoadingSpinner } from "@/components/LoadingSpinner";
+import { useReportUpdates } from "@/hooks/useReportUpdates";
+import { useErrorMonitoring } from "@/hooks/useErrorMonitoring";
+import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import { ShortcutHelpDialog } from "@/components/ShortcutHelpDialog";
+import { PerformanceMonitor } from "@/components/PerformanceMonitor";
+import { useApiCache } from "@/hooks/useApiCache";
+import { useReportData } from "@/hooks/useReportData";
+import { exportReports } from "@/utils/exportReports";
+import { ProgressIndicator } from "@/components/ProgressIndicator";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { PrintDialog } from "@/components/reports/PrintDialog";
+import { PrintableReport } from "@/components/reports/PrintableReport";
+import { useReactToPrint } from "react-to-print";
+import type { UseReactToPrintOptions } from 'react-to-print';
+
+// Types
+export type FilterState = {
+  searchTerm: string;
+  branchFilter: string;
+  reportTypeFilter: string;
+  statusFilter: string;
+  dateRange: {
+    from?: Date;
+    to?: Date;
+  };
+  sortField: 'date' | 'created' | 'branch' | 'writeOffs' | 'ninetyPlus';
+  sortDirection: 'asc' | 'desc';
+  currentPage: number;
+};
+
+export type ViewMode = 'card' | 'table';
+
+const sortOptions = {
+  date: 'Report Date',
+  created: 'Submission Date',
+  branch: 'Branch',
+  writeOffs: 'Write-offs',
+  ninetyPlus: '90+ Days'
+} as const;
+
+const statusOptions = [
+  { value: 'all', label: 'All Statuses' },
+  { value: 'pending_approval', label: 'Pending Approval' },
+  { value: 'pending', label: 'Pending' },
+  { value: 'approved', label: 'Approved' },
+  { value: 'rejected', label: 'Rejected' }
+] as const;
 
 type ReportStatus = "pending" | "pending_approval" | "approved" | "rejected";
 
@@ -148,743 +202,682 @@ interface Branch {
 
 export default function ApprovalsPage() {
   const { toast } = useToast();
-  const { } = useUserData(); // Keep the hook but don't use userData directly
-  const [reports, setReports] = useState<ProcessedReport[]>([]);
-  const [filteredReports, setFilteredReports] = useState<ProcessedReport[]>([]);
+  const { logError, trackEvent, measurePerformance } = useErrorMonitoring();
+  const printRef = useRef<HTMLDivElement>(null);
+
+  // Use the filter reducer first to avoid reference issues
+  const {
+    state: filters,
+    setSearch,
+    setBranchFilter,
+    setReportTypeFilter,
+    setStatusFilter,
+    setSortField,
+    toggleSortDirection,
+    setDateRange,
+    setPage,
+    resetFilters
+  } = useApprovalFilterReducer();
+
+  // Load report data with proper filter dependency
+  const {
+    reports,
+    loading,
+    error,
+    lastUpdated,
+    trends,
+    refresh
+  } = useReportData({
+    statusFilter: filters.statusFilter,
+    pollingInterval: 30000,
+    onNewReport: () => setNewReportNotification(true)
+  });
+
   const [branches, setBranches] = useState<Record<string, Branch>>({});
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [newReportNotification, setNewReportNotification] = useState<boolean>(false);
-  // Initialize view mode from localStorage if available
+  const [exportProgress, setExportProgress] = useState(0);
+  const [isExporting, setIsExporting] = useState(false);
+  const [printOptions, setPrintOptions] = useState({
+    includeAnalytics: true,
+    includeComments: true
+  });
+
+  // Handle refresh with proper dependency
+  const handleRefresh = useCallback(() => {
+    setRefreshing(true);
+    setNewReportNotification(false);
+    refresh().finally(() => {
+      setRefreshing(false);
+    });
+  }, [refresh]);
+
+  const { isConnected } = useReportUpdates(handleRefresh);
+
+  const handlePrint = useReactToPrint({
+    content: () => printRef.current,
+    documentTitle: `Reports_${new Date().toISOString().split('T')[0]}`,
+    onBeforePrint: async () => {
+      await Promise.resolve(); // Ensure it returns a Promise
+      trackEvent('reports_printed', {
+        reportCount: memoizedSortedData.length,
+        options: printOptions
+      });
+    },
+    onPrintError: (error: Error | string) => {
+      console.error('Print error:', error);
+      toast({
+        title: 'Print Failed',
+        description: 'Failed to generate printable report',
+        variant: 'destructive',
+      });
+      logError({
+        message: 'Print failed',
+        componentName: 'ApprovalsPage',
+        context: { error: typeof error === 'string' ? error : error.message }
+      });
+    }
+  } as UseReactToPrintOptions);
+
+  const handlePrintWithOptions = useCallback((options: typeof printOptions) => {
+    setPrintOptions(options);
+    handlePrint();
+  }, [handlePrint]);
+
+  // View mode state
   const [viewMode, setViewMode] = useState<"card" | "table">(() => {
-    // Only run in browser environment
     if (typeof window !== "undefined") {
-      const savedViewMode = localStorage.getItem("approvalsViewMode");
-      return (savedViewMode === "table" ? "table" : "card");
+      return localStorage.getItem("approvalsViewMode") === "table" ? "table" : "card";
     }
     return "card";
   });
 
-  // Pagination
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalReports, setTotalReports] = useState(0);
-  const reportsPerPage = 10;
-
-  // Filter states
-  const [searchTerm, setSearchTerm] = useState("");
-  const [branchFilter, setBranchFilter] = useState("all");
-  const [reportTypeFilter, setReportTypeFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("pending_approval");
-  const [sortField, setSortField] = useState("date");
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
-  const [dateRange, setDateRange] = useState<{
-    from?: Date;
-    to?: Date;
-  }>({});
-
-  // Reference to track if auto-refresh is needed
-  const autoRefreshNeeded = useRef(false);
-
-  // Import the hybrid realtime hook to enable active polling when needed
-  const { enableActivePolling } = useHybridRealtime();
-
-  // Enable active polling when user performs actions that require updates
-  const enablePollingForAction = useCallback((action: string) => {
-    enableActivePolling(`approvals page - ${action}`);
-  }, [enableActivePolling]);
-
-  const loadReports = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      // Use the server action to fetch reports with the current status filter
-      const result = await fetchPendingReportsAction(statusFilter);
-
-      if (!result.success) {
-        throw new Error(result.error || "Failed to fetch reports");
-      }
-
-      const apiReports = result.reports || [];
-
-      // Process and convert API reports to ProcessedReport type
-      // Using type assertion since we know the structure matches
-      const processedReports = apiReports.map(report => ({
-        ...report,
-        status: report.status as ReportStatus,
-        // Convert Decimal objects to numbers
-        writeOffs: typeof report.writeOffs === 'object' ? Number(report.writeOffs) : report.writeOffs,
-        ninetyPlus: typeof report.ninetyPlus === 'object' ? Number(report.ninetyPlus) : report.ninetyPlus,
-      })) as ProcessedReport[];
-
-      // Store all reports for filtering
-      setReports(processedReports);
-
-      // Fetch branch data for each report if needed
-      const branchesRecord: Record<string, Branch> = { ...branches };
-      for (const report of processedReports) {
-        if (report.branchId && !branchesRecord[report.branchId]) {
-          try {
-            // Only fetch if we don't already have the branch data from the API
-            if (!report.branch) {
-              const branchData = await getBranchById(report.branchId);
-              branchesRecord[report.branchId] = branchData;
-            } else {
-              branchesRecord[report.branchId] = {
-                id: report.branchId,
-                name: report.branch.name,
-                code: report.branch.code
-              };
-            }
-          } catch (error) {
-            console.error(
-              `Failed to fetch branch ${report.branchId}:`,
-              error
-            );
-            branchesRecord[report.branchId] = {
-              id: report.branchId,
-              name: report.branch?.name || "Unknown Branch",
-              code: report.branch.code || ""
-            };
-          }
-        }
-      }
-      setBranches(branchesRecord);
-    } catch (error) {
-      console.error("Error fetching reports:", error);
-      setError(error instanceof Error ? error.message : "Unknown error occurred");
-      toast({
-        title: "Error",
-        description: "Failed to load reports. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
+  // Update keyboard shortcuts to properly type the error parameter
+  const { getShortcutDescriptions } = useKeyboardShortcuts([
+    {
+      key: 'r',
+      ctrl: true,
+      action: handleRefresh,
+      description: 'Refresh reports'
+    },
+    {
+      key: 'f',
+      ctrl: true,
+      action: () => document.querySelector<HTMLInputElement>('input[placeholder*="Search"]')?.focus(),
+      description: 'Focus search'
+    },
+    {
+      key: 'v',
+      ctrl: true,
+      action: () => handleViewModeChange(viewMode === 'card' ? 'table' : 'card'),
+      description: 'Toggle view mode'
+    },
+    {
+      key: 'c',
+      ctrl: true,
+      action: resetFilters,
+      description: 'Clear all filters'
+    },
+    {
+      key: 'ArrowLeft',
+      alt: true,
+      action: () => setPage(Math.max(1, filters.currentPage - 1)),
+      description: 'Previous page'
+    },
+    {
+      key: 'ArrowRight',
+      alt: true,
+      action: () => setPage(Math.min(Math.ceil(memoizedSortedData.length / 10), filters.currentPage + 1)),
+      description: 'Next page'
+    },
+    {
+      key: 'e',
+      ctrl: true,
+      action: () => handleExport('xlsx'),
+      description: 'Export as Excel'
+    },
+    {
+      key: 'e',
+      ctrl: true,
+      shift: true,
+      action: () => handleExport('csv'),
+      description: 'Export as CSV'
+    },
+    {
+      key: 'p',
+      ctrl: true,
+      action: () => handlePrintWithOptions({
+        includeAnalytics: true,
+        includeComments: true
+      }),
+      description: 'Print full report'
+    },
+    {
+      key: 'p',
+      ctrl: true,
+      shift: true,
+      action: () => handlePrintWithOptions({
+        includeAnalytics: false,
+        includeComments: false
+      }),
+      description: 'Print basic report'
     }
-  }, [statusFilter, branches, toast, setLoading, setError, setReports, setRefreshing]);
-
-  // Define handleApprovalComplete after loadReports is defined
-  const handleApprovalComplete = useCallback(() => {
-    enablePollingForAction('approval complete');
-    loadReports();
-  }, [enablePollingForAction, loadReports]);
-
-  const handleRefresh = () => {
-    setRefreshing(true);
-    enablePollingForAction('manual refresh');
-    loadReports();
-  };
-
-  // Apply filters and sorting
-  useEffect(() => {
-    if (!reports.length) return;
-
-    // Use a function to avoid recreating the filter logic
-    const applyFiltersAndSorting = () => {
-      let results = [...reports];
-
-      // Apply filters in memory
-      results = results.filter(report => {
-        // Apply branch filter
-        if (branchFilter !== "all" && report.branchId !== branchFilter) {
-          return false;
-        }
-
-        // Apply report type filter
-        if (reportTypeFilter !== "all" && report.reportType !== reportTypeFilter) {
-          return false;
-        }
-
-        // Apply date range filter
-        if (dateRange.from || dateRange.to) {
-          const reportDate = new Date(report.date);
-          if (dateRange.from && reportDate < dateRange.from) {
-            return false;
-          }
-          if (dateRange.to && reportDate > dateRange.to) {
-            return false;
-          }
-        }
-
-        // Apply search filter
-        if (searchTerm) {
-          const search = searchTerm.toLowerCase();
-          return (
-            report.branch.name.toLowerCase().includes(search) ||
-            (report.user?.name || "").toLowerCase().includes(search) ||
-            (report.user?.username || "").toLowerCase().includes(search) ||
-            report.date.includes(search)
-          );
-        }
-
-        return true;
-      });
-
-      // Apply sorting with proper type handling
-      results.sort((a, b) => {
-        let valueA: string | number | Date;
-        let valueB: string | number | Date;
-
-        switch (sortField) {
-          case "date":
-            // Convert string dates to Date objects for comparison
-            valueA = new Date(a.date);
-            valueB = new Date(b.date);
-            break;
-          case "branch":
-            valueA = a.branch.name;
-            valueB = b.branch.name;
-            break;
-          case "created":
-            valueA = new Date(a.submittedAt);
-            valueB = new Date(b.submittedAt);
-            break;
-          case "writeOffs":
-            valueA = a.writeOffs;
-            valueB = b.writeOffs;
-            break;
-          case "ninetyPlus":
-            valueA = a.ninetyPlus;
-            valueB = b.ninetyPlus;
-            break;
-          default:
-            valueA = new Date(a.date);
-            valueB = new Date(b.date);
-        }
-
-        if (sortDirection === "asc") {
-          if (valueA instanceof Date && valueB instanceof Date) {
-            return valueA.getTime() - valueB.getTime();
-          }
-          return typeof valueA === 'string'
-            ? valueA.localeCompare(valueB as string)
-            : (valueA as number) - (valueB as number);
-        } else {
-          if (valueA instanceof Date && valueB instanceof Date) {
-            return valueB.getTime() - valueA.getTime();
-          }
-          return typeof valueA === 'string'
-            ? (valueB as string).localeCompare(valueA)
-            : (valueB as number) - (valueA as number);
-        }
-      });
-
-      // Calculate pagination
-      const total = results.length;
-      const calculatedTotalPages = Math.ceil(total / reportsPerPage);
-      const start = (currentPage - 1) * reportsPerPage;
-      const end = start + reportsPerPage;
-
-      // Apply pagination
-      const paginatedResults = results.slice(start, end);
-
-      return {
-        filteredResults: paginatedResults,
-        total,
-        calculatedTotalPages
-      };
-    };
-
-    // Apply filters and update state in a single batch
-    const { filteredResults, total, calculatedTotalPages } = applyFiltersAndSorting();
-
-    setFilteredReports(filteredResults);
-    setTotalReports(total);
-    setTotalPages(calculatedTotalPages);
-  }, [
-    reports,
-    searchTerm,
-    sortField,
-    sortDirection,
-    branchFilter,
-    reportTypeFilter,
-    dateRange,
-    currentPage
   ]);
 
-  // We're using the Zustand hybrid realtime system with smart polling
-  // This means polling only happens when needed (after user actions or when events are received)
+  // Memoize filtered and transformed data
+  const memoizedFilteredData = useMemo(() => {
+    if (!reports.length) return [];
+    return reports.filter(report => {
+      if (filters.branchFilter !== "all" && report.branchId !== filters.branchFilter) return false;
+      if (filters.reportTypeFilter !== "all" && report.reportType !== filters.reportTypeFilter) return false;
 
-  // Memoize the event handler to prevent unnecessary re-renders
-  // This is used by the hybrid realtime system when events are received
-  // We're keeping this function for future use with the Zustand hybrid realtime system
-  /* eslint-disable-next-line @typescript-eslint/no-unused-vars */
-  const handleDashboardUpdate = useCallback((data: any) => {
-    // Handle report submission events
-    if (data && data.type === 'reportSubmitted') {
-      console.log('New report submitted:', data);
-      // Set the notification flag
-      setNewReportNotification(true);
-      // Mark that we need to refresh data
-      autoRefreshNeeded.current = true;
-      // Enable active polling for new reports
-      enablePollingForAction('new report submitted event');
+      if (filters.dateRange.from || filters.dateRange.to) {
+        const reportDate = new Date(report.date);
+        if (filters.dateRange.from && reportDate < filters.dateRange.from) return false;
+        if (filters.dateRange.to && reportDate > filters.dateRange.to) return false;
+      }
 
-      // Show a toast notification
-      toast({
-        title: "New Report Submitted",
-        description: `${data.branchName} submitted a new ${data.reportType} report that needs approval.`,
-        duration: 5000,
+      if (filters.searchTerm) {
+        const search = filters.searchTerm.toLowerCase();
+        return (
+          report.branch.name.toLowerCase().includes(search) ||
+          (report.user?.name || "").toLowerCase().includes(search) ||
+          (report.user?.username || "").toLowerCase().includes(search) ||
+          report.date.includes(search)
+        );
+      }
+      return true;
+    });
+  }, [reports, filters]);
+
+  const memoizedSortedData = useMemo(() => {
+    return [...memoizedFilteredData].sort((a, b) => {
+      const getValue = (item: ProcessedReport) => {
+        switch (filters.sortField) {
+          case "date": return new Date(item.date);
+          case "branch": return item.branch.name;
+          case "created": return new Date(item.submittedAt);
+          case "writeOffs": return Number(item.writeOffs);
+          case "ninetyPlus": return Number(item.ninetyPlus);
+          default: return new Date(item.date);
+        }
+      };
+
+      const valueA = getValue(a);
+      const valueB = getValue(b);
+
+      if (valueA instanceof Date && valueB instanceof Date) {
+        return filters.sortDirection === "asc"
+          ? valueA.getTime() - valueB.getTime()
+          : valueB.getTime() - valueA.getTime();
+      }
+
+      return filters.sortDirection === "asc"
+        ? String(valueA).localeCompare(String(valueB))
+        : String(valueB).localeCompare(String(valueA));
+    });
+  }, [memoizedFilteredData, filters.sortField, filters.sortDirection]);
+
+  const memoizedPaginatedData = useMemo(() => {
+    const startIndex = (filters.currentPage - 1) * 10;
+    const endIndex = startIndex + 10;
+    return memoizedSortedData.slice(startIndex, endIndex);
+  }, [memoizedSortedData, filters.currentPage]);
+
+  const handleApprovalComplete = useCallback(() => {
+    refresh();
+  }, [refresh]);
+
+  const handleFilterChange = useCallback((filterType: string, value: any) => {
+    trackEvent('filter_changed', {
+      filterType,
+      value,
+      currentFilters: filters
+    });
+
+    switch (filterType) {
+      case 'search':
+        setSearch(value);
+        break;
+      case 'branch':
+        setBranchFilter(value);
+        break;
+      case 'reportType':
+        setReportTypeFilter(value);
+        break;
+      case 'status':
+        setStatusFilter(value);
+        break;
+      case 'dateRange':
+        setDateRange(value);
+        break;
+    }
+  }, [filters, setSearch, setBranchFilter, setReportTypeFilter, setStatusFilter, setDateRange, trackEvent]);
+
+  const handleViewModeChange = useCallback((mode: "card" | "table") => {
+    trackEvent('view_mode_changed', { mode });
+    setViewMode(mode);
+  }, [trackEvent]);
+
+  const handleExport = useCallback(async (format: 'csv' | 'xlsx') => {
+    setIsExporting(true);
+    setExportProgress(0);
+
+    try {
+      const result = await exportReports(memoizedSortedData, trends, {
+        format,
+        includeAnalytics: true,
+        onProgress: (progress) => setExportProgress(progress)
       });
-    }
-    // Handle report status update events (approval/rejection)
-    else if (data && (data.type === 'reportApproved' || data.type === 'reportRejected')) {
-      console.log('Report status updated:', data);
-      // Enable active polling for status updates
-      enablePollingForAction('report status update event');
 
-      // Show a toast notification about the status change
-      const statusText = data.status === 'approved' ? 'approved' : 'rejected';
+      if (result.success) {
+        toast({
+          title: 'Export Successful',
+          description: `Reports exported as ${result.fileName}`,
+        });
+        trackEvent('reports_exported', {
+          format,
+          reportCount: memoizedSortedData.length,
+          includeAnalytics: true
+        });
+      } else {
+        throw new Error(result.error || 'Export failed');
+      }
+    } catch (error) {
+      console.error('Export error:', error);
       toast({
-        title: `Report ${statusText.charAt(0).toUpperCase() + statusText.slice(1)}`,
-        description: `A report from ${data.branchName} has been ${statusText}.`,
-        duration: 5000,
+        title: 'Export Failed',
+        description: error instanceof Error ? error.message : 'Failed to export reports',
+        variant: 'destructive',
       });
-
-      // Use a small delay to avoid UI flicker
-      setTimeout(() => {
-        loadReports();
-      }, 300);
+      logError({
+        message: 'Export failed',
+        componentName: 'ApprovalsPage',
+        context: {
+          format,
+          error: error instanceof Error ? error.message : String(error)
+        }
+      });
+    } finally {
+      setIsExporting(false);
+      setExportProgress(0);
     }
-  }, [toast, loadReports, enablePollingForAction]);
+  }, [memoizedSortedData, trends, toast, trackEvent, logError]);
 
-  // Create a ref to track initial render
-  const isInitialRender = useRef(true);
-
-  // Combined effect for initial load and filter changes
-  useEffect(() => {
-    if (isInitialRender.current) {
-      isInitialRender.current = false;
-      loadReports();
-      return;
-    }
-
-    // For subsequent renders, only reload when filters change
-    // Enable active polling when filters change
-    enablePollingForAction('filter change');
-    loadReports();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [branchFilter, reportTypeFilter, statusFilter, currentPage]);
-
-  // Separate effect for date range changes to avoid dependency cycles
-  useEffect(() => {
-    if (!isInitialRender.current) {
-      enablePollingForAction('date range change');
-      loadReports();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dateRange]);
-
-  // Effect to handle auto-refresh when needed
-  useEffect(() => {
-    // Check if auto-refresh is needed
-    if (autoRefreshNeeded.current) {
-      enablePollingForAction('auto refresh');
-      loadReports();
-      autoRefreshNeeded.current = false;
-      setNewReportNotification(false);
-    }
-  }, [enablePollingForAction, loadReports]);
-
-  // Handle new report notification with a separate effect
-  useEffect(() => {
-    if (newReportNotification) {
-      // Add a small delay to avoid multiple refreshes
-      const timer = setTimeout(() => {
-        enablePollingForAction('new report notification');
-        loadReports();
-        setNewReportNotification(false);
-      }, 300);
-
-      return () => clearTimeout(timer);
-    }
-  }, [newReportNotification, enablePollingForAction, loadReports]);
-
-  // Save view mode preference to localStorage
   useEffect(() => {
     if (typeof window !== "undefined") {
       localStorage.setItem("approvalsViewMode", viewMode);
     }
   }, [viewMode]);
 
-  const toggleSortDirection = () => {
-    setSortDirection(sortDirection === "asc" ? "desc" : "asc");
-  };
-
-  // Get unique branches for filter dropdown
-  const uniqueBranches = Object.values(branches).sort((a, b) =>
-    a.name.localeCompare(b.name)
-  );
+  const processReport = (report: ProcessedReport) => ({
+    ...report,
+    ReportComment: report.ReportComment?.map((comment) => ({
+      ...comment,
+      createdAt: comment.createdAt.toString(),
+      updatedAt: comment.updatedAt.toString()
+    }))
+  });
 
   return (
-    <div>
-      <DashboardHeader
-        heading="Report Approvals"
-        text="Review, approve, and manage all reports in a unified interface."
-      />
+    <PerformanceMonitor pageId="approvals">
+      <ErrorBoundary>
+        <main role="main" aria-label="Approvals Dashboard">
+          <DashboardHeader
+            heading="Report Approvals"
+            text="Review, approve, and manage all reports in a unified interface."
+          />
 
-      <div className="mt-6 space-y-4">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
-          <div className="flex items-center gap-2">
-            <div className="border rounded-md p-1">
-              <Button
-                variant={viewMode === "card" ? "default" : "ghost"}
-                size="sm"
-                onClick={() => setViewMode("card")}
-                className="h-8 px-2"
-              >
-                <LayoutGrid className="h-4 w-4 mr-1" />
-                Cards
-              </Button>
-              <Button
-                variant={viewMode === "table" ? "default" : "ghost"}
-                size="sm"
-                onClick={() => setViewMode("table")}
-                className="h-8 px-2"
-              >
-                <LayoutList className="h-4 w-4 mr-1" />
-                Table
-              </Button>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {newReportNotification && (
-              <div className="flex items-center text-amber-500 animate-pulse">
-                <Bell className="h-4 w-4 mr-1" />
-                <span className="text-xs font-medium">New report available</span>
-              </div>
-            )}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleRefresh}
-              disabled={refreshing}
-              className="flex items-center gap-1"
-            >
-              <RefreshCw className={cn(
-                "h-4 w-4",
-                refreshing && "animate-spin"
-              )} />
-              {refreshing ? "Refreshing..." : "Refresh"}
-            </Button>
-          </div>
-        </div>
-        {/* Filters and Search */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-md flex items-center">
-              <Filter className="h-4 w-4 mr-2" />
-              Filter Reports
-            </CardTitle>
-            <CardDescription>
-              Filter reports by status, branch, type, and date range
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="flex items-center space-x-2">
-                <Search className="h-4 w-4 text-gray-500" />
-                <Input
-                  placeholder="Search branch, user..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="flex-1"
-                />
-              </div>
+          <div className="mt-6 space-y-4">
+            {/* Add trends summary before the filters card */}
+            {/* {trends && <TrendsSummary trends={trends} />} */}
 
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-gray-500">Branch</p>
-                <Select
-                  value={branchFilter}
-                  onValueChange={setBranchFilter}
-                >
-                  <SelectTrigger className="w-full" aria-label="Filter by Branch">
-                    <SelectValue placeholder="All Branches" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Branches</SelectItem>
-                    {uniqueBranches.map((branch) => (
-                      <SelectItem key={branch.id} value={branch.id}>
-                        {branch.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-gray-500">Report Type</p>
-                <Select
-                  value={reportTypeFilter}
-                  onValueChange={setReportTypeFilter}
-                >
-                  <SelectTrigger className="w-full" aria-label="Filter by Report Type">
-                    <SelectValue placeholder="All Types" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Types</SelectItem>
-                    <SelectItem value="plan">Plan</SelectItem>
-                    <SelectItem value="actual">Actual</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-gray-500">Status</p>
-                {/* Improved Status Filter Dropdown with pending_approval on top and accessibility */}
-                <Select
-                  value={statusFilter}
-                  onValueChange={(value) => setStatusFilter(value)}
-                >
-                  <SelectTrigger
-                    className="w-full"
-                    aria-label="Filter by Status"
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
+              <div className="flex items-center gap-2">
+                <div className="border rounded-md p-1" role="group" aria-label="View mode selection">
+                  <Button
+                    variant={viewMode === "card" ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => handleViewModeChange("card")}
+                    className="h-8 px-2"
+                    aria-pressed={viewMode === "card"}
+                    aria-label="Card view"
                   >
-                    <SelectValue placeholder="All Statuses" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(() => {
-                      const statusOptions = [
-                        { value: 'pending_approval', label: 'Pending Approval' },
-                        { value: 'pending', label: 'Pending' },
-                        { value: 'approved', label: 'Approved' },
-                        { value: 'rejected', label: 'Rejected' },
-                      ];
-                      // Always put 'all' at the very top if needed
-                      return [
-                        <SelectItem key="all" value="all" className="cursor-pointer">All Statuses</SelectItem>,
-                        ...statusOptions.map((option) => (
-                          <SelectItem key={option.value} value={option.value} className="cursor-pointer">
-                            {option.label}
-                          </SelectItem>
-                        )),
-                      ];
-                    })()}
-                  </SelectContent>
-                </Select>
-
+                    <LayoutGrid className="h-4 w-4 mr-1" aria-hidden="true" />
+                    Cards
+                  </Button>
+                  <Button
+                    variant={viewMode === "table" ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => handleViewModeChange("table")}
+                    className="h-8 px-2"
+                    aria-pressed={viewMode === "table"}
+                    aria-label="Table view"
+                  >
+                    <LayoutList className="h-4 w-4 mr-1" aria-hidden="true" />
+                    Table
+                  </Button>
+                </div>
+                <ShortcutHelpDialog shortcuts={getShortcutDescriptions()} />
               </div>
 
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-gray-500">Date Range</p>
-                <Popover>
-                  <PopoverTrigger asChild>
+              <div className="flex items-center gap-2">
+                {!isConnected && (
+                  <div className="flex items-center text-yellow-500" role="status">
+                    <AlertCircle className="h-4 w-4 mr-1" aria-hidden="true" />
+                    <span className="text-xs font-medium">Connecting...</span>
+                  </div>
+                )}
+                {newReportNotification && (
+                  <div className="flex items-center text-amber-500 animate-pulse" role="status">
+                    <Bell className="h-4 w-4 mr-1" aria-hidden="true" />
+                    <span className="text-xs font-medium">New report available</span>
+                  </div>
+                )}
+                <PrintDialog
+                  onPrint={handlePrintWithOptions}
+                  disabled={loading || reports.length === 0}
+                />
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
                     <Button
                       variant="outline"
-                      className="w-full justify-start text-left font-normal"
+                      size="sm"
+                      className="flex items-center gap-1"
+                      disabled={loading || reports.length === 0}
                     >
-                      <Calendar className="mr-2 h-4 w-4" />
-                      {dateRange?.from ? (
-                        dateRange.to ? (
-                          <>
-                            {format(dateRange.from, "LLL dd, y")} -{" "}
-                            {format(dateRange.to, "LLL dd, y")}
-                          </>
-                        ) : (
-                          format(dateRange.from, "LLL dd, y")
-                        )
-                      ) : (
-                        <span>Pick a date range</span>
-                      )}
+                      <Download className="h-4 w-4" />
+                      Export
                     </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <CalendarComponent
-                      initialFocus
-                      mode="range"
-                      defaultMonth={dateRange?.from}
-                      selected={dateRange as any}
-                      onSelect={(range) => setDateRange(range as any)}
-                      numberOfMonths={2}
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between mt-4 pt-4 border-t">
-              <div className="text-sm text-gray-500">
-                {totalReports} reports found, showing page {currentPage} of {totalPages}
-              </div>
-
-              <div className="flex items-center space-x-2">
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => handleExport('xlsx')}>
+                      Export as Excel
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleExport('csv')}>
+                      Export as CSV
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => {
-                    setSearchTerm("");
-                    setBranchFilter("all");
-                    setReportTypeFilter("all");
-                    setStatusFilter("all");
-                    setDateRange({});
-                    setCurrentPage(1);
-                  }}
-                  className="text-xs mr-2"
+                  onClick={handleRefresh}
+                  disabled={refreshing}
+                  className="flex items-center gap-1"
+                  aria-label={refreshing ? "Refreshing reports" : "Refresh reports"}
                 >
-                  <FilterX className="h-3 w-3 mr-1" />
-                  Reset Filters
-                </Button>
-
-                <p className="text-sm font-medium mr-2">Sort by:</p>
-                <Select value={sortField} onValueChange={setSortField}>
-                  <SelectTrigger className="w-[150px]">
-                    <SelectValue placeholder="Sort by Date" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="date">Report Date</SelectItem>
-                    <SelectItem value="created">Submission Date</SelectItem>
-                    <SelectItem value="branch">Branch</SelectItem>
-                    <SelectItem value="writeOffs">Write-offs</SelectItem>
-                    <SelectItem value="ninetyPlus">90+ Days</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={toggleSortDirection}
-                >
-                  {sortDirection === "asc" ? (
-                    <SortAsc className="h-4 w-4" />
-                  ) : (
-                    <SortDesc className="h-4 w-4" />
-                  )}
+                  <RefreshCw
+                    className={cn("h-4 w-4", refreshing && "animate-spin")}
+                    aria-hidden="true"
+                  />
+                  {refreshing ? "Refreshing..." : "Refresh"}
                 </Button>
               </div>
             </div>
-          </CardContent>
-        </Card>
 
-        {error && (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Error</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
+            {/* Filters Card */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-md flex items-center">
+                  <Filter className="h-4 w-4 mr-2" aria-hidden="true" />
+                  Filter Reports
+                </CardTitle>
+                <CardDescription>
+                  Filter reports by status, branch, type, and date range
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4" role="search">
+                  <div className="flex items-center space-x-2">
+                    <Search className="h-4 w-4 text-gray-500" aria-hidden="true" />
+                    <Input
+                      placeholder="Search branch, user..."
+                      value={filters.searchTerm}
+                      onChange={(e) => handleFilterChange('search', e.target.value)}
+                      className="flex-1"
+                      aria-label="Search reports"
+                    />
+                  </div>
 
-        {loading ? (
-          <div className="space-y-4">
-            {viewMode === "card" ? (
-              // Card view loading skeleton
-              [...Array(3)].map((_, i) => (
-                <Card key={i}>
-                  <CardContent className="pt-6">
-                    <div className="space-y-2">
-                      <Skeleton className="h-4 w-[250px]" />
-                      <Skeleton className="h-4 w-[200px]" />
-                      <div className="flex gap-2 mt-4">
-                        <Skeleton className="h-8 w-[100px]" />
-                        <Skeleton className="h-8 w-[100px]" />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-            ) : (
-              // Table view loading skeleton
+                  <div className="space-y-1">
+                    <label id="branch-filter-label" className="text-sm font-medium text-gray-500">
+                      Branch
+                    </label>
+                    <Select
+                      value={filters.branchFilter}
+                      onValueChange={(value) => handleFilterChange('branch', value)}
+                      aria-labelledby="branch-filter-label"
+                    >
+                      <SelectTrigger className="w-full" aria-label="Filter by Branch">
+                        <SelectValue placeholder="All Branches" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Branches</SelectItem>
+                        {Object.values(branches).sort((a, b) =>
+                          a.name.localeCompare(b.name)
+                        ).map((branch) => (
+                          <SelectItem key={branch.id} value={branch.id}>
+                            {branch.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label id="report-type-filter-label" className="text-sm font-medium text-gray-500">
+                      Report Type
+                    </label>
+                    <Select
+                      value={filters.reportTypeFilter}
+                      onValueChange={(value) => handleFilterChange('reportType', value)}
+                      aria-labelledby="report-type-filter-label"
+                    >
+                      <SelectTrigger className="w-full" aria-label="Filter by Report Type">
+                        <SelectValue placeholder="All Types" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Types</SelectItem>
+                        <SelectItem value="plan">Plan</SelectItem>
+                        <SelectItem value="actual">Actual</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                  <div className="space-y-1">
+                    <label id="status-filter-label" className="text-sm font-medium text-gray-500">
+                      Status
+                    </label>
+                    <Select
+                      value={filters.statusFilter}
+                      onValueChange={(value) => handleFilterChange('status', value)}
+                      aria-labelledby="status-filter-label"
+                    >
+                      <SelectTrigger
+                        className="w-full"
+                        aria-label="Filter by Status"
+                      >
+                        <SelectValue placeholder="All Statuses" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {statusOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label id="date-range-filter-label" className="text-sm font-medium text-gray-500">
+                      Date Range
+                    </label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start text-left font-normal"
+                          aria-labelledby="date-range-filter-label"
+                        >
+                          <Calendar className="mr-2 h-4 w-4" aria-hidden="true" />
+                          {filters.dateRange?.from ? (
+                            filters.dateRange.to ? (
+                              <>
+                                {format(filters.dateRange.from, "LLL dd, y")} -{" "}
+                                {format(filters.dateRange.to, "LLL dd, y")}
+                              </>
+                            ) : (
+                              format(filters.dateRange.from, "LLL dd, y")
+                            )
+                          ) : (
+                            <span>Pick a date range</span>
+                          )}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <CalendarComponent
+                          initialFocus
+                          mode="range"
+                          defaultMonth={filters.dateRange?.from}
+                          selected={filters.dateRange as any}
+                          onSelect={(range) => handleFilterChange('dateRange', range as any)}
+                          numberOfMonths={2}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                  <div className="text-sm text-gray-500" role="status">
+                    {memoizedSortedData.length} reports found, showing page {filters.currentPage} of {Math.ceil(memoizedSortedData.length / 10)}
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={resetFilters}
+                      className="text-xs mr-2"
+                      aria-label="Reset all filters"
+                    >
+                      <FilterX className="h-3 w-3 mr-1" aria-hidden="true" />
+                      Reset Filters
+                    </Button>
+
+                    <label id="sort-select-label" className="text-sm font-medium mr-2">
+                      Sort by:
+                    </label>
+                    <Select
+                      value={filters.sortField}
+                      onValueChange={setSortField}
+                      aria-labelledby="sort-select-label"
+                    >
+                      <SelectTrigger className="w-[150px]">
+                        <SelectValue placeholder="Sort by Date" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(sortOptions).map(([key, label]) => (
+                          <SelectItem key={key} value={key}>
+                            {label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={toggleSortDirection}
+                      aria-label={`Sort ${filters.sortDirection === "asc" ? "ascending" : "descending"}`}
+                    >
+                      {filters.sortDirection === "asc" ? (
+                        <SortAsc className="h-4 w-4" aria-hidden="true" />
+                      ) : (
+                        <SortDesc className="h-4 w-4" aria-hidden="true" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {error && (
+              <Alert variant="destructive" role="alert">
+                <AlertCircle className="h-4 w-4" aria-hidden="true" />
+                <AlertTitle>Error</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+
+            {loading ? (
+              <LoadingSpinner />
+            ) : memoizedPaginatedData.length === 0 ? (
               <Card>
-                <CardContent className="pt-6">
-                  <Skeleton className="h-10 w-full mb-2" />
-                  {[...Array(5)].map((_, i) => (
-                    <Skeleton key={i} className="h-12 w-full mb-2" />
-                  ))}
+                <CardContent className="pt-6 pb-6 text-center">
+                  <div className="py-8 text-gray-500" role="status">
+                    <p className="text-lg font-medium mb-2">No Reports Found</p>
+                    <p className="text-sm">
+                      There are no reports that match your filters.
+                    </p>
+                  </div>
                 </CardContent>
               </Card>
-            )}
-          </div>
-        ) : filteredReports.length === 0 ? (
-          <Card>
-            <CardContent className="pt-6 pb-6 text-center">
-              <div className="py-8 text-gray-500">
-                <p className="text-lg font-medium mb-2">No Reports Found</p>
-                <p className="text-sm">
-                  There are no reports that match your filters.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        ) : (
-          <>
-            {viewMode === "card" ? (
-              // Card view
-              <div className="space-y-4">
-                {filteredReports.map((report) => (
-                  <PendingReport
-                    key={report.id}
-                    report={{
-                      id: report.id,
-                      date: report.date,
-                      branchId: report.branchId,
-                      writeOffs: typeof report.writeOffs === 'object' ? Number(report.writeOffs) : report.writeOffs,
-                      ninetyPlus: typeof report.ninetyPlus === 'object' ? Number(report.ninetyPlus) : report.ninetyPlus,
-                      status: report.status,
-                      reportType: report.reportType,
-                      content: report.content,
-                      submittedBy: report.submittedBy,
-                      comments: report.comments || undefined,
-                      user: report.user,
-                      createdAt: report.createdAt.toString(),
-                      updatedAt: report.updatedAt.toString(),
-                      // Convert ReportComment dates to strings
-                      ReportComment: report.ReportComment?.map(comment => ({
-                        ...comment,
-                        createdAt: comment.createdAt.toString(),
-                        updatedAt: comment.updatedAt.toString()
-                      }))
-                    }}
-                    branchName={report.branch?.name || "Unknown Branch"}
-                    branchCode={report.branch?.code || ''}
+            ) : (
+              <section aria-label="Reports List">
+                {viewMode === "card" ? (
+                  <div className="space-y-4">
+                    {memoizedPaginatedData.map((report) => (
+                      <PendingReport
+                        key={report.id}
+                        report={processReport(report)}
+                        branchName={report.branch?.name || "Unknown Branch"}
+                        branchCode={report.branch?.code || ''}
+                        onApprovalComplete={handleApprovalComplete}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <ApprovalsTable
+                    reports={memoizedPaginatedData.map(processReport)}
                     onApprovalComplete={handleApprovalComplete}
                   />
-                ))}
-              </div>
-            ) : (
-              // Table view
-              <ApprovalsTable
-                reports={filteredReports.map(report => ({
-                  id: report.id,
-                  date: report.date,
-                  branchId: report.branchId,
-                  writeOffs: typeof report.writeOffs === 'object' ? Number(report.writeOffs) : report.writeOffs,
-                  ninetyPlus: typeof report.ninetyPlus === 'object' ? Number(report.ninetyPlus) : report.ninetyPlus,
-                  status: report.status,
-                  reportType: report.reportType,
-                  content: report.content,
-                  submittedBy: report.submittedBy,
-                  comments: report.comments || undefined,
-                  user: report.user,
-                  createdAt: report.createdAt.toString(),
-                  updatedAt: report.updatedAt.toString(),
-                  branch: report.branch,
-                  // Convert ReportComment dates to strings
-                  ReportComment: report.ReportComment?.map(comment => ({
-                    ...comment,
-                    createdAt: comment.createdAt.toString(),
-                    updatedAt: comment.updatedAt.toString()
-                  }))
-                }))}
-                onApprovalComplete={handleApprovalComplete}
-              />
-            )}
+                )}
 
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="flex justify-center my-6">
-                <Pagination
-                  currentPage={currentPage}
-                  totalPages={totalPages}
-                  onPageChange={setCurrentPage}
-                />
-              </div>
+                {Math.ceil(memoizedSortedData.length / 10) > 1 && (
+                  <nav className="flex justify-center my-6" aria-label="Pagination">
+                    <Pagination
+                      currentPage={filters.currentPage}
+                      totalPages={Math.ceil(memoizedSortedData.length / 10)}
+                      onPageChange={setPage}
+                    />
+                  </nav>
+                )}
+              </section>
             )}
-          </>
-        )}
-      </div>
-    </div>
+          </div>
+
+          {/* Add hidden printable content */}
+          <div className="hidden">
+            <PrintableReport
+              ref={printRef}
+              reports={memoizedSortedData}
+              trends={trends}
+              printOptions={printOptions}
+            />
+          </div>
+
+          <ProgressIndicator
+            isOpen={isExporting}
+            progress={exportProgress}
+            message={`Exporting reports... ${exportProgress}%`}
+          />
+        </main>
+      </ErrorBoundary>
+    </PerformanceMonitor>
   );
 }

@@ -35,6 +35,30 @@ export function formatKHRCurrency(amount: number): string {
   return `${numericPart}${currencySymbol}`;
 }
 
+/**
+ * Format KHR currency for PDF export, replacing the Khmer Riel symbol with "KHR"
+ * to avoid encoding issues with non-Latin characters in PDF generation
+ */
+export function formatKHRCurrencyForPDF(amount: number): string {
+  // Format the amount using the en-US locale for consistent number formatting
+  const formatted = new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount);
+
+  // Append "KHR" instead of the Khmer Riel symbol
+  return `${formatted} KHR`;
+}
+
+export function formatCurrency(value: number): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
 export function formatDate(dateString: string | Date): string {
   const date = new Date(dateString);
   return new Intl.DateTimeFormat('en-US', {

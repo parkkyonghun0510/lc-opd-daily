@@ -48,14 +48,34 @@ interface Report {
   writeOffs: number;
   ninetyPlus: number;
   status: ReportStatus;
+  reportType: string;
+  content?: string;
   submittedBy?: string;
-  comments?: string;
-  updatedAt?: string;
+  comments?: string | null;
   user?: {
     name: string;
     username: string;
   };
-  // Other fields...
+  createdAt: string;
+  updatedAt: string;
+  ReportComment?: Array<{
+    id: string;
+    reportId: string;
+    userId: string;
+    content: string;
+    createdAt: string;
+    updatedAt: string;
+    user?: {
+      id: string;
+      name?: string;
+      username?: string;
+    };
+  }>;
+  branch?: {
+    id: string;
+    name: string;
+    code: string;
+  };
 }
 
 interface ReportApprovalProps {
