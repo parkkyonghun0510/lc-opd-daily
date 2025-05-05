@@ -9,6 +9,7 @@ import { NotificationPrompt } from "@/components/pwa/NotificationPrompt";
 import { ServiceWorkerRegistration } from "@/components/pwa/ServiceWorkerRegistration";
 import { metadata } from "./metadata";
 import Script from "next/script";
+import { OfflineProvider } from "@/components/providers/OfflineProvider";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -34,7 +35,7 @@ export default function RootLayout({
         <meta name="googlebot" content="index, follow" />
         <meta property="og:site_name" content="LC Help Desk Reports" />
         <meta name="author" content="LC Help Desk Team" />
-        
+
         {/* Structured data for organization */}
         <Script id="structured-data" type="application/ld+json">
           {`

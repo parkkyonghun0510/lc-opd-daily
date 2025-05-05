@@ -7,20 +7,24 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { format, isValid } from "date-fns";
-import { 
-  CalendarIcon, 
-  Download, 
-  FileIcon, 
-  FileSpreadsheetIcon, 
-  RefreshCw, 
-  X, 
+import {
+  CalendarIcon,
+  Download,
+  FileIcon,
+  FileSpreadsheetIcon,
+  RefreshCw,
+  X,
   Save,
   Bookmark,
   BookmarkCheck,
   ChevronDown,
   ChevronUp,
   Filter,
-  Loader2
+  Loader2,
+  PencilIcon,
+  Edit,
+  Trash2,
+  AlertTriangle
 } from "lucide-react";
 import { BranchSelector } from "@/components/ui/branch-selector";
 import { UserSelector } from "@/components/ui/user-selector";
@@ -55,6 +59,8 @@ interface FilterPreset {
   userId?: string;
   reportType: string;
   status?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface ReportFiltersProps {
@@ -105,9 +111,12 @@ export function ReportFilters({
   const [isSavePresetOpen, setIsSavePresetOpen] = useState(false);
   const [isLoadPresetOpen, setIsLoadPresetOpen] = useState(false);
   const [presetName, setPresetName] = useState("");
+  const [editingPresetId, setEditingPresetId] = useState<string | null>(null);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [presetToDelete, setPresetToDelete] = useState<string | null>(null);
   // New state for filter visibility
   const [showFilters, setShowFilters] = useState(false);
-  
+
   // State to track if filters are applied
   const [filtersApplied, setFiltersApplied] = useState(false);
 
@@ -126,13 +135,13 @@ export function ReportFilters({
 
   // Track if filters are applied
   useEffect(() => {
-    const isFiltered = 
-      startDate !== undefined || 
-      endDate !== undefined || 
-      selectedBranchId !== undefined || 
-      selectedUserId !== undefined || 
+    const isFiltered =
+      startDate !== undefined ||
+      endDate !== undefined ||
+      selectedBranchId !== undefined ||
+      selectedUserId !== undefined ||
       status !== undefined;
-    
+
     setFiltersApplied(isFiltered);
   }, [startDate, endDate, selectedBranchId, selectedUserId, status]);
 
@@ -142,7 +151,21 @@ export function ReportFilters({
     if (storedPresets) {
       try {
         const parsedPresets = JSON.parse(storedPresets);
-        setSavedPresets(parsedPresets);
+
+        // Add timestamps to existing presets if they don't have them (backward compatibility)
+        const now = new Date().toISOString();
+        const updatedPresets = parsedPresets.map((preset: any) => ({
+          ...preset,
+          createdAt: preset.createdAt || now,
+          updatedAt: preset.updatedAt || now
+        }));
+
+        setSavedPresets(updatedPresets);
+
+        // Save the updated presets back to localStorage if we added timestamps
+        if (JSON.stringify(parsedPresets) !== JSON.stringify(updatedPresets)) {
+          localStorage.setItem("reportFilterPresets", JSON.stringify(updatedPresets));
+        }
       } catch (error) {
         console.error("Error parsing saved presets:", error);
       }
@@ -159,38 +182,94 @@ export function ReportFilters({
       return;
     }
 
-    const newPreset: FilterPreset = {
-      id: Date.now().toString(),
-      name: presetName,
-      startDate: startDate ? startDate.toISOString() : undefined,
-      endDate: endDate ? endDate.toISOString() : undefined,
-      branchId: selectedBranchId,
-      userId: selectedUserId,
-      reportType,
-      status,
-    };
+    const now = new Date().toISOString();
+    let updatedPresets: FilterPreset[];
 
-    const updatedPresets = [...savedPresets, newPreset];
+    if (editingPresetId) {
+      // Update existing preset
+      updatedPresets = savedPresets.map(preset => {
+        if (preset.id === editingPresetId) {
+          return {
+            ...preset,
+            name: presetName,
+            startDate: startDate ? startDate.toISOString() : undefined,
+            endDate: endDate ? endDate.toISOString() : undefined,
+            branchId: selectedBranchId,
+            userId: selectedUserId,
+            reportType,
+            status,
+            updatedAt: now
+          };
+        }
+        return preset;
+      });
+
+      toast({
+        title: "Success",
+        description: `Filter preset "${presetName}" updated successfully`,
+      });
+    } else {
+      // Create new preset
+      const newPreset: FilterPreset = {
+        id: Date.now().toString(),
+        name: presetName,
+        startDate: startDate ? startDate.toISOString() : undefined,
+        endDate: endDate ? endDate.toISOString() : undefined,
+        branchId: selectedBranchId,
+        userId: selectedUserId,
+        reportType,
+        status,
+        createdAt: now,
+        updatedAt: now
+      };
+
+      updatedPresets = [...savedPresets, newPreset];
+
+      toast({
+        title: "Success",
+        description: `Filter preset "${newPreset.name}" saved successfully`,
+      });
+    }
+
+    // Save to state and localStorage
     setSavedPresets(updatedPresets);
     localStorage.setItem("reportFilterPresets", JSON.stringify(updatedPresets));
-    
+
+    // Reset form
     setPresetName("");
+    setEditingPresetId(null);
     setIsSavePresetOpen(false);
-    
-    toast({
-      title: "Success",
-      description: `Filter preset "${newPreset.name}" saved successfully`,
-    });
   };
 
-  const handleDeletePreset = (id: string) => {
-    const updatedPresets = savedPresets.filter(preset => preset.id !== id);
+  const confirmDeletePreset = (id: string) => {
+    setPresetToDelete(id);
+    setIsDeleteConfirmOpen(true);
+  };
+
+  const handleDeletePreset = () => {
+    if (!presetToDelete) return;
+
+    const updatedPresets = savedPresets.filter(preset => preset.id !== presetToDelete);
     setSavedPresets(updatedPresets);
     localStorage.setItem("reportFilterPresets", JSON.stringify(updatedPresets));
-    
+
     toast({
       description: "Preset deleted",
     });
+
+    setPresetToDelete(null);
+    setIsDeleteConfirmOpen(false);
+  };
+
+  const editPreset = (preset: FilterPreset) => {
+    setEditingPresetId(preset.id);
+    setPresetName(preset.name);
+
+    // Open the save dialog with preset data loaded
+    setIsSavePresetOpen(true);
+
+    // Close the load dialog
+    setIsLoadPresetOpen(false);
   };
 
   const applyPreset = (preset: FilterPreset) => {
@@ -201,29 +280,29 @@ export function ReportFilters({
     } else {
       setStartDate(undefined);
     }
-    
+
     if (preset.endDate) {
       const parsedEndDate = new Date(preset.endDate);
       setEndDate(isValid(parsedEndDate) ? parsedEndDate : undefined);
     } else {
       setEndDate(undefined);
     }
-    
+
     // Apply other filters
     setSelectedBranchId(preset.branchId);
     setSelectedUserId(preset.userId);
     setReportType(preset.reportType);
     setStatus(preset.status);
-    
+
     // Close the preset dialog
     setIsLoadPresetOpen(false);
-    
+
     // Show filters when applying a preset
     setShowFilters(true);
-    
+
     // Apply the filters
     setTimeout(handleFilter, 0);
-    
+
     toast({
       description: `Preset "${preset.name}" applied`,
     });
@@ -239,9 +318,9 @@ export function ReportFilters({
       <div className="space-y-4">
         <div className="flex justify-between items-center gap-2">
           <div className="flex items-center gap-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               onClick={toggleFilters}
               className={cn(
                 "flex items-center gap-1",
@@ -262,10 +341,10 @@ export function ReportFilters({
               </Badge>
             )}
           </div>
-          
+
           <div className="flex gap-2 justify-end">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="sm"
               onClick={() => setIsSavePresetOpen(true)}
               className="flex items-center gap-1"
@@ -273,8 +352,8 @@ export function ReportFilters({
               <Save className="h-4 w-4 sm:mr-1" />
               <span className="hidden sm:inline">Save Preset</span>
             </Button>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="sm"
               onClick={() => setIsLoadPresetOpen(true)}
               className="flex items-center gap-1"
@@ -299,7 +378,7 @@ export function ReportFilters({
                     <Button
                       variant="outline"
                       className={cn(
-                        "w-full justify-start text-left font-normal", 
+                        "w-full justify-start text-left font-normal",
                         !startDate && "text-muted-foreground"
                       )}
                     >
@@ -317,7 +396,7 @@ export function ReportFilters({
                   </PopoverContent>
                 </Popover>
               </div>
-              
+
               {/* End Date Filter */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -328,7 +407,7 @@ export function ReportFilters({
                     <Button
                       variant="outline"
                       className={cn(
-                        "w-full justify-start text-left font-normal", 
+                        "w-full justify-start text-left font-normal",
                         !endDate && "text-muted-foreground"
                       )}
                     >
@@ -346,7 +425,7 @@ export function ReportFilters({
                   </PopoverContent>
                 </Popover>
               </div>
-              
+
               {/* Branch Filter */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -360,7 +439,7 @@ export function ReportFilters({
                   showAllOption={true}
                 />
               </div>
-              
+
               {/* User Filter (Admin only) */}
               {userData?.role === "ADMIN" && (
                 <div>
@@ -374,7 +453,7 @@ export function ReportFilters({
                   />
                 </div>
               )}
-              
+
               {/* Report Type Filter */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -393,14 +472,14 @@ export function ReportFilters({
                   </SelectContent>
                 </Select>
               </div>
-              
+
               {/* Status Filter */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Status
                 </label>
-                <Select 
-                  value={status || "any"} 
+                <Select
+                  value={status || "any"}
                   onValueChange={(val) => setStatus(val === "any" ? undefined : val)}
                 >
                   <SelectTrigger>
@@ -416,7 +495,7 @@ export function ReportFilters({
                 </Select>
               </div>
             </div>
-            
+
             {/* Filter Actions */}
             <div className="flex flex-wrap gap-2 justify-end mt-4">
               {/* Clear Filters Button */}
@@ -432,7 +511,7 @@ export function ReportFilters({
                 <X className="mr-1 h-4 w-4" />
                 Clear Filters
               </Button>
-              
+
               {/* Apply Filters Button */}
               <Button
                 size="sm"
@@ -478,7 +557,7 @@ export function ReportFilters({
               </>
             )}
           </Button>
-          
+
           {/* Export to PDF Button */}
           <Button
             variant="outline"
@@ -503,10 +582,17 @@ export function ReportFilters({
       </div>
 
       {/* Save Preset Dialog */}
-      <Dialog open={isSavePresetOpen} onOpenChange={setIsSavePresetOpen}>
+      <Dialog open={isSavePresetOpen} onOpenChange={(open) => {
+        if (!open) {
+          // Reset form when closing
+          setEditingPresetId(null);
+          setPresetName("");
+        }
+        setIsSavePresetOpen(open);
+      }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Save Filter Preset</DialogTitle>
+            <DialogTitle>{editingPresetId ? "Edit Filter Preset" : "Save Filter Preset"}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
@@ -521,15 +607,32 @@ export function ReportFilters({
                 placeholder="My Favorite Filters"
               />
             </div>
+
+            <div className="col-span-4 text-sm text-gray-500 dark:text-gray-400">
+              <p>This preset will save the following filters:</p>
+              <ul className="mt-2 list-disc pl-5 space-y-1">
+                <li>Date Range: {startDate ? format(startDate, "dd/MMM/yyyy") : "Any"} - {endDate ? format(endDate, "dd/MMM/yyyy") : "Any"}</li>
+                <li>Report Type: {reportType === "actual" ? "Actual Reports" : "Plan Reports"}</li>
+                {selectedBranchId && <li>Branch Filter</li>}
+                {selectedUserId && <li>User Filter</li>}
+                {status && <li>Status: {status}</li>}
+              </ul>
+            </div>
           </div>
           <DialogFooter>
-            <Button 
-              variant="outline" 
-              onClick={() => setIsSavePresetOpen(false)}
+            <Button
+              variant="outline"
+              onClick={() => {
+                setEditingPresetId(null);
+                setPresetName("");
+                setIsSavePresetOpen(false);
+              }}
             >
               Cancel
             </Button>
-            <Button onClick={handleSavePreset}>Save Preset</Button>
+            <Button onClick={handleSavePreset}>
+              {editingPresetId ? "Update Preset" : "Save Preset"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -538,54 +641,112 @@ export function ReportFilters({
       <Dialog open={isLoadPresetOpen} onOpenChange={setIsLoadPresetOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Load Filter Preset</DialogTitle>
+            <DialogTitle>Manage Filter Presets</DialogTitle>
           </DialogHeader>
           <div className="py-4">
             {savedPresets.length === 0 ? (
-              <p className="text-center text-gray-500 dark:text-gray-400">
-                No saved presets found. Create a preset first.
-              </p>
+              <div className="text-center space-y-4">
+                <p className="text-gray-500 dark:text-gray-400">
+                  No saved presets found. Create a preset first.
+                </p>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setIsLoadPresetOpen(false);
+                    setIsSavePresetOpen(true);
+                  }}
+                  className="mx-auto"
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  Create New Preset
+                </Button>
+              </div>
             ) : (
-              <div className="space-y-2">
-                {savedPresets.map((preset) => (
-                  <div 
-                    key={preset.id} 
-                    className="flex items-center justify-between p-2 border rounded-md dark:border-gray-700"
-                  >
-                    <div>
-                      <p className="font-medium">{preset.name}</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                        {preset.reportType === "actual" ? "Actual Reports" : "Plan Reports"}
-                        {preset.status && ` • ${preset.status}`}
-                      </p>
+              <div className="space-y-3">
+                {/* Sort presets by updatedAt, newest first */}
+                {savedPresets
+                  .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+                  .map((preset) => (
+                    <div
+                      key={preset.id}
+                      className="flex flex-col p-3 border rounded-md dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div>
+                          <p className="font-medium text-base">{preset.name}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            Last updated: {format(new Date(preset.updatedAt), "dd/MMM/yyyy HH:mm")}
+                          </p>
+                        </div>
+                        <Button
+                          size="sm"
+                          onClick={() => applyPreset(preset)}
+                          className="h-8 bg-blue-600 hover:bg-blue-700 text-white"
+                        >
+                          <BookmarkCheck className="h-4 w-4 mr-1" />
+                          Apply
+                        </Button>
+                      </div>
+
+                      <div className="text-xs text-gray-600 dark:text-gray-300 mb-2">
+                        <span className="inline-flex items-center px-2 py-1 rounded-full bg-gray-100 dark:bg-gray-700 mr-2 mb-1">
+                          {preset.reportType === "actual" ? "Actual Reports" : "Plan Reports"}
+                        </span>
+                        {preset.status && (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full bg-gray-100 dark:bg-gray-700 mr-2 mb-1">
+                            Status: {preset.status}
+                          </span>
+                        )}
+                        {preset.startDate && (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full bg-gray-100 dark:bg-gray-700 mr-2 mb-1">
+                            From: {format(new Date(preset.startDate), "dd/MMM/yyyy")}
+                          </span>
+                        )}
+                        {preset.endDate && (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full bg-gray-100 dark:bg-gray-700 mr-2 mb-1">
+                            To: {format(new Date(preset.endDate), "dd/MMM/yyyy")}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex justify-end gap-2 mt-1">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => editPreset(preset)}
+                          className="h-8 px-3"
+                        >
+                          <PencilIcon className="h-4 w-4 mr-1" />
+                          Edit
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => confirmDeletePreset(preset.id)}
+                          className="h-8 px-3 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                        >
+                          <X className="h-4 w-4 mr-1" />
+                          Delete
+                        </Button>
+                      </div>
                     </div>
-                    <div className="flex gap-2">
-                      <Button 
-                        size="sm" 
-                        onClick={() => applyPreset(preset)}
-                        className="h-8 px-2"
-                      >
-                        <BookmarkCheck className="h-4 w-4" />
-                        <span className="sr-only">Apply</span>
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        onClick={() => handleDeletePreset(preset.id)}
-                        className="h-8 px-2 text-red-500 hover:text-red-700"
-                      >
-                        <X className="h-4 w-4" />
-                        <span className="sr-only">Delete</span>
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+                  ))}
               </div>
             )}
           </div>
-          <DialogFooter>
-            <Button 
-              variant="outline" 
+          <DialogFooter className="flex justify-between">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsLoadPresetOpen(false);
+                setIsSavePresetOpen(true);
+              }}
+            >
+              <Save className="h-4 w-4 mr-2" />
+              Save Current Filters
+            </Button>
+            <Button
+              variant="outline"
               onClick={() => setIsLoadPresetOpen(false)}
             >
               Close
@@ -593,6 +754,37 @@ export function ReportFilters({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Confirm Delete</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-gray-700 dark:text-gray-300">
+              Are you sure you want to delete this preset? This action cannot be undone.
+            </p>
+          </div>
+          <DialogFooter className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setPresetToDelete(null);
+                setIsDeleteConfirmOpen(false);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeletePreset}
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
-} 
+}

@@ -165,7 +165,10 @@ export function SessionActivityTracker({
         await useStore.getState().refreshAuthToken();
       }
 
-      // Then refresh the session
+      // Get the current URL to use as callbackUrl if needed
+      const currentUrl = typeof window !== 'undefined' ? window.location.href : '/dashboard';
+
+      // Then refresh the session with the current URL as callbackUrl
       const success = await refreshSession();
 
       if (success) {
@@ -177,17 +180,23 @@ export function SessionActivityTracker({
           clearInterval(timerInterval.current);
         }
       } else {
-        // If session refresh failed, try to logout
+        // If session refresh failed, try to logout with proper callbackUrl
+        const encodedCallbackUrl = encodeURIComponent(currentUrl);
         toast.error('Failed to extend session. You will be logged out.');
         setTimeout(() => {
-          logout();
+          logout(`/login?callbackUrl=${encodedCallbackUrl}`);
         }, 2000);
       }
     } catch (error) {
       console.error('Error extending session:', error);
+
+      // Get the current URL to use as callbackUrl
+      const currentUrl = typeof window !== 'undefined' ? window.location.href : '/dashboard';
+      const encodedCallbackUrl = encodeURIComponent(currentUrl);
+
       toast.error('Failed to extend session. You will be logged out.');
       setTimeout(() => {
-        logout();
+        logout(`/login?callbackUrl=${encodedCallbackUrl}`);
       }, 2000);
     }
   };
@@ -197,7 +206,12 @@ export function SessionActivityTracker({
     if (timerInterval.current) {
       clearInterval(timerInterval.current);
     }
-    logout();
+
+    // Get the current URL to use as callbackUrl
+    const currentUrl = typeof window !== 'undefined' ? window.location.href : '/dashboard';
+    const encodedCallbackUrl = encodeURIComponent(currentUrl);
+
+    logout(`/login?callbackUrl=${encodedCallbackUrl}`);
   };
 
   if (!isAuthenticated || !showWarning) {

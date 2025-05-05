@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -38,7 +38,7 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { login, isLoading, isAuthenticated, error, clearError } = useAuth();
-  const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+  const callbackUrl = searchParams?.get("callbackUrl") || "/dashboard";
 
   // Redirect to dashboard if already authenticated
   useEffect(() => {
@@ -47,7 +47,7 @@ function LoginForm() {
     }
 
     // Display error message if present in URL
-    const urlError = searchParams.get("error");
+    const urlError = searchParams?.get("error");
     if (urlError) {
       let errorMessage = "An error occurred during sign in";
 

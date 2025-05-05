@@ -16,8 +16,8 @@ interface ReportWithUser extends Omit<Report, 'user'> {
 
 export function ReportViewHandler() {
   const searchParams = useSearchParams();
-  const reportId = searchParams.get("viewReport");
-  const action = searchParams.get("action");
+  const reportId = searchParams?.get("viewReport") || null;
+  const action = searchParams?.get("action") || null;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [report, setReport] = useState<ReportWithUser | null>(null);
