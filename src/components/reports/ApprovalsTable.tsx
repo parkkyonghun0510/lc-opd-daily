@@ -63,7 +63,7 @@ interface Report {
   reportType: string;
   content?: string;
   submittedBy?: string;
-  comments?: string;
+  comments?: string | null;
   user?: {
     id: string;
     name: string;

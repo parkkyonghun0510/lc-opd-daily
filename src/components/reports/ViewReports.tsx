@@ -85,6 +85,135 @@ import { useAccessibleBranches } from "@/hooks/useAccessibleBranches";
 
 // Import the ReportWithUser type from ReportDetailModal
 import type { ReportWithUser } from "@/components/reports/ReportDetailModal";
+import { TrendsSummary } from "./TrendsSummary";
+
+const calculateTrends = (reports: Report[]) => {
+  if (!reports || reports.length === 0) {
+    return {
+      writeOffs: {
+        average: 0,
+        trend: 0,
+        direction: "stable" as const
+      },
+      ninetyPlus: {
+        average: 0,
+        trend: 0,
+        direction: "stable" as const
+      },
+      branchPerformance: []
+    };
+  }
+
+  // Sort reports by date
+  const sortedReports = [...reports].sort(
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+  );
+
+  // Calculate moving averages and trends
+  const calculateMovingAverages = (reports: Report[]) => {
+    const windowSize = Math.min(5, reports.length); // 5-day moving average or less if fewer reports
+    const writeOffsWindow = reports.slice(-windowSize);
+    const ninetyPlusWindow = reports.slice(-windowSize);
+
+    return {
+      currentWriteOffsAvg: writeOffsWindow.reduce((sum, r) => sum + r.writeOffs, 0) / windowSize,
+      currentNinetyPlusAvg: ninetyPlusWindow.reduce((sum, r) => sum + r.ninetyPlus, 0) / windowSize,
+      previousWriteOffsAvg: reports.slice(-windowSize * 2, -windowSize).length > 0
+        ? reports.slice(-windowSize * 2, -windowSize).reduce((sum, r) => sum + r.writeOffs, 0) / Math.min(windowSize, reports.slice(-windowSize * 2, -windowSize).length)
+        : writeOffsWindow.reduce((sum, r) => sum + r.writeOffs, 0) / windowSize,
+      previousNinetyPlusAvg: reports.slice(-windowSize * 2, -windowSize).length > 0
+        ? reports.slice(-windowSize * 2, -windowSize).reduce((sum, r) => sum + r.ninetyPlus, 0) / Math.min(windowSize, reports.slice(-windowSize * 2, -windowSize).length)
+        : ninetyPlusWindow.reduce((sum, r) => sum + r.ninetyPlus, 0) / windowSize
+    };
+  };
+
+  const {
+    currentWriteOffsAvg,
+    currentNinetyPlusAvg,
+    previousWriteOffsAvg,
+    previousNinetyPlusAvg
+  } = calculateMovingAverages(sortedReports);
+
+  const writeOffsTrend = ((currentWriteOffsAvg - previousWriteOffsAvg) / previousWriteOffsAvg) * 100;
+  const ninetyPlusTrend = ((currentNinetyPlusAvg - previousNinetyPlusAvg) / previousNinetyPlusAvg) * 100;
+
+  // Calculate branch performance with weighted metrics
+  const branchPerformance = calculateBranchPerformance(sortedReports);
+
+  return {
+    writeOffs: {
+      average: currentWriteOffsAvg,
+      trend: Math.abs(writeOffsTrend),
+      direction: getDirection(writeOffsTrend)
+    },
+    ninetyPlus: {
+      average: currentNinetyPlusAvg,
+      trend: Math.abs(ninetyPlusTrend),
+      direction: getDirection(ninetyPlusTrend)
+    },
+    branchPerformance
+  };
+};
+
+const getDirection = (trend: number): "up" | "down" | "stable" => {
+  const threshold = 2.5; // 2.5% threshold for significant change
+  if (trend > threshold) return "up";
+  if (trend < -threshold) return "down";
+  return "stable";
+};
+
+const calculateBranchPerformance = (reports: Report[]) => {
+  // Group reports by branch for analysis
+  const branchStats = new Map<string, {
+    branchId: string,
+    branchName: string,
+    writeOffsTotal: number,
+    ninetyPlusTotal: number,
+    reportCount: number
+  }>();
+
+  // Calculate totals per branch
+  reports.forEach(report => {
+    if (!branchStats.has(report.branch.id)) {
+      branchStats.set(report.branch.id, {
+        branchId: report.branch.id,
+        branchName: report.branch.name,
+        writeOffsTotal: report.writeOffs,
+        ninetyPlusTotal: report.ninetyPlus,
+        reportCount: 1
+      });
+    } else {
+      const current = branchStats.get(report.branch.id)!;
+      branchStats.set(report.branch.id, {
+        ...current,
+        writeOffsTotal: current.writeOffsTotal + report.writeOffs,
+        ninetyPlusTotal: current.ninetyPlusTotal + report.ninetyPlus,
+        reportCount: current.reportCount + 1
+      });
+    }
+  });
+
+  // Convert to array and calculate averages
+  return Array.from(branchStats.values())
+    .map(stats => ({
+      branchId: stats.branchId,
+      averageWriteOffs: stats.writeOffsTotal / stats.reportCount,
+      averageNinetyPlus: stats.ninetyPlusTotal / stats.reportCount,
+      reportCount: stats.reportCount
+    }))
+    .sort((a, b) => b.averageWriteOffs - a.averageWriteOffs)
+    .slice(0, 5); // Keep top 5 branches
+};
+
+// Calculate total amounts from reports
+const calculateTotals = (reports: Report[]) => {
+  return reports.reduce((totals, report) => {
+    return {
+      totalWriteOffs: totals.totalWriteOffs + report.writeOffs,
+      totalNinetyPlus: totals.totalNinetyPlus + report.ninetyPlus
+    };
+  }, { totalWriteOffs: 0, totalNinetyPlus: 0 });
+};
 
 export function ViewReports() {
   const { data: session } = useSession();
@@ -267,7 +396,7 @@ export function ViewReports() {
       // Only add comments to payload if user entered some text
       if (editComments.trim()) {
         // Format the comment as part of the conversation
-        const timestamp = format(new Date(), "yyyy-MM-dd HH:mm:ss");
+        const timestamp = format(new Date(), "dd-MMM-yyyy HH:mm:ss");
         const userName = session?.user?.name || "User";
 
         // If there are existing comments, append to them in conversation format
@@ -384,23 +513,6 @@ export function ViewReports() {
     return format(new Date(dateString), "MMM d, yyyy");
   };
 
-  const formatCurrency = formatKHRCurrency;
-
-  const getStatusBadgeColor = (status: string) => {
-    switch (status) {
-      case "pending":
-        return "bg-yellow-500 text-white";
-      case "pending_approval":
-        return "bg-blue-500 text-white";
-      case "approved":
-        return "bg-green-500 text-white";
-      case "rejected":
-        return "bg-red-500 text-white";
-      default:
-        return "bg-gray-500 text-white";
-    }
-  };
-
   return (
     <div className="space-y-4">
       {/* Filter section with its collapsible functionality */}
@@ -466,6 +578,18 @@ export function ViewReports() {
           </div>
         ) : (
           <>
+            <TrendsSummary
+              trends={calculateTrends(reports)}
+              formatCurrency={formatKHRCurrency}
+              className="border-b border-gray-200 dark:border-gray-700"
+              totalWriteOffs={calculateTotals(reports).totalWriteOffs}
+              totalNinetyPlus={calculateTotals(reports).totalNinetyPlus}
+              dateRange={{
+                start: startDate,
+                end: endDate
+              }}
+              reportCount={reports.length}
+            />
             {/* Regular table for larger screens */}
             <div className="hidden md:block overflow-x-auto">
               <table className="w-full">

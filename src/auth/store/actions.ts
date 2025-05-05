@@ -44,7 +44,14 @@ export const refreshSession = async () => {
     }
 
     // Fallback to NextAuth's refresh mechanism
-    await signIn('refresh', { redirect: false });
+    // Get the current URL to use as callbackUrl if needed
+    const currentUrl = typeof window !== 'undefined' ? window.location.href : '/dashboard';
+
+    // Use the current URL as the callbackUrl to ensure we return to the same page
+    await signIn('refresh', {
+      redirect: false,
+      callbackUrl: currentUrl
+    });
 
     // Update the session expiry time (30 minutes from now)
     const sessionExpiresAt = Date.now() + 30 * 60 * 1000;
@@ -150,8 +157,12 @@ export const handleSessionTimeout = async () => {
       });
     }
 
+    // Get the current URL to use as callbackUrl
+    const currentUrl = typeof window !== 'undefined' ? window.location.pathname + window.location.search : '/dashboard';
+    const encodedCallbackUrl = encodeURIComponent(currentUrl);
+
     toast.error('Your session has expired. Please log in again.');
-    await store.logout('/login?timeout=true');
+    await store.logout(`/login?timeout=true&callbackUrl=${encodedCallbackUrl}`);
     return true;
   }
 
