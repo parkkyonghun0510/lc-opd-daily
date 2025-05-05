@@ -6,7 +6,7 @@ import { ChevronRight, Home } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function Breadcrumbs() {
-  const pathname = usePathname();
+  const pathname = usePathname() || '';
 
   // Skip the first empty string and dashboard
   const pathSegments = pathname
@@ -46,7 +46,7 @@ export function Breadcrumbs() {
             className={cn(
               "hover:text-gray-900 dark:hover:text-white",
               index === breadcrumbs.length - 1 &&
-                "text-gray-900 dark:text-white font-medium"
+              "text-gray-900 dark:text-white font-medium"
             )}
           >
             {breadcrumb.label}

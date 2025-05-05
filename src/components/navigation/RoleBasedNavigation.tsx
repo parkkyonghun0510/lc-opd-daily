@@ -34,7 +34,7 @@ interface NavigationItem {
 export function RoleBasedNavigation() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const { hasPermission, hasRole } = usePermissions();
-  const pathname = usePathname();
+  const pathname = usePathname() || '';
 
   // Define all possible navigation items
   const allNavigationItems: NavigationItem[] = [

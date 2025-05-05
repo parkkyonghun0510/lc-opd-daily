@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { useErrorMonitoring } from './useErrorMonitoring';
 
 interface WorkerMessage {
@@ -8,82 +8,102 @@ interface WorkerMessage {
 
 export function useReportWorker() {
     const { logError } = useErrorMonitoring();
-    const worker = new Worker(new URL('../workers/reports.worker.ts', import.meta.url));
+    const workerRef = useRef<Worker | null>(null);
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            workerRef.current = new Worker(new URL('../workers/reports.worker.ts', import.meta.url));
+
+            const handleError = (error: ErrorEvent) => {
+                logError({
+                    message: 'Web Worker Error',
+                    componentName: 'ReportWorker',
+                    context: { error: error.message }
+                });
+            };
+
+            workerRef.current.addEventListener('error', handleError);
+
+            return () => {
+                if (workerRef.current) {
+                    workerRef.current.removeEventListener('error', handleError);
+                    workerRef.current.terminate();
+                }
+            };
+        }
+    }, [logError]);
 
     const processReports = useCallback((reports: any[]) => {
         return new Promise((resolve, reject) => {
+            if (!workerRef.current) {
+                reject(new Error('Web Worker not initialized'));
+                return;
+            }
+
             const handleMessage = (e: MessageEvent<WorkerMessage>) => {
                 const { type, payload } = e.data;
 
                 if (type === 'REPORTS_PROCESSED') {
-                    worker.removeEventListener('message', handleMessage);
+                    workerRef.current?.removeEventListener('message', handleMessage);
                     resolve(payload);
                 } else if (type === 'ERROR') {
-                    worker.removeEventListener('message', handleMessage);
+                    workerRef.current?.removeEventListener('message', handleMessage);
                     reject(new Error(payload.message));
                 }
             };
 
-            worker.addEventListener('message', handleMessage);
-            worker.postMessage({ type: 'PROCESS_REPORTS', payload: reports });
+            workerRef.current.addEventListener('message', handleMessage);
+            workerRef.current.postMessage({ type: 'PROCESS_REPORTS', payload: reports });
         });
-    }, [worker]);
+    }, []);
 
     const cacheReports = useCallback((reports: any[]) => {
         return new Promise((resolve, reject) => {
+            if (!workerRef.current) {
+                reject(new Error('Web Worker not initialized'));
+                return;
+            }
+
             const handleMessage = (e: MessageEvent<WorkerMessage>) => {
                 const { type, payload } = e.data;
 
                 if (type === 'REPORTS_CACHED') {
-                    worker.removeEventListener('message', handleMessage);
+                    workerRef.current?.removeEventListener('message', handleMessage);
                     resolve(payload);
                 } else if (type === 'ERROR') {
-                    worker.removeEventListener('message', handleMessage);
+                    workerRef.current?.removeEventListener('message', handleMessage);
                     reject(new Error(payload.message));
                 }
             };
 
-            worker.addEventListener('message', handleMessage);
-            worker.postMessage({ type: 'CACHE_REPORTS', payload: reports });
+            workerRef.current.addEventListener('message', handleMessage);
+            workerRef.current.postMessage({ type: 'CACHE_REPORTS', payload: reports });
         });
-    }, [worker]);
+    }, []);
 
     const analyzeTrends = useCallback((reports: any[]) => {
         return new Promise((resolve, reject) => {
+            if (!workerRef.current) {
+                reject(new Error('Web Worker not initialized'));
+                return;
+            }
+
             const handleMessage = (e: MessageEvent<WorkerMessage>) => {
                 const { type, payload } = e.data;
 
                 if (type === 'TRENDS_ANALYZED') {
-                    worker.removeEventListener('message', handleMessage);
+                    workerRef.current?.removeEventListener('message', handleMessage);
                     resolve(payload);
                 } else if (type === 'ERROR') {
-                    worker.removeEventListener('message', handleMessage);
+                    workerRef.current?.removeEventListener('message', handleMessage);
                     reject(new Error(payload.message));
                 }
             };
 
-            worker.addEventListener('message', handleMessage);
-            worker.postMessage({ type: 'ANALYZE_TRENDS', payload: reports });
+            workerRef.current.addEventListener('message', handleMessage);
+            workerRef.current.postMessage({ type: 'ANALYZE_TRENDS', payload: reports });
         });
-    }, [worker]);
-
-    // Handle worker errors
-    useEffect(() => {
-        const handleError = (error: ErrorEvent) => {
-            logError({
-                message: 'Web Worker Error',
-                componentName: 'ReportWorker',
-                context: { error: error.message }
-            });
-        };
-
-        worker.addEventListener('error', handleError);
-
-        return () => {
-            worker.removeEventListener('error', handleError);
-            worker.terminate();
-        };
-    }, [worker, logError]);
+    }, []);
 
     return {
         processReports,

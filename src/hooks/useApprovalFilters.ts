@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useLocalStorage } from './useLocalStorage';
-import { ProcessedReport } from '@/types/reports';
+import type { ProcessedReport } from '@/app/(dashboard)/dashboard/approvals/page';
 
 export type FilterState = {
     searchTerm: string;

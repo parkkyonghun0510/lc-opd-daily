@@ -154,7 +154,7 @@ interface ApiReport {
 }
 
 // Type for the processed report with proper status type
-interface ProcessedReport {
+export interface ProcessedReport {
   id: string;
   branchId: string;
   writeOffs: number;
@@ -512,6 +512,9 @@ export default function ApprovalsPage() {
 
   const processReport = (report: ProcessedReport) => ({
     ...report,
+    createdAt: report.createdAt.toString(),
+    updatedAt: report.updatedAt.toString(),
+    submittedAt: report.submittedAt.toString(),
     ReportComment: report.ReportComment?.map((comment) => ({
       ...comment,
       createdAt: comment.createdAt.toString(),

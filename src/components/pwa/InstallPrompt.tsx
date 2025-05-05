@@ -12,29 +12,47 @@ interface BeforeInstallPromptEvent extends Event {
 // Key for storing user preference in localStorage
 const INSTALL_PROMPT_DISMISSED_DATE_KEY = 'install_prompt_dismissed_date';
 
+// Function to track analytics events
+const trackAnalyticsEvent = (event: string, data?: Record<string, any>) => {
+  try {
+    // Replace with your analytics tracking logic
+    console.log('Analytics Event:', event, data);
+  } catch (error) {
+    console.error('Error tracking analytics event:', error);
+  }
+};
+
 export function InstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showPrompt, setShowPrompt] = useState(false);
 
   useEffect(() => {
+    // Check if the user is on iOS
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+
+    if (isIOS) {
+      // Show a custom banner for iOS users
+      setShowPrompt(true);
+    }
+
     const handler = (e: Event) => {
       // Prevent Chrome 67 and earlier from automatically showing the prompt
       e.preventDefault();
-      
+
       // Check if user has dismissed the prompt recently
       try {
         const dismissedDateStr = localStorage.getItem(INSTALL_PROMPT_DISMISSED_DATE_KEY);
-        
+
         // If user has dismissed the prompt recently (within last 7 days), don't show it again
         if (dismissedDateStr) {
           const dismissedDate = new Date(dismissedDateStr);
           const daysSinceDismissed = (Date.now() - dismissedDate.getTime()) / (1000 * 60 * 60 * 24);
-          
+
           if (daysSinceDismissed < 7) {
             return;
           }
         }
-        
+
         // Stash the event so it can be triggered later
         setDeferredPrompt(e as BeforeInstallPromptEvent);
         // Show the prompt banner
@@ -55,7 +73,11 @@ export function InstallPrompt() {
   }, []);
 
   const handleInstallClick = async () => {
-    if (!deferredPrompt) return;
+    if (!deferredPrompt) {
+      // Track iOS install banner clicks
+      trackAnalyticsEvent('install_prompt_clicked', { platform: 'iOS' });
+      return;
+    }
 
     // Show the install prompt
     await deferredPrompt.prompt();
@@ -63,12 +85,12 @@ export function InstallPrompt() {
     // Wait for the user to respond to the prompt
     const { outcome } = await deferredPrompt.userChoice;
 
+    // Track analytics for user choice
+    trackAnalyticsEvent('install_prompt_response', { outcome });
+
     if (outcome === 'accepted') {
-      //console.log('User accepted the install prompt');
       // Clear any dismissed date since they've accepted
       localStorage.removeItem(INSTALL_PROMPT_DISMISSED_DATE_KEY);
-    } else {
-      //console.log('User dismissed the install prompt');
     }
 
     // Clear the saved prompt since it can't be used again
@@ -80,6 +102,9 @@ export function InstallPrompt() {
     setShowPrompt(false);
     // Store the current date when user dismisses the prompt
     localStorage.setItem(INSTALL_PROMPT_DISMISSED_DATE_KEY, new Date().toISOString());
+
+    // Track dismiss action
+    trackAnalyticsEvent('install_prompt_dismissed');
   };
 
   const actions = (
@@ -109,4 +134,4 @@ export function InstallPrompt() {
       actions={actions}
     />
   );
-} 
+}

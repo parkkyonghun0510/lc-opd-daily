@@ -45,8 +45,14 @@ export function PerformanceMonitor({ children, pageId }: Props) {
                         let cls = 0;
                         new PerformanceObserver((list) => {
                             for (const entry of list.getEntries()) {
-                                if (!entry.hadRecentInput) {
-                                    cls += (entry as any).value;
+                                // Use type assertion to access layout shift specific properties
+                                const layoutShiftEntry = entry as unknown as {
+                                    hadRecentInput: boolean;
+                                    value: number;
+                                };
+
+                                if (!layoutShiftEntry.hadRecentInput) {
+                                    cls += layoutShiftEntry.value;
                                 }
                             }
                             measurePerformance(`${pageId}_cumulative_layout_shift`, cls);

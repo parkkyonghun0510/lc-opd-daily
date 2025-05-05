@@ -76,7 +76,9 @@ self.addEventListener('fetch', (event) => {
     if (event.request.mode === 'navigate') {
         event.respondWith(
             fetch(event.request).catch(() => {
-                return caches.match(FALLBACK_HTML_URL) || new Response('Offline');
+                return caches.match(FALLBACK_HTML_URL).then(response => {
+                    return response || new Response('Offline');
+                });
             })
         );
     }

@@ -24,7 +24,7 @@ export function useReportData({
     const apiCache = useApiCache({ ttl: pollingInterval });
     const { logError, measurePerformance } = useErrorMonitoring();
     const { processReports, cacheReports, analyzeTrends } = useReportWorker();
-    const pollingTimeoutRef = useRef<NodeJS.Timeout>();
+    const pollingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const lastReportCountRef = useRef<number>(0);
 
     const fetchReports = useCallback(async (force = false) => {
@@ -36,7 +36,7 @@ export function useReportData({
             if (!force) {
                 const cachedData = apiCache.get(cacheKey);
                 if (cachedData) {
-                    setReports(cachedData);
+                    setReports(cachedData as any[]);
                     setLoading(false);
                     return;
                 }
@@ -49,26 +49,27 @@ export function useReportData({
             }
 
             // Process reports in web worker
-            const processedReports = await processReports(result.reports);
+            const processedReports = await processReports(result.reports || []);
 
             // Cache the processed reports
-            await cacheReports(processedReports);
+            await cacheReports(processedReports as any[]);
 
             // Analyze trends in background
-            analyzeTrends(processedReports).then(trendsData => {
+            analyzeTrends(processedReports as any[]).then(trendsData => {
                 setTrends(trendsData);
             }).catch(error => {
                 console.error('Failed to analyze trends:', error);
             });
 
             // Check for new reports
-            if (lastReportCountRef.current && processedReports.length > lastReportCountRef.current) {
+            const typedReports = processedReports as any[];
+            if (lastReportCountRef.current && typedReports.length > lastReportCountRef.current) {
                 onNewReport?.();
             }
 
-            lastReportCountRef.current = processedReports.length;
-            apiCache.set(cacheKey, processedReports);
-            setReports(processedReports);
+            lastReportCountRef.current = typedReports.length;
+            apiCache.set(cacheKey, typedReports);
+            setReports(typedReports);
             setLastUpdated(new Date());
             setError(null);
 

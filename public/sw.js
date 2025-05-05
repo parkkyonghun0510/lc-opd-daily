@@ -13,15 +13,47 @@ const APP_SHELL = [
   '/favicon.ico'
 ];
 
+// Cache for offline reports
+const OFFLINE_REPORTS_CACHE = 'offline-reports-v1';
+
+// Event types for offline sync
+const SYNC_EVENT_TYPES = {
+  REPORT_SUBMISSION: 'report-submission',
+  REPORT_UPDATE: 'report-update',
+  COMMENT_ADD: 'comment-add'
+};
+
+// Routes to prefetch for offline access
+const PREFETCH_ROUTES = [
+  '/dashboard',
+  '/dashboard/reports',
+  '/dashboard/approvals',
+  '/profile',
+  '/settings',
+];
+
+// Dynamic routes that should work offline
+const DYNAMIC_ROUTES = [
+  /^\/dashboard\/reports\/[\w-]+$/,  // Individual report pages
+  /^\/dashboard\/users\/[\w-]+$/,    // Individual user pages
+];
+
 // Install event - cache app shell
 self.addEventListener("install", (event) => {
   self.skipWaiting();
 
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(APP_SHELL);
-    }).catch(error => {
-      console.error('Failed to cache app shell:', error);
+    Promise.all([
+      // Cache app shell
+      caches.open(CACHE_NAME).then((cache) => {
+        return cache.addAll(APP_SHELL);
+      }),
+      // Prefetch important routes
+      caches.open(CACHE_NAME).then((cache) => {
+        return cache.addAll(PREFETCH_ROUTES);
+      })
+    ]).catch(error => {
+      console.error('Failed to cache app shell or routes:', error);
     })
   );
 });
@@ -41,70 +73,263 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-// Fetch event - serve from cache or network
-self.addEventListener("fetch", (event) => {
-  // Skip non-GET requests
-  if (event.request.method !== "GET") return;
-
-  // Skip requests from other origins
-  const url = new URL(event.request.url);
-  if (url.origin !== self.location.origin) return;
-
-  // Cache API endpoints selectively (if needed)
-  if (url.pathname.startsWith('/api/')) {
-    // Network first for API requests, with offline fallback
-    event.respondWith(
-      fetch(event.request)
-        .catch(() => {
-          return caches.match(event.request)
-            .then(cachedResponse => {
-              if (cachedResponse) {
-                return cachedResponse;
-              }
-              // If the request is for a page, return the offline page
-              if (event.request.headers.get('accept').includes('text/html')) {
-                return caches.match(OFFLINE_URL);
-              }
-              return new Response(
-                JSON.stringify({ error: 'No internet connection' }),
-                {
-                  status: 503,
-                  headers: { 'Content-Type': 'application/json' }
-                }
-              );
-            });
-        })
-    );
+// Enhanced fetch event handler with dynamic route support
+self.addEventListener('fetch', event => {
+  // Skip non-GET requests unless they're report submissions
+  if (event.request.method !== 'GET') {
+    if (event.request.url.includes('/api/reports') && !navigator.onLine) {
+      // Handle offline report submissions
+      event.respondWith(handleOfflineSubmission(event.request));
+    }
     return;
   }
 
-  // Stale-While-Revalidate for regular content
-  event.respondWith(
-    caches.match(event.request).then(cachedResponse => {
-      const fetchPromise = fetch(event.request)
-        .then(networkResponse => {
-          if (networkResponse && networkResponse.ok) {
-            // Cache valid responses
-            const responseToCache = networkResponse.clone();
-            caches.open(CACHE_NAME).then(cache => {
-              cache.put(event.request, responseToCache);
-            });
-          }
-          return networkResponse;
-        })
-        .catch(error => {
-          // On failure, return offline page for HTML pages
-          if (event.request.headers.get('accept').includes('text/html')) {
-            return caches.match(OFFLINE_URL);
-          }
-          throw error;
-        });
+  // Check if the request matches any dynamic routes
+  const url = new URL(event.request.url);
+  const isDynamicRoute = DYNAMIC_ROUTES.some(pattern => pattern.test(url.pathname));
 
-      // Return cached response immediately or wait for network
-      return cachedResponse || fetchPromise;
-    })
+  // Handle API requests
+  if (event.request.url.includes('/api/')) {
+    event.respondWith(handleApiRequest(event.request));
+    return;
+  }
+
+  // Handle static assets and pages
+  event.respondWith(
+    handleStaticRequest(event.request, isDynamicRoute)
   );
 });
+
+// Sync event - handle background synchronization
+self.addEventListener('sync', event => {
+  if (event.tag === SYNC_EVENT_TYPES.REPORT_SUBMISSION) {
+    event.waitUntil(syncReports());
+  } else if (event.tag === SYNC_EVENT_TYPES.REPORT_UPDATE) {
+    event.waitUntil(syncReportUpdates());
+  } else if (event.tag === SYNC_EVENT_TYPES.COMMENT_ADD) {
+    event.waitUntil(syncComments());
+  }
+});
+
+// Periodic background sync
+self.addEventListener('periodicsync', event => {
+  if (event.tag === 'sync-all') {
+    event.waitUntil(syncAll());
+  }
+});
+
+// Handle API requests with network-first strategy
+async function handleApiRequest(request) {
+  try {
+    // Try network first
+    const response = await fetch(request);
+    
+    // Cache successful GET responses
+    if (response.ok && request.method === 'GET') {
+      const cache = await caches.open(CACHE_NAME);
+      cache.put(request, response.clone());
+    }
+    
+    return response;
+  } catch (error) {
+    // If offline, try to return cached response
+    const cache = await caches.open(CACHE_NAME);
+    const cachedResponse = await cache.match(request);
+    
+    if (cachedResponse) {
+      return cachedResponse;
+    }
+    
+    // Return offline data structure if we have any
+    if (request.url.includes('/api/reports')) {
+      return createOfflineResponse('reports');
+    }
+    
+    // Return generic offline response
+    return new Response(
+      JSON.stringify({ error: 'No internet connection' }),
+      { 
+        status: 503,
+        headers: { 'Content-Type': 'application/json' }
+      }
+    );
+  }
+}
+
+// Enhanced static request handler with dynamic route support
+async function handleStaticRequest(request, isDynamicRoute) {
+  const cache = await caches.open(CACHE_NAME);
+  const cachedResponse = await cache.match(request);
+  
+  if (cachedResponse) {
+    // Return cached response immediately
+    return cachedResponse;
+  }
+  
+  try {
+    // If not in cache, try network
+    const response = await fetch(request);
+    
+    if (response.ok) {
+      // Cache successful responses for static and dynamic routes
+      if (isDynamicRoute || PREFETCH_ROUTES.includes(new URL(request.url).pathname)) {
+        cache.put(request, response.clone());
+      }
+    }
+    
+    return response;
+  } catch (error) {
+    // If offline and requesting a page, return offline page
+    if (request.mode === 'navigate') {
+      const offlineResponse = await cache.match(OFFLINE_URL);
+      if (offlineResponse) {
+        return offlineResponse;
+      }
+    }
+    
+    // Otherwise fail
+    throw error;
+  }
+}
+
+// Handle offline report submissions
+async function handleOfflineSubmission(request) {
+  try {
+    // Store the report data for later sync
+    const reportData = await request.json();
+    const cache = await caches.open(OFFLINE_REPORTS_CACHE);
+    
+    // Add timestamp and generated ID
+    const offlineReport = {
+      ...reportData,
+      id: crypto.randomUUID(),
+      timestamp: Date.now(),
+      synced: false
+    };
+    
+    // Get existing offline reports
+    const offlineReports = await getOfflineReports();
+    offlineReports.push(offlineReport);
+    
+    // Store updated reports
+    await cache.put('pending-reports', new Response(JSON.stringify(offlineReports)));
+    
+    // Register for background sync
+    await self.registration.sync.register(SYNC_EVENT_TYPES.REPORT_SUBMISSION);
+    
+    // Return success response
+    return new Response(JSON.stringify({
+      success: true,
+      message: 'Report saved offline and will sync when online',
+      reportId: offlineReport.id
+    }), {
+      headers: { 'Content-Type': 'application/json' }
+    });
+  } catch (error) {
+    return new Response(JSON.stringify({
+      success: false,
+      error: 'Failed to save report offline'
+    }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+// Sync offline reports with the server
+async function syncReports() {
+  const cache = await caches.open(OFFLINE_REPORTS_CACHE);
+  const reports = await getOfflineReports();
+  
+  for (const report of reports) {
+    if (!report.synced) {
+      try {
+        const response = await fetch('/api/reports', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(report)
+        });
+        
+        if (response.ok) {
+          // Mark report as synced
+          report.synced = true;
+          
+          // Show sync success notification
+          await showSyncNotification('Report Synced', 'Your offline report has been synchronized');
+        }
+      } catch (error) {
+        console.error('Error syncing report:', error);
+      }
+    }
+  }
+  
+  // Update stored reports
+  await cache.put('pending-reports', new Response(JSON.stringify(reports)));
+}
+
+// Get offline reports from the cache
+async function getOfflineReports() {
+  try {
+    const cache = await caches.open(OFFLINE_REPORTS_CACHE);
+    const response = await cache.match('pending-reports');
+    return response ? await response.json() : [];
+  } catch (error) {
+    console.error('Error getting offline reports:', error);
+    return [];
+  }
+}
+
+// Show synchronization notification
+async function showSyncNotification(title, body) {
+  const options = {
+    body,
+    icon: '/icons/icon-192x192.png',
+    badge: '/icons/badge-info.png',
+    tag: 'sync-notification',
+    renotify: true
+  };
+  
+  await self.registration.showNotification(title, options);
+}
+
+// Create an offline response structure
+async function createOfflineResponse(type) {
+  switch (type) {
+    case 'reports':
+      const reports = await getOfflineReports();
+      return new Response(JSON.stringify({
+        offline: true,
+        data: reports
+      }), {
+        headers: { 'Content-Type': 'application/json' }
+      });
+    default:
+      return new Response(JSON.stringify({
+        offline: true,
+        data: null
+      }), {
+        headers: { 'Content-Type': 'application/json' }
+      });
+  }
+}
+
+// Function to sync all offline data
+async function syncAll() {
+  await Promise.all([
+    syncReports(),
+    syncReportUpdates(),
+    syncComments()
+  ]);
+}
+
+// Helper functions for other sync types
+async function syncReportUpdates() {
+  // Implementation for syncing report updates
+}
+
+async function syncComments() {
+  // Implementation for syncing comments
+}
 
 // Push event - handle push notifications
 self.addEventListener('push', (event) => {

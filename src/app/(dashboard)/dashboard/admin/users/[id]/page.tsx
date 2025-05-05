@@ -34,6 +34,9 @@ export default function UserPage() {
   useEffect(() => {
     const fetchUser = async () => {
       try {
+        if (!params?.id) {
+          throw new Error("User ID is missing");
+        }
         const response = await fetch(`/api/users/${params.id}`);
         if (!response.ok) {
           const error = await response.json();
@@ -54,10 +57,13 @@ export default function UserPage() {
     };
 
     fetchUser();
-  }, [params.id]);
+  }, [params?.id]);
 
   const handleSecurityUpdate = async (data: any) => {
     try {
+      if (!params?.id) {
+        throw new Error("User ID is missing");
+      }
       const response = await fetch(`/api/users/${params.id}/security`, {
         method: "PATCH",
         headers: {

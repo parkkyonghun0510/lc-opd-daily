@@ -10,7 +10,7 @@ interface ProgressIndicatorProps {
 export function ProgressIndicator({ progress, message, isOpen }: ProgressIndicatorProps) {
     return (
         <Dialog open={isOpen} onOpenChange={() => { }}>
-            <DialogContent className="sm:max-w-[425px]" showClose={false}>
+            <DialogContent className="sm:max-w-[425px]">
                 <div className="grid gap-4 py-4">
                     <div className="space-y-4">
                         <Progress value={progress} className="w-full" />

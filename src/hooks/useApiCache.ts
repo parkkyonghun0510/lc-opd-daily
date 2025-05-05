@@ -18,7 +18,9 @@ export function useApiCache<T>(config: CacheConfig = {}) {
         // Remove oldest entries if cache is full
         if (cache.size >= maxEntries) {
             const oldestKey = cache.keys().next().value;
-            cache.delete(oldestKey);
+            if (oldestKey !== undefined) {
+                cache.delete(oldestKey);
+            }
         }
 
         cache.set(key, {

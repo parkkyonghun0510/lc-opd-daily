@@ -24,10 +24,10 @@ export function useFilterState(
     persistInStorage?: boolean;
     enableHistory?: boolean;
   } = {
-    syncWithUrl: true,
-    persistInStorage: true,
-    enableHistory: true,
-  }
+      syncWithUrl: true,
+      persistInStorage: true,
+      enableHistory: true,
+    }
 ) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -73,7 +73,7 @@ export function useFilterState(
 
   // Sync with URL
   useEffect(() => {
-    if (options.syncWithUrl) {
+    if (options.syncWithUrl && searchParams) {
       const params = new URLSearchParams(searchParams.toString());
       Object.entries(filters).forEach(([key, value]) => {
         if (value !== undefined && value !== null && value !== "") {
@@ -89,7 +89,7 @@ export function useFilterState(
 
   // Load from URL
   useEffect(() => {
-    if (options.syncWithUrl) {
+    if (options.syncWithUrl && searchParams) {
       const params = new URLSearchParams(searchParams.toString());
       const urlFilters: FilterState = {};
       Object.entries(initialState).forEach(([key]) => {
