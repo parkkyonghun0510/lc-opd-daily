@@ -58,11 +58,11 @@ export function useReports({
       if (startDate) {
         url += `&startDate=${format(startDate, "yyyy-MM-dd")}`;
       }
-      
+
       if (endDate) {
         url += `&endDate=${format(endDate, "yyyy-MM-dd")}`;
       }
-      
+
       // For backward compatibility, if only startDate is set, also set it as "date" parameter
       if (startDate && !endDate) {
         url += `&date=${format(startDate, "yyyy-MM-dd")}`;
@@ -71,14 +71,14 @@ export function useReports({
       if (selectedBranchId) {
         url += `&branchId=${selectedBranchId}`;
       }
-      
+
       if (selectedUserId) {
         url += `&submittedBy=${selectedUserId}`;
       }
-      
+
       // Add report type to the query params
       url += `&reportType=${reportType}`;
-      
+
       const response = await fetch(url);
 
       if (!response.ok) {
@@ -110,21 +110,33 @@ export function useReports({
     }
   };
 
+  // Calculate total amounts from reports
+  const calculateTotals = () => {
+    return reports.reduce(
+      (acc, report) => {
+        acc.totalWriteOffs += report.writeOffs || 0;
+        acc.totalNinetyPlus += report.ninetyPlus || 0;
+        return acc;
+      },
+      { totalWriteOffs: 0, totalNinetyPlus: 0 }
+    );
+  };
+
   // Export reports to CSV
   const exportReportsToCSV = async () => {
     try {
       setIsExporting(true);
       let url = `/api/reports/export?format=csv&limit=1000`;
-      
+
       // Add date range parameters
       if (startDate) {
         url += `&startDate=${format(startDate, "yyyy-MM-dd")}`;
       }
-      
+
       if (endDate) {
         url += `&endDate=${format(endDate, "yyyy-MM-dd")}`;
       }
-      
+
       // For backward compatibility
       if (startDate && !endDate) {
         url += `&date=${format(startDate, "yyyy-MM-dd")}`;
@@ -133,20 +145,20 @@ export function useReports({
       if (selectedBranchId) {
         url += `&branchId=${selectedBranchId}`;
       }
-      
+
       if (selectedUserId) {
         url += `&submittedBy=${selectedUserId}`;
       }
-      
+
       url += `&reportType=${reportType}`;
-      
+
       const response = await fetch(url);
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || "Failed to export reports");
       }
-      
+
       // Handle the CSV download
       const blob = await response.blob();
       const downloadUrl = window.URL.createObjectURL(blob);
@@ -157,7 +169,7 @@ export function useReports({
       a.click();
       window.URL.revokeObjectURL(downloadUrl);
       document.body.removeChild(a);
-      
+
       toast({
         title: "Export Successful",
         description: "Reports exported to CSV successfully",
@@ -172,22 +184,22 @@ export function useReports({
       setIsExporting(false);
     }
   };
-  
+
   // Export reports to PDF
   const exportReportsToPDF = async () => {
     try {
       setIsExporting(true);
       let url = `/api/reports/export?format=pdf&limit=1000`;
-      
+
       // Add date range parameters
       if (startDate) {
         url += `&startDate=${format(startDate, "yyyy-MM-dd")}`;
       }
-      
+
       if (endDate) {
         url += `&endDate=${format(endDate, "yyyy-MM-dd")}`;
       }
-      
+
       // For backward compatibility
       if (startDate && !endDate) {
         url += `&date=${format(startDate, "yyyy-MM-dd")}`;
@@ -196,20 +208,20 @@ export function useReports({
       if (selectedBranchId) {
         url += `&branchId=${selectedBranchId}`;
       }
-      
+
       if (selectedUserId) {
         url += `&submittedBy=${selectedUserId}`;
       }
-      
+
       url += `&reportType=${reportType}`;
-      
+
       const response = await fetch(url);
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || "Failed to export reports");
       }
-      
+
       // Handle the PDF download
       const blob = await response.blob();
       const downloadUrl = window.URL.createObjectURL(blob);
@@ -220,7 +232,7 @@ export function useReports({
       a.click();
       window.URL.revokeObjectURL(downloadUrl);
       document.body.removeChild(a);
-      
+
       toast({
         title: "Export Successful",
         description: "Reports exported to PDF successfully",
@@ -241,22 +253,22 @@ export function useReports({
     try {
       // Always use the user-filtered branch list for reports
       const response = await fetch("/api/branches?filterByAccess=true");
-      
+
       if (!response.ok) {
         throw new Error("Failed to fetch branches");
       }
-      
+
       const data = await response.json();
       const branches = Array.isArray(data) ? data : data.branches || [];
-      
+
       // Only include active branches
       const activeBranches = branches.filter((branch: any) => branch.isActive);
-      
+
       // Sort branches by code for consistency
       activeBranches.sort((a: any, b: any) => a.code.localeCompare(b.code));
-      
+
       setUserBranches(activeBranches);
-      
+
       // If we have branches but no selected branch, select the first one
       if (activeBranches.length > 0 && !selectedBranchId) {
         setSelectedBranchId(activeBranches[0].id);
@@ -348,18 +360,18 @@ export function useReports({
     if (newPage < 1 || newPage > pagination.totalPages) return;
     setPagination((prev) => ({ ...prev, page: newPage }));
   };
-  
+
   // Jump to a specific page
   const goToPage = (page: number) => {
     if (page >= 1 && page <= pagination.totalPages) {
       setPagination((prev) => ({ ...prev, page }));
     }
   };
-  
+
   // Change page size
   const setPageSize = (size: number) => {
-    setPagination((prev) => ({ 
-      ...prev, 
+    setPagination((prev) => ({
+      ...prev,
       limit: size,
       page: 1 // Reset to first page when changing page size
     }));
@@ -422,5 +434,6 @@ export function useReports({
     exportReportsToCSV,
     exportReportsToPDF,
     isExporting,
+    calculateTotals,
   };
 }

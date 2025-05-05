@@ -31,11 +31,11 @@ interface Report {
   branchId: string;
   writeOffs: number;
   ninetyPlus: number;
-  status: ReportStatus; // Use the ReportStatus type instead of string
+  status: ReportStatus;
   reportType: string;
   content?: string;
   submittedBy?: string;
-  comments?: string;
+  comments?: string | null; // Make nullable to match API type
   user?: {
     id: string;
     name: string;
@@ -43,7 +43,12 @@ interface Report {
   };
   createdAt: string;
   updatedAt: string;
-  ReportComment?: ReportComment[];
+  ReportComment?: ReportComment[]; // Optional array of new comment type
+  branch?: {
+    id: string;
+    name: string;
+    code: string;
+  };
 }
 
 interface PendingReportProps {

@@ -26,7 +26,8 @@ interface User {
 }
 
 export default function UserDetailPage() {
-  const { id } = useParams();
+  const params = useParams();
+  const id = params?.id as string;
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
@@ -74,7 +75,7 @@ export default function UserDetailPage() {
         throw new Error(result.error || "Failed to update security settings");
       }
 
-      setUser(prev => prev ? {...prev, isActive: result.isActive} : null);
+      setUser(prev => prev ? { ...prev, isActive: result.isActive } : null);
       toast({
         title: "Success",
         description: "Security settings updated successfully",
@@ -93,7 +94,7 @@ export default function UserDetailPage() {
 
   const toggleUserStatus = async () => {
     if (!user) return;
-    
+
     try {
       setLoading(true);
       const response = await fetch(`/api/users/${id}/toggle-status`, {
@@ -109,7 +110,7 @@ export default function UserDetailPage() {
         throw new Error(result.error || "Failed to update user status");
       }
 
-      setUser(prev => prev ? {...prev, isActive: result.isActive} : null);
+      setUser(prev => prev ? { ...prev, isActive: result.isActive } : null);
       toast({
         title: "Success",
         description: `User ${result.isActive ? 'activated' : 'deactivated'} successfully`,
@@ -167,7 +168,7 @@ export default function UserDetailPage() {
             )}
           </Badge>
         </div>
-        <Button 
+        <Button
           variant={user.isActive ? "destructive" : "default"}
           onClick={toggleUserStatus}
           disabled={loading}
@@ -190,14 +191,14 @@ export default function UserDetailPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               {user && (
-                <UserProfileForm 
+                <UserProfileForm
                   user={{
                     id: user.id,
                     username: user.username,
                     email: user.email,
                     name: user.name,
                     branchId: user.branchId
-                  }} 
+                  }}
                 />
               )}
             </CardContent>
@@ -214,7 +215,7 @@ export default function UserDetailPage() {
               <CardTitle>Security Settings</CardTitle>
             </CardHeader>
             <CardContent>
-              <UserSecurityForm 
+              <UserSecurityForm
                 userId={user.id}
                 isActive={user.isActive}
                 onSubmit={handleSecurityUpdate}

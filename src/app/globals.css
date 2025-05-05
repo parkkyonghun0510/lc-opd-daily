@@ -124,3 +124,82 @@
     @apply bg-background text-foreground;
   }
 }
+
+@media print {
+  /* Hide non-printable elements */
+  .no-print {
+    display: none !important;
+  }
+
+  /* Reset background colors and ensure dark text */
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  /* Ensure proper page breaks */
+  table {
+    page-break-inside: avoid;
+  }
+
+  tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+
+  /* Improve table readability */
+  thead {
+    display: table-header-group;
+  }
+
+  tfoot {
+    display: table-footer-group;
+  }
+
+  /* Ensure links display their URLs */
+  a[href]:after {
+    content: " (" attr(href) ")";
+  }
+
+  /* Set print margins */
+  @page {
+    margin: 2cm;
+  }
+
+  /* Improve text contrast for printing */
+  .text-muted-foreground {
+    color: #4B5563 !important;
+  }
+
+  /* Style adjustments for better print layout */
+  .print\:p-0 {
+    padding: 0 !important;
+  }
+
+  .print\:mb-6 {
+    margin-bottom: 1.5rem !important;
+  }
+
+  .print\:mt-8 {
+    margin-top: 2rem !important;
+  }
+
+  /* Print-specific grid adjustments */
+  .grid {
+    display: block !important;
+  }
+
+  /* Ensure proper content visibility */
+  .print-only {
+    display: block !important;
+  }
+
+  /* Remove unnecessary visual elements */
+  .shadow,
+  .border,
+  .rounded-lg {
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+  }
+}

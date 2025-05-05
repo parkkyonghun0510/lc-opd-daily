@@ -1,8 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { 
-  Users, Building2, Shield, Activity, 
-  FileText, AlertTriangle, Clock, 
+import {
+  Users, Building2, Shield, Activity,
+  FileText, AlertTriangle, Clock,
   TrendingUp, Settings, Database,
   Loader2, ChevronRight
 } from "lucide-react";
@@ -48,7 +48,7 @@ interface AdminOverviewProps {
 export function AdminOverview({ stats }: AdminOverviewProps) {
   const [systemHealth, setSystemHealth] = useState<SystemHealth | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [prioritizedTasks, setPrioritizedTasks] = useState<{task: string; urgency: 'high' | 'medium' | 'low'; link: string}[]>([]);
+  const [prioritizedTasks, setPrioritizedTasks] = useState<{ task: string; urgency: 'high' | 'medium' | 'low'; link: string }[]>([]);
 
   useEffect(() => {
     // Fetch system health data
@@ -66,7 +66,7 @@ export function AdminOverview({ stats }: AdminOverviewProps) {
     };
 
     fetchSystemHealth();
-    
+
     // Generate prioritized tasks based on stats
     if (stats) {
       const tasks = [];
@@ -77,7 +77,7 @@ export function AdminOverview({ stats }: AdminOverviewProps) {
           link: '/dashboard/approvals'
         });
       }
-      
+
       if (systemHealth?.status === 'critical') {
         tasks.push({
           task: 'Address critical system issues',
@@ -91,7 +91,7 @@ export function AdminOverview({ stats }: AdminOverviewProps) {
           link: '/dashboard/admin/system/health'
         });
       }
-      
+
       if ((stats.storageUsage.used / stats.storageUsage.total) > 0.8) {
         tasks.push({
           task: 'Storage usage is high',
@@ -99,10 +99,10 @@ export function AdminOverview({ stats }: AdminOverviewProps) {
           link: '/dashboard/admin/storage'
         });
       }
-      
-      setPrioritizedTasks(tasks as {task: string; urgency: 'high' | 'medium' | 'low'; link: string}[]);
+
+      setPrioritizedTasks(tasks as { task: string; urgency: 'high' | 'medium' | 'low'; link: string }[]);
     }
-    
+
     // Don't poll too frequently to avoid excess API calls
     const interval = setInterval(fetchSystemHealth, 5 * 60 * 1000);
     return () => clearInterval(interval);
@@ -188,18 +188,16 @@ export function AdminOverview({ stats }: AdminOverviewProps) {
               {prioritizedTasks.map((task, index) => (
                 <li key={index}>
                   <Link href={task.link} className="block">
-                    <div className={`p-3 rounded-md flex items-center justify-between ${
-                      task.urgency === 'high' 
+                    <div className={`p-3 rounded-md flex items-center justify-between ${task.urgency === 'high'
                         ? 'bg-red-50 text-red-800 border border-red-200 hover:bg-red-100'
                         : task.urgency === 'medium'
                           ? 'bg-yellow-50 text-yellow-800 border border-yellow-200 hover:bg-yellow-100'
                           : 'bg-blue-50 text-blue-800 border border-blue-200 hover:bg-blue-100'
-                    }`}>
+                      }`}>
                       <div className="flex items-center gap-3">
-                        <span className={`h-2 w-2 rounded-full ${
-                          task.urgency === 'high' ? 'bg-red-500' : 
-                          task.urgency === 'medium' ? 'bg-yellow-500' : 'bg-blue-500'
-                        }`}></span>
+                        <span className={`h-2 w-2 rounded-full ${task.urgency === 'high' ? 'bg-red-500' :
+                            task.urgency === 'medium' ? 'bg-yellow-500' : 'bg-blue-500'
+                          }`}></span>
                         <span>{task.task}</span>
                       </div>
                       <ChevronRight className="h-5 w-5" />
@@ -248,7 +246,7 @@ export function AdminOverview({ stats }: AdminOverviewProps) {
                   <div className="text-2xl font-bold">
                     {Math.round((stats.storageUsage.used / stats.storageUsage.total) * 100)}%
                   </div>
-                  <Progress 
+                  <Progress
                     value={(stats.storageUsage.used / stats.storageUsage.total) * 100}
                     className="mt-2"
                   />
@@ -272,18 +270,17 @@ export function AdminOverview({ stats }: AdminOverviewProps) {
               ) : (
                 <>
                   <div className="flex items-center space-x-2">
-                    <div className={`h-3 w-3 rounded-full ${
-                      systemHealth?.status === 'healthy' ? 'bg-green-500' :
-                      systemHealth?.status === 'warning' ? 'bg-yellow-500' :
-                      'bg-red-500'
-                    }`} />
+                    <div className={`h-3 w-3 rounded-full ${systemHealth?.status === 'healthy' ? 'bg-green-500' :
+                        systemHealth?.status === 'warning' ? 'bg-yellow-500' :
+                          'bg-red-500'
+                      }`} />
                     <span className="text-2xl font-bold capitalize">
                       {systemHealth?.status || 'Unknown'}
                     </span>
                   </div>
                   <p className="text-xs text-muted-foreground mt-2">
-                    Last checked: {systemHealth?.lastChecked ? 
-                      formatDistanceToNow(new Date(systemHealth.lastChecked), { addSuffix: true }) : 
+                    Last checked: {systemHealth?.lastChecked ?
+                      formatDistanceToNow(new Date(systemHealth.lastChecked), { addSuffix: true }) :
                       'Unknown'}
                   </p>
                 </>
@@ -312,28 +309,37 @@ export function AdminOverview({ stats }: AdminOverviewProps) {
           <CardTitle>Administrative Actions</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {quickActions.map((action) => (
               <Button
                 key={action.title}
                 variant="outline"
-                className="h-auto p-4 text-left flex flex-col items-start justify-start relative"
+                className="h-auto p-4 text-left flex flex-col items-start justify-start relative group transition-all duration-200 hover:shadow-md hover:border-primary/50"
                 asChild
               >
                 <Link href={action.href}>
-                  <div className="w-full">
-                    <div className="flex items-center justify-between mb-2">
-                      <action.icon className="h-5 w-5" />
-                      {action.badge && (
-                        <Badge variant="secondary" className="ml-2">
-                          {action.badge}
-                        </Badge>
-                      )}
+                  <div className="w-full space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <action.icon className="h-5 w-5 text-primary/80 group-hover:text-primary transition-colors" />
+                        {action.badge && (
+                          <Badge
+                            variant="secondary"
+                            className="text-xs font-medium truncate max-w-[120px]"
+                          >
+                            {action.badge}
+                          </Badge>
+                        )}
+                      </div>
                     </div>
-                    <h3 className="font-semibold text-base">{action.title}</h3>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {action.description}
-                    </p>
+                    <div>
+                      <h3 className="font-semibold text-base tracking-tight group-hover:text-primary transition-colors">
+                        {action.title}
+                      </h3>
+                      <p className="text-sm text-muted-foreground mt-1 line-clamp-2 sm:line-clamp-1 md:line-clamp-2">
+                        {action.description}
+                      </p>
+                    </div>
                   </div>
                 </Link>
               </Button>
@@ -372,11 +378,10 @@ export function AdminOverview({ stats }: AdminOverviewProps) {
               {stats.recentActivity.map((activity, index) => (
                 <div key={index} className="flex items-center justify-between py-2">
                   <div className="flex items-center space-x-4">
-                    <div className={`w-2 h-2 rounded-full ${
-                      activity.type === 'warning' ? 'bg-yellow-500' :
-                      activity.type === 'error' ? 'bg-red-500' :
-                      'bg-green-500'
-                    }`} />
+                    <div className={`w-2 h-2 rounded-full ${activity.type === 'warning' ? 'bg-yellow-500' :
+                        activity.type === 'error' ? 'bg-red-500' :
+                          'bg-green-500'
+                      }`} />
                     <div>
                       <p className="text-sm font-medium">{activity.action}</p>
                       <p className="text-xs text-muted-foreground">by {activity.user}</p>
@@ -393,4 +398,4 @@ export function AdminOverview({ stats }: AdminOverviewProps) {
       </Card>
     </div>
   );
-} 
+}

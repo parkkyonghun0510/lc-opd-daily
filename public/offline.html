@@ -6,60 +6,114 @@
     <title>Offline - LC OPD Daily Report</title>
     <style>
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
             margin: 0;
             padding: 0;
             display: flex;
-            justify-content: center;
+            flex-direction: column;
             align-items: center;
+            justify-content: center;
             min-height: 100vh;
-            background: linear-gradient(to bottom, #f7f7f7, #e6e6e6);
-            color: #333;
+            background-color: #f9fafb;
+            color: #111827;
         }
         .container {
             text-align: center;
             padding: 2rem;
-            max-width: 600px;
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            margin: 1rem;
+            max-width: 32rem;
+        }
+        .icon {
+            width: 64px;
+            height: 64px;
+            margin-bottom: 1.5rem;
+            color: #6b7280;
+        }
+        .status-indicator {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            background-color: #f3f4f6;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+            font-size: 0.875rem;
+            color: #6b7280;
         }
         h1 {
             margin-bottom: 1rem;
-            color: #2563eb;
+            font-size: 1.875rem;
+            font-weight: 700;
+            line-height: 2.25rem;
         }
         p {
             margin-bottom: 1.5rem;
-            line-height: 1.6;
-            color: #666;
+            color: #6b7280;
         }
-        .button {
-            display: inline-block;
-            padding: 0.75rem 1.5rem;
-            background-color: #2563eb;
+        button {
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+            font-weight: 500;
             color: white;
-            text-decoration: none;
-            border-radius: 6px;
-            transition: background-color 0.2s;
+            background-color: #2563eb;
+            border: none;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            transition: background-color 150ms;
         }
-        .button:hover {
+        button:hover {
             background-color: #1d4ed8;
         }
-        .icon {
-            font-size: 4rem;
-            margin-bottom: 1rem;
-            color: #2563eb;
+        .features-list {
+            text-align: left;
+            margin: 2rem 0;
+            padding: 0 1rem;
+        }
+        .features-list li {
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .features-list li::before {
+            content: "✓";
+            color: #10b981;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="icon">📡</div>
+        <div class="status-indicator">Currently Offline</div>
         <h1>You're Offline</h1>
-        <p>It seems you've lost your internet connection. The LC OPD Daily Report app requires an internet connection to function properly.</p>
-        <p>Please check your connection and try again.</p>
-        <a href="/" class="button">Try Again</a>
+        <p>Don't worry! The LC OPD Daily Report app has offline capabilities:</p>
+        
+        <ul class="features-list">
+            <li>View previously loaded reports</li>
+            <li>Create new reports (will sync when online)</li>
+            <li>Edit draft reports</li>
+            <li>Access cached dashboard data</li>
+        </ul>
+
+        <p>Your work will automatically sync when you're back online.</p>
+        
+        <div>
+            <button onclick="window.location.reload()">Try to Reconnect</button>
+        </div>
     </div>
+
+    <script>
+        // Check connection status periodically
+        function checkConnection() {
+            if (navigator.onLine) {
+                window.location.reload();
+            }
+        }
+        
+        // Check every 5 seconds
+        setInterval(checkConnection, 5000);
+        
+        // Also check when we detect we're back online
+        window.addEventListener('online', () => {
+            window.location.reload();
+        });
+    </script>
 </body>
-</html> 
+</html>

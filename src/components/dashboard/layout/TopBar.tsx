@@ -27,6 +27,7 @@ import { Greeting } from "../greeting/Greeting";
 import { useTheme } from "next-themes";
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { BranchSwitcher } from "../navigation/BranchSwitcher";
+import { OfflineStatusIndicator } from '@/components/ui/OfflineStatusIndicator';
 
 export function TopBar() {
   const router = useRouter();
@@ -86,6 +87,12 @@ export function TopBar() {
             <BranchSwitcher />
           </div>
         )}
+
+        {/* Offline Status Indicator */}
+        <div className="hidden md:block">
+          <OfflineStatusIndicator />
+        </div>
+
         {/* Theme Toggle Button */}
         <Button
           variant="ghost"
