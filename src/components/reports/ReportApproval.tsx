@@ -282,8 +282,8 @@ export function ReportApproval({
     setRemarks("");
   };
 
-  // Only render if the report is in pending status
-  if (report.status !== "pending_approval") {
+  // Only render approval buttons if the report is in pending or pending_approval status
+  if (report.status !== "pending" && report.status !== "pending_approval") {
     const userRole = session?.user?.role as UserRole || UserRole.USER;
 
     return (
@@ -360,7 +360,7 @@ export function ReportApproval({
     );
   }
 
-  // For reports that are pending approval, show the approval controls and comments if available
+  // For reports that are pending or pending approval, show the approval controls and comments if available
   return (
     <div className="space-y-3">
       <PermissionGate permissions={[Permission.APPROVE_REPORTS]}>
@@ -369,7 +369,7 @@ export function ReportApproval({
             className="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600 text-white"
             size="sm"
             onClick={openApproveDialog}
-            disabled={report.status !== "pending_approval"}
+            disabled={report.status !== "pending" && report.status !== "pending_approval"}
           >
             <CheckCircle className="mr-1 h-4 w-4" />
             Approve
@@ -379,7 +379,7 @@ export function ReportApproval({
             size="sm"
             className="dark:bg-red-700 dark:hover:bg-red-600"
             onClick={openRejectDialog}
-            disabled={report.status !== "pending_approval"}
+            disabled={report.status !== "pending" && report.status !== "pending_approval"}
           >
             <XCircle className="mr-1 h-4 w-4" />
             Reject
