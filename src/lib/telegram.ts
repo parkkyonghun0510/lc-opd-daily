@@ -43,5 +43,5 @@ export async function sendTelegramNotification(message: string) {
 export function escapeTelegramMarkdown(text: string): string {
   if (!text) return '';
   // Characters to escape: _ * [ ] ( ) ~ ` > # + - = | { } . !
-  return text.replace(/([_*[\]()~`>#+\-=|{}.!])/g, '\\$1');
+  return text.replace(/([_*[\]()~`>#+\-=|{}.!\\])/g, '\\$1');
 }
