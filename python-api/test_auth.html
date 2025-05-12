@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Auth Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .card {
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 20px;
+        }
+        button {
+            padding: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        input {
+            padding: 10px;
+            width: 100%;
+            box-sizing: border-box;
+            margin-bottom: 10px;
+        }
+        pre {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>API Authentication Test</h1>
+    
+    <div class="container">
+        <div class="card">
+            <h2>Login</h2>
+            <div>
+                <label for="username">Username:</label>
+                <input type="text" id="username" value="admin">
+            </div>
+            <div>
+                <label for="password">Password:</label>
+                <input type="password" id="password" value="password123">
+            </div>
+            <button id="loginBtn">Login</button>
+            <h3>Response:</h3>
+            <pre id="loginResponse"></pre>
+        </div>
+        
+        <div class="card">
+            <h2>Get Current User</h2>
+            <button id="getMeBtn">Get Me</button>
+            <h3>Response:</h3>
+            <pre id="getMeResponse"></pre>
+        </div>
+    </div>
+    
+    <script>
+        // Base URL for the API
+        const BASE_URL = 'http://127.0.0.1:8000/api';
+        let token = '';
+        
+        // Login function
+        document.getElementById('loginBtn').addEventListener('click', async () => {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+                const formData = new URLSearchParams();
+                formData.append('username', username);
+                formData.append('password', password);
+                
+                const response = await fetch(`${BASE_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: formData
+                });
+                
+                const data = await response.json();
+                document.getElementById('loginResponse').textContent = JSON.stringify(data, null, 2);
+                
+                if (response.ok) {
+                    token = data.access_token;
+                    console.log('Token:', token);
+                }
+            } catch (error) {
+                document.getElementById('loginResponse').textContent = `Error: ${error.message}`;
+            }
+        });
+        
+        // Get current user function
+        document.getElementById('getMeBtn').addEventListener('click', async () => {
+            try {
+                const response = await fetch(`${BASE_URL}/auth/me`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                const data = await response.json();
+                document.getElementById('getMeResponse').textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('getMeResponse').textContent = `Error: ${error.message}`;
+            }
+        });
+    </script>
+</body>
+</html>

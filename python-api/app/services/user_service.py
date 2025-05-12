@@ -1,9 +1,14 @@
 from sqlalchemy.orm import Session
 from typing import Optional, Any, Dict, Union
+from datetime import datetime, timedelta, timezone
+from jose import jwt
+import uuid
+import logging
 
 from app.core.security import get_password_hash, verify_password
 from app.db.models import User # Using __init__.py for model imports
 from app.schemas import UserCreate, UserUpdate # Using __init__.py for schema imports
+from app.core.config import settings  # Import settings for JWT config
 
 async def get_user_by_id(db: Session, user_id: str) -> Optional[User]:
     return db.query(User).filter(User.id == user_id).first()
@@ -46,7 +51,7 @@ async def update_user(
     if isinstance(user_in, dict):
         update_data = user_in
     else:
-        update_data = user_in.dict(exclude_unset=True)
+        update_data = user_in.model_dump(exclude_unset=True)
 
     if "password" in update_data and update_data["password"]:
         # This means a new password is being set during an update
@@ -71,14 +76,88 @@ async def authenticate_user(
     user = await get_user_by_username(db, username=username_or_email)
     if not user:
         user = await get_user_by_email(db, email=username_or_email)
-    
+
     if not user:
         return None
     if not user.isActive: # Check if user is active
         return None # Or raise an exception for inactive user
     if not verify_password(password, user.password): # 'password' field in User model stores hashed_password
         return None
+
+    # Update last login time
+    user.lastLogin = datetime.now(timezone.utc)
+    db.add(user)
+    db.commit()
     return user
+
+def create_access_token(user_id: str, expires_delta: Optional[timedelta] = None) -> str:
+    """
+    Create a JWT access token for the user
+    """
+    if expires_delta:
+        expire = datetime.now(timezone.utc) + expires_delta
+    else:
+        expire = datetime.now(timezone.utc) + timedelta(
+            minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
+        )
+
+    to_encode = {"exp": expire, "sub": str(user_id)}
+    encoded_jwt = jwt.encode(
+        to_encode, settings.SECRET_KEY, algorithm=settings.JWT_ALGORITHM
+    )
+    return encoded_jwt
+
+def create_refresh_token(user_id: str, expires_delta: Optional[timedelta] = None) -> str:
+    """
+    Create a JWT refresh token for the user
+    """
+    if expires_delta:
+        expire = datetime.now(timezone.utc) + expires_delta
+    else:
+        expire = datetime.now(timezone.utc) + timedelta(
+            days=settings.REFRESH_TOKEN_EXPIRE_DAYS
+        )
+
+    to_encode = {"exp": expire, "sub": str(user_id), "type": "refresh"}
+    encoded_jwt = jwt.encode(
+        to_encode, settings.SECRET_KEY, algorithm=settings.JWT_ALGORITHM
+    )
+    return encoded_jwt
+
+async def store_refresh_token(db: Session, user_id: str, refresh_token: str) -> None:
+    """
+    Store the refresh token in the database for tracking and revocation purposes
+    """
+    from app.db.models import RefreshToken
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        # Check if there's already a token for this user and replace it
+        existing_token = db.query(RefreshToken).filter(RefreshToken.userId == user_id).first()
+        expires_at = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+
+        if existing_token:
+            existing_token.token = refresh_token
+            existing_token.expiresAt = expires_at
+            existing_token.isRevoked = False
+            db.add(existing_token)
+        else:
+            # Create a new refresh token record
+            token_record = RefreshToken(
+                id=str(uuid.uuid4()),
+                userId=user_id,
+                token=refresh_token,
+                expiresAt=expires_at
+            )
+            db.add(token_record)
+
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        # Log the error but don't stop the authentication flow
+        logger.error(f"Error storing refresh token: {e}")
+        # Don't re-raise the exception - this allows auth to work even if storage fails
 
 def is_active(user: User) -> bool:
     return user.isActive
@@ -86,6 +165,33 @@ def is_active(user: User) -> bool:
 def is_superuser(user: User) -> bool:
     # This depends on how you define superuser (e.g., by role name)
     return user.role == "admin" # Example: role 'admin' is superuser
+
+async def validate_refresh_token(db: Session, user_id: str, token: str) -> bool:
+    """
+    Validate that a refresh token exists in the database and is not revoked
+    """
+    from app.db.models import RefreshToken
+
+    token_record = db.query(RefreshToken).filter(
+        RefreshToken.userId == user_id,
+        RefreshToken.token == token,
+        RefreshToken.isRevoked == False,
+        RefreshToken.expiresAt > datetime.now(timezone.utc)
+    ).first()
+
+    return token_record is not None
+
+async def invalidate_all_refresh_tokens(db: Session, user_id: str) -> None:
+    """
+    Invalidate all refresh tokens for a user
+    """
+    from app.db.models import RefreshToken
+
+    db.query(RefreshToken).filter(
+        RefreshToken.userId == user_id
+    ).update({"isRevoked": True})
+
+    db.commit()
 
 # Placeholder for CUID generation if not handled by DB or other means
 # def generate_cuid():

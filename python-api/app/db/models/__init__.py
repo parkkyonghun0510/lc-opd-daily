@@ -16,6 +16,7 @@ from .in_app_notification import InAppNotification
 from .notification_event import NotificationEvent
 from .telegram_subscription import TelegramSubscription
 from .telegram_linking_code import TelegramLinkingCode
+from .refresh_token import RefreshToken
 
 # You can also define __all__ to control what `from app.db.models import *` imports
 __all__ = [
@@ -34,4 +35,5 @@ __all__ = [
     "NotificationEvent",
     "TelegramSubscription",
     "TelegramLinkingCode",
+    "RefreshToken",
 ]

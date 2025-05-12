@@ -35,10 +35,11 @@ class User(Base):
     activities = relationship("UserActivity", back_populates="user", cascade="all, delete-orphan")
     branchAssignments = relationship("UserBranchAssignment", back_populates="user", cascade="all, delete-orphan")
     userRoles = relationship("UserRole", back_populates="user", cascade="all, delete-orphan")
+    refreshTokens = relationship("RefreshToken", back_populates="user", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<User(id={self.id}, email='{self.email}', username='{self.username}')>"
 
 # Need to create Branch, ActivityLog, InAppNotification, PushSubscription,
 # ReportComment, TelegramLinkingCode, TelegramSubscription, UserActivity,
-# UserBranchAssignment, UserRole models as well.
+# UserBranchAssignment, UserRole, RefreshToken models as well.

@@ -1,6 +1,10 @@
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, List
 from datetime import datetime
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy.orm import relationship
+
+from app.db.base import Base
 
 # Shared properties
 class UserBase(BaseModel):
@@ -69,3 +73,20 @@ class UserLogin(BaseModel):
 class UserPasswordChange(BaseModel):
     current_password: str = Field(..., example="current_secure_password")
     new_password: str = Field(..., min_length=8, example="new_very_secure_password")
+
+class RefreshToken(Base):
+    __tablename__ = "refresh_tokens"
+
+    id = Column(String, primary_key=True, index=True)
+    user_id = Column(String, ForeignKey("users.id"), index=True)
+    token = Column(String, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    is_revoked = Column(Boolean, default=False)
+
+    # Define relationship with User model
+    user = relationship("User", back_populates="refresh_tokens")
+
+# Add this relationship to your User model
+if hasattr(User, '__table__'):
+    User.refresh_tokens = relationship("RefreshToken", back_populates="user")
