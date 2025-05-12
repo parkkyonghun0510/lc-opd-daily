@@ -35,3 +35,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 /dist
+
+/python-api/app/db/*.db
+/python-api/venv
+/python-api/.mypy_cache
