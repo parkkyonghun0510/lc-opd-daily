@@ -5,11 +5,12 @@ from datetime import date
 
 from app.api import deps
 from app.schemas import (
-    Report, ReportCreate, ReportUpdate, ReportPage, 
+    Report, ReportCreate, ReportUpdate, ReportPage,
     ReportComment, ReportCommentCreate
 )
 from app.services import report_service, branch_service
 from app.db.models import User
+from app.utils.serialization import serialize_sqlalchemy_obj, serialize_query_results
 
 router = APIRouter()
 
@@ -29,10 +30,11 @@ async def read_reports(
 ):
     """
     Retrieve reports with filtering and pagination.
+    Updated to fix response format by changing 'items' to 'data'.
     """
     reports, total = await report_service.get_reports(
-        db=db, 
-        skip=skip, 
+        db=db,
+        skip=skip,
         limit=limit,
         branch_id=branch_id,
         user_id=None,  # Not filtering by user
@@ -43,13 +45,16 @@ async def read_reports(
         sort_by=sort_by,
         sort_order=sort_order
     )
-    
+
+    # Serialize SQLAlchemy objects to JSON-compatible dictionaries
+    serialized_reports = serialize_query_results(reports)
+
     return {
-        "items": reports,
+        "data": serialized_reports,
         "total": total,
         "page": skip // limit + 1,
-        "size": limit,
-        "pages": (total + limit - 1) // limit  # Ceiling division
+        "limit": limit,
+        "totalPages": (total + limit - 1) // limit  # Ceiling division
     }
 
 @router.get("/my-reports", response_model=ReportPage)
@@ -70,8 +75,8 @@ async def read_user_reports(
     Retrieve reports created by the current user.
     """
     reports, total = await report_service.get_reports(
-        db=db, 
-        skip=skip, 
+        db=db,
+        skip=skip,
         limit=limit,
         branch_id=branch_id,
         user_id=current_user.id,  # Filter by current user
@@ -82,13 +87,16 @@ async def read_user_reports(
         sort_by=sort_by,
         sort_order=sort_order
     )
-    
+
+    # Serialize SQLAlchemy objects to JSON-compatible dictionaries
+    serialized_reports = serialize_query_results(reports)
+
     return {
-        "items": reports,
+        "data": serialized_reports,
         "total": total,
         "page": skip // limit + 1,
-        "size": limit,
-        "pages": (total + limit - 1) // limit  # Ceiling division
+        "limit": limit,
+        "totalPages": (total + limit - 1) // limit  # Ceiling division
     }
 
 @router.get("/approvals", response_model=ReportPage)
@@ -115,13 +123,16 @@ async def read_reports_for_approval(
         start_date=start_date,
         end_date=end_date
     )
-    
+
+    # Serialize SQLAlchemy objects to JSON-compatible dictionaries
+    serialized_reports = serialize_query_results(reports)
+
     return {
-        "items": reports,
+        "data": serialized_reports,
         "total": total,
         "page": skip // limit + 1,
-        "size": limit,
-        "pages": (total + limit - 1) // limit  # Ceiling division
+        "limit": limit,
+        "totalPages": (total + limit - 1) // limit  # Ceiling division
     }
 
 @router.get("/{report_id}", response_model=Report)
@@ -136,11 +147,12 @@ async def read_report(
     report = await report_service.get_report_by_id(db, report_id=report_id)
     if not report:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Report not found")
-    
+
     # Optional: Add permission check if needed
     # For example, only allow users to view reports from their branches
-    
-    return report
+
+    # Serialize SQLAlchemy object to JSON-compatible dictionary
+    return serialize_sqlalchemy_obj(report)
 
 @router.post("/", response_model=Report, status_code=status.HTTP_201_CREATED)
 async def create_report(
@@ -156,15 +168,16 @@ async def create_report(
     branch = await branch_service.get_branch_by_id(db, branch_id=report_in.branchId)
     if not branch:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Branch not found")
-    
+
     # Check if user has access to this branch (if needed)
     # This depends on your business logic
-    
+
     try:
         report = await report_service.create_report(
             db=db, report_in=report_in, user_id=current_user.id
         )
-        return report
+        # Serialize SQLAlchemy object to JSON-compatible dictionary
+        return serialize_sqlalchemy_obj(report)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
@@ -182,25 +195,28 @@ async def update_report(
     report = await report_service.get_report_by_id(db, report_id=report_id)
     if not report:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Report not found")
-    
+
     # Check if user can edit this report
     # For example, only allow the creator to edit, or only if status is DRAFT or REJECTED
-    if report.userId != current_user.id and current_user.role != "admin":
+    # Convert SQLAlchemy object to dictionary for safe comparison
+    report_dict = serialize_sqlalchemy_obj(report)
+    if report_dict["submittedBy"] != current_user.id and current_user.role != "admin":
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, 
+            status_code=status.HTTP_403_FORBIDDEN,
             detail="Not enough permissions to edit this report"
         )
-    
-    if report.status not in ["DRAFT", "REJECTED"]:
+
+    if report_dict["status"] not in ["DRAFT", "REJECTED"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Cannot edit report with status {report.status}"
+            detail=f"Cannot edit report with status {report_dict['status']}"
         )
-    
+
     updated_report = await report_service.update_report(
         db=db, db_report=report, report_in=report_in
     )
-    return updated_report
+    # Serialize SQLAlchemy object to JSON-compatible dictionary
+    return serialize_sqlalchemy_obj(updated_report)
 
 @router.delete("/{report_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_report(
@@ -215,21 +231,23 @@ async def delete_report(
     report = await report_service.get_report_by_id(db, report_id=report_id)
     if not report:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Report not found")
-    
+
     # Check if user can delete this report
-    if report.userId != current_user.id and current_user.role != "admin":
+    # Convert SQLAlchemy object to dictionary for safe comparison
+    report_dict = serialize_sqlalchemy_obj(report)
+    if report_dict["submittedBy"] != current_user.id and current_user.role != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not enough permissions to delete this report"
         )
-    
+
     # Only allow deleting draft reports
-    if report.status != "DRAFT":
+    if report_dict["status"] != "DRAFT":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Cannot delete report with status {report.status}"
+            detail=f"Cannot delete report with status {report_dict['status']}"
         )
-    
+
     success = await report_service.delete_report(db=db, report_id=report_id)
     if not success:
         raise HTTPException(
@@ -251,19 +269,22 @@ async def submit_report(
     report = await report_service.get_report_by_id(db, report_id=report_id)
     if not report:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Report not found")
-    
+
     # Check if user can submit this report
-    if report.userId != current_user.id and current_user.role != "admin":
+    # Convert SQLAlchemy object to dictionary for safe comparison
+    report_dict = serialize_sqlalchemy_obj(report)
+    if report_dict["submittedBy"] != current_user.id and current_user.role != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not enough permissions to submit this report"
         )
-    
+
     try:
         submitted_report = await report_service.submit_report(
             db=db, report_id=report_id, user_id=current_user.id
         )
-        return submitted_report
+        # Serialize SQLAlchemy object to JSON-compatible dictionary
+        return serialize_sqlalchemy_obj(submitted_report)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
@@ -281,19 +302,20 @@ async def approve_report(
     report = await report_service.get_report_by_id(db, report_id=report_id)
     if not report:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Report not found")
-    
+
     # Check if user can approve reports (based on role)
     if current_user.role not in ["admin", "manager", "approver"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not enough permissions to approve reports"
         )
-    
+
     try:
         approved_report = await report_service.approve_report(
             db=db, report_id=report_id, user_id=current_user.id, comment=comment
         )
-        return approved_report
+        # Serialize SQLAlchemy object to JSON-compatible dictionary
+        return serialize_sqlalchemy_obj(approved_report)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
@@ -311,19 +333,20 @@ async def reject_report(
     report = await report_service.get_report_by_id(db, report_id=report_id)
     if not report:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Report not found")
-    
+
     # Check if user can reject reports (based on role)
     if current_user.role not in ["admin", "manager", "approver"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not enough permissions to reject reports"
         )
-    
+
     try:
         rejected_report = await report_service.reject_report(
             db=db, report_id=report_id, user_id=current_user.id, comment=comment
         )
-        return rejected_report
+        # Serialize SQLAlchemy object to JSON-compatible dictionary
+        return serialize_sqlalchemy_obj(rejected_report)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
@@ -341,11 +364,12 @@ async def read_report_comments(
     report = await report_service.get_report_by_id(db, report_id=report_id)
     if not report:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Report not found")
-    
+
     comments = await report_service.get_report_comments(
         db=db, report_id=report_id, skip=skip, limit=limit
     )
-    return comments
+    # Serialize SQLAlchemy objects to JSON-compatible dictionaries
+    return serialize_query_results(comments)
 
 @router.post("/{report_id}/comments", response_model=ReportComment, status_code=status.HTTP_201_CREATED)
 async def create_report_comment(
@@ -361,11 +385,12 @@ async def create_report_comment(
     report = await report_service.get_report_by_id(db, report_id=report_id)
     if not report:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Report not found")
-    
+
     try:
         comment = await report_service.add_report_comment(
             db=db, report_id=report_id, user_id=current_user.id, comment_in=comment_in
         )
-        return comment
+        # Serialize SQLAlchemy object to JSON-compatible dictionary
+        return serialize_sqlalchemy_obj(comment)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))

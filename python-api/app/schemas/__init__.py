@@ -45,6 +45,7 @@ from .refresh_token import (
     RefreshTokenInDBBase,
     RefreshTokenInDB,
 )
+from .error import ErrorResponse, ValidationErrorResponse
 
 # Add other schemas as they are created, for example:
 # from .activity_log import ActivityLog, ActivityLogCreate
@@ -96,5 +97,8 @@ __all__ = [
     "RefreshTokenInDB",
     # Password Schemas
     "PasswordReset",
+    # Error Schemas
+    "ErrorResponse",
+    "ValidationErrorResponse",
     # Add other schema names here
 ]

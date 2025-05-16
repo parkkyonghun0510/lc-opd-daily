@@ -3,6 +3,8 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 
 from app.api import deps
+from app.api.auth_deps import require_permission, require_role, require_branch_access
+from app.core.permissions import Permission, UserRole
 from app.schemas import Branch, BranchCreate, BranchUpdate, User as UserSchema
 from app.services import branch_service
 from app.db.models import User
@@ -15,10 +17,12 @@ async def read_branches(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=200),
     search: Optional[str] = None,
-    current_user: User = Depends(deps.get_current_active_user)
+    current_user: User = Depends(require_permission(Permission.VIEW_BRANCHES))
 ):
     """
     Retrieve branches.
+
+    Requires VIEW_BRANCHES permission.
     """
     branches = await branch_service.get_branches(
         db=db, skip=skip, limit=limit, search=search
@@ -44,10 +48,12 @@ async def read_user_branches(
 async def read_branch(
     branch_id: str,
     db: Session = Depends(deps.get_db),
-    current_user: User = Depends(deps.get_current_active_user)
+    current_user: User = Depends(require_permission(Permission.VIEW_BRANCHES))
 ):
     """
     Get a specific branch by id.
+
+    Requires VIEW_BRANCHES permission.
     """
     branch = await branch_service.get_branch_by_id(db, branch_id=branch_id)
     if not branch:
@@ -59,10 +65,12 @@ async def create_branch(
     *,
     db: Session = Depends(deps.get_db),
     branch_in: BranchCreate,
-    current_user: User = Depends(deps.get_current_active_superuser)
+    current_user: User = Depends(require_permission(Permission.MANAGE_BRANCHES))
 ):
     """
-    Create new branch (admin only).
+    Create new branch.
+
+    Requires MANAGE_BRANCHES permission (typically admin users).
     """
     # Check if branch with same name already exists
     branch = await branch_service.get_branch_by_name(db, name=branch_in.name)
@@ -71,7 +79,7 @@ async def create_branch(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Branch with this name already exists",
         )
-    
+
     branch = await branch_service.create_branch(db=db, branch_in=branch_in)
     return branch
 
@@ -81,15 +89,17 @@ async def update_branch(
     db: Session = Depends(deps.get_db),
     branch_id: str,
     branch_in: BranchUpdate,
-    current_user: User = Depends(deps.get_current_active_superuser)
+    current_user: User = Depends(require_permission(Permission.MANAGE_BRANCHES))
 ):
     """
-    Update a branch (admin only).
+    Update a branch.
+
+    Requires MANAGE_BRANCHES permission (typically admin users).
     """
     branch = await branch_service.get_branch_by_id(db, branch_id=branch_id)
     if not branch:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Branch not found")
-    
+
     # If name is being changed, check for duplicates
     if branch_in.name and branch_in.name != branch.name:
         existing_branch = await branch_service.get_branch_by_name(db, name=branch_in.name)
@@ -98,7 +108,7 @@ async def update_branch(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Branch with this name already exists",
             )
-    
+
     branch = await branch_service.update_branch(db=db, db_branch=branch, branch_in=branch_in)
     return branch
 
@@ -107,15 +117,17 @@ async def delete_branch(
     *,
     db: Session = Depends(deps.get_db),
     branch_id: str,
-    current_user: User = Depends(deps.get_current_active_superuser)
+    current_user: User = Depends(require_permission(Permission.MANAGE_BRANCHES))
 ):
     """
-    Delete a branch (admin only).
+    Delete a branch.
+
+    Requires MANAGE_BRANCHES permission (typically admin users).
     """
     branch = await branch_service.get_branch_by_id(db, branch_id=branch_id)
     if not branch:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Branch not found")
-    
+
     success = await branch_service.delete_branch(db=db, branch_id=branch_id)
     if not success:
         raise HTTPException(
@@ -130,25 +142,27 @@ async def assign_user_to_branch(
     db: Session = Depends(deps.get_db),
     branch_id: str,
     user_id: str,
-    current_user: User = Depends(deps.get_current_active_superuser)
+    current_user: User = Depends(require_permission(Permission.MANAGE_BRANCHES))
 ):
     """
-    Assign a user to a branch (admin only).
+    Assign a user to a branch.
+
+    Requires MANAGE_BRANCHES permission (typically admin users).
     """
     # Check if branch exists
     branch = await branch_service.get_branch_by_id(db, branch_id=branch_id)
     if not branch:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Branch not found")
-    
+
     # Check if user exists
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-    
-    assignment = await branch_service.assign_user_to_branch(
+
+    await branch_service.assign_user_to_branch(
         db=db, user_id=user_id, branch_id=branch_id
     )
-    
+
     return {"message": "User assigned to branch successfully"}
 
 @router.delete("/{branch_id}/remove-user/{user_id}", status_code=status.HTTP_200_OK)
@@ -157,19 +171,21 @@ async def remove_user_from_branch(
     db: Session = Depends(deps.get_db),
     branch_id: str,
     user_id: str,
-    current_user: User = Depends(deps.get_current_active_superuser)
+    current_user: User = Depends(require_permission(Permission.MANAGE_BRANCHES))
 ):
     """
-    Remove a user from a branch (admin only).
+    Remove a user from a branch.
+
+    Requires MANAGE_BRANCHES permission (typically admin users).
     """
     success = await branch_service.remove_user_from_branch(
         db=db, user_id=user_id, branch_id=branch_id
     )
-    
+
     if not success:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User is not assigned to this branch"
         )
-    
+
     return {"message": "User removed from branch successfully"}

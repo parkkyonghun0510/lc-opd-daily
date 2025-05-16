@@ -86,7 +86,3 @@ class RefreshToken(Base):
 
     # Define relationship with User model
     user = relationship("User", back_populates="refresh_tokens")
-
-# Add this relationship to your User model
-if hasattr(User, '__table__'):
-    User.refresh_tokens = relationship("RefreshToken", back_populates="user")

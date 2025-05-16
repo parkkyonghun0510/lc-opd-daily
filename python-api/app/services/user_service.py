@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from typing import Optional, Any, Dict, Union
 from datetime import datetime, timedelta, timezone
-from jose import jwt
+from jose import jwt, JWTError
 import uuid
 import logging
 
@@ -192,6 +192,72 @@ async def invalidate_all_refresh_tokens(db: Session, user_id: str) -> None:
     ).update({"isRevoked": True})
 
     db.commit()
+
+async def update_last_activity(db: Session, user_id: str) -> None:
+    """
+    Update the last activity timestamp for a user
+    """
+    user = await get_user_by_id(db, user_id)
+    if user:
+        user.lastActivity = datetime.now(timezone.utc)
+        db.add(user)
+        db.commit()
+
+async def create_password_reset_token(db: Session, user) -> str:
+    """
+    Create a password reset token for a user
+    """
+    # Generate a token that expires in 24 hours
+    expires = datetime.now(timezone.utc) + timedelta(hours=24)
+    token_data = {
+        "sub": str(user.id),
+        "exp": expires,
+        "type": "password-reset"
+    }
+
+    reset_token = jwt.encode(
+        token_data,
+        settings.SECRET_KEY,
+        algorithm=settings.JWT_ALGORITHM
+    )
+
+    # Store the token hash in the database if you want to track it
+    # For now, we'll just return the token
+    return reset_token
+
+async def reset_password(db: Session, token: str, new_password: str) -> bool:
+    """
+    Reset a user's password using a reset token
+    """
+    try:
+        # Verify the token
+        payload = jwt.decode(
+            token,
+            settings.SECRET_KEY,
+            algorithms=[settings.JWT_ALGORITHM]
+        )
+
+        # Check token type
+        if payload.get("type") != "password-reset":
+            return False
+
+        user_id = payload.get("sub")
+        if not user_id:
+            return False
+
+        # Get the user
+        user = await get_user_by_id(db, user_id)
+        if not user:
+            return False
+
+        # Update the password
+        user.password = get_password_hash(new_password)
+        db.add(user)
+        db.commit()
+
+        return True
+    except JWTError:
+        return False
 
 # Placeholder for CUID generation if not handled by DB or other means
 # def generate_cuid():
