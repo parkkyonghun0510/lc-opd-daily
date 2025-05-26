@@ -18,7 +18,7 @@ fi
 
 # Default values
 BACKUP_DIR="./backups"
-BACKUP_FILE=""
+BACKUP_FILE="dbdblc_opd_daily_20250428_185326.gz"
 DROP_DB=false
 CREATE_DB=false
 FORCE=false

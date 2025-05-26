@@ -1,5 +1,36 @@
 # Database Backup and Restore Guide
 
+## Quick Start
+
+### Create a Backup
+```bash
+# Make script executable
+chmod +x ./scripts/backup-database.sh
+
+# Create backup (reads DATABASE_URL from .env)
+./scripts/backup-database.sh
+```
+
+### Restore a Backup
+```bash
+# Make script executable
+chmod +x ./scripts/restore-modified.sh
+
+# Basic restore
+./scripts/restore-modified.sh --file your_backup.gz
+
+# Full restore (drop and recreate database)
+./scripts/restore-modified.sh --file your_backup.gz --drop-db --create-db
+```
+
+## Prerequisites
+
+Before using these scripts, ensure you have:
+1. `.env` file with `DATABASE_URL` in format: `postgresql://user:password@host:port/dbname`
+2. PostgreSQL client tools installed (`pg_dump`, `pg_restore`, `psql`)
+3. Sufficient database permissions for backup/restore operations
+4. **Important**: `.env` file must have Unix line endings (not Windows `\r\n`)
+
 ## Overview
 This guide covers database backup and restore procedures, particularly useful during Prisma schema changes.
 
@@ -85,3 +116,61 @@ pg_restore -U $DB_USER -d $DB_NAME backups/dbdblc_opd_daily_20250428_185326.dump
 
 # Compressed restore
 gunzip -c backups/dbdblc_opd_daily_20250428_185326.gz | psql -U $DB_USER -d $DB_NAME
+```
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Permission Denied**
+   ```bash
+   chmod +x ./scripts/backup-database.sh
+   chmod +x ./scripts/restore-modified.sh
+   ```
+
+2. **Windows Line Ending Error: `$'\r': command not found`**
+   This occurs when the `.env` file has Windows line endings. Fix with:
+   
+   ```bash
+   # Option 1: Convert line endings with dos2unix
+   dos2unix .env
+   
+   # Option 2: Convert with sed
+   sed -i 's/\r$//' .env
+   
+   # Option 3: Convert with tr
+   tr -d '\r' < .env > .env.tmp && mv .env.tmp .env
+   
+   # Option 4: Recreate .env file on Unix system
+   # Copy content and paste into a new file created on Linux/macOS
+   ```
+   
+   **Prevention**: Always create/edit `.env` files on the target system, or configure your editor to use Unix line endings (LF only).
+
+3. **Database Connection Failed**
+   - Check your `DATABASE_URL` in `.env` file
+   - Verify database server is running
+   - Confirm network connectivity
+
+4. **Backup File Not Found**
+   ```bash
+   # List available backups
+   ls -la backups/
+   
+   # Use full filename with extension
+   ./scripts/restore-modified.sh --file dbdblc_opd_daily_20250428_185326.gz
+   ```
+
+5. **Transaction Timeout Errors**
+   - The `restore-modified.sh` script handles this automatically
+   - Uses multiple restore strategies for problematic backups
+
+## Script Options
+
+### restore-modified.sh Options
+- `--file FILE`: Backup file to restore (required)
+- `--dir DIR`: Backup directory (default: ./backups)
+- `--drop-db`: Drop database before restoring
+- `--create-db`: Create database if it doesn't exist
+- `--force`: Continue even if backup appears corrupted
+- `--help`: Show help message

@@ -17,8 +17,8 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # Set environment variables
-ENV NEXT_TELEMETRY_DISABLED 1
-ENV NODE_ENV production
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=production
 
 # Generate Prisma client
 RUN npx prisma generate
@@ -30,8 +30,8 @@ RUN npm run build:production:force
 FROM base AS runner
 WORKDIR /app
 
-ENV NODE_ENV production
-ENV NEXT_TELEMETRY_DISABLED 1
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
@@ -53,10 +53,6 @@ COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/scripts ./scripts
 COPY --from=builder /app/ecosystem.production.config.cjs ./
 
-# Install only production dependencies
-COPY package.json package-lock.json ./
-RUN npm ci --only=production
-
 # Generate Prisma client in production
 RUN npx prisma generate
 
@@ -70,8 +66,8 @@ USER nextjs
 
 EXPOSE 3000
 
-ENV PORT 3000
-ENV HOSTNAME "0.0.0.0"
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
 
 # Use PM2 to start both the app and worker
 CMD ["pm2-runtime", "ecosystem.production.config.cjs"]

@@ -14,6 +14,13 @@ if [ ! -f .env ]; then
     exit 1
 fi
 
+# Clean Windows line endings from .env file if present
+# This prevents "$'\r': command not found" errors
+if grep -q $'\r' .env 2>/dev/null; then
+    echo "Detected Windows line endings in .env file. Converting to Unix format..."
+    sed -i 's/\r$//' .env
+fi
+
 # Source .env file
 source .env
 

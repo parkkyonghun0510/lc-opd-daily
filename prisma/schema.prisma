@@ -70,8 +70,8 @@ model Branch {
 model Report {
   id            String          @id @default(cuid())
   branchId      String
-  writeOffs     Float
-  ninetyPlus    Float
+  writeOffs     Decimal         @db.Decimal(15, 2)
+  ninetyPlus    Decimal         @db.Decimal(15, 2)
   reportType    String          @default("actual")
   status        String          @default("pending")
   submittedBy   String
@@ -79,8 +79,9 @@ model Report {
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
   planReportId  String?
-  submittedAt   String
   date          DateTime        @db.Date
+  submittedAt   DateTime        @default(now())
+  commentArray  Json?
   branch        Branch          @relation(fields: [branchId], references: [id])
   planReport    Report?         @relation("PlanActualRelation", fields: [planReportId], references: [id])
   actualReports Report[]        @relation("PlanActualRelation")
@@ -90,6 +91,8 @@ model Report {
   @@index([branchId, date])
   @@index([date, status])
   @@index([planReportId])
+  @@index([reportType, status])
+  @@index([submittedBy, status])
 }
 
 model ActivityLog {
