@@ -24,7 +24,7 @@ git pull origin main
 
 # Install dependencies
 echo "Installing dependencies..."
-npm install
+npm install --legacy-peer-deps
 
 # Run type checking
 echo "Running type checks..."
