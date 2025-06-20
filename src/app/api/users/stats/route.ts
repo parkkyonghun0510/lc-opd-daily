@@ -10,14 +10,14 @@ export async function GET(request: NextRequest) {
     if (!token) {
       return NextResponse.json(
         { error: "Unauthorized - Authentication required" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
     if (token.role !== UserRole.ADMIN) {
       return NextResponse.json(
         { error: "Forbidden - Admin access required" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -49,18 +49,20 @@ export async function GET(request: NextRequest) {
       total: totalUsers,
       active: activeUsers,
       admin: adminUsers,
-      lastCreated: lastCreatedUser ? {
-        id: lastCreatedUser.id,
-        username: lastCreatedUser.username,
-        name: lastCreatedUser.name,
-        createdAt: lastCreatedUser.createdAt,
-      } : null,
+      lastCreated: lastCreatedUser
+        ? {
+            id: lastCreatedUser.id,
+            username: lastCreatedUser.username,
+            name: lastCreatedUser.name,
+            createdAt: lastCreatedUser.createdAt,
+          }
+        : null,
     });
   } catch (error) {
     console.error("Error fetching user statistics:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
-} 
+}

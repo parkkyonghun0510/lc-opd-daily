@@ -1,13 +1,17 @@
 export type ReportType = "plan" | "actual";
 
 // Define ReportStatus type for consistency across the application
-export type ReportStatus = "pending" | "pending_approval" | "approved" | "rejected";
+export type ReportStatus =
+  | "pending"
+  | "pending_approval"
+  | "approved"
+  | "rejected";
 
 // Define comment types (legacy - use ReportCommentType instead)
 // @deprecated Use ReportCommentType instead
 export interface CommentItem {
   id: string;
-  type: 'comment' | 'resubmission' | 'rejection' | 'reply';
+  type: "comment" | "resubmission" | "rejection" | "reply";
   text: string;
   timestamp: string;
   userId: string;

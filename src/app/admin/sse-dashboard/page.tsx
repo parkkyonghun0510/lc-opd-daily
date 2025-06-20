@@ -1,9 +1,9 @@
-import { Metadata } from 'next';
-import SSEDashboard from '@/components/admin/SSEDashboard';
+import { Metadata } from "next";
+import SSEDashboard from "@/components/admin/SSEDashboard";
 
 export const metadata: Metadata = {
-  title: 'SSE Dashboard | Admin',
-  description: 'Server-Sent Events (SSE) monitoring dashboard',
+  title: "SSE Dashboard | Admin",
+  description: "Server-Sent Events (SSE) monitoring dashboard",
 };
 
 export default function SSEDashboardPage() {

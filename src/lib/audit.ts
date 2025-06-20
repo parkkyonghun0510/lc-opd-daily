@@ -46,7 +46,7 @@ export const AuditAction = {
 
 /**
  * Creates an audit log entry directly in the database (server-side use only)
- * 
+ *
  * @param userId The ID of the user performing the action
  * @param action The action being performed (use AuditAction constants for consistency)
  * @param details Object containing relevant details about the action
@@ -59,7 +59,7 @@ export async function createServerAuditLog({
   action,
   details,
   requestInfo = { ipAddress: "unknown", userAgent: "unknown" },
-  type = "activity"
+  type = "activity",
 }: {
   userId: string;
   action: string;
@@ -73,7 +73,8 @@ export async function createServerAuditLog({
       data: {
         userId,
         action,
-        details: typeof details === 'string' ? details : JSON.stringify(details),
+        details:
+          typeof details === "string" ? details : JSON.stringify(details),
         ipAddress: requestInfo.ipAddress || "unknown",
         userAgent: requestInfo.userAgent || "unknown",
       },
@@ -111,7 +112,7 @@ export async function createServerAuditLog({
 export async function createAuditLog(
   action: string,
   details: string | Record<string, any>,
-  type: "activity" | "userActivity" = "activity"
+  type: "activity" | "userActivity" = "activity",
 ): Promise<boolean> {
   try {
     const response = await fetch("/api/audit", {
@@ -136,4 +137,4 @@ export async function createAuditLog(
     console.error("Error creating audit log:", error);
     return false;
   }
-} 
+}

@@ -17,10 +17,10 @@ interface ProtectedRouteProps {
 
 /**
  * ProtectedRoute component
- * 
+ *
  * Wraps a page or component to ensure the user is authenticated and has the required permissions.
  * Uses the advanced Zustand store for state management.
- * 
+ *
  * @example
  * <ProtectedRoute permissions={["VIEW_REPORTS"]}>
  *   <ReportsPage />
@@ -62,10 +62,14 @@ export function ProtectedRoute({
       if (permissions.length > 0) {
         if (requireAll) {
           // Must have all permissions
-          hasAccess = permissions.every(permission => hasPermission(permission));
+          hasAccess = permissions.every((permission) =>
+            hasPermission(permission),
+          );
         } else {
           // Must have at least one permission
-          hasAccess = permissions.some(permission => hasPermission(permission));
+          hasAccess = permissions.some((permission) =>
+            hasPermission(permission),
+          );
         }
       }
 
@@ -88,7 +92,7 @@ export function ProtectedRoute({
     requireAll,
     redirectTo,
     router,
-    isSessionExpired
+    isSessionExpired,
   ]);
 
   // Show loading state while checking authentication
@@ -108,10 +112,10 @@ export function ProtectedRoute({
   if (permissions.length > 0) {
     if (requireAll) {
       // Must have all permissions
-      hasAccess = permissions.every(permission => hasPermission(permission));
+      hasAccess = permissions.every((permission) => hasPermission(permission));
     } else {
       // Must have at least one permission
-      hasAccess = permissions.some(permission => hasPermission(permission));
+      hasAccess = permissions.some((permission) => hasPermission(permission));
     }
   }
 

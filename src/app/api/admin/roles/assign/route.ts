@@ -7,7 +7,7 @@ import { Permission } from "@/lib/auth/roles";
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
@@ -18,14 +18,16 @@ export async function POST(request: Request) {
       include: {
         userRoles: {
           include: {
-            role: true
-          }
-        }
-      }
+            role: true,
+          },
+        },
+      },
     });
 
     // Simple permission check - assuming ADMIN role can assign roles
-    const isAdmin = currentUser?.userRoles.some(ur => ur.role.name === "ADMIN");
+    const isAdmin = currentUser?.userRoles.some(
+      (ur) => ur.role.name === "ADMIN",
+    );
     if (!isAdmin) {
       return new NextResponse("Forbidden", { status: 403 });
     }
@@ -51,14 +53,16 @@ export async function POST(request: Request) {
       where: {
         userId: userId,
         role: {
-          name: roleName
+          name: roleName,
         },
-        branchId: branchId
-      }
+        branchId: branchId,
+      },
     });
 
     if (existingUserRole) {
-      return new NextResponse(`User already has this role assignment`, { status: 409 });
+      return new NextResponse(`User already has this role assignment`, {
+        status: 409,
+      });
     }
 
     // Create new user role
@@ -67,12 +71,12 @@ export async function POST(request: Request) {
         userId: userId,
         roleId: role.id,
         branchId: branchId,
-        isDefault: false // Set default as needed
+        isDefault: false, // Set default as needed
       },
       include: {
         role: true,
-        branch: true
-      }
+        branch: true,
+      },
     });
 
     // Log the activity
@@ -80,10 +84,10 @@ export async function POST(request: Request) {
       data: {
         userId: session.user.id,
         action: "ASSIGN_ROLE",
-        details: `Assigned role ${roleName} to user ${userId}${branchId ? ` for branch ${branchId}` : ''}`,
+        details: `Assigned role ${roleName} to user ${userId}${branchId ? ` for branch ${branchId}` : ""}`,
         ipAddress: request.headers.get("x-forwarded-for") || "unknown",
-        userAgent: request.headers.get("user-agent") || "unknown"
-      }
+        userAgent: request.headers.get("user-agent") || "unknown",
+      },
     });
 
     return NextResponse.json({
@@ -91,11 +95,11 @@ export async function POST(request: Request) {
       userRole: {
         id: userRole.id,
         roleName: userRole.role.name,
-        branchName: userRole.branch?.name || null
-      }
+        branchName: userRole.branch?.name || null,
+      },
     });
   } catch (error) {
     console.error("Error assigning role:", error);
     return new NextResponse("Internal Server Error", { status: 500 });
   }
-} 
+}

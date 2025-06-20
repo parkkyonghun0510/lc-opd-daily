@@ -23,13 +23,13 @@ export function RoleBasedNavigation({ children }: RoleBasedNavigationProps) {
       const permissionKey = `can${permission
         .split("_")
         .map(
-          (word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+          (word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase(),
         )
         .join("")}` as keyof typeof permissions;
-      
+
       // For debugging - log the permission request and result
       //console.log(`Permission check for ${permission}: ${Boolean(permissions[permissionKey])}`);
-      
+
       return permissions[permissionKey] ?? false;
     };
 

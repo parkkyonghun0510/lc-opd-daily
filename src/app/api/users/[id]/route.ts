@@ -9,7 +9,7 @@ const prismaClient = new PrismaClient();
 // GET /api/users/[id] - Get a single user by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const token = await getToken({ req: request });
@@ -18,7 +18,7 @@ export async function GET(
     if (!token) {
       return NextResponse.json(
         { error: "Unauthorized - Authentication required" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -41,10 +41,7 @@ export async function GET(
     });
 
     if (!user) {
-      return NextResponse.json(
-        { error: "User not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
     return NextResponse.json(user);
@@ -52,29 +49,27 @@ export async function GET(
     console.error("Error fetching user:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 // PATCH /api/users/[id] - Update a user
-export async function PATCH(
-  request: NextRequest
-) {
+export async function PATCH(request: NextRequest) {
   try {
     // Verify admin permission using NextAuth
     const token = await getToken({ req: request });
-    
+
     // Extract the ID from the URL path
     const url = new URL(request.url);
-    const pathParts = url.pathname.split('/');
+    const pathParts = url.pathname.split("/");
     const id = pathParts[pathParts.length - 1]; // Get the ID from the URL path
 
     // Check if user is authenticated and has admin role
     if (!token || token.role !== "ADMIN") {
       return NextResponse.json(
         { error: "Unauthorized access" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -105,7 +100,7 @@ export async function PATCH(
       if (usernameExists) {
         return NextResponse.json(
           { error: "Username is already taken" },
-          { status: 409 }
+          { status: 409 },
         );
       }
       updateData.username = username;
@@ -118,7 +113,7 @@ export async function PATCH(
       if (emailExists) {
         return NextResponse.json(
           { error: "Email is already registered" },
-          { status: 409 }
+          { status: 409 },
         );
       }
       updateData.email = email;
@@ -150,7 +145,7 @@ export async function PATCH(
     console.error("Error updating user:", error);
     return NextResponse.json(
       { error: "Failed to update user" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -158,7 +153,7 @@ export async function PATCH(
 // DELETE /api/users/[id] - Delete a user
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     // Verify admin permission using NextAuth
@@ -169,7 +164,7 @@ export async function DELETE(
     if (!token || token.role !== "ADMIN") {
       return NextResponse.json(
         { error: "Unauthorized access" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -186,7 +181,7 @@ export async function DELETE(
     if (token.userId === id) {
       return NextResponse.json(
         { error: "Cannot delete your own account" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -200,7 +195,7 @@ export async function DELETE(
     console.error("Error deleting user:", error);
     return NextResponse.json(
       { error: "Failed to delete user" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

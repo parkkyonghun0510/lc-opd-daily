@@ -39,7 +39,7 @@ export function CustomTimeTooltip({ active, payload }: CustomTimeTooltipProps) {
                   ? "text-red-600 dark:text-red-400"
                   : (data.writeOffsChange || 0) < 0
                     ? "text-green-600 dark:text-green-400"
-                    : "text-gray-500"
+                    : "text-gray-500",
               )}
             >
               {(data.writeOffsChange || 0) > 0 && (
@@ -66,7 +66,7 @@ export function CustomTimeTooltip({ active, payload }: CustomTimeTooltipProps) {
                     ? "text-red-600 dark:text-red-400"
                     : (data.ninetyPlusChange || 0) < 0
                       ? "text-green-600 dark:text-green-400"
-                      : "text-gray-500"
+                      : "text-gray-500",
                 )}
               >
                 {(data.ninetyPlusChange || 0) > 0 && (

@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useCallback } from 'react';
-import { useHybridRealtime } from '@/hooks/useHybridRealtime';
-import { EventType as SSEEventType } from '@/hooks/useHybridRealtime';
+import { useState, useEffect, useCallback } from "react";
+import { useHybridRealtime } from "@/hooks/useHybridRealtime";
+import { EventType as SSEEventType } from "@/hooks/useHybridRealtime";
 
 /**
  * Options for the useRealTimeUpdates hook
@@ -47,35 +47,30 @@ export interface RealTimeUpdatesOptions {
  */
 export function useRealTimeUpdates(options: RealTimeUpdatesOptions = {}) {
   const {
-    sseEndpoint = '/api/sse',
-    pollingEndpoint = '/api/polling',
+    sseEndpoint = "/api/sse",
+    pollingEndpoint = "/api/polling",
     pollingInterval = 10000,
     eventHandlers = {},
     enableCache = true,
-    debug = false
+    debug = false,
   } = options;
 
   // Use the hybrid realtime system which handles both SSE and polling
-  const {
-    isConnected,
-    error,
-    lastEvent,
-    reconnect,
-    activeMethod
-  } = useHybridRealtime({
-    pollingEndpoint,
-    pollingInterval,
-    eventHandlers,
-    debug
-  });
+  const { isConnected, error, lastEvent, reconnect, activeMethod } =
+    useHybridRealtime({
+      pollingEndpoint,
+      pollingInterval,
+      eventHandlers,
+      debug,
+    });
 
   // Map the hybrid realtime state to the expected return format
   return {
     isConnected,
-    isLoading: activeMethod === 'polling',
+    isLoading: activeMethod === "polling",
     error,
     lastUpdate: lastEvent,
     updateMethod: activeMethod,
-    refresh: reconnect
+    refresh: reconnect,
   };
 }

@@ -9,28 +9,25 @@ export async function GET(req: NextRequest) {
     const session = await getServerSession(authOptions);
 
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Count unread notifications for the current user
     const count = await prisma.inAppNotification.count({
       where: {
         userId: session.user.id,
-        isRead: false
-      }
+        isRead: false,
+      },
     });
 
     return NextResponse.json({
-      count
+      count,
     });
   } catch (error) {
     console.error("Error getting unread notification count:", error);
     return NextResponse.json(
       { error: "Failed to get notification count" },
-      { status: 500 }
+      { status: 500 },
     );
   }
-} 
+}

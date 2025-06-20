@@ -1,6 +1,5 @@
 # Authentication Components
 
-
 This document provides detailed information about the authentication components in the system.
 
 ## AuthStatusIndicator
@@ -14,7 +13,7 @@ None
 ### Usage
 
 ```tsx
-import { AuthStatusIndicator } from '@/auth/components/AuthStatusIndicator';
+import { AuthStatusIndicator } from "@/auth/components/AuthStatusIndicator";
 
 function Header() {
   return (
@@ -40,28 +39,25 @@ The `PermissionGate` component controls access to UI components based on user pe
 
 ### Props
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `children` | ReactNode | (required) | The content to render when the user has the required permissions |
-| `fallback` | ReactNode | `null` | The content to render when the user doesn't have the required permissions |
-| `permissions` | string[] | `[]` | The permissions required to access the content |
-| `roles` | string[] | `[]` | The roles required to access the content |
-| `requireAll` | boolean | `false` | Whether all permissions are required (true) or any of them (false) |
-| `branchId` | string | `undefined` | The branch ID to check access for |
-| `showLoading` | boolean | `true` | Whether to show a loading state while checking permissions |
-| `loadingComponent` | ReactNode | `<Loader />` | The component to render while checking permissions |
+| Prop               | Type      | Default      | Description                                                               |
+| ------------------ | --------- | ------------ | ------------------------------------------------------------------------- |
+| `children`         | ReactNode | (required)   | The content to render when the user has the required permissions          |
+| `fallback`         | ReactNode | `null`       | The content to render when the user doesn't have the required permissions |
+| `permissions`      | string[]  | `[]`         | The permissions required to access the content                            |
+| `roles`            | string[]  | `[]`         | The roles required to access the content                                  |
+| `requireAll`       | boolean   | `false`      | Whether all permissions are required (true) or any of them (false)        |
+| `branchId`         | string    | `undefined`  | The branch ID to check access for                                         |
+| `showLoading`      | boolean   | `true`       | Whether to show a loading state while checking permissions                |
+| `loadingComponent` | ReactNode | `<Loader />` | The component to render while checking permissions                        |
 
 ### Usage
 
 ```tsx
-import { PermissionGate } from '@/auth/components/PermissionGate';
+import { PermissionGate } from "@/auth/components/PermissionGate";
 
 function AdminPanel() {
   return (
-    <PermissionGate
-      permissions={["MANAGE_USERS"]}
-      fallback={<AccessDenied />}
-    >
+    <PermissionGate permissions={["MANAGE_USERS"]} fallback={<AccessDenied />}>
       <UserManagement />
     </PermissionGate>
   );
@@ -82,19 +78,19 @@ The `ProtectedRoute` component protects routes based on authentication and permi
 
 ### Props
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `children` | ReactNode | (required) | The content to render when the user is authenticated and has the required permissions |
-| `permissions` | string[] | `[]` | The permissions required to access the route |
-| `roles` | string[] | `[]` | The roles required to access the route |
-| `requireAll` | boolean | `false` | Whether all permissions are required (true) or any of them (false) |
-| `redirectTo` | string | `"/login"` | The path to redirect to when the user is not authenticated or doesn't have the required permissions |
-| `loadingComponent` | ReactNode | `<Loader />` | The component to render while checking authentication and permissions |
+| Prop               | Type      | Default      | Description                                                                                         |
+| ------------------ | --------- | ------------ | --------------------------------------------------------------------------------------------------- |
+| `children`         | ReactNode | (required)   | The content to render when the user is authenticated and has the required permissions               |
+| `permissions`      | string[]  | `[]`         | The permissions required to access the route                                                        |
+| `roles`            | string[]  | `[]`         | The roles required to access the route                                                              |
+| `requireAll`       | boolean   | `false`      | Whether all permissions are required (true) or any of them (false)                                  |
+| `redirectTo`       | string    | `"/login"`   | The path to redirect to when the user is not authenticated or doesn't have the required permissions |
+| `loadingComponent` | ReactNode | `<Loader />` | The component to render while checking authentication and permissions                               |
 
 ### Usage
 
 ```tsx
-import { ProtectedRoute } from '@/auth/components/ProtectedRoute';
+import { ProtectedRoute } from "@/auth/components/ProtectedRoute";
 
 function AdminPage() {
   return (
@@ -119,16 +115,16 @@ The `SessionActivityTracker` component tracks user activity and manages session 
 
 ### Props
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `warningTime` | number | `25` | Time in minutes before showing the warning |
-| `expiryTime` | number | `30` | Time in minutes before the session expires |
-| `checkInterval` | number | `30` | Check interval in seconds |
+| Prop            | Type   | Default | Description                                |
+| --------------- | ------ | ------- | ------------------------------------------ |
+| `warningTime`   | number | `25`    | Time in minutes before showing the warning |
+| `expiryTime`    | number | `30`    | Time in minutes before the session expires |
+| `checkInterval` | number | `30`    | Check interval in seconds                  |
 
 ### Usage
 
 ```tsx
-import { SessionActivityTracker } from '@/auth/components/SessionActivityTracker';
+import { SessionActivityTracker } from "@/auth/components/SessionActivityTracker";
 
 function App() {
   return (
@@ -158,16 +154,16 @@ The `StoreSynchronizer` component synchronizes the authentication store with the
 
 ### Props
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `syncInterval` | number | `300` | Sync interval in seconds |
-| `syncOnFocus` | boolean | `true` | Whether to sync when the window regains focus |
-| `syncOnReconnect` | boolean | `true` | Whether to sync when the network reconnects |
+| Prop              | Type    | Default | Description                                   |
+| ----------------- | ------- | ------- | --------------------------------------------- |
+| `syncInterval`    | number  | `300`   | Sync interval in seconds                      |
+| `syncOnFocus`     | boolean | `true`  | Whether to sync when the window regains focus |
+| `syncOnReconnect` | boolean | `true`  | Whether to sync when the network reconnects   |
 
 ### Usage
 
 ```tsx
-import { StoreSynchronizer } from '@/auth/components/StoreSynchronizer';
+import { StoreSynchronizer } from "@/auth/components/StoreSynchronizer";
 
 function App() {
   return (
@@ -202,13 +198,13 @@ None
 ### Usage
 
 ```tsx
-import { AuthDevTools } from '@/auth/components/AuthDevTools';
+import { AuthDevTools } from "@/auth/components/AuthDevTools";
 
 function App() {
   return (
     <>
       <AppContent />
-      {process.env.NODE_ENV === 'development' && <AuthDevTools />}
+      {process.env.NODE_ENV === "development" && <AuthDevTools />}
     </>
   );
 }
@@ -233,7 +229,7 @@ None
 ### Usage
 
 ```tsx
-import { AuthAnalyticsDashboard } from '@/auth/components/AuthAnalyticsDashboard';
+import { AuthAnalyticsDashboard } from "@/auth/components/AuthAnalyticsDashboard";
 
 function AnalyticsPage() {
   return (

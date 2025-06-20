@@ -1,8 +1,12 @@
-import { StateCreator } from 'zustand';
-import { eventCache } from '@/lib/sse/eventCache';
+import { StateCreator } from "zustand";
+import { eventCache } from "@/lib/sse/eventCache";
 
 // Event types
-export type EventType = 'notification' | 'dashboardUpdate' | 'systemAlert' | string;
+export type EventType =
+  | "notification"
+  | "dashboardUpdate"
+  | "systemAlert"
+  | string;
 
 // Event data structure
 export interface RealtimeEvent<T = unknown> {
@@ -17,11 +21,11 @@ export type EventHandler<T = unknown> = (data: T) => void;
 
 // Event handlers map type
 export type EventHandlersMap = {
-  [key in EventType | '*']?: EventHandler;
+  [key in EventType | "*"]?: EventHandler;
 };
 
 // Connection method type
-export type ConnectionMethod = 'sse' | 'polling' | 'auto';
+export type ConnectionMethod = "sse" | "polling" | "auto";
 
 // Hook options
 export interface HybridRealtimeOptions {
@@ -57,7 +61,11 @@ export interface HybridRealtimeOptions {
 }
 
 // Connection status type
-export type ConnectionStatus = 'connected' | 'connecting' | 'disconnected' | 'error';
+export type ConnectionStatus =
+  | "connected"
+  | "connecting"
+  | "disconnected"
+  | "error";
 
 // State interface
 export interface HybridRealtimeState {
@@ -142,14 +150,16 @@ export interface HybridRealtimeSelectors {
 }
 
 // Combined slice type
-export type HybridRealtimeSlice = HybridRealtimeState & HybridRealtimeActions & HybridRealtimeSelectors;
+export type HybridRealtimeSlice = HybridRealtimeState &
+  HybridRealtimeActions &
+  HybridRealtimeSelectors;
 
 // Default options
 const DEFAULT_OPTIONS: HybridRealtimeOptions = {
-  sseEndpoint: '/api/realtime/sse',
-  pollingEndpoint: '/api/realtime/polling',
+  sseEndpoint: "/api/realtime/sse",
+  pollingEndpoint: "/api/realtime/polling",
   pollingInterval: 10000,
-  preferredMethod: 'auto',
+  preferredMethod: "auto",
   maxReconnectAttempts: 5,
   reconnectBackoffFactor: 2,
   maxReconnectDelay: 30000,
@@ -164,7 +174,7 @@ const DEFAULT_OPTIONS: HybridRealtimeOptions = {
   debug: false,
   enableCache: true,
   maxCacheSize: 100,
-  cacheTTL: 24 * 60 * 60 * 1000 // 24 hours
+  cacheTTL: 24 * 60 * 60 * 1000, // 24 hours
 };
 
 // Create the hybrid realtime slice
@@ -175,7 +185,7 @@ export const createHybridRealtimeSlice: StateCreator<
   HybridRealtimeSlice
 > = (set, get) => ({
   // Initial state
-  connectionStatus: 'disconnected',
+  connectionStatus: "disconnected",
   isConnected: false,
   activeMethod: null,
   lastEvent: null,
@@ -195,14 +205,14 @@ export const createHybridRealtimeSlice: StateCreator<
   // Actions
   setOptions: (options) => {
     set((state) => ({
-      options: { ...state.options, ...options }
+      options: { ...state.options, ...options },
     }));
   },
 
   connect: (options) => {
     try {
       // Update connection status
-      set({ connectionStatus: 'connecting' });
+      set({ connectionStatus: "connecting" });
 
       // Update options if provided
       if (options) {
@@ -220,15 +230,17 @@ export const createHybridRealtimeSlice: StateCreator<
 
       // Log connection attempt
       if (debug) {
-        console.log(`[HybridRealtime] Connecting with preferred method: ${preferredMethod}`);
+        console.log(
+          `[HybridRealtime] Connecting with preferred method: ${preferredMethod}`,
+        );
       }
 
       // Connect based on preferred method
-      if (preferredMethod === 'sse' && isSSESupported) {
+      if (preferredMethod === "sse" && isSSESupported) {
         get().setupSSE();
-      } else if (preferredMethod === 'polling') {
+      } else if (preferredMethod === "polling") {
         get().startPolling();
-      } else if (preferredMethod === 'auto') {
+      } else if (preferredMethod === "auto") {
         // Try SSE first, fall back to polling if not supported
         if (isSSESupported) {
           const success = get().setupSSE();
@@ -241,30 +253,33 @@ export const createHybridRealtimeSlice: StateCreator<
       }
 
       // Register online/offline event listeners
-      if (typeof window !== 'undefined') {
+      if (typeof window !== "undefined") {
         // Remove existing listeners first to avoid duplicates
-        window.removeEventListener('online', get().handleOnline);
-        window.removeEventListener('offline', get().handleOffline);
+        window.removeEventListener("online", get().handleOnline);
+        window.removeEventListener("offline", get().handleOffline);
 
         // Add new listeners
-        window.addEventListener('online', get().handleOnline);
-        window.addEventListener('offline', get().handleOffline);
+        window.addEventListener("online", get().handleOnline);
+        window.addEventListener("offline", get().handleOffline);
 
         if (debug) {
-          console.log('[HybridRealtime] Registered online/offline event listeners');
+          console.log(
+            "[HybridRealtime] Registered online/offline event listeners",
+          );
         }
       }
     } catch (error) {
       // Handle unexpected errors
-      const errorMessage = error instanceof Error ? error.message : 'Unknown connection error';
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown connection error";
       set({
-        connectionStatus: 'error',
+        connectionStatus: "error",
         isConnected: false,
-        error: errorMessage
+        error: errorMessage,
       });
 
       if (get().options.debug) {
-        console.error('[HybridRealtime] Connection error:', error);
+        console.error("[HybridRealtime] Connection error:", error);
       }
 
       // Schedule reconnection
@@ -284,20 +299,20 @@ export const createHybridRealtimeSlice: StateCreator<
     get().stopPolling();
 
     // Remove event listeners
-    if (typeof window !== 'undefined') {
-      window.removeEventListener('online', get().handleOnline);
-      window.removeEventListener('offline', get().handleOffline);
+    if (typeof window !== "undefined") {
+      window.removeEventListener("online", get().handleOnline);
+      window.removeEventListener("offline", get().handleOffline);
     }
 
     // Update state
     set({
       isConnected: false,
-      connectionStatus: 'disconnected',
-      activeMethod: null
+      connectionStatus: "disconnected",
+      activeMethod: null,
     });
 
     if (get().options.debug) {
-      console.log('[HybridRealtime] Disconnected');
+      console.log("[HybridRealtime] Disconnected");
     }
   },
 
@@ -305,7 +320,7 @@ export const createHybridRealtimeSlice: StateCreator<
     const { debug } = get().options;
 
     if (debug) {
-      console.log('[HybridRealtime] Network online, reconnecting...');
+      console.log("[HybridRealtime] Network online, reconnecting...");
     }
 
     // Only reconnect if we're not already connected
@@ -322,15 +337,15 @@ export const createHybridRealtimeSlice: StateCreator<
     const { debug } = get().options;
 
     if (debug) {
-      console.log('[HybridRealtime] Network offline, disconnecting...');
+      console.log("[HybridRealtime] Network offline, disconnecting...");
     }
 
     // Update state
     set({
       isConnected: false,
-      connectionStatus: 'disconnected',
+      connectionStatus: "disconnected",
       activeMethod: null,
-      error: 'Network offline'
+      error: "Network offline",
     });
 
     // Close connections but don't remove event listeners
@@ -351,14 +366,16 @@ export const createHybridRealtimeSlice: StateCreator<
         maxReconnectAttempts = 5,
         reconnectBackoffFactor = 2,
         maxReconnectDelay = 30000,
-        debug = false
-      }
+        debug = false,
+      },
     } = get();
 
     // Check if we've reached the maximum number of reconnect attempts
     if (reconnectAttempts >= maxReconnectAttempts) {
       if (debug) {
-        console.log(`[HybridRealtime] Maximum reconnection attempts (${maxReconnectAttempts}) reached`);
+        console.log(
+          `[HybridRealtime] Maximum reconnection attempts (${maxReconnectAttempts}) reached`,
+        );
       }
       return;
     }
@@ -367,7 +384,7 @@ export const createHybridRealtimeSlice: StateCreator<
     const nextAttempt = reconnectAttempts + 1;
     const delay = Math.min(
       1000 * Math.pow(reconnectBackoffFactor, nextAttempt - 1),
-      maxReconnectDelay
+      maxReconnectDelay,
     );
 
     if (debug) {
@@ -377,7 +394,7 @@ export const createHybridRealtimeSlice: StateCreator<
     // Update state
     set({
       reconnectAttempts: nextAttempt,
-      lastReconnectTime: Date.now()
+      lastReconnectTime: Date.now(),
     });
 
     // Schedule reconnection
@@ -397,7 +414,7 @@ export const createHybridRealtimeSlice: StateCreator<
     // Reset reconnect attempts
     set({
       reconnectAttempts: 0,
-      lastReconnectTime: Date.now()
+      lastReconnectTime: Date.now(),
     });
 
     // Reconnect
@@ -408,7 +425,10 @@ export const createHybridRealtimeSlice: StateCreator<
     const { sseEndpoint, debug, eventHandlers } = get().options;
 
     if (!get().isSSESupported()) {
-      if (debug) console.log('[HybridRealtime] SSE not supported, falling back to polling');
+      if (debug)
+        console.log(
+          "[HybridRealtime] SSE not supported, falling back to polling",
+        );
       return false;
     }
 
@@ -420,30 +440,37 @@ export const createHybridRealtimeSlice: StateCreator<
       }
 
       // Create URL with query parameters
-      const url = new URL(sseEndpoint || '/api/realtime/sse', window.location.origin);
-      url.searchParams.append('clientType', 'hybrid');
-      url.searchParams.append('_t', Date.now().toString()); // Cache buster
+      const url = new URL(
+        sseEndpoint || "/api/realtime/sse",
+        window.location.origin,
+      );
+      url.searchParams.append("clientType", "hybrid");
+      url.searchParams.append("_t", Date.now().toString()); // Cache buster
 
       // Create new EventSource
-      if (debug) console.log('[HybridRealtime] Setting up SSE connection to', url.toString());
+      if (debug)
+        console.log(
+          "[HybridRealtime] Setting up SSE connection to",
+          url.toString(),
+        );
       const eventSource = new EventSource(url.toString());
       get().setEventSource(eventSource);
 
       // Set up event listeners
       eventSource.onopen = () => {
-        if (debug) console.log('[HybridRealtime] SSE connection opened');
+        if (debug) console.log("[HybridRealtime] SSE connection opened");
         get().setIsConnected(true);
-        get().setActiveMethod('sse');
+        get().setActiveMethod("sse");
         get().setError(null);
         get().setReconnectAttempts(0);
       };
 
       eventSource.onerror = (err) => {
-        if (debug) console.log('[HybridRealtime] SSE connection error:', err);
+        if (debug) console.log("[HybridRealtime] SSE connection error:", err);
         eventSource?.close();
         get().setEventSource(null);
         get().setIsConnected(false);
-        get().setError('SSE connection error');
+        get().setError("SSE connection error");
 
         // Try to reconnect
         const reconnectAttempts = get().reconnectAttempts + 1;
@@ -451,34 +478,41 @@ export const createHybridRealtimeSlice: StateCreator<
 
         const maxReconnectAttempts = 5;
         if (reconnectAttempts <= maxReconnectAttempts) {
-          const delay = Math.min(1000 * Math.pow(2, reconnectAttempts - 1), 30000);
+          const delay = Math.min(
+            1000 * Math.pow(2, reconnectAttempts - 1),
+            30000,
+          );
           if (debug) {
             // console.log(`[HybridRealtime] Reconnecting in ${delay}ms (attempt ${reconnectAttempts}/${maxReconnectAttempts})`);
           }
 
           setTimeout(() => {
             const { preferredMethod } = get().options;
-            if (preferredMethod === 'sse' || preferredMethod === 'auto') {
+            if (preferredMethod === "sse" || preferredMethod === "auto") {
               get().setupSSE();
             }
           }, delay);
         } else {
-          if (debug) console.log('[HybridRealtime] Maximum reconnection attempts reached, falling back to polling');
-          get().setActiveMethod('polling');
+          if (debug)
+            console.log(
+              "[HybridRealtime] Maximum reconnection attempts reached, falling back to polling",
+            );
+          get().setActiveMethod("polling");
           get().startPolling();
         }
       };
 
       // Listen for specific events
-      eventSource.addEventListener('connected', (e) => {
+      eventSource.addEventListener("connected", (e) => {
         try {
           const data = JSON.parse(e.data);
-          if (debug) console.log('[HybridRealtime] Connected event:', data);
+          if (debug) console.log("[HybridRealtime] Connected event:", data);
           get().setIsConnected(true);
-          get().setActiveMethod('sse');
+          get().setActiveMethod("sse");
           get().setError(null);
         } catch (err) {
-          if (debug) console.log('[HybridRealtime] Error parsing connected event:', err);
+          if (debug)
+            console.log("[HybridRealtime] Error parsing connected event:", err);
         }
       });
 
@@ -492,24 +526,33 @@ export const createHybridRealtimeSlice: StateCreator<
             id: data.id || crypto.randomUUID(),
             type: eventType,
             data,
-            timestamp: data.timestamp || Date.now()
+            timestamp: data.timestamp || Date.now(),
           };
 
           get().processEvent(event);
         } catch (err) {
-          if (debug) console.log('[HybridRealtime] Error processing event:', err);
+          if (debug)
+            console.log("[HybridRealtime] Error processing event:", err);
         }
       };
 
       // Add listeners for common event types
-      eventSource.addEventListener('notification', handleEvent);
-      eventSource.addEventListener('dashboardUpdate', handleEvent);
-      eventSource.addEventListener('systemAlert', handleEvent);
+      eventSource.addEventListener("notification", handleEvent);
+      eventSource.addEventListener("dashboardUpdate", handleEvent);
+      eventSource.addEventListener("systemAlert", handleEvent);
 
       // Add listeners for custom event types
       if (eventHandlers) {
-        Object.keys(eventHandlers).forEach(eventType => {
-          if (!['connected', 'notification', 'dashboardUpdate', 'systemAlert', '*'].includes(eventType)) {
+        Object.keys(eventHandlers).forEach((eventType) => {
+          if (
+            ![
+              "connected",
+              "notification",
+              "dashboardUpdate",
+              "systemAlert",
+              "*",
+            ].includes(eventType)
+          ) {
             eventSource.addEventListener(eventType, handleEvent);
           }
         });
@@ -517,8 +560,10 @@ export const createHybridRealtimeSlice: StateCreator<
 
       return true;
     } catch (err) {
-      if (debug) console.log('[HybridRealtime] Error setting up SSE:', err);
-      get().setError(err instanceof Error ? err.message : 'Unknown error setting up SSE');
+      if (debug) console.log("[HybridRealtime] Error setting up SSE:", err);
+      get().setError(
+        err instanceof Error ? err.message : "Unknown error setting up SSE",
+      );
       return false;
     }
   },
@@ -541,11 +586,15 @@ export const createHybridRealtimeSlice: StateCreator<
 
         if (shouldPoll) {
           if (debug && smartPolling) {
-            console.log('[HybridRealtime] Smart polling: Active polling in progress');
+            console.log(
+              "[HybridRealtime] Smart polling: Active polling in progress",
+            );
           }
           await get().pollForUpdates();
         } else if (debug && smartPolling) {
-          console.log('[HybridRealtime] Smart polling: Skipping poll (no active actions)');
+          console.log(
+            "[HybridRealtime] Smart polling: Skipping poll (no active actions)",
+          );
         }
 
         scheduleNextPoll();
@@ -556,34 +605,50 @@ export const createHybridRealtimeSlice: StateCreator<
     const intervalId = scheduleNextPoll();
 
     // Store interval ID in window object (since we can't store functions in Zustand state)
-    if (typeof window !== 'undefined') {
-      (window as Window & { __hybridRealtimePollingInterval?: NodeJS.Timeout }).__hybridRealtimePollingInterval = intervalId;
+    if (typeof window !== "undefined") {
+      (
+        window as Window & { __hybridRealtimePollingInterval?: NodeJS.Timeout }
+      ).__hybridRealtimePollingInterval = intervalId;
     }
 
     get().setIsPolling(true);
-    get().setActiveMethod('polling');
+    get().setActiveMethod("polling");
 
     if (debug) {
-      console.log(`[HybridRealtime] Started polling every ${pollingInterval}ms${smartPolling ? ' (smart polling enabled)' : ''}`);
+      console.log(
+        `[HybridRealtime] Started polling every ${pollingInterval}ms${smartPolling ? " (smart polling enabled)" : ""}`,
+      );
     }
   },
 
   stopPolling: () => {
     // Clear polling interval
-    if (typeof window !== 'undefined' && (window as Window & { __hybridRealtimePollingInterval?: NodeJS.Timeout }).__hybridRealtimePollingInterval) {
-      clearTimeout((window as Window & { __hybridRealtimePollingInterval?: NodeJS.Timeout }).__hybridRealtimePollingInterval);
-      (window as Window & { __hybridRealtimePollingInterval?: NodeJS.Timeout }).__hybridRealtimePollingInterval = undefined;
+    if (
+      typeof window !== "undefined" &&
+      (window as Window & { __hybridRealtimePollingInterval?: NodeJS.Timeout })
+        .__hybridRealtimePollingInterval
+    ) {
+      clearTimeout(
+        (
+          window as Window & {
+            __hybridRealtimePollingInterval?: NodeJS.Timeout;
+          }
+        ).__hybridRealtimePollingInterval,
+      );
+      (
+        window as Window & { __hybridRealtimePollingInterval?: NodeJS.Timeout }
+      ).__hybridRealtimePollingInterval = undefined;
     }
 
     get().setIsPolling(false);
 
     if (get().options.debug) {
-      console.log('[HybridRealtime] Stopped polling');
+      console.log("[HybridRealtime] Stopped polling");
     }
   },
 
   // Smart polling methods
-  enableActivePolling: (reason = 'user action') => {
+  enableActivePolling: (reason = "user action") => {
     const { debug, pollingTimeout = 60000 } = get().options;
     const now = Date.now();
 
@@ -593,7 +658,9 @@ export const createHybridRealtimeSlice: StateCreator<
 
     if (debug) {
       console.log(`[HybridRealtime] Active polling enabled due to: ${reason}`);
-      console.log(`[HybridRealtime] Will continue polling for ${pollingTimeout / 1000} seconds`);
+      console.log(
+        `[HybridRealtime] Will continue polling for ${pollingTimeout / 1000} seconds`,
+      );
     }
 
     // Schedule automatic disabling of active polling after timeout
@@ -606,10 +673,14 @@ export const createHybridRealtimeSlice: StateCreator<
         get().setIsActivePolling(false);
 
         if (debug) {
-          console.log('[HybridRealtime] Active polling disabled (timeout reached)');
+          console.log(
+            "[HybridRealtime] Active polling disabled (timeout reached)",
+          );
         }
       } else if (debug) {
-        console.log('[HybridRealtime] Active polling continues (new action detected)');
+        console.log(
+          "[HybridRealtime] Active polling continues (new action detected)",
+        );
       }
     }, pollingTimeout);
   },
@@ -631,7 +702,9 @@ export const createHybridRealtimeSlice: StateCreator<
       if (!stillActive && isActivePolling) {
         get().setIsActivePolling(false);
         if (debug) {
-          console.log('[HybridRealtime] Active polling automatically disabled (timeout reached)');
+          console.log(
+            "[HybridRealtime] Active polling automatically disabled (timeout reached)",
+          );
         }
       }
 
@@ -642,7 +715,8 @@ export const createHybridRealtimeSlice: StateCreator<
   },
 
   pollForUpdates: async () => {
-    const { pollingEndpoint, debug, smartPolling, minPollingInterval } = get().options;
+    const { pollingEndpoint, debug, smartPolling, minPollingInterval } =
+      get().options;
     const lastPollTimestamp = get().lastPollTimestamp;
     const currentPollStart = Date.now();
 
@@ -651,7 +725,9 @@ export const createHybridRealtimeSlice: StateCreator<
       const timeSinceLastPoll = currentPollStart - lastPollTimestamp;
       if (timeSinceLastPoll < minPollingInterval) {
         if (debug) {
-          console.log(`[HybridRealtime] Skipping poll (minimum interval not reached: ${timeSinceLastPoll}ms < ${minPollingInterval}ms)`);
+          console.log(
+            `[HybridRealtime] Skipping poll (minimum interval not reached: ${timeSinceLastPoll}ms < ${minPollingInterval}ms)`,
+          );
         }
         return;
       }
@@ -659,20 +735,28 @@ export const createHybridRealtimeSlice: StateCreator<
 
     try {
       // Create URL with query parameters
-      const url = new URL(pollingEndpoint || '/api/realtime/polling', window.location.origin);
-      url.searchParams.append('since', (Math.floor(lastPollTimestamp / 1000) * 1000).toString()); // Round to seconds
-      url.searchParams.append('_t', currentPollStart.toString());
+      const url = new URL(
+        pollingEndpoint || "/api/realtime/polling",
+        window.location.origin,
+      );
+      url.searchParams.append(
+        "since",
+        (Math.floor(lastPollTimestamp / 1000) * 1000).toString(),
+      ); // Round to seconds
+      url.searchParams.append("_t", currentPollStart.toString());
 
       // if (debug) console.log('[HybridRealtime] Polling for updates:', url.toString());
 
       // Fetch updates
       const response = await fetch(url.toString());
       if (!response.ok) {
-        throw new Error(`Polling error: ${response.status} ${response.statusText}`);
+        throw new Error(
+          `Polling error: ${response.status} ${response.statusText}`,
+        );
       }
 
       const data = await response.json();
-      if (debug) console.log('[HybridRealtime] Polling response:', data);
+      if (debug) console.log("[HybridRealtime] Polling response:", data);
 
       // Update last poll timestamp before processing events to avoid gaps
       // Use the start time of this poll as the next since parameter
@@ -682,7 +766,7 @@ export const createHybridRealtimeSlice: StateCreator<
       if (data.events && Array.isArray(data.events)) {
         // If we received events, enable active polling
         if (data.events.length > 0 && smartPolling) {
-          get().enableActivePolling('received events');
+          get().enableActivePolling("received events");
         }
 
         data.events.forEach((event: any) => {
@@ -690,18 +774,20 @@ export const createHybridRealtimeSlice: StateCreator<
             id: event.id || crypto.randomUUID(),
             type: event.type,
             data: event.data,
-            timestamp: event.timestamp || Date.now()
+            timestamp: event.timestamp || Date.now(),
           });
         });
       }
 
       // Update connection state
       get().setIsConnected(true);
-      get().setActiveMethod('polling');
+      get().setActiveMethod("polling");
       get().setError(null);
     } catch (err) {
-      if (debug) console.log('[HybridRealtime] Polling error:', err);
-      get().setError(err instanceof Error ? err.message : 'Unknown polling error');
+      if (debug) console.log("[HybridRealtime] Polling error:", err);
+      get().setError(
+        err instanceof Error ? err.message : "Unknown polling error",
+      );
     }
   },
 
@@ -711,9 +797,9 @@ export const createHybridRealtimeSlice: StateCreator<
         enableCache = true,
         maxCacheSize = 100,
         cacheTTL = 24 * 60 * 60 * 1000, // 24 hours
-        debug = false
+        debug = false,
       },
-      cachedEvents
+      cachedEvents,
     } = get();
 
     if (!enableCache) return;
@@ -724,14 +810,16 @@ export const createHybridRealtimeSlice: StateCreator<
         id: event.id || crypto.randomUUID(),
         type: event.type,
         data: event.data,
-        timestamp: event.timestamp || Date.now()
+        timestamp: event.timestamp || Date.now(),
       };
 
       // Get existing events for this type
       const events = cachedEvents.get(normalizedEvent.type) || [];
 
       // Check if this event already exists (by ID)
-      const existingIndex = events.findIndex(e => e.id === normalizedEvent.id);
+      const existingIndex = events.findIndex(
+        (e) => e.id === normalizedEvent.id,
+      );
 
       if (existingIndex >= 0) {
         // Update existing event
@@ -743,9 +831,7 @@ export const createHybridRealtimeSlice: StateCreator<
 
       // Remove expired events (older than cacheTTL)
       const now = Date.now();
-      const filteredEvents = events.filter(e =>
-        (now - e.timestamp) < cacheTTL
-      );
+      const filteredEvents = events.filter((e) => now - e.timestamp < cacheTTL);
 
       // Limit the cache size
       if (filteredEvents.length > maxCacheSize) {
@@ -753,24 +839,30 @@ export const createHybridRealtimeSlice: StateCreator<
       }
 
       // Update the cache
-      set(state => ({
-        cachedEvents: new Map(state.cachedEvents).set(normalizedEvent.type, filteredEvents)
+      set((state) => ({
+        cachedEvents: new Map(state.cachedEvents).set(
+          normalizedEvent.type,
+          filteredEvents,
+        ),
       }));
 
       // Persist to localStorage if available
-      if (typeof window !== 'undefined') {
+      if (typeof window !== "undefined") {
         try {
           const cacheKey = `hybrid-realtime-cache-${normalizedEvent.type}`;
           localStorage.setItem(cacheKey, JSON.stringify(filteredEvents));
         } catch (err) {
           if (debug) {
-            console.warn('[HybridRealtime] Failed to persist event to localStorage:', err);
+            console.warn(
+              "[HybridRealtime] Failed to persist event to localStorage:",
+              err,
+            );
           }
         }
       }
     } catch (err) {
       if (debug) {
-        console.error('[HybridRealtime] Error caching event:', err);
+        console.error("[HybridRealtime] Error caching event:", err);
       }
     }
   },
@@ -781,25 +873,25 @@ export const createHybridRealtimeSlice: StateCreator<
         enableCache = true,
         eventHandlers = {},
         cacheTTL = 24 * 60 * 60 * 1000, // 24 hours
-        debug = false
-      }
+        debug = false,
+      },
     } = get();
 
-    if (!enableCache || typeof window === 'undefined') return;
+    if (!enableCache || typeof window === "undefined") return;
 
     try {
       // Load cached events from localStorage
       const cachedEventTypes = new Set([
         ...Object.keys(eventHandlers),
-        'notification',
-        'dashboardUpdate',
-        'systemAlert'
+        "notification",
+        "dashboardUpdate",
+        "systemAlert",
       ]);
 
       const newCachedEvents = new Map();
       const now = Date.now();
 
-      cachedEventTypes.forEach(eventType => {
+      cachedEventTypes.forEach((eventType) => {
         try {
           const cacheKey = `hybrid-realtime-cache-${eventType}`;
           const cachedData = localStorage.getItem(cacheKey);
@@ -808,8 +900,8 @@ export const createHybridRealtimeSlice: StateCreator<
             const events = JSON.parse(cachedData);
             if (Array.isArray(events) && events.length > 0) {
               // Filter out expired events
-              const validEvents = events.filter(e =>
-                e && e.timestamp && (now - e.timestamp) < cacheTTL
+              const validEvents = events.filter(
+                (e) => e && e.timestamp && now - e.timestamp < cacheTTL,
               );
 
               if (validEvents.length > 0) {
@@ -823,7 +915,7 @@ export const createHybridRealtimeSlice: StateCreator<
                     id: mostRecentEvent.id || crypto.randomUUID(),
                     type: mostRecentEvent.type || eventType,
                     data: mostRecentEvent.data,
-                    timestamp: mostRecentEvent.timestamp || now
+                    timestamp: mostRecentEvent.timestamp || now,
                   };
 
                   // Update last event
@@ -835,27 +927,34 @@ export const createHybridRealtimeSlice: StateCreator<
                   }
 
                   if (debug) {
-                    console.log(`[HybridRealtime] Loaded cached event for ${eventType}:`, normalizedEvent);
+                    console.log(
+                      `[HybridRealtime] Loaded cached event for ${eventType}:`,
+                      normalizedEvent,
+                    );
                   }
                 }
               } else if (debug) {
-                console.log(`[HybridRealtime] All cached events for ${eventType} have expired`);
+                console.log(
+                  `[HybridRealtime] All cached events for ${eventType} have expired`,
+                );
               }
             }
           }
         } catch (err) {
           if (debug) {
-            console.warn(`[HybridRealtime] Error loading cached events for ${eventType}:`, err);
+            console.warn(
+              `[HybridRealtime] Error loading cached events for ${eventType}:`,
+              err,
+            );
           }
         }
       });
 
       // Update the cache state
       set({ cachedEvents: newCachedEvents });
-
     } catch (err) {
       if (debug) {
-        console.error('[HybridRealtime] Error loading cached events:', err);
+        console.error("[HybridRealtime] Error loading cached events:", err);
       }
     }
   },
@@ -863,14 +962,14 @@ export const createHybridRealtimeSlice: StateCreator<
   processEvent: (event) => {
     const { eventHandlers, debug, smartPolling } = get().options;
 
-    if (debug) console.log('[HybridRealtime] Processing event:', event);
+    if (debug) console.log("[HybridRealtime] Processing event:", event);
 
     // Ensure the event has a proper structure
     const normalizedEvent = {
       id: event.id || crypto.randomUUID(),
       type: event.type,
       data: event.data,
-      timestamp: event.timestamp || Date.now()
+      timestamp: event.timestamp || Date.now(),
     };
 
     // Update last event
@@ -890,24 +989,27 @@ export const createHybridRealtimeSlice: StateCreator<
     }
 
     // Also call the wildcard handler if it exists
-    if (eventHandlers && eventHandlers['*']) {
-      eventHandlers['*']?.(normalizedEvent);
+    if (eventHandlers && eventHandlers["*"]) {
+      eventHandlers["*"]?.(normalizedEvent);
     }
 
     // Dispatch a DOM event for components to listen for
-    if (typeof window !== 'undefined') {
-      const domEvent = new CustomEvent(`hybrid-realtime-${normalizedEvent.type}`, {
-        detail: normalizedEvent,
-        bubbles: true,
-        cancelable: true
-      });
+    if (typeof window !== "undefined") {
+      const domEvent = new CustomEvent(
+        `hybrid-realtime-${normalizedEvent.type}`,
+        {
+          detail: normalizedEvent,
+          bubbles: true,
+          cancelable: true,
+        },
+      );
       window.dispatchEvent(domEvent);
 
       // Also dispatch a generic event that all components can listen for
-      const genericEvent = new CustomEvent('hybrid-realtime-event', {
+      const genericEvent = new CustomEvent("hybrid-realtime-event", {
         detail: normalizedEvent,
         bubbles: true,
-        cancelable: true
+        cancelable: true,
       });
       window.dispatchEvent(genericEvent);
     }
@@ -960,7 +1062,7 @@ export const createHybridRealtimeSlice: StateCreator<
   },
 
   isSSESupported: () => {
-    return typeof EventSource !== 'undefined';
+    return typeof EventSource !== "undefined";
   },
 
   getCachedEvents: (eventType) => {
@@ -989,7 +1091,7 @@ export const createHybridRealtimeSlice: StateCreator<
     const {
       isConnected,
       reconnectAttempts,
-      options: { maxReconnectAttempts = 5 }
+      options: { maxReconnectAttempts = 5 },
     } = get();
 
     return !isConnected && reconnectAttempts < maxReconnectAttempts;
@@ -1006,5 +1108,5 @@ export const createHybridRealtimeSlice: StateCreator<
     const { lastActionTimestamp } = get();
     if (!lastActionTimestamp) return Infinity;
     return Date.now() - lastActionTimestamp;
-  }
+  },
 });

@@ -17,7 +17,7 @@ const updateReportSchema = z.object({
 // GET /api/reports/[id] - Get a specific report by ID
 export async function GET(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     // Use NextAuth for authentication
@@ -25,7 +25,7 @@ export async function GET(
     if (!token) {
       return NextResponse.json(
         { error: "Unauthorized - Authentication required" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -48,8 +48,8 @@ export async function GET(
           select: {
             writeOffs: true,
             ninetyPlus: true,
-            id: true
-          }
+            id: true,
+          },
         },
         // Include ReportComment records
         ReportComment: {
@@ -63,7 +63,7 @@ export async function GET(
             },
           },
           orderBy: {
-            createdAt: 'asc',
+            createdAt: "asc",
           },
         },
       },
@@ -77,17 +77,31 @@ export async function GET(
     // Convert Decimal objects to numbers
     const responseData = {
       ...report,
-      writeOffs: typeof report.writeOffs === 'object' ? Number(report.writeOffs) : report.writeOffs,
-      ninetyPlus: typeof report.ninetyPlus === 'object' ? Number(report.ninetyPlus) : report.ninetyPlus,
+      writeOffs:
+        typeof report.writeOffs === "object"
+          ? Number(report.writeOffs)
+          : report.writeOffs,
+      ninetyPlus:
+        typeof report.ninetyPlus === "object"
+          ? Number(report.ninetyPlus)
+          : report.ninetyPlus,
     } as any;
 
     if (report.reportType === "actual") {
       if (report.planReport) {
         // Add plan data with proper type conversion
-        responseData.writeOffsPlan = typeof report.planReport.writeOffs === 'object' ? Number(report.planReport.writeOffs) :
-          typeof report.planReport.writeOffs === 'number' ? report.planReport.writeOffs : 0;
-        responseData.ninetyPlusPlan = typeof report.planReport.ninetyPlus === 'object' ? Number(report.planReport.ninetyPlus) :
-          typeof report.planReport.ninetyPlus === 'number' ? report.planReport.ninetyPlus : 0;
+        responseData.writeOffsPlan =
+          typeof report.planReport.writeOffs === "object"
+            ? Number(report.planReport.writeOffs)
+            : typeof report.planReport.writeOffs === "number"
+              ? report.planReport.writeOffs
+              : 0;
+        responseData.ninetyPlusPlan =
+          typeof report.planReport.ninetyPlus === "object"
+            ? Number(report.planReport.ninetyPlus)
+            : typeof report.planReport.ninetyPlus === "number"
+              ? report.planReport.ninetyPlus
+              : 0;
         responseData.planReportId = report.planReport.id;
       } else {
         // If no plan report is linked, try to find one (for backwards compatibility)
@@ -95,22 +109,30 @@ export async function GET(
           where: {
             date: report.date,
             branchId: report.branchId,
-            reportType: "plan"
-          }
+            reportType: "plan",
+          },
         });
 
         if (planReport) {
           // Add plan data with proper type conversion
-          responseData.writeOffsPlan = typeof planReport.writeOffs === 'object' ? Number(planReport.writeOffs) :
-            typeof planReport.writeOffs === 'number' ? planReport.writeOffs : 0;
-          responseData.ninetyPlusPlan = typeof planReport.ninetyPlus === 'object' ? Number(planReport.ninetyPlus) :
-            typeof planReport.ninetyPlus === 'number' ? planReport.ninetyPlus : 0;
+          responseData.writeOffsPlan =
+            typeof planReport.writeOffs === "object"
+              ? Number(planReport.writeOffs)
+              : typeof planReport.writeOffs === "number"
+                ? planReport.writeOffs
+                : 0;
+          responseData.ninetyPlusPlan =
+            typeof planReport.ninetyPlus === "object"
+              ? Number(planReport.ninetyPlus)
+              : typeof planReport.ninetyPlus === "number"
+                ? planReport.ninetyPlus
+                : 0;
           responseData.planReportId = planReport.id;
 
           // Update the actual report to link it to the plan report
           await prisma.report.update({
             where: { id: report.id },
-            data: { planReportId: planReport.id }
+            data: { planReportId: planReport.id },
           });
         } else {
           // Set to null if no plan report found
@@ -125,8 +147,9 @@ export async function GET(
       data: {
         action: "VIEW_REPORT",
         userId: token.id as string, // Cast to string since we know it exists
-        details: `Viewed report for branch: ${report.branch.code} on ${new Date(report.date).toLocaleDateString()
-          }`,
+        details: `Viewed report for branch: ${report.branch.code} on ${new Date(
+          report.date,
+        ).toLocaleDateString()}`,
       },
     });
 
@@ -135,7 +158,7 @@ export async function GET(
     console.error("Error retrieving report:", error);
     return NextResponse.json(
       { error: "Failed to retrieve report" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -143,7 +166,7 @@ export async function GET(
 // PUT /api/reports/[id] - Update a specific report
 export async function PUT(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     // Get the ID from the context params
@@ -180,7 +203,7 @@ export async function PUT(
     if (!validationResult.success) {
       return NextResponse.json(
         { error: "Invalid data", details: validationResult.error.format() },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -202,8 +225,9 @@ export async function PUT(
       data: {
         action: "UPDATE_REPORT",
         userId: token.id as string, // Cast to string since we know it exists
-        details: `Updated report for branch: ${existingReport.branch.code} on ${new Date(existingReport.date).toLocaleDateString()
-          }`,
+        details: `Updated report for branch: ${existingReport.branch.code} on ${new Date(
+          existingReport.date,
+        ).toLocaleDateString()}`,
       },
     });
 
@@ -212,7 +236,7 @@ export async function PUT(
     console.error("Error updating report:", error);
     return NextResponse.json(
       { error: "Failed to update report" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -220,7 +244,7 @@ export async function PUT(
 // DELETE /api/reports/[id] - Delete a report
 export async function DELETE(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const token = await getToken({ req: request });
@@ -229,14 +253,14 @@ export async function DELETE(
     if (!token) {
       return NextResponse.json(
         { error: "Unauthorized - Authentication required" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
     if (!reportId) {
       return NextResponse.json(
         { error: "Report ID is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -253,17 +277,30 @@ export async function DELETE(
     // Permission Check
     const userRole = token.role as UserRole;
     const accessibleBranches = await getAccessibleBranches(token.sub as string);
-    const canAccessBranch = accessibleBranches.some(b => b.id === report.branchId);
+    const canAccessBranch = accessibleBranches.some(
+      (b) => b.id === report.branchId,
+    );
 
     // Check if user has general delete permission OR delete own permission and owns the report
-    const hasGeneralDeletePermission = checkPermission(userRole, Permission.DELETE_REPORTS);
+    const hasGeneralDeletePermission = checkPermission(
+      userRole,
+      Permission.DELETE_REPORTS,
+    );
     const isOwner = report.submittedBy === token.sub;
-    const hasDeleteOwnPermission = checkPermission(userRole, Permission.DELETE_OWN_REPORTS);
+    const hasDeleteOwnPermission = checkPermission(
+      userRole,
+      Permission.DELETE_OWN_REPORTS,
+    );
 
-    if (!canAccessBranch || !(hasGeneralDeletePermission || (isOwner && hasDeleteOwnPermission))) {
+    if (
+      !canAccessBranch ||
+      !(hasGeneralDeletePermission || (isOwner && hasDeleteOwnPermission))
+    ) {
       return NextResponse.json(
-        { error: "Forbidden - You do not have permission to delete this report" },
-        { status: 403 }
+        {
+          error: "Forbidden - You do not have permission to delete this report",
+        },
+        { status: 403 },
       );
     }
 
@@ -278,14 +315,11 @@ export async function DELETE(
     });
 
     // Broadcast the update via SSE after successful deletion
-    broadcastDashboardUpdate(
-      DashboardEventTypes.REPORT_DELETED,
-      {
-        reportId: reportId,
-        branchId: report.branchId, // Include branchId if needed for filtering on client
-        // Add any other relevant details needed by the dashboard
-      }
-    );
+    broadcastDashboardUpdate(DashboardEventTypes.REPORT_DELETED, {
+      reportId: reportId,
+      branchId: report.branchId, // Include branchId if needed for filtering on client
+      // Add any other relevant details needed by the dashboard
+    });
 
     // Log the activity
     await prisma.activityLog.create({
@@ -298,16 +332,18 @@ export async function DELETE(
     });
 
     return NextResponse.json({ message: "Report deleted successfully" });
-
   } catch (error) {
     console.error(`Error deleting report:`, error);
     // Handle potential Prisma errors (e.g., record not found if deleted concurrently)
-    if ((error as any).code === 'P2025') {
-      return NextResponse.json({ error: "Report not found or already deleted" }, { status: 404 });
+    if ((error as any).code === "P2025") {
+      return NextResponse.json(
+        { error: "Report not found or already deleted" },
+        { status: 404 },
+      );
     }
     return NextResponse.json(
       { error: "Failed to delete report" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

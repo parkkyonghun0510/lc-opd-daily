@@ -1,6 +1,12 @@
 "use client";
 
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -25,15 +31,17 @@ export function BranchDetailsModal({
   planData,
   reportType,
 }: BranchDetailsModalProps) {
-  const branch = branchId && consolidatedData
-    ? consolidatedData.branchData.find((b) => b.branchId === branchId)
-    : null;
+  const branch =
+    branchId && consolidatedData
+      ? consolidatedData.branchData.find((b) => b.branchId === branchId)
+      : null;
 
   if (!branch) return null;
 
-  const planBranch = reportType === "actual" && planData
-    ? planData.branchData.find((p) => p.branchId === branchId)
-    : null;
+  const planBranch =
+    reportType === "actual" && planData
+      ? planData.branchData.find((p) => p.branchId === branchId)
+      : null;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -66,12 +74,12 @@ export function BranchDetailsModal({
                         "ml-2",
                         branch.writeOffs >= planBranch.writeOffs
                           ? "bg-green-100 text-green-800"
-                          : "bg-amber-100 text-amber-800"
+                          : "bg-amber-100 text-amber-800",
                       )}
                     >
                       {planBranch.writeOffs > 0
                         ? `${Math.round(
-                            (branch.writeOffs / planBranch.writeOffs) * 100
+                            (branch.writeOffs / planBranch.writeOffs) * 100,
                           )}%`
                         : "N/A"}
                     </Badge>
@@ -97,12 +105,12 @@ export function BranchDetailsModal({
                         "ml-2",
                         branch.ninetyPlus >= planBranch.ninetyPlus
                           ? "bg-green-100 text-green-800"
-                          : "bg-amber-100 text-amber-800"
+                          : "bg-amber-100 text-amber-800",
                       )}
                     >
                       {planBranch.ninetyPlus > 0
                         ? `${Math.round(
-                            (branch.ninetyPlus / planBranch.ninetyPlus) * 100
+                            (branch.ninetyPlus / planBranch.ninetyPlus) * 100,
                           )}%`
                         : "N/A"}
                     </Badge>

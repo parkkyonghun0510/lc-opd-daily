@@ -36,7 +36,7 @@ export async function GET() {
     console.error("Error fetching roles:", error);
     return NextResponse.json(
       { error: "Failed to fetch roles" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -72,7 +72,7 @@ export async function POST(request: Request) {
         if (!Object.values(UserRole).includes(role as UserRole)) {
           return NextResponse.json(
             { error: `Invalid role: ${role}` },
-            { status: 400 }
+            { status: 400 },
           );
         }
 
@@ -85,7 +85,7 @@ export async function POST(request: Request) {
         if (!targetUser) {
           return NextResponse.json(
             { error: `User not found: ${userId}` },
-            { status: 404 }
+            { status: 404 },
           );
         }
 
@@ -99,16 +99,21 @@ export async function POST(request: Request) {
         });
 
         // Log the role change
-        await logUserActivity(user.id, "ROLE_CHANGE", {
-          targetUserId: userId,
-          oldRole: targetUser.role,
-          newRole: role,
-          oldBranchId: targetUser.branchId,
-          newBranchId: branchId,
-        }, {
-          ipAddress: "unknown",
-          userAgent: "unknown"
-        });
+        await logUserActivity(
+          user.id,
+          "ROLE_CHANGE",
+          {
+            targetUserId: userId,
+            oldRole: targetUser.role,
+            newRole: role,
+            oldBranchId: targetUser.branchId,
+            newBranchId: branchId,
+          },
+          {
+            ipAddress: "unknown",
+            userAgent: "unknown",
+          },
+        );
 
         results.push(updatedUser);
       }
@@ -142,16 +147,21 @@ export async function POST(request: Request) {
       });
 
       // Log the role change
-      await logUserActivity(user.id, "ROLE_CHANGE", {
-        targetUserId: userId,
-        oldRole: targetUser.role,
-        newRole: role,
-        oldBranchId: targetUser.branchId,
-        newBranchId: branchId,
-      }, {
-        ipAddress: "unknown",
-        userAgent: "unknown"
-      });
+      await logUserActivity(
+        user.id,
+        "ROLE_CHANGE",
+        {
+          targetUserId: userId,
+          oldRole: targetUser.role,
+          newRole: role,
+          oldBranchId: targetUser.branchId,
+          newBranchId: branchId,
+        },
+        {
+          ipAddress: "unknown",
+          userAgent: "unknown",
+        },
+      );
 
       return NextResponse.json(updatedUser);
     }
@@ -159,7 +169,7 @@ export async function POST(request: Request) {
     console.error("Error assigning role:", error);
     return NextResponse.json(
       { error: "Failed to assign role" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

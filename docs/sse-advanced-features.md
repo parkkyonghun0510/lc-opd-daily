@@ -69,9 +69,9 @@ Rate limits are configured per endpoint:
 
 ```typescript
 const rateLimitResponse = await rateLimiter.applyRateLimit(req, {
-  identifier: 'sse',
+  identifier: "sse",
   limit: 5, // Maximum 5 connections per user/IP
-  window: 60 // Within a 60-second window
+  window: 60, // Within a 60-second window
 });
 ```
 
@@ -102,7 +102,7 @@ if (enableCache) {
     id: data.id || crypto.randomUUID(),
     type: eventType,
     data,
-    timestamp
+    timestamp,
   });
 }
 ```

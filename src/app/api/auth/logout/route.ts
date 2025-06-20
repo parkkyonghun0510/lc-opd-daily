@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
         token.id as string,
         "logout",
         { method: "api" },
-        { ipAddress: ip, userAgent }
+        { ipAddress: ip, userAgent },
       );
     }
 

@@ -20,9 +20,9 @@ import { sanitizeString } from "@/utils/sanitize";
  */
 export async function approveReportAction(
   reportId: string,
-  status: 'approved' | 'rejected',
+  status: "approved" | "rejected",
   comments?: string,
-  notifyUsers: boolean = true
+  notifyUsers: boolean = true,
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -30,7 +30,7 @@ export async function approveReportAction(
     if (!session?.user?.id) {
       return {
         success: false,
-        error: "Unauthorized - Authentication required"
+        error: "Unauthorized - Authentication required",
       };
     }
 
@@ -39,21 +39,21 @@ export async function approveReportAction(
     if (!checkPermission(userRole, Permission.APPROVE_REPORTS)) {
       return {
         success: false,
-        error: "Forbidden - You don't have permission to approve reports"
+        error: "Forbidden - You don't have permission to approve reports",
       };
     }
 
     if (!reportId) {
       return {
         success: false,
-        error: "Report ID is required"
+        error: "Report ID is required",
       };
     }
 
     if (!status || !["approved", "rejected"].includes(status)) {
       return {
         success: false,
-        error: "Valid status (approved or rejected) is required"
+        error: "Valid status (approved or rejected) is required",
       };
     }
 
@@ -61,7 +61,7 @@ export async function approveReportAction(
     if (status === "rejected" && !comments) {
       return {
         success: false,
-        error: "Comments are required when rejecting a report"
+        error: "Comments are required when rejecting a report",
       };
     }
 
@@ -76,7 +76,7 @@ export async function approveReportAction(
     if (!report) {
       return {
         success: false,
-        error: "Report not found"
+        error: "Report not found",
       };
     }
 
@@ -84,7 +84,7 @@ export async function approveReportAction(
     if (report.status !== "pending" && report.status !== "pending_approval") {
       return {
         success: false,
-        error: `Report cannot be ${status}. Current status is: ${report.status}`
+        error: `Report cannot be ${status}. Current status is: ${report.status}`,
       };
     }
 
@@ -93,23 +93,24 @@ export async function approveReportAction(
     if (!hasAccess) {
       return {
         success: false,
-        error: "You don't have permission to approve reports for this branch"
+        error: "You don't have permission to approve reports for this branch",
       };
     }
 
     // Get approver's name for notifications
     const approver = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { name: true, id: true }
+      select: { name: true, id: true },
     });
 
-    const approverName = approver?.name || 'A manager';
+    const approverName = approver?.name || "A manager";
 
     // Format the comment for legacy support in conversation style
     const timestamp = format(new Date(), "yyyy-MM-dd HH:mm:ss");
-    const commentWithMeta = status === "approved"
-      ? `[COMMENT ${timestamp} by ${approverName}]: ${comments || "Report approved"}`
-      : `[REJECTION ${timestamp}]: ${comments || "Report rejected"}`;
+    const commentWithMeta =
+      status === "approved"
+        ? `[COMMENT ${timestamp} by ${approverName}]: ${comments || "Report approved"}`
+        : `[REJECTION ${timestamp}]: ${comments || "Report rejected"}`;
 
     // Add the comment to existing comments or create new comments (legacy format)
     const updatedComments = report.comments
@@ -131,27 +132,32 @@ export async function approveReportAction(
       // Create a more descriptive comment message
       let commentMessage = "";
       if (status === "approved") {
-        commentMessage = comments ?
-          `Approved: ${comments}` :
-          "Report has been approved";
+        commentMessage = comments
+          ? `Approved: ${comments}`
+          : "Report has been approved";
       } else {
-        commentMessage = comments ?
-          `Rejected: ${comments}` :
-          "Report has been rejected";
+        commentMessage = comments
+          ? `Rejected: ${comments}`
+          : "Report has been rejected";
       }
 
-      const sanitizedContent = sanitizeString(commentMessage) || '';
+      const sanitizedContent = sanitizeString(commentMessage) || "";
 
       await prisma.reportComment.create({
         data: {
           reportId,
           userId: session.user.id,
           content: sanitizedContent,
-        }
+        },
       });
-      console.log("[INFO] Created ReportComment record for report approval/rejection");
+      console.log(
+        "[INFO] Created ReportComment record for report approval/rejection",
+      );
     } catch (commentError) {
-      console.error("Error creating ReportComment record (non-critical):", commentError);
+      console.error(
+        "Error creating ReportComment record (non-critical):",
+        commentError,
+      );
       // We don't want to fail the approval process if this fails
     }
 
@@ -164,9 +170,10 @@ export async function approveReportAction(
 
     // Create an audit log entry for the approval/rejection
     try {
-      const actionType = status === "approved"
-        ? AuditAction.REPORT_APPROVED
-        : AuditAction.REPORT_REJECTED;
+      const actionType =
+        status === "approved"
+          ? AuditAction.REPORT_APPROVED
+          : AuditAction.REPORT_REJECTED;
 
       await createServerAuditLog({
         userId: session.user.id,
@@ -185,7 +192,7 @@ export async function approveReportAction(
           ipAddress: "server-action",
           userAgent: "server-action",
         },
-        type: "userActivity"
+        type: "userActivity",
       });
     } catch (auditError) {
       console.error("Error creating audit log (non-critical):", auditError);
@@ -194,24 +201,27 @@ export async function approveReportAction(
     // Send notifications if enabled
     if (notifyUsers) {
       try {
-        const notificationType = status === "approved"
-          ? NotificationType.REPORT_APPROVED
-          : NotificationType.REPORT_REJECTED;
+        const notificationType =
+          status === "approved"
+            ? NotificationType.REPORT_APPROVED
+            : NotificationType.REPORT_REJECTED;
 
         const targetUsers = await getUsersForNotification(notificationType, {
           reportId: report.id,
           submittedBy: report.submittedBy,
           branchId: report.branchId,
           approverName,
-          comments: comments || ""
+          comments: comments || "",
         });
 
         if (targetUsers.length > 0) {
           // Generate title and body based on notification type
-          let title = status === "approved" ? "Report Approved" : "Report Rejected";
-          let body = status === "approved"
-            ? `Your report has been approved by ${approverName}.`
-            : `Your report has been rejected${comments ? ` with reason: ${comments}` : ""}.`;
+          let title =
+            status === "approved" ? "Report Approved" : "Report Rejected";
+          let body =
+            status === "approved"
+              ? `Your report has been approved by ${approverName}.`
+              : `Your report has been rejected${comments ? ` with reason: ${comments}` : ""}.`;
 
           // Send notification using enhanced Redis notification service
           const notificationId = await sendNotification({
@@ -225,45 +235,48 @@ export async function approveReportAction(
               title,
               body,
               actionUrl: `/dashboard?viewReport=${report.id}`,
-              date: new Date(report.date).toISOString().split('T')[0],
-              reportType: report.reportType
+              date: new Date(report.date).toISOString().split("T")[0],
+              reportType: report.reportType,
             },
             userIds: targetUsers,
-            priority: 'high', // Approval/rejection notifications are high priority
-            idempotencyKey: `report-${report.id}-${status}-${Date.now()}`
+            priority: "high", // Approval/rejection notifications are high priority
+            idempotencyKey: `report-${report.id}-${status}-${Date.now()}`,
           });
 
-          console.log(`Notification sent via enhanced Redis service: ${notificationId}`);
+          console.log(
+            `Notification sent via enhanced Redis service: ${notificationId}`,
+          );
         }
       } catch (notificationError) {
-        console.error("Error sending notifications (non-critical):", notificationError);
+        console.error(
+          "Error sending notifications (non-critical):",
+          notificationError,
+        );
       }
     }
 
     // Broadcast the status change via SSE for real-time updates
     try {
-      const eventType = status === "approved"
-        ? DashboardEventTypes.REPORT_STATUS_UPDATED
-        : DashboardEventTypes.REPORT_STATUS_UPDATED;
+      const eventType =
+        status === "approved"
+          ? DashboardEventTypes.REPORT_STATUS_UPDATED
+          : DashboardEventTypes.REPORT_STATUS_UPDATED;
 
-      broadcastDashboardUpdate(
-        eventType,
-        {
-          reportId: report.id,
-          branchId: report.branchId,
-          branchName: report.branch.name,
-          status: status,
-          previousStatus: report.status,
-          writeOffs: Number(report.writeOffs),
-          ninetyPlus: Number(report.ninetyPlus),
-          date: new Date(report.date).toISOString().split('T')[0],
-          reportType: report.reportType,
-          approvedBy: session.user.id,
-          approverName: approverName,
-          comments: comments || "",
-          timestamp: new Date().toISOString()
-        }
-      );
+      broadcastDashboardUpdate(eventType, {
+        reportId: report.id,
+        branchId: report.branchId,
+        branchName: report.branch.name,
+        status: status,
+        previousStatus: report.status,
+        writeOffs: Number(report.writeOffs),
+        ninetyPlus: Number(report.ninetyPlus),
+        date: new Date(report.date).toISOString().split("T")[0],
+        reportType: report.reportType,
+        approvedBy: session.user.id,
+        approverName: approverName,
+        comments: comments || "",
+        timestamp: new Date().toISOString(),
+      });
     } catch (sseError) {
       console.error("Error broadcasting SSE event (non-critical):", sseError);
     }
@@ -276,13 +289,13 @@ export async function approveReportAction(
     return {
       success: true,
       data: transformedReport,
-      message: `Report ${status} successfully`
+      message: `Report ${status} successfully`,
     };
   } catch (error) {
     console.error("Error processing report approval:", error);
     return {
       success: false,
-      error: "Failed to process report approval"
+      error: "Failed to process report approval",
     };
   }
 }
@@ -290,14 +303,17 @@ export async function approveReportAction(
 /**
  * Server action to fetch reports for approval with flexible status filtering
  */
-export async function fetchPendingReportsAction(status?: string, includeRejected: boolean = true) {
+export async function fetchPendingReportsAction(
+  status?: string,
+  includeRejected: boolean = true,
+) {
   try {
     const session = await getServerSession(authOptions);
 
     if (!session?.user?.id) {
       return {
         success: false,
-        error: "Unauthorized - Authentication required"
+        error: "Unauthorized - Authentication required",
       };
     }
 
@@ -307,7 +323,7 @@ export async function fetchPendingReportsAction(status?: string, includeRejected
     if (status === "all") {
       // Include all relevant statuses for the approvals page
       statusFilter = {
-        in: ["pending", "pending_approval", "approved", "rejected"]
+        in: ["pending", "pending_approval", "approved", "rejected"],
       };
     } else if (status && status !== "pending") {
       // Use the specific status if provided
@@ -322,12 +338,12 @@ export async function fetchPendingReportsAction(status?: string, includeRejected
       }
 
       statusFilter = {
-        in: statuses
+        in: statuses,
       };
     }
 
     const filter: any = {
-      status: statusFilter
+      status: statusFilter,
     };
 
     // Get reports based on the filter
@@ -338,8 +354,8 @@ export async function fetchPendingReportsAction(status?: string, includeRejected
           select: {
             id: true,
             name: true,
-            code: true
-          }
+            code: true,
+          },
         },
         ReportComment: {
           include: {
@@ -352,56 +368,61 @@ export async function fetchPendingReportsAction(status?: string, includeRejected
             },
           },
           orderBy: {
-            createdAt: 'asc',
+            createdAt: "asc",
           },
         },
         planReport: true,
-        actualReports: true
+        actualReports: true,
       },
       orderBy: {
-        createdAt: 'desc'
-      }
+        createdAt: "desc",
+      },
     });
 
     // Get all unique submitter IDs
-    const submitterIds = [...new Set(reports.map(report => report.submittedBy))];
+    const submitterIds = [
+      ...new Set(reports.map((report) => report.submittedBy)),
+    ];
 
     // Fetch all users in a single query for efficiency
     const users = await prisma.user.findMany({
       where: {
         id: {
-          in: submitterIds
-        }
+          in: submitterIds,
+        },
       },
       select: {
         id: true,
         name: true,
-        username: true
-      }
+        username: true,
+      },
     });
 
     // Create a map for quick user lookup
-    const userMap = new Map(users.map(user => [user.id, user]));
+    const userMap = new Map(users.map((user) => [user.id, user]));
 
     // Transform Decimal fields to numbers for each report and add user data
-    const transformedReports = reports.map(report => {
+    const transformedReports = reports.map((report) => {
       // Get user data from the map
       const userData = userMap.get(report.submittedBy) || null;
 
       // Process planReport if it exists
-      const processedPlanReport = report.planReport ? {
-        ...report.planReport,
-        writeOffs: Number(report.planReport.writeOffs),
-        ninetyPlus: Number(report.planReport.ninetyPlus),
-      } : null;
+      const processedPlanReport = report.planReport
+        ? {
+            ...report.planReport,
+            writeOffs: Number(report.planReport.writeOffs),
+            ninetyPlus: Number(report.planReport.ninetyPlus),
+          }
+        : null;
 
       // Process actualReports if they exist
-      const processedActualReports = report.actualReports ?
-        report.actualReports.map(actualReport => ({
-          ...actualReport,
-          writeOffs: Number(actualReport.writeOffs),
-          ninetyPlus: Number(actualReport.ninetyPlus),
-        })) : null;
+      const processedActualReports = report.actualReports
+        ? report.actualReports.map((actualReport) => ({
+            ...actualReport,
+            writeOffs: Number(actualReport.writeOffs),
+            ninetyPlus: Number(actualReport.ninetyPlus),
+          }))
+        : null;
 
       return {
         ...report,
@@ -414,19 +435,19 @@ export async function fetchPendingReportsAction(status?: string, includeRejected
         user: userData,
         // Add processed related reports
         planReport: processedPlanReport,
-        actualReports: processedActualReports
+        actualReports: processedActualReports,
       };
     });
 
     return {
       success: true,
-      reports: transformedReports
+      reports: transformedReports,
     };
   } catch (error) {
     console.error("Error fetching reports:", error);
     return {
       success: false,
-      error: "Failed to fetch reports"
+      error: "Failed to fetch reports",
     };
   }
 }
@@ -441,7 +462,7 @@ export async function getReportDetailsAction(id: string) {
     if (!session?.user?.id) {
       return {
         success: false,
-        error: "Unauthorized"
+        error: "Unauthorized",
       };
     }
 
@@ -460,49 +481,54 @@ export async function getReportDetailsAction(id: string) {
             },
           },
           orderBy: {
-            createdAt: 'asc',
+            createdAt: "asc",
           },
         },
         planReport: true,
-        actualReports: true
-      }
+        actualReports: true,
+      },
     });
 
     // Transform Decimal fields to numbers if report exists
-    const transformedReport = report ? {
-      ...report,
-      writeOffs: Number(report.writeOffs),
-      ninetyPlus: Number(report.ninetyPlus),
-      // Process related reports if they exist
-      planReport: report.planReport ? {
-        ...report.planReport,
-        writeOffs: Number(report.planReport.writeOffs),
-        ninetyPlus: Number(report.planReport.ninetyPlus),
-      } : null,
-      actualReports: report.actualReports ?
-        report.actualReports.map(actualReport => ({
-          ...actualReport,
-          writeOffs: Number(actualReport.writeOffs),
-          ninetyPlus: Number(actualReport.ninetyPlus),
-        })) : null,
-    } : null;
+    const transformedReport = report
+      ? {
+          ...report,
+          writeOffs: Number(report.writeOffs),
+          ninetyPlus: Number(report.ninetyPlus),
+          // Process related reports if they exist
+          planReport: report.planReport
+            ? {
+                ...report.planReport,
+                writeOffs: Number(report.planReport.writeOffs),
+                ninetyPlus: Number(report.planReport.ninetyPlus),
+              }
+            : null,
+          actualReports: report.actualReports
+            ? report.actualReports.map((actualReport) => ({
+                ...actualReport,
+                writeOffs: Number(actualReport.writeOffs),
+                ninetyPlus: Number(actualReport.ninetyPlus),
+              }))
+            : null,
+        }
+      : null;
 
     if (!report) {
       return {
         success: false,
-        error: "Report not found"
+        error: "Report not found",
       };
     }
 
     return {
       success: true,
-      report: transformedReport
+      report: transformedReport,
     };
   } catch (error) {
     console.error("Error fetching report details:", error);
     return {
       success: false,
-      error: "Failed to fetch report details"
+      error: "Failed to fetch report details",
     };
   }
 }
@@ -517,7 +543,7 @@ export async function fetchApprovalHistoryAction({
   reportType,
   status,
   dateRange,
-  searchTerm
+  searchTerm,
 }: {
   page?: number;
   limit?: number;
@@ -533,7 +559,7 @@ export async function fetchApprovalHistoryAction({
     if (!session?.user?.id) {
       return {
         success: false,
-        error: "Unauthorized - Authentication required"
+        error: "Unauthorized - Authentication required",
       };
     }
 
@@ -542,7 +568,7 @@ export async function fetchApprovalHistoryAction({
     if (!checkPermission(userRole, Permission.APPROVE_REPORTS)) {
       return {
         success: false,
-        error: "Forbidden - You don't have permission to view approval history"
+        error: "Forbidden - You don't have permission to view approval history",
       };
     }
 
@@ -552,8 +578,8 @@ export async function fetchApprovalHistoryAction({
     // Build the where condition for UserActivity
     const where: any = {
       action: {
-        in: [AuditAction.REPORT_APPROVED, AuditAction.REPORT_REJECTED]
-      }
+        in: [AuditAction.REPORT_APPROVED, AuditAction.REPORT_REJECTED],
+      },
     };
 
     // Add search filter if provided
@@ -561,18 +587,18 @@ export async function fetchApprovalHistoryAction({
       where.OR = [
         {
           details: {
-            path: ['branchName'],
-            string_contains: searchTerm
-          }
+            path: ["branchName"],
+            string_contains: searchTerm,
+          },
         },
         {
           user: {
             name: {
               contains: searchTerm,
-              mode: 'insensitive'
-            }
-          }
-        }
+              mode: "insensitive",
+            },
+          },
+        },
       ];
     }
 
@@ -580,8 +606,8 @@ export async function fetchApprovalHistoryAction({
     if (branchId) {
       where.details = {
         ...where.details,
-        path: ['branchId'],
-        equals: branchId
+        path: ["branchId"],
+        equals: branchId,
       };
     }
 
@@ -589,16 +615,17 @@ export async function fetchApprovalHistoryAction({
     if (reportType) {
       where.details = {
         ...where.details,
-        path: ['reportType'],
-        equals: reportType
+        path: ["reportType"],
+        equals: reportType,
       };
     }
 
     // Add status filter if provided
     if (status) {
-      where.action = status === 'approved'
-        ? AuditAction.REPORT_APPROVED
-        : AuditAction.REPORT_REJECTED;
+      where.action =
+        status === "approved"
+          ? AuditAction.REPORT_APPROVED
+          : AuditAction.REPORT_REJECTED;
     }
 
     // Add date range filter if provided
@@ -628,7 +655,7 @@ export async function fetchApprovalHistoryAction({
           },
         },
         orderBy: {
-          createdAt: 'desc',
+          createdAt: "desc",
         },
         skip,
         take: limit,
@@ -637,19 +664,22 @@ export async function fetchApprovalHistoryAction({
     ]);
 
     // Process the activities to extract report details
-    const approvalHistory = activities.map(activity => {
+    const approvalHistory = activities.map((activity) => {
       const details = activity.details as any;
       return {
         id: activity.id,
-        reportId: details.reportId || '',
-        branchId: details.branchId || '',
-        branchName: details.branchName || 'Unknown Branch',
-        reportDate: details.reportDate || '',
-        reportType: details.reportType || '',
-        status: activity.action === AuditAction.REPORT_APPROVED ? 'approved' : 'rejected',
-        comments: details.comments || '',
+        reportId: details.reportId || "",
+        branchId: details.branchId || "",
+        branchName: details.branchName || "Unknown Branch",
+        reportDate: details.reportDate || "",
+        reportType: details.reportType || "",
+        status:
+          activity.action === AuditAction.REPORT_APPROVED
+            ? "approved"
+            : "rejected",
+        comments: details.comments || "",
         approvedBy: activity.userId,
-        approverName: activity.user?.name || 'Unknown User',
+        approverName: activity.user?.name || "Unknown User",
         timestamp: activity.createdAt,
       };
     });
@@ -668,7 +698,7 @@ export async function fetchApprovalHistoryAction({
     console.error("Error fetching approval history:", error);
     return {
       success: false,
-      error: "Failed to fetch approval history"
+      error: "Failed to fetch approval history",
     };
   }
 }

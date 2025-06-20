@@ -4,7 +4,7 @@ import { ReactNode, useEffect, useState } from "react";
 import { useStore } from "@/auth/store";
 import { hasPermission, hasBranchAccess } from "@/auth/store/actions";
 import { Loader2, ShieldAlert } from "lucide-react";
-import { trackAuthEvent, AuthEventType } from '@/auth/utils/analytics';
+import { trackAuthEvent, AuthEventType } from "@/auth/utils/analytics";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface PermissionGateProps {
@@ -75,10 +75,14 @@ export function PermissionGate({
     if (permissions.length > 0) {
       if (requireAll) {
         // Must have all permissions
-        accessGranted = permissions.every(permission => hasPermission(permission));
+        accessGranted = permissions.every((permission) =>
+          hasPermission(permission),
+        );
       } else {
         // Must have at least one permission
-        accessGranted = permissions.some(permission => hasPermission(permission));
+        accessGranted = permissions.some((permission) =>
+          hasPermission(permission),
+        );
       }
     }
 
@@ -105,8 +109,8 @@ export function PermissionGate({
           permissions,
           roles,
           requireAll,
-          branchId
-        }
+          branchId,
+        },
       });
     }
   }, [isAuthenticated, user, permissions, roles, requireAll, branchId]);

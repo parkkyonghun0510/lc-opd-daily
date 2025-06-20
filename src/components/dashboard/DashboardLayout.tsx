@@ -27,7 +27,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         <div
           className={cn(
             "fixed inset-0 z-40 flex md:hidden",
-            sidebarOpen ? "block" : "hidden"
+            sidebarOpen ? "block" : "hidden",
           )}
         >
           {/* Sidebar backdrop */}

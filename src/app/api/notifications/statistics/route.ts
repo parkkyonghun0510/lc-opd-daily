@@ -19,13 +19,15 @@ export async function GET(req: NextRequest) {
     // Check permission
     const hasPermission = checkPermission(
       session.user.role,
-      Permission.MANAGE_SETTINGS
+      Permission.MANAGE_SETTINGS,
     );
-    
+
     if (!hasPermission) {
       return NextResponse.json(
-        { error: "You don't have permission to access notification statistics" },
-        { status: 403 }
+        {
+          error: "You don't have permission to access notification statistics",
+        },
+        { status: 403 },
       );
     }
 
@@ -33,11 +35,11 @@ export async function GET(req: NextRequest) {
     const url = new URL(req.url);
     const rangeParam = url.searchParams.get("range") || "7d";
     const branchId = url.searchParams.get("branchId");
-    
+
     // Calculate date range
     const now = new Date();
     let startDate = new Date();
-    
+
     switch (rangeParam) {
       case "24h":
         startDate.setHours(now.getHours() - 24);
@@ -64,50 +66,52 @@ export async function GET(req: NextRequest) {
     };
 
     // Add branch condition if specified
-    const branchCondition = branchId ? {
-      user: {
-        OR: [
-          { branchId },
-          {
-            branchAssignments: {
-              some: { branchId }
-            }
-          }
-        ]
-      }
-    } : {};
+    const branchCondition = branchId
+      ? {
+          user: {
+            OR: [
+              { branchId },
+              {
+                branchAssignments: {
+                  some: { branchId },
+                },
+              },
+            ],
+          },
+        }
+      : {};
 
     // Combine conditions
     const queryCondition = {
       ...dateRangeCondition,
-      ...branchCondition
+      ...branchCondition,
     };
 
     // 1. Total notifications count
     const totalCount = await prisma.inAppNotification.count({
-      where: queryCondition
+      where: queryCondition,
     });
 
     // 2. Read vs Unread counts
     const readCount = await prisma.inAppNotification.count({
       where: {
         ...queryCondition,
-        isRead: true
-      }
+        isRead: true,
+      },
     });
 
     // 3. Notification type distribution
     const typeDistribution = await prisma.inAppNotification.groupBy({
-      by: ['type'],
+      by: ["type"],
       _count: {
-        id: true
+        id: true,
       },
       where: queryCondition,
       orderBy: {
         _count: {
-          id: 'desc'
-        }
-      }
+          id: "desc",
+        },
+      },
     });
 
     // 4. Daily notification volume
@@ -123,45 +127,48 @@ export async function GET(req: NextRequest) {
 
     // 5. Delivery status counts
     const deliveryStatus = await prisma.notificationEvent.groupBy({
-      by: ['event'],
+      by: ["event"],
       _count: {
-        id: true
+        id: true,
       },
       where: {
         timestamp: {
           gte: startDate.toISOString(),
-          lte: now.toISOString()
-        }
-      }
+          lte: now.toISOString(),
+        },
+      },
     });
 
     // 6. Average notification engagement rate
-    const deliveredCount = deliveryStatus.find(d => d.event === 'DELIVERED')?._count.id || 0;
-    const clickedCount = deliveryStatus.find(d => d.event === 'CLICKED')?._count.id || 0;
-    const engagementRate = deliveredCount > 0 ? clickedCount / deliveredCount : 0;
+    const deliveredCount =
+      deliveryStatus.find((d) => d.event === "DELIVERED")?._count.id || 0;
+    const clickedCount =
+      deliveryStatus.find((d) => d.event === "CLICKED")?._count.id || 0;
+    const engagementRate =
+      deliveredCount > 0 ? clickedCount / deliveredCount : 0;
 
     // 7. Branch notification distribution (top 10)
     const branchDistribution = await prisma.inAppNotification.groupBy({
-      by: ['userId'],
+      by: ["userId"],
       _count: {
-        id: true
+        id: true,
       },
       where: queryCondition,
       orderBy: {
         _count: {
-          id: 'desc'
-        }
+          id: "desc",
+        },
       },
-      take: 10
+      take: 10,
     });
 
     // Get user and branch information for the top branches
-    const userIds = branchDistribution.map(item => item.userId);
+    const userIds = branchDistribution.map((item) => item.userId);
     const usersWithBranches = await prisma.user.findMany({
       where: {
         id: {
-          in: userIds
-        }
+          in: userIds,
+        },
       },
       select: {
         id: true,
@@ -170,22 +177,22 @@ export async function GET(req: NextRequest) {
           select: {
             id: true,
             name: true,
-            code: true
-          }
-        }
-      }
+            code: true,
+          },
+        },
+      },
     });
 
     // Map user branch info to distribution data
-    const branchStats = branchDistribution.map(item => {
-      const user = usersWithBranches.find(u => u.id === item.userId);
+    const branchStats = branchDistribution.map((item) => {
+      const user = usersWithBranches.find((u) => u.id === item.userId);
       return {
         userId: item.userId,
-        userName: user?.name || 'Unknown',
-        branchId: user?.branch?.id || 'Unknown',
-        branchName: user?.branch?.name || 'Unknown',
-        branchCode: user?.branch?.code || 'Unknown',
-        count: item._count.id
+        userName: user?.name || "Unknown",
+        branchId: user?.branch?.id || "Unknown",
+        branchName: user?.branch?.name || "Unknown",
+        branchCode: user?.branch?.code || "Unknown",
+        count: item._count.id,
       };
     });
 
@@ -194,36 +201,38 @@ export async function GET(req: NextRequest) {
       timeRange: {
         startDate: startDate.toISOString(),
         endDate: now.toISOString(),
-        rangeLabel: rangeParam
+        rangeLabel: rangeParam,
       },
       summary: {
         total: totalCount,
         read: readCount,
         unread: totalCount - readCount,
-        readRate: totalCount > 0 ? readCount / totalCount : 0
+        readRate: totalCount > 0 ? readCount / totalCount : 0,
       },
-      typeDistribution: typeDistribution.map(item => ({
+      typeDistribution: typeDistribution.map((item) => ({
         type: item.type,
         count: item._count.id,
-        percentage: totalCount > 0 ? (item._count.id / totalCount) * 100 : 0
+        percentage: totalCount > 0 ? (item._count.id / totalCount) * 100 : 0,
       })),
       dailyVolume,
       deliveryStatus: {
         raw: deliveryStatus,
-        sent: deliveryStatus.find(d => d.event === 'SENT')?._count.id || 0,
+        sent: deliveryStatus.find((d) => d.event === "SENT")?._count.id || 0,
         delivered: deliveredCount,
         clicked: clickedCount,
-        failed: deliveryStatus.find(d => d.event === 'FAILED')?._count.id || 0,
-        closed: deliveryStatus.find(d => d.event === 'CLOSED')?._count.id || 0,
-        engagementRate
+        failed:
+          deliveryStatus.find((d) => d.event === "FAILED")?._count.id || 0,
+        closed:
+          deliveryStatus.find((d) => d.event === "CLOSED")?._count.id || 0,
+        engagementRate,
       },
-      branchDistribution: branchStats
+      branchDistribution: branchStats,
     });
   } catch (error) {
     console.error("Error generating notification statistics:", error);
     return NextResponse.json(
       { error: "Failed to generate notification statistics" },
-      { status: 500 }
+      { status: 500 },
     );
   }
-} 
+}

@@ -75,7 +75,7 @@ export default function UserDetailPage() {
         throw new Error(result.error || "Failed to update security settings");
       }
 
-      setUser(prev => prev ? { ...prev, isActive: result.isActive } : null);
+      setUser((prev) => (prev ? { ...prev, isActive: result.isActive } : null));
       toast({
         title: "Success",
         description: "Security settings updated successfully",
@@ -85,7 +85,10 @@ export default function UserDetailPage() {
       console.error("Error updating security settings:", error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to update security settings",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to update security settings",
         variant: "destructive",
       });
       throw error;
@@ -101,7 +104,7 @@ export default function UserDetailPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-        }
+        },
       });
 
       const result = await response.json();
@@ -110,16 +113,19 @@ export default function UserDetailPage() {
         throw new Error(result.error || "Failed to update user status");
       }
 
-      setUser(prev => prev ? { ...prev, isActive: result.isActive } : null);
+      setUser((prev) => (prev ? { ...prev, isActive: result.isActive } : null));
       toast({
         title: "Success",
-        description: `User ${result.isActive ? 'activated' : 'deactivated'} successfully`,
+        description: `User ${result.isActive ? "activated" : "deactivated"} successfully`,
       });
     } catch (error) {
       console.error("Error toggling user status:", error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to update user status",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to update user status",
         variant: "destructive",
       });
     } finally {
@@ -162,9 +168,13 @@ export default function UserDetailPage() {
             }
           >
             {user.isActive ? (
-              <><CheckCircle className="mr-1 h-3 w-3" /> Active</>
+              <>
+                <CheckCircle className="mr-1 h-3 w-3" /> Active
+              </>
             ) : (
-              <><XCircle className="mr-1 h-3 w-3" /> Inactive</>
+              <>
+                <XCircle className="mr-1 h-3 w-3" /> Inactive
+              </>
             )}
           </Badge>
         </div>
@@ -197,7 +207,7 @@ export default function UserDetailPage() {
                     username: user.username,
                     email: user.email,
                     name: user.name,
-                    branchId: user.branchId
+                    branchId: user.branchId,
                   }}
                 />
               )}

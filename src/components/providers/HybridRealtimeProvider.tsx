@@ -1,9 +1,14 @@
-'use client';
+"use client";
 
-import { ReactNode, useEffect, useMemo } from 'react';
-import { useAuth } from '@/auth/hooks/useAuth';
-import { useHybridRealtime, EventHandlersMap, EventType, HybridRealtimeOptions } from '@/hooks/useHybridRealtime';
-import { toast } from 'sonner';
+import { ReactNode, useEffect, useMemo } from "react";
+import { useAuth } from "@/auth/hooks/useAuth";
+import {
+  useHybridRealtime,
+  EventHandlersMap,
+  EventType,
+  HybridRealtimeOptions,
+} from "@/hooks/useHybridRealtime";
+import { toast } from "sonner";
 
 interface HybridRealtimeProviderProps {
   children: ReactNode;
@@ -41,7 +46,7 @@ export function HybridRealtimeProvider({
   onEvent,
   autoReconnect = true,
   showToasts = true,
-  debug = false
+  debug = false,
 }: HybridRealtimeProviderProps) {
   // Get auth state
   const { user, isAuthenticated } = useAuth();
@@ -51,51 +56,52 @@ export function HybridRealtimeProvider({
     notification: (data: any) => {
       // Show toast notification if enabled
       if (showToasts) {
-        toast.info(data.title || 'New notification', {
-          description: data.message || data.body || 'You have a new notification',
+        toast.info(data.title || "New notification", {
+          description:
+            data.message || data.body || "You have a new notification",
         });
       }
 
       // Call onEvent callback if provided
       if (onEvent) {
-        onEvent('notification', data);
+        onEvent("notification", data);
       }
     },
 
     dashboardUpdate: (data: any) => {
       // Show toast notification if enabled
       if (showToasts) {
-        toast.info('Dashboard updated', {
-          description: 'New data is available',
+        toast.info("Dashboard updated", {
+          description: "New data is available",
         });
       }
 
       // Call onEvent callback if provided
       if (onEvent) {
-        onEvent('dashboardUpdate', data);
+        onEvent("dashboardUpdate", data);
       }
     },
 
     systemAlert: (data: any) => {
       // Show toast notification if enabled
       if (showToasts) {
-        toast.warning(data.title || 'System alert', {
-          description: data.message || data.body || 'System alert received',
+        toast.warning(data.title || "System alert", {
+          description: data.message || data.body || "System alert received",
         });
       }
 
       // Call onEvent callback if provided
       if (onEvent) {
-        onEvent('systemAlert', data);
+        onEvent("systemAlert", data);
       }
     },
 
     // Wildcard handler for all events
-    '*': (event: any) => {
+    "*": (event: any) => {
       if (onEvent && event.type) {
         onEvent(event.type, event.data);
       }
-    }
+    },
   });
 
   // Memoize event handlers to prevent unnecessary reconnections
@@ -131,20 +137,16 @@ export function HybridRealtimeProvider({
   }, [options.eventHandlers, defaultHandlers]);
 
   // Use the simplified realtime hook
-  const {
-    isConnected,
-    activeMethod,
-    reconnect
-  } = useHybridRealtime({
+  const { isConnected, activeMethod, reconnect } = useHybridRealtime({
     pollingInterval: options.pollingInterval || 10000,
     eventHandlers,
     debug: debug || options.debug,
     clientMetadata: {
       ...(options.clientMetadata || {}),
-      userId: user?.id || 'anonymous',
-      role: user?.role || 'user',
-      provider: 'HybridRealtimeProvider'
-    }
+      userId: user?.id || "anonymous",
+      role: user?.role || "user",
+      provider: "HybridRealtimeProvider",
+    },
   });
 
   // Set up reconnection on window focus
@@ -152,26 +154,32 @@ export function HybridRealtimeProvider({
     if (!autoReconnect || !isAuthenticated) return;
 
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && !isConnected) {
+      if (document.visibilityState === "visible" && !isConnected) {
         if (debug) {
-          console.log('[HybridRealtimeProvider] Document became visible, reconnecting');
+          console.log(
+            "[HybridRealtimeProvider] Document became visible, reconnecting",
+          );
         }
         reconnect();
       }
     };
 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [autoReconnect, isAuthenticated, isConnected, reconnect, debug]);
 
   // Log connection status changes in debug mode
   useEffect(() => {
     if (debug) {
-      console.log(`[HybridRealtimeProvider] Connection status: ${isConnected ? 'connected' : 'disconnected'}`);
-      console.log(`[HybridRealtimeProvider] Active method: ${activeMethod || 'none'}`);
+      console.log(
+        `[HybridRealtimeProvider] Connection status: ${isConnected ? "connected" : "disconnected"}`,
+      );
+      console.log(
+        `[HybridRealtimeProvider] Active method: ${activeMethod || "none"}`,
+      );
     }
   }, [isConnected, activeMethod, debug]);
 

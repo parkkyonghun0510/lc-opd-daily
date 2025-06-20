@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef } from "react";
 
 interface ErrorsChartProps {
   metrics: any;
@@ -16,7 +16,7 @@ export function ErrorsChart({ metrics, height = 300 }: ErrorsChartProps) {
     // This is a placeholder for chart rendering
     // In a real implementation, you would use a charting library like Chart.js
 
-    const ctx = chartRef.current.getContext('2d');
+    const ctx = chartRef.current.getContext("2d");
     if (!ctx) return;
 
     // Clear the canvas
@@ -27,7 +27,7 @@ export function ErrorsChart({ metrics, height = 300 }: ErrorsChartProps) {
     const chartHeight = chartRef.current.height;
 
     // Draw chart background
-    ctx.fillStyle = '#f0f4f8';
+    ctx.fillStyle = "#f0f4f8";
     ctx.fillRect(0, 0, width, chartHeight);
 
     // Get error types
@@ -35,10 +35,10 @@ export function ErrorsChart({ metrics, height = 300 }: ErrorsChartProps) {
 
     if (errorTypes.length === 0 || metrics.errors?.total === 0) {
       // No errors, draw empty chart
-      ctx.fillStyle = '#1f2937';
-      ctx.font = '14px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('No errors recorded', width / 2, chartHeight / 2);
+      ctx.fillStyle = "#1f2937";
+      ctx.font = "14px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("No errors recorded", width / 2, chartHeight / 2);
       return;
     }
 
@@ -51,8 +51,9 @@ export function ErrorsChart({ metrics, height = 300 }: ErrorsChartProps) {
     const total = metrics.errors.total;
 
     // Sort error types by count
-    const sortedErrorTypes = errorTypes.sort((a, b) =>
-      (metrics.errors.byType[b] || 0) - (metrics.errors.byType[a] || 0)
+    const sortedErrorTypes = errorTypes.sort(
+      (a, b) =>
+        (metrics.errors.byType[b] || 0) - (metrics.errors.byType[a] || 0),
     );
 
     // Draw pie slices
@@ -79,22 +80,26 @@ export function ErrorsChart({ metrics, height = 300 }: ErrorsChartProps) {
       const labelX = centerX + Math.cos(midAngle) * labelRadius;
       const labelY = centerY + Math.sin(midAngle) * labelRadius;
 
-      ctx.strokeStyle = '#1f2937';
+      ctx.strokeStyle = "#1f2937";
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(centerX + Math.cos(midAngle) * radius, centerY + Math.sin(midAngle) * radius);
+      ctx.moveTo(
+        centerX + Math.cos(midAngle) * radius,
+        centerY + Math.sin(midAngle) * radius,
+      );
       ctx.lineTo(labelX, labelY);
       ctx.stroke();
 
       // Draw label
-      ctx.fillStyle = '#1f2937';
-      ctx.font = '12px sans-serif';
-      ctx.textAlign = midAngle < Math.PI ? 'left' : 'right';
-      ctx.textBaseline = 'middle';
+      ctx.fillStyle = "#1f2937";
+      ctx.font = "12px sans-serif";
+      ctx.textAlign = midAngle < Math.PI ? "left" : "right";
+      ctx.textBaseline = "middle";
 
       // Truncate long error type names
-      const displayName = errorType.length > 15 ? errorType.substring(0, 13) + '...' : errorType;
-      const percentage = ((count / total) * 100).toFixed(1) + '%';
+      const displayName =
+        errorType.length > 15 ? errorType.substring(0, 13) + "..." : errorType;
+      const percentage = ((count / total) * 100).toFixed(1) + "%";
       ctx.fillText(`${displayName} (${percentage})`, labelX, labelY);
 
       // Update start angle for next slice
@@ -102,20 +107,19 @@ export function ErrorsChart({ metrics, height = 300 }: ErrorsChartProps) {
     });
 
     // Draw center circle (donut hole)
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = "#ffffff";
     ctx.beginPath();
     ctx.arc(centerX, centerY, radius * 0.5, 0, 2 * Math.PI);
     ctx.fill();
 
     // Draw total errors in the center
-    ctx.fillStyle = '#1f2937';
-    ctx.font = 'bold 16px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
+    ctx.fillStyle = "#1f2937";
+    ctx.font = "bold 16px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
     ctx.fillText(`Total Errors`, centerX, centerY - 10);
-    ctx.font = 'bold 24px sans-serif';
+    ctx.font = "bold 24px sans-serif";
     ctx.fillText(total.toString(), centerX, centerY + 15);
-
   }, [metrics, height]);
 
   if (!metrics) {
@@ -127,18 +131,15 @@ export function ErrorsChart({ metrics, height = 300 }: ErrorsChartProps) {
   }
 
   // Get error types for the legend
-  const errorTypes = Object.entries(metrics.errors?.byType || {})
-    .sort((a, b) => (b[1] as number) - (a[1] as number));
+  const errorTypes = Object.entries(metrics.errors?.byType || {}).sort(
+    (a, b) => (b[1] as number) - (a[1] as number),
+  );
 
   const totalErrors = metrics.errors?.total || 0;
 
   return (
     <div>
-      <canvas
-        ref={chartRef}
-        height={height}
-        className="w-full"
-      />
+      <canvas ref={chartRef} height={height} className="w-full" />
 
       {errorTypes.length > 0 && totalErrors > 0 && (
         <div className="mt-4">
@@ -148,10 +149,13 @@ export function ErrorsChart({ metrics, height = 300 }: ErrorsChartProps) {
               <div key={errorType} className="flex items-center">
                 <div
                   className="w-4 h-4 mr-2"
-                  style={{ backgroundColor: `hsl(${(index * 137) % 360}, 70%, 60%)` }}
+                  style={{
+                    backgroundColor: `hsl(${(index * 137) % 360}, 70%, 60%)`,
+                  }}
                 ></div>
                 <span className="text-sm truncate">
-                  {errorType}: {Number(count)} ({((Number(count) / totalErrors) * 100).toFixed(1)}%)
+                  {errorType}: {Number(count)} (
+                  {((Number(count) / totalErrors) * 100).toFixed(1)}%)
                 </span>
               </div>
             ))}
@@ -161,7 +165,9 @@ export function ErrorsChart({ metrics, height = 300 }: ErrorsChartProps) {
 
       {(errorTypes.length === 0 || totalErrors === 0) && (
         <div className="mt-4 p-4 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded">
-          <p className="text-center">No errors recorded. Everything is working correctly!</p>
+          <p className="text-center">
+            No errors recorded. Everything is working correctly!
+          </p>
         </div>
       )}
     </div>

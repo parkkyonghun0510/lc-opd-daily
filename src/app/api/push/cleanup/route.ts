@@ -1,6 +1,6 @@
-import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import webpush from 'web-push';
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import webpush from "web-push";
 
 export async function POST() {
   try {
@@ -25,16 +25,16 @@ export async function POST() {
             },
           },
           JSON.stringify({
-            title: 'Test',
-            body: 'Testing subscription validity',
-            tag: 'subscription-validation',
+            title: "Test",
+            body: "Testing subscription validity",
+            tag: "subscription-validation",
             silent: true,
             requireInteraction: false,
             data: {
-              type: 'validation',
-              timestamp: Date.now()
-            }
-          })
+              type: "validation",
+              timestamp: Date.now(),
+            },
+          }),
         );
         validSubscriptions.push(subscription.id);
       } catch (error: any) {
@@ -62,10 +62,10 @@ export async function POST() {
       deletedCount: invalidSubscriptions.length,
     });
   } catch (error) {
-    console.error('Error cleaning up push subscriptions:', error);
+    console.error("Error cleaning up push subscriptions:", error);
     return NextResponse.json(
-      { error: 'Failed to clean up push subscriptions' },
-      { status: 500 }
+      { error: "Failed to clean up push subscriptions" },
+      { status: 500 },
     );
   }
-} 
+}

@@ -8,7 +8,7 @@ import {
   MessageSquare,
   PencilIcon,
   ThumbsUp,
-  MessageSquareReply
+  MessageSquareReply,
 } from "lucide-react";
 import {
   Dialog,
@@ -51,7 +51,7 @@ export interface ReportComment {
   };
 }
 
-export interface ReportWithUser extends Omit<Report, 'user'> {
+export interface ReportWithUser extends Omit<Report, "user"> {
   user: {
     id: string;
     name: string;
@@ -81,7 +81,7 @@ const formatCommentHistory = (comments: string) => {
     // No special markup, just return the original text
     return {
       hasConversation: false,
-      formattedComments: comments
+      formattedComments: comments,
     };
   }
 
@@ -91,10 +91,10 @@ const formatCommentHistory = (comments: string) => {
   // Handle the first part (if it exists and isn't empty)
   if (commentParts[0].trim()) {
     conversation.push({
-      type: 'rejection',
-      date: '',
-      author: 'System',
-      text: commentParts[0].trim()
+      type: "rejection",
+      date: "",
+      author: "System",
+      text: commentParts[0].trim(),
     });
   }
 
@@ -102,14 +102,14 @@ const formatCommentHistory = (comments: string) => {
   for (let i = 1; i < commentParts.length; i += 3) {
     const type = commentParts[i]; // RESUBMISSION or COMMENT
     const meta = commentParts[i + 1]; // timestamp or "timestamp by username"
-    const text = (i + 2 < commentParts.length) ? commentParts[i + 2].trim() : '';
+    const text = i + 2 < commentParts.length ? commentParts[i + 2].trim() : "";
 
     let date = meta;
-    let author = 'User';
+    let author = "User";
 
     // Parse metadata differently based on type
-    if (type === 'COMMENT') {
-      const byIndex = meta.indexOf(' by ');
+    if (type === "COMMENT") {
+      const byIndex = meta.indexOf(" by ");
       if (byIndex > -1) {
         date = meta.substring(0, byIndex);
         author = meta.substring(byIndex + 4);
@@ -120,13 +120,13 @@ const formatCommentHistory = (comments: string) => {
       type: type.toLowerCase(),
       date,
       author,
-      text
+      text,
     });
   }
 
   return {
     hasConversation: true,
-    conversation
+    conversation,
   };
 };
 
@@ -135,15 +135,17 @@ export const CommentConversation = ({
   comments,
   commentArray,
   reportId,
-  onReplyAdded
+  onReplyAdded,
 }: {
   comments?: string;
   commentArray?: CommentItemType[];
   reportId: string;
   onReplyAdded: () => void;
 }) => {
-  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
-  const [filterType, setFilterType] = useState<'all' | 'comments' | 'rejections'>('all');
+  const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
+  const [filterType, setFilterType] = useState<
+    "all" | "comments" | "rejections"
+  >("all");
 
   // Process the comment array to organize comments and replies
   const processCommentArray = (comments: CommentItemType[]) => {
@@ -152,17 +154,17 @@ export const CommentConversation = ({
     const topLevelComments: CommentItemType[] = [];
 
     // First pass: collect all comments in a map
-    comments.forEach(comment => {
+    comments.forEach((comment) => {
       // Create a copy with an empty replies array if it doesn't exist
       const commentWithReplies = {
         ...comment,
-        replies: comment.replies || []
+        replies: comment.replies || [],
       };
       commentMap.set(comment.id, commentWithReplies);
     });
 
     // Second pass: organize comments into a hierarchy
-    comments.forEach(comment => {
+    comments.forEach((comment) => {
       if (comment.parentId && commentMap.has(comment.parentId)) {
         // This is a reply, add it to its parent's replies
         const parent = commentMap.get(comment.parentId);
@@ -177,12 +179,12 @@ export const CommentConversation = ({
 
     // Apply filtering
     let filteredComments = topLevelComments;
-    if (filterType !== 'all') {
-      filteredComments = topLevelComments.filter(comment => {
-        if (filterType === 'comments') {
-          return comment.type === 'comment' || comment.type === 'reply';
-        } else if (filterType === 'rejections') {
-          return comment.type === 'rejection';
+    if (filterType !== "all") {
+      filteredComments = topLevelComments.filter((comment) => {
+        if (filterType === "comments") {
+          return comment.type === "comment" || comment.type === "reply";
+        } else if (filterType === "rejections") {
+          return comment.type === "rejection";
         }
         return true;
       });
@@ -192,7 +194,7 @@ export const CommentConversation = ({
     const sortedComments = [...filteredComments].sort((a, b) => {
       const dateA = new Date(a.timestamp).getTime();
       const dateB = new Date(b.timestamp).getTime();
-      return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
+      return sortOrder === "newest" ? dateB - dateA : dateA - dateB;
     });
 
     return sortedComments;
@@ -210,20 +212,20 @@ export const CommentConversation = ({
             <span className="text-gray-500">Filter:</span>
             <div className="flex border rounded-md overflow-hidden">
               <button
-                className={`px-2 py-1 ${filterType === 'all' ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200' : 'bg-gray-50 dark:bg-gray-800'}`}
-                onClick={() => setFilterType('all')}
+                className={`px-2 py-1 ${filterType === "all" ? "bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200" : "bg-gray-50 dark:bg-gray-800"}`}
+                onClick={() => setFilterType("all")}
               >
                 All
               </button>
               <button
-                className={`px-2 py-1 ${filterType === 'comments' ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200' : 'bg-gray-50 dark:bg-gray-800'}`}
-                onClick={() => setFilterType('comments')}
+                className={`px-2 py-1 ${filterType === "comments" ? "bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200" : "bg-gray-50 dark:bg-gray-800"}`}
+                onClick={() => setFilterType("comments")}
               >
                 Comments
               </button>
               <button
-                className={`px-2 py-1 ${filterType === 'rejections' ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200' : 'bg-gray-50 dark:bg-gray-800'}`}
-                onClick={() => setFilterType('rejections')}
+                className={`px-2 py-1 ${filterType === "rejections" ? "bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200" : "bg-gray-50 dark:bg-gray-800"}`}
+                onClick={() => setFilterType("rejections")}
               >
                 Rejections
               </button>
@@ -234,14 +236,14 @@ export const CommentConversation = ({
             <span className="text-gray-500">Sort:</span>
             <div className="flex border rounded-md overflow-hidden">
               <button
-                className={`px-2 py-1 ${sortOrder === 'newest' ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200' : 'bg-gray-50 dark:bg-gray-800'}`}
-                onClick={() => setSortOrder('newest')}
+                className={`px-2 py-1 ${sortOrder === "newest" ? "bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200" : "bg-gray-50 dark:bg-gray-800"}`}
+                onClick={() => setSortOrder("newest")}
               >
                 Newest
               </button>
               <button
-                className={`px-2 py-1 ${sortOrder === 'oldest' ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200' : 'bg-gray-50 dark:bg-gray-800'}`}
-                onClick={() => setSortOrder('oldest')}
+                className={`px-2 py-1 ${sortOrder === "oldest" ? "bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200" : "bg-gray-50 dark:bg-gray-800"}`}
+                onClick={() => setSortOrder("oldest")}
               >
                 Oldest
               </button>
@@ -259,7 +261,9 @@ export const CommentConversation = ({
             />
           ))
         ) : (
-          <p className="text-gray-500 italic text-sm">No comments match the current filter</p>
+          <p className="text-gray-500 italic text-sm">
+            No comments match the current filter
+          </p>
         )}
       </div>
     );
@@ -284,31 +288,31 @@ export const CommentConversation = ({
             key={index}
             className={cn(
               "p-3 rounded-md transition-all duration-200 hover:shadow-md",
-              entry.type === 'rejection'
+              entry.type === "rejection"
                 ? "bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800"
-                : entry.type === 'comment'
+                : entry.type === "comment"
                   ? "bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800"
-                  : "bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800"
+                  : "bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800",
             )}
           >
             <div className="flex items-start gap-3">
               {/* User Avatar */}
               <Avatar className="h-8 w-8 ring-2 ring-transparent hover:ring-blue-200 dark:hover:ring-blue-800 transition-all duration-200">
                 <AvatarImage
-                  src={`https://api.dicebear.com/7.x/initials/svg?seed=${entry.author || 'System'}`}
-                  alt={entry.author || 'System'}
+                  src={`https://api.dicebear.com/7.x/initials/svg?seed=${entry.author || "System"}`}
+                  alt={entry.author || "System"}
                 />
                 <AvatarFallback
                   className={cn(
                     "text-white",
-                    entry.type === 'rejection'
+                    entry.type === "rejection"
                       ? "bg-gradient-to-br from-red-400 to-red-600"
-                      : entry.type === 'comment'
+                      : entry.type === "comment"
                         ? "bg-gradient-to-br from-blue-400 to-blue-600"
-                        : "bg-gradient-to-br from-green-400 to-green-600"
+                        : "bg-gradient-to-br from-green-400 to-green-600",
                   )}
                 >
-                  {(entry.author || 'S').charAt(0).toUpperCase()}
+                  {(entry.author || "S").charAt(0).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
 
@@ -316,31 +320,35 @@ export const CommentConversation = ({
                 {/* Comment Header */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-1">
                   <div className="flex items-center gap-2">
-                    <span className={cn(
-                      "text-sm font-medium",
-                      entry.type === 'rejection'
-                        ? "text-red-800 dark:text-red-300"
-                        : entry.type === 'comment'
-                          ? "text-blue-800 dark:text-blue-300"
-                          : "text-green-800 dark:text-green-300"
-                    )}>
-                      {entry.type === 'rejection'
+                    <span
+                      className={cn(
+                        "text-sm font-medium",
+                        entry.type === "rejection"
+                          ? "text-red-800 dark:text-red-300"
+                          : entry.type === "comment"
+                            ? "text-blue-800 dark:text-blue-300"
+                            : "text-green-800 dark:text-green-300",
+                      )}
+                    >
+                      {entry.type === "rejection"
                         ? "System"
-                        : entry.type === 'comment'
+                        : entry.type === "comment"
                           ? entry.author
                           : entry.author || "User"}
                     </span>
-                    <span className={cn(
-                      "text-xs",
-                      entry.type === 'rejection'
-                        ? "text-red-700 dark:text-red-400 bg-red-100 dark:bg-red-900/40 px-1.5 py-0.5 rounded-full"
-                        : entry.type === 'comment'
-                          ? "text-blue-700 dark:text-blue-400"
-                          : "text-green-700 dark:text-green-400 bg-green-100 dark:bg-green-900/40 px-1.5 py-0.5 rounded-full"
-                    )}>
-                      {entry.type === 'rejection'
+                    <span
+                      className={cn(
+                        "text-xs",
+                        entry.type === "rejection"
+                          ? "text-red-700 dark:text-red-400 bg-red-100 dark:bg-red-900/40 px-1.5 py-0.5 rounded-full"
+                          : entry.type === "comment"
+                            ? "text-blue-700 dark:text-blue-400"
+                            : "text-green-700 dark:text-green-400 bg-green-100 dark:bg-green-900/40 px-1.5 py-0.5 rounded-full",
+                      )}
+                    >
+                      {entry.type === "rejection"
                         ? "Rejection"
-                        : entry.type === 'comment'
+                        : entry.type === "comment"
                           ? ""
                           : "Resubmission"}
                     </span>
@@ -362,14 +370,16 @@ export const CommentConversation = ({
                 </div>
 
                 {/* Comment Content */}
-                <p className={cn(
-                  "text-sm whitespace-pre-wrap leading-relaxed",
-                  entry.type === 'rejection'
-                    ? "text-red-800 dark:text-red-200"
-                    : entry.type === 'comment'
-                      ? "text-blue-800 dark:text-blue-200"
-                      : "text-green-800 dark:text-green-200"
-                )}>
+                <p
+                  className={cn(
+                    "text-sm whitespace-pre-wrap leading-relaxed",
+                    entry.type === "rejection"
+                      ? "text-red-800 dark:text-red-200"
+                      : entry.type === "comment"
+                        ? "text-blue-800 dark:text-blue-200"
+                        : "text-green-800 dark:text-green-200",
+                  )}
+                >
                   {entry.text}
                 </p>
 
@@ -404,9 +414,19 @@ export const CommentConversation = ({
   return <p className="text-gray-500 italic">No comments available</p>;
 };
 
-export function ReportDetailModal({ report, isOpen, onClose, onEdit, initialAction }: ReportDetailModalProps) {
-  const [refreshedReport, setRefreshedReport] = useState<ReportWithUser | null>(null);
-  const [replyingToComment, setReplyingToComment] = useState<string | null>(null);
+export function ReportDetailModal({
+  report,
+  isOpen,
+  onClose,
+  onEdit,
+  initialAction,
+}: ReportDetailModalProps) {
+  const [refreshedReport, setRefreshedReport] = useState<ReportWithUser | null>(
+    null,
+  );
+  const [replyingToComment, setReplyingToComment] = useState<string | null>(
+    null,
+  );
   const [showCommentSection, setShowCommentSection] = useState(false);
 
   // Use either the refreshed report or the original passed report
@@ -422,9 +442,9 @@ export function ReportDetailModal({ report, isOpen, onClose, onEdit, initialActi
 
       // Handle initial action if provided
       if (initialAction) {
-        if (initialAction === 'reply') {
+        if (initialAction === "reply") {
           setShowCommentSection(true);
-        } else if (initialAction === 'edit' && onEdit) {
+        } else if (initialAction === "edit" && onEdit) {
           // Call onEdit with a slight delay to ensure the modal is fully rendered
           setTimeout(() => {
             onEdit(report);
@@ -450,7 +470,7 @@ export function ReportDetailModal({ report, isOpen, onClose, onEdit, initialActi
       // Convert the API response to ReportWithUser type
       setRefreshedReport({
         ...reportData,
-        user: null
+        user: null,
       });
     } catch (error) {
       console.error("Error refreshing report details:", error);
@@ -468,9 +488,11 @@ export function ReportDetailModal({ report, isOpen, onClose, onEdit, initialActi
             <span>Report Details</span>
             <Badge
               variant={
-                displayReport.status === "approved" ? "default" :
-                  displayReport.status === "rejected" ? "destructive" :
-                    "secondary"
+                displayReport.status === "approved"
+                  ? "default"
+                  : displayReport.status === "rejected"
+                    ? "destructive"
+                    : "secondary"
               }
               className="capitalize"
             >
@@ -478,14 +500,17 @@ export function ReportDetailModal({ report, isOpen, onClose, onEdit, initialActi
             </Badge>
           </DialogTitle>
           <DialogDescription>
-            {format(new Date(displayReport.date), "PPP")} - {displayReport.branch.name}
+            {format(new Date(displayReport.date), "PPP")} -{" "}
+            {displayReport.branch.name}
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4 py-4">
           {/* Report Type */}
           <div className="flex items-center justify-between">
-            <Label className="text-sm font-medium text-gray-500">Report Type</Label>
+            <Label className="text-sm font-medium text-gray-500">
+              Report Type
+            </Label>
             <span className="capitalize">{displayReport.reportType}</span>
           </div>
 
@@ -495,40 +520,86 @@ export function ReportDetailModal({ report, isOpen, onClose, onEdit, initialActi
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-md">
               <Label className="text-sm text-gray-500">Write-offs</Label>
-              <div className="text-lg font-semibold">{formatKHRCurrency(displayReport.writeOffs)}</div>
+              <div className="text-lg font-semibold">
+                {formatKHRCurrency(displayReport.writeOffs)}
+              </div>
 
-              {displayReport.reportType === "actual" && displayReport.writeOffsPlan !== undefined && (
-                <div className="mt-1 text-xs">
-                  <span className="text-gray-500">Plan: </span>
-                  <span>{formatKHRCurrency(displayReport.writeOffsPlan)}</span>
+              {displayReport.reportType === "actual" &&
+                displayReport.writeOffsPlan !== undefined && (
+                  <div className="mt-1 text-xs">
+                    <span className="text-gray-500">Plan: </span>
+                    <span>
+                      {formatKHRCurrency(displayReport.writeOffsPlan)}
+                    </span>
 
-                  {displayReport.writeOffs !== displayReport.writeOffsPlan && displayReport.writeOffsPlan !== 0 && (
-                    <Badge variant={displayReport.writeOffs > displayReport.writeOffsPlan ? "destructive" : "default"} className="ml-2">
-                      {displayReport.writeOffs > displayReport.writeOffsPlan ? "▲" : "▼"}
-                      {Math.abs(((displayReport.writeOffs - displayReport.writeOffsPlan) / displayReport.writeOffsPlan) * 100).toFixed(1)}%
-                    </Badge>
-                  )}
-                </div>
-              )}
+                    {displayReport.writeOffs !== displayReport.writeOffsPlan &&
+                      displayReport.writeOffsPlan !== 0 && (
+                        <Badge
+                          variant={
+                            displayReport.writeOffs >
+                            displayReport.writeOffsPlan
+                              ? "destructive"
+                              : "default"
+                          }
+                          className="ml-2"
+                        >
+                          {displayReport.writeOffs > displayReport.writeOffsPlan
+                            ? "▲"
+                            : "▼"}
+                          {Math.abs(
+                            ((displayReport.writeOffs -
+                              displayReport.writeOffsPlan) /
+                              displayReport.writeOffsPlan) *
+                              100,
+                          ).toFixed(1)}
+                          %
+                        </Badge>
+                      )}
+                  </div>
+                )}
             </div>
 
             <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-md">
               <Label className="text-sm text-gray-500">90+ Days</Label>
-              <div className="text-lg font-semibold">{formatKHRCurrency(displayReport.ninetyPlus)}</div>
+              <div className="text-lg font-semibold">
+                {formatKHRCurrency(displayReport.ninetyPlus)}
+              </div>
 
-              {displayReport.reportType === "actual" && displayReport.ninetyPlusPlan !== undefined && (
-                <div className="mt-1 text-xs">
-                  <span className="text-gray-500">Plan: </span>
-                  <span>{formatKHRCurrency(displayReport.ninetyPlusPlan)}</span>
+              {displayReport.reportType === "actual" &&
+                displayReport.ninetyPlusPlan !== undefined && (
+                  <div className="mt-1 text-xs">
+                    <span className="text-gray-500">Plan: </span>
+                    <span>
+                      {formatKHRCurrency(displayReport.ninetyPlusPlan)}
+                    </span>
 
-                  {displayReport.ninetyPlus !== displayReport.ninetyPlusPlan && displayReport.ninetyPlusPlan !== 0 && (
-                    <Badge variant={displayReport.ninetyPlus > displayReport.ninetyPlusPlan ? "destructive" : "default"} className="ml-2">
-                      {displayReport.ninetyPlus > displayReport.ninetyPlusPlan ? "▲" : "▼"}
-                      {Math.abs(((displayReport.ninetyPlus - displayReport.ninetyPlusPlan) / displayReport.ninetyPlusPlan) * 100).toFixed(1)}%
-                    </Badge>
-                  )}
-                </div>
-              )}
+                    {displayReport.ninetyPlus !==
+                      displayReport.ninetyPlusPlan &&
+                      displayReport.ninetyPlusPlan !== 0 && (
+                        <Badge
+                          variant={
+                            displayReport.ninetyPlus >
+                            displayReport.ninetyPlusPlan
+                              ? "destructive"
+                              : "default"
+                          }
+                          className="ml-2"
+                        >
+                          {displayReport.ninetyPlus >
+                          displayReport.ninetyPlusPlan
+                            ? "▲"
+                            : "▼"}
+                          {Math.abs(
+                            ((displayReport.ninetyPlus -
+                              displayReport.ninetyPlusPlan) /
+                              displayReport.ninetyPlusPlan) *
+                              100,
+                          ).toFixed(1)}
+                          %
+                        </Badge>
+                      )}
+                  </div>
+                )}
             </div>
           </div>
 
@@ -538,11 +609,17 @@ export function ReportDetailModal({ report, isOpen, onClose, onEdit, initialActi
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
               <Label className="text-gray-500">Submitted By</Label>
-              <div><UserDisplayName userId={displayReport.submittedBy} /></div>
+              <div>
+                <UserDisplayName userId={displayReport.submittedBy} />
+              </div>
             </div>
             <div>
               <Label className="text-gray-500">Submitted On</Label>
-              <div>{displayReport.submittedAt ? format(new Date(displayReport.submittedAt), "PPP HH:mm") : "Unknown"}</div>
+              <div>
+                {displayReport.submittedAt
+                  ? format(new Date(displayReport.submittedAt), "PPP HH:mm")
+                  : "Unknown"}
+              </div>
             </div>
           </div>
 
@@ -589,13 +666,17 @@ export function ReportDetailModal({ report, isOpen, onClose, onEdit, initialActi
         </div>
 
         <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2">
-          <Button variant="outline" onClick={onClose}>Close</Button>
-          {(displayReport.status === "pending" || displayReport.status === "rejected") && onEdit && (
-            <Button onClick={() => onEdit(displayReport)}>
-              <PencilIcon className="h-4 w-4 mr-2" />
-              {displayReport.status === "rejected" ? "Resubmit" : "Edit"}
-            </Button>
-          )}
+          <Button variant="outline" onClick={onClose}>
+            Close
+          </Button>
+          {(displayReport.status === "pending" ||
+            displayReport.status === "rejected") &&
+            onEdit && (
+              <Button onClick={() => onEdit(displayReport)}>
+                <PencilIcon className="h-4 w-4 mr-2" />
+                {displayReport.status === "rejected" ? "Resubmit" : "Edit"}
+              </Button>
+            )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

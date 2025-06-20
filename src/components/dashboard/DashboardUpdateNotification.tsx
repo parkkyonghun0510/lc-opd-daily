@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { RefreshCw } from 'lucide-react';
-import { useHybridDashboard } from '@/contexts/HybridDashboardContext';
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { RefreshCw } from "lucide-react";
+import { useHybridDashboard } from "@/contexts/HybridDashboardContext";
 
 export default function DashboardUpdateNotification() {
   const [showNotification, setShowNotification] = useState(false);
@@ -13,16 +13,22 @@ export default function DashboardUpdateNotification() {
   // Listen for dashboard update events
   useEffect(() => {
     const handleDashboardUpdate = (event: CustomEvent) => {
-      console.log('Dashboard update event received:', event.detail);
+      console.log("Dashboard update event received:", event.detail);
       setShowNotification(true);
     };
 
     // Add event listener
-    window.addEventListener('dashboard-update', handleDashboardUpdate as EventListener);
+    window.addEventListener(
+      "dashboard-update",
+      handleDashboardUpdate as EventListener,
+    );
 
     // Clean up
     return () => {
-      window.removeEventListener('dashboard-update', handleDashboardUpdate as EventListener);
+      window.removeEventListener(
+        "dashboard-update",
+        handleDashboardUpdate as EventListener,
+      );
     };
   }, []);
 
@@ -43,16 +49,16 @@ export default function DashboardUpdateNotification() {
         Dashboard data has been updated
       </div>
       <div className="flex space-x-2">
-        <Button 
-          size="sm" 
-          variant="outline" 
+        <Button
+          size="sm"
+          variant="outline"
           className="text-xs h-7 px-2 border-yellow-300 hover:bg-yellow-100"
           onClick={() => setShowNotification(false)}
         >
           Dismiss
         </Button>
-        <Button 
-          size="sm" 
+        <Button
+          size="sm"
           className="text-xs h-7 px-2 bg-yellow-500 hover:bg-yellow-600 text-white"
           onClick={handleRefresh}
         >

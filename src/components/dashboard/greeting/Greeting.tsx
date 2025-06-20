@@ -34,10 +34,10 @@ export function Greeting() {
   return (
     <>
       {/* Desktop version */}
-      <div 
+      <div
         className={cn(
           "hidden md:flex items-center gap-3 transition-all duration-300",
-          mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"
+          mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2",
         )}
       >
         <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30">
@@ -46,20 +46,23 @@ export function Greeting() {
         <div className="flex flex-col">
           <div className="flex items-center gap-2">
             <div className="text-sm font-medium text-gray-700 dark:text-gray-200">
-              {greetingText}{firstName ? `, ${firstName}` : ""}
+              {greetingText}
+              {firstName ? `, ${firstName}` : ""}
             </div>
           </div>
           <div className="text-xs text-gray-500 dark:text-gray-400">
-            {currentTime ? format(currentTime, "EEEE, MMMM d, yyyy • h:mm a") : ""}
+            {currentTime
+              ? format(currentTime, "EEEE, MMMM d, yyyy • h:mm a")
+              : ""}
           </div>
         </div>
       </div>
 
       {/* Mobile version */}
-      <div 
+      <div
         className={cn(
           "md:hidden flex items-center transition-all duration-300",
-          mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"
+          mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2",
         )}
       >
         <div className="flex items-center gap-2">
@@ -78,4 +81,4 @@ export function Greeting() {
       </div>
     </>
   );
-} 
+}

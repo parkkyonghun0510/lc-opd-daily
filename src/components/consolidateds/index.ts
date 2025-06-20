@@ -31,13 +31,13 @@ export { CustomTimeTooltip } from "./tooltips/CustomTimeTooltip";
 
 // Types
 export type {
-    Branch,
-    HistoricalDataPoint,
-    ConsolidatedData,
-    TooltipPayloadData,
-    TooltipPayloadItem,
-    BranchDetailDialogProps,
-    ChartClickPayload,
-    ChartClickData,
-    TimeSeriesDataPoint,
+  Branch,
+  HistoricalDataPoint,
+  ConsolidatedData,
+  TooltipPayloadData,
+  TooltipPayloadItem,
+  BranchDetailDialogProps,
+  ChartClickPayload,
+  ChartClickData,
+  TimeSeriesDataPoint,
 } from "./types/consolidated-types";

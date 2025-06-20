@@ -8,7 +8,7 @@ import { rateLimiter } from "@/lib/rate-limit";
 // GET /api/reports/[id]/report-comments - Get all comments for a report
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const token = await getToken({ req: request });
@@ -16,7 +16,7 @@ export async function GET(
     if (!token) {
       return NextResponse.json(
         { error: "Unauthorized - Authentication required" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -28,10 +28,7 @@ export async function GET(
     });
 
     if (!report) {
-      return NextResponse.json(
-        { error: "Report not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Report not found" }, { status: 404 });
     }
 
     // Get all comments for the report
@@ -57,7 +54,7 @@ export async function GET(
     console.error("Error fetching report comments:", error);
     return NextResponse.json(
       { error: "Failed to fetch comments" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -65,7 +62,7 @@ export async function GET(
 // POST /api/reports/[id]/report-comments - Add a comment to a report
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const token = await getToken({ req: request });
@@ -73,7 +70,7 @@ export async function POST(
     if (!token) {
       return NextResponse.json(
         { error: "Unauthorized - Authentication required" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -83,7 +80,7 @@ export async function POST(
     if (!content) {
       return NextResponse.json(
         { error: "Comment content is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -96,10 +93,7 @@ export async function POST(
     });
 
     if (!report) {
-      return NextResponse.json(
-        { error: "Report not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Report not found" }, { status: 404 });
     }
 
     // Apply rate limiting
@@ -107,7 +101,7 @@ export async function POST(
     const rateLimitResponse = await rateLimiter.applyRateLimit(request, {
       identifier: `comment_${userId}`,
       limit: 10, // Maximum 10 comments per minute
-      window: 60 // Within a 60-second window
+      window: 60, // Within a 60-second window
     });
 
     // If rate limited, return the response
@@ -121,7 +115,7 @@ export async function POST(
     if (!sanitizedContent) {
       return NextResponse.json(
         { error: "Comment content cannot be empty after sanitization" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -169,10 +163,13 @@ export async function POST(
       const commentForNotification = {
         ...comment,
         createdAt: comment.createdAt.toISOString(),
-        updatedAt: comment.updatedAt.toISOString()
+        updatedAt: comment.updatedAt.toISOString(),
       };
 
-      const notificationId = await processCommentNotification(commentForNotification, reportId);
+      const notificationId = await processCommentNotification(
+        commentForNotification,
+        reportId,
+      );
       if (notificationId) {
         console.log(`Notification sent for comment: ${notificationId}`);
       }
@@ -191,23 +188,28 @@ export async function POST(
 
     // Check for specific PostgreSQL error codes
     if (error instanceof Error) {
-      const errorMessage = error.message || '';
+      const errorMessage = error.message || "";
 
       // Check for UTF-8 encoding issues (PostgreSQL error code 22021)
-      if (errorMessage.includes('22021') || errorMessage.includes('invalid byte sequence for encoding')) {
+      if (
+        errorMessage.includes("22021") ||
+        errorMessage.includes("invalid byte sequence for encoding")
+      ) {
         return NextResponse.json(
           {
-            error: "Invalid characters detected in the comment. Please remove any special characters or emojis and try again.",
-            details: "The system detected invalid UTF-8 characters that cannot be stored in the database."
+            error:
+              "Invalid characters detected in the comment. Please remove any special characters or emojis and try again.",
+            details:
+              "The system detected invalid UTF-8 characters that cannot be stored in the database.",
           },
-          { status: 400 }
+          { status: 400 },
         );
       }
     }
 
     return NextResponse.json(
       { error: "Failed to add comment" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

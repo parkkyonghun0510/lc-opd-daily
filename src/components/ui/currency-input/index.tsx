@@ -68,7 +68,7 @@ export const KHRielInput = forwardRef<HTMLInputElement, CurrencyInputProps>(
       error,
       ...props
     },
-    ref
+    ref,
   ) => {
     const [displayValue, setDisplayValue] = useState("");
 
@@ -90,7 +90,7 @@ export const KHRielInput = forwardRef<HTMLInputElement, CurrencyInputProps>(
       // Remove prefix, commas, and other non-numeric characters for the raw value
       const rawValue = inputValue.replace(
         new RegExp(`[^\\d${decimalScale > 0 ? "." : ""}]`, "g"),
-        ""
+        "",
       );
 
       // Format the number with commas
@@ -135,7 +135,7 @@ export const KHRielInput = forwardRef<HTMLInputElement, CurrencyInputProps>(
         )}
       </div>
     );
-  }
+  },
 );
 
 KHRielInput.displayName = "KHRielInput";
@@ -147,7 +147,7 @@ export const KHCurrencyInput = KHRielInput;
 export const CurrencyInput = forwardRef<HTMLInputElement, CurrencyInputProps>(
   (props, ref) => {
     return <KHRielInput ref={ref} {...props} />;
-  }
+  },
 );
 
 CurrencyInput.displayName = "CurrencyInput";

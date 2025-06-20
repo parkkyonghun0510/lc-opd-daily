@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     if (!token) {
       return NextResponse.json(
         { error: "Unauthorized - Authentication required" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -65,8 +65,11 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error("Error in test endpoint:", error);
     return NextResponse.json(
-      { error: "Test failed", details: error instanceof Error ? error.message : "Unknown error" },
-      { status: 500 }
+      {
+        error: "Test failed",
+        details: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 },
     );
   }
 }

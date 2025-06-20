@@ -125,8 +125,9 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div
-              className={`text-2xl font-bold ${data.growthRate >= 0 ? "text-green-600" : "text-red-600"
-                }`}
+              className={`text-2xl font-bold ${
+                data.growthRate >= 0 ? "text-green-600" : "text-red-600"
+              }`}
             >
               {data.growthRate >= 0 ? "+" : ""}
               {data.growthRate}%

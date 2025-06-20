@@ -59,22 +59,22 @@ export default function UserProfileForm({ user }: UserProfileFormProps) {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [loadingBranches, setLoadingBranches] = useState(false);
   const { can, role } = usePermissions();
-  
+
   const isAdmin = role === UserRole.ADMIN;
-  
+
   useEffect(() => {
     if (isAdmin) {
       const fetchBranches = async () => {
         try {
           setLoadingBranches(true);
-          const response = await fetch('/api/branches/simple');
+          const response = await fetch("/api/branches/simple");
           if (!response.ok) {
-            throw new Error('Failed to fetch branches');
+            throw new Error("Failed to fetch branches");
           }
           const data = await response.json();
           setBranches(data);
         } catch (error) {
-          console.error('Error fetching branches:', error);
+          console.error("Error fetching branches:", error);
           toast({
             title: "Error",
             description: "Failed to load branches",
@@ -84,7 +84,7 @@ export default function UserProfileForm({ user }: UserProfileFormProps) {
           setLoadingBranches(false);
         }
       };
-      
+
       fetchBranches();
     }
   }, [isAdmin]);
@@ -120,14 +120,15 @@ export default function UserProfileForm({ user }: UserProfileFormProps) {
         title: "Success",
         description: "Profile updated successfully",
       });
-      
+
       // Refresh the page to show updated data
       window.location.reload();
     } catch (error) {
       console.error("Error updating profile:", error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to update profile",
+        description:
+          error instanceof Error ? error.message : "Failed to update profile",
         variant: "destructive",
       });
     } finally {

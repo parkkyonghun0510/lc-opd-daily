@@ -6,7 +6,7 @@ const isClient = typeof window !== "undefined";
 if (isClient) {
   throw new Error(
     "PrismaClient cannot be used in the browser. " +
-      "Please use server actions or API routes for database operations."
+      "Please use server actions or API routes for database operations.",
   );
 }
 
@@ -19,17 +19,20 @@ interface ExtendedPrismaClient extends PrismaClient {
   $transact: <T>(tx: () => Promise<T>) => Promise<T>;
 }
 
-const globalForPrisma = globalThis as unknown as { prisma: ExtendedPrismaClient };
+const globalForPrisma = globalThis as unknown as {
+  prisma: ExtendedPrismaClient;
+};
 
 // Prisma doesn't directly support connection pool config in the client
 // This is handled by the underlying connection URL in PostgreSQL
-export const prisma = globalForPrisma.prisma || 
-  new PrismaClient({
+export const prisma =
+  globalForPrisma.prisma ||
+  (new PrismaClient({
     log:
       process.env.NODE_ENV === "development"
         ? ["query", "error", "warn"]
         : ["error"],
-  }) as ExtendedPrismaClient;
+  }) as ExtendedPrismaClient);
 
 // Add transaction helper method
 prisma.$transact = async <T>(tx: () => Promise<T>): Promise<T> => {

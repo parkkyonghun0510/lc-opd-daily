@@ -1,6 +1,6 @@
-import { prisma } from '@/lib/prisma';
-import { NotificationType } from './notificationTemplates';
-import { getAccessibleBranches } from '@/lib/auth/branch-access';
+import { prisma } from "@/lib/prisma";
+import { NotificationType } from "./notificationTemplates";
+import { getAccessibleBranches } from "@/lib/auth/branch-access";
 
 /**
  * Get all branches in the hierarchy, including the branch and all its ancestors
@@ -14,10 +14,11 @@ async function getBranchHierarchy(branchId: string): Promise<string[]> {
   // Find the branch and all its ancestors
   let currentBranchId: string | null = branchId;
   while (currentBranchId) {
-    const branch: { parentId: string | null } | null = await prisma.branch.findUnique({
-      where: { id: currentBranchId },
-      select: { parentId: true }
-    });
+    const branch: { parentId: string | null } | null =
+      await prisma.branch.findUnique({
+        where: { id: currentBranchId },
+        select: { parentId: true },
+      });
 
     if (branch?.parentId) {
       branchIds.add(branch.parentId);
@@ -40,10 +41,10 @@ async function getSubBranches(branchId: string): Promise<string[]> {
   async function findChildBranches(parentId: string): Promise<string[]> {
     const childBranches = await prisma.branch.findMany({
       where: { parentId },
-      select: { id: true }
+      select: { id: true },
     });
 
-    const childIds = childBranches.map(b => b.id);
+    const childIds = childBranches.map((b) => b.id);
     const descendantIds: string[] = [];
 
     // Recursively get children of children
@@ -73,13 +74,19 @@ async function getBranchManagers(branchId: string): Promise<string[]> {
             some: {
               role: {
                 name: {
-                  in: ['manager', 'admin', 'approver', 'branch_manager', 'BRANCH_MANAGER']
-                }
+                  in: [
+                    "manager",
+                    "admin",
+                    "approver",
+                    "branch_manager",
+                    "BRANCH_MANAGER",
+                  ],
+                },
               },
-              branchId
-            }
+              branchId,
+            },
           },
-          isActive: true
+          isActive: true,
         },
         {
           // Users with their primary branch set to this branch and have manager role
@@ -88,19 +95,25 @@ async function getBranchManagers(branchId: string): Promise<string[]> {
             some: {
               role: {
                 name: {
-                  in: ['manager', 'admin', 'approver', 'branch_manager', 'BRANCH_MANAGER']
-                }
-              }
-            }
+                  in: [
+                    "manager",
+                    "admin",
+                    "approver",
+                    "branch_manager",
+                    "BRANCH_MANAGER",
+                  ],
+                },
+              },
+            },
           },
-          isActive: true
-        }
-      ]
+          isActive: true,
+        },
+      ],
     },
-    select: { id: true }
+    select: { id: true },
   });
 
-  return managers.map(manager => manager.id);
+  return managers.map((manager) => manager.id);
 }
 
 /**
@@ -112,26 +125,26 @@ async function getGlobalAdmins(): Promise<string[]> {
     where: {
       OR: [
         {
-          role: 'ADMIN',
-          isActive: true
+          role: "ADMIN",
+          isActive: true,
         },
         {
           userRoles: {
             some: {
               role: {
-                name: 'admin'
+                name: "admin",
               },
-              branchId: null // Global admins have no branch restriction
-            }
+              branchId: null, // Global admins have no branch restriction
+            },
           },
-          isActive: true
-        }
-      ]
+          isActive: true,
+        },
+      ],
     },
-    select: { id: true }
+    select: { id: true },
   });
 
-  return admins.map(admin => admin.id);
+  return admins.map((admin) => admin.id);
 }
 
 /**
@@ -139,7 +152,9 @@ async function getGlobalAdmins(): Promise<string[]> {
  * Returns an array of user IDs who should receive the notification
  */
 export async function getUsersForNotification(
-  type: NotificationType, data: Record<string, any>): Promise<string[]> {
+  type: NotificationType,
+  data: Record<string, any>,
+): Promise<string[]> {
   // Default to empty array
   let userIds: string[] = [];
 
@@ -162,7 +177,7 @@ export async function getUsersForNotification(
     userIds.push(...globalAdmins);
 
     // Extract branchId directly or from the branch object if provided
-    const branchId = data.branchId || (data.branch?.id || null);
+    const branchId = data.branchId || data.branch?.id || null;
 
     if (!branchId) {
       //console.log('No branch ID provided for notification targeting.');
@@ -178,7 +193,8 @@ export async function getUsersForNotification(
         // 2. Include managers of parent branches (notify up the hierarchy)
         const parentBranches = await getBranchHierarchy(branchId);
         for (const parentId of parentBranches) {
-          if (parentId !== branchId) { // Skip the current branch as we already added its managers
+          if (parentId !== branchId) {
+            // Skip the current branch as we already added its managers
             const parentManagers = await getBranchManagers(parentId);
             userIds.push(...parentManagers);
           }
@@ -191,7 +207,7 @@ export async function getUsersForNotification(
         if (data.reportId) {
           const report = await prisma.report.findUnique({
             where: { id: data.reportId },
-            select: { submittedBy: true }
+            select: { submittedBy: true },
           });
           if (report?.submittedBy) {
             userIds = [report.submittedBy]; // Reset array to only include submitter
@@ -209,7 +225,7 @@ export async function getUsersForNotification(
         if (data.reportId) {
           const report = await prisma.report.findUnique({
             where: { id: data.reportId },
-            select: { submittedBy: true }
+            select: { submittedBy: true },
           });
           if (report?.submittedBy) {
             userIds = [report.submittedBy]; // Reset array to only include submitter
@@ -227,7 +243,7 @@ export async function getUsersForNotification(
         if (data.reportId) {
           const report = await prisma.report.findUnique({
             where: { id: data.reportId },
-            select: { submittedBy: true, branchId: true }
+            select: { submittedBy: true, branchId: true },
           });
 
           if (report) {
@@ -245,10 +261,10 @@ export async function getUsersForNotification(
                 userRoles: {
                   include: {
                     role: true,
-                    branch: true
-                  }
-                }
-              }
+                    branch: true,
+                  },
+                },
+              },
             });
 
             if (submitter) {
@@ -259,18 +275,18 @@ export async function getUsersForNotification(
                     some: {
                       role: {
                         name: {
-                          in: ['SUPERVISOR', 'supervisor']
-                        }
+                          in: ["SUPERVISOR", "supervisor"],
+                        },
                       },
-                      branchId: submitter.branchId
-                    }
+                      branchId: submitter.branchId,
+                    },
                   },
-                  isActive: true
+                  isActive: true,
                 },
-                select: { id: true }
+                select: { id: true },
               });
 
-              userIds.push(...supervisors.map(user => user.id));
+              userIds.push(...supervisors.map((user) => user.id));
             }
           }
         }
@@ -286,18 +302,24 @@ export async function getUsersForNotification(
               some: {
                 role: {
                   name: {
-                    in: ['admin', 'approver', 'manager', 'ADMIN', 'BRANCH_MANAGER']
-                  }
+                    in: [
+                      "admin",
+                      "approver",
+                      "manager",
+                      "ADMIN",
+                      "BRANCH_MANAGER",
+                    ],
+                  },
                 },
-                branchId
-              }
+                branchId,
+              },
             },
-            isActive: true
+            isActive: true,
           },
-          select: { id: true }
+          select: { id: true },
         });
 
-        userIds.push(...directApprovers.map(user => user.id));
+        userIds.push(...directApprovers.map((user) => user.id));
 
         // 2. Parent branch approvers
         const parentBranches = await getBranchHierarchy(branchId);
@@ -309,18 +331,24 @@ export async function getUsersForNotification(
                   some: {
                     role: {
                       name: {
-                        in: ['admin', 'approver', 'manager', 'ADMIN', 'BRANCH_MANAGER']
-                      }
+                        in: [
+                          "admin",
+                          "approver",
+                          "manager",
+                          "ADMIN",
+                          "BRANCH_MANAGER",
+                        ],
+                      },
                     },
-                    branchId: parentId
-                  }
+                    branchId: parentId,
+                  },
                 },
-                isActive: true
+                isActive: true,
               },
-              select: { id: true }
+              select: { id: true },
             });
 
-            userIds.push(...parentApprovers.map(user => user.id));
+            userIds.push(...parentApprovers.map((user) => user.id));
           }
         }
         break;
@@ -336,25 +364,32 @@ export async function getUsersForNotification(
               { branchId },
               {
                 branchAssignments: {
-                  some: { branchId }
-                }
-              }
+                  some: { branchId },
+                },
+              },
             ],
             userRoles: {
               some: {
                 role: {
                   name: {
-                    in: ['reporter', 'user', 'manager', 'USER', 'SUPERVISOR', 'BRANCH_MANAGER']
-                  }
-                }
-              }
+                    in: [
+                      "reporter",
+                      "user",
+                      "manager",
+                      "USER",
+                      "SUPERVISOR",
+                      "BRANCH_MANAGER",
+                    ],
+                  },
+                },
+              },
             },
-            isActive: true
+            isActive: true,
           },
-          select: { id: true }
+          select: { id: true },
         });
 
-        userIds.push(...branchUsers.map(user => user.id));
+        userIds.push(...branchUsers.map((user) => user.id));
 
         // Add direct branch managers if not already included
         const directManagers = await getBranchManagers(branchId);
@@ -367,7 +402,7 @@ export async function getUsersForNotification(
         if (data.reportId) {
           const report = await prisma.report.findUnique({
             where: { id: data.reportId },
-            select: { submittedBy: true, branchId: true }
+            select: { submittedBy: true, branchId: true },
           });
 
           if (report) {
@@ -385,7 +420,7 @@ export async function getUsersForNotification(
 
             // Skip the commenter (don't notify the person who made the comment)
             if (data.commenter) {
-              userIds = userIds.filter(id => id !== data.commenter);
+              userIds = userIds.filter((id) => id !== data.commenter);
             }
           }
         }
@@ -400,37 +435,37 @@ export async function getUsersForNotification(
               OR: [
                 {
                   role: {
-                    in: data.roles
-                  }
+                    in: data.roles,
+                  },
                 },
                 {
                   userRoles: {
                     some: {
                       role: {
                         name: {
-                          in: data.roles
-                        }
-                      }
-                    }
-                  }
-                }
+                          in: data.roles,
+                        },
+                      },
+                    },
+                  },
+                },
               ],
-              isActive: true
+              isActive: true,
             },
-            select: { id: true }
+            select: { id: true },
           });
 
-          userIds.push(...usersWithRoles.map(user => user.id));
+          userIds.push(...usersWithRoles.map((user) => user.id));
         } else if (data.allUsers) {
           // Send to all active users
           const allUsers = await prisma.user.findMany({
             where: {
-              isActive: true
+              isActive: true,
             },
-            select: { id: true }
+            select: { id: true },
           });
 
-          userIds.push(...allUsers.map(user => user.id));
+          userIds.push(...allUsers.map((user) => user.id));
         } else if (data.branchId) {
           // If branch hierarchy targeting is specified
           if (data.includeSubBranches) {
@@ -443,25 +478,25 @@ export async function getUsersForNotification(
                 OR: [
                   {
                     branchId: {
-                      in: allBranchIds
-                    }
+                      in: allBranchIds,
+                    },
                   },
                   {
                     branchAssignments: {
                       some: {
                         branchId: {
-                          in: allBranchIds
-                        }
-                      }
-                    }
-                  }
+                          in: allBranchIds,
+                        },
+                      },
+                    },
+                  },
                 ],
-                isActive: true
+                isActive: true,
               },
-              select: { id: true }
+              select: { id: true },
             });
 
-            userIds.push(...branchUsers.map(user => user.id));
+            userIds.push(...branchUsers.map((user) => user.id));
           } else if (data.includeParentBranches) {
             // Include users from parent branches
             const parentBranches = await getBranchHierarchy(data.branchId);
@@ -471,25 +506,25 @@ export async function getUsersForNotification(
                 OR: [
                   {
                     branchId: {
-                      in: parentBranches
-                    }
+                      in: parentBranches,
+                    },
                   },
                   {
                     branchAssignments: {
                       some: {
                         branchId: {
-                          in: parentBranches
-                        }
-                      }
-                    }
-                  }
+                          in: parentBranches,
+                        },
+                      },
+                    },
+                  },
                 ],
-                isActive: true
+                isActive: true,
               },
-              select: { id: true }
+              select: { id: true },
             });
 
-            userIds.push(...branchUsers.map(user => user.id));
+            userIds.push(...branchUsers.map((user) => user.id));
           } else {
             // Just this specific branch
             const branchUsers = await prisma.user.findMany({
@@ -498,16 +533,16 @@ export async function getUsersForNotification(
                   { branchId: data.branchId },
                   {
                     branchAssignments: {
-                      some: { branchId: data.branchId }
-                    }
-                  }
+                      some: { branchId: data.branchId },
+                    },
+                  },
                 ],
-                isActive: true
+                isActive: true,
               },
-              select: { id: true }
+              select: { id: true },
             });
 
-            userIds.push(...branchUsers.map(user => user.id));
+            userIds.push(...branchUsers.map((user) => user.id));
           }
         }
         break;

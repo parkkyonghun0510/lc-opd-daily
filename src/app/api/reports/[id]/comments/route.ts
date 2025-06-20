@@ -8,28 +8,26 @@ import { sanitizeString } from "@/utils/sanitize";
 
 // POST /api/reports/[id]/comments - Add a comment to a report
 // @deprecated - This endpoint is deprecated. Use /api/reports/[id]/report-comments instead.
-export async function POST(
-  request: NextRequest
-) {
+export async function POST(request: NextRequest) {
   try {
     const token = await getToken({ req: request });
 
     if (!token) {
       return NextResponse.json(
         { error: "Unauthorized - Authentication required" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
     // Extract the ID from the URL path
     const url = new URL(request.url);
-    const pathParts = url.pathname.split('/');
+    const pathParts = url.pathname.split("/");
     const reportId = pathParts[pathParts.length - 2]; // Get the ID from the URL path
 
     if (!reportId) {
       return NextResponse.json(
         { error: "Report ID is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -40,7 +38,7 @@ export async function POST(
     if (!comment || typeof comment !== "string" || comment.trim() === "") {
       return NextResponse.json(
         { error: "Comment text is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -50,16 +48,13 @@ export async function POST(
     });
 
     if (!report) {
-      return NextResponse.json(
-        { error: "Report not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Report not found" }, { status: 404 });
     }
 
     // Get commenter's name for better display
     const user = await prisma.user.findUnique({
       where: { id: token.sub as string },
-      select: { name: true }
+      select: { name: true },
     });
 
     const commenterName = user?.name || token.email || "User";
@@ -74,7 +69,7 @@ export async function POST(
       : commentWithMeta;
 
     // Sanitize the comment text
-    const sanitizedComment = sanitizeString(comment) || '';
+    const sanitizedComment = sanitizeString(comment) || "";
 
     // Update the report with the legacy comments
     // This is for backward compatibility
@@ -91,24 +86,30 @@ export async function POST(
         data: {
           reportId,
           userId: token.sub as string,
-          content: sanitizeString(comment) || '',
-        }
+          content: sanitizeString(comment) || "",
+        },
       });
-      console.log("[INFO] Created ReportComment record for backward compatibility");
+      console.log(
+        "[INFO] Created ReportComment record for backward compatibility",
+      );
     } catch (commentError) {
-      console.error("Error creating ReportComment record (non-critical):", commentError);
+      console.error(
+        "Error creating ReportComment record (non-critical):",
+        commentError,
+      );
       // We don't want to fail the comment creation if this fails
     }
 
     return NextResponse.json({
       success: true,
-      message: "Comment added successfully. Note: This endpoint is deprecated, please use /api/reports/[id]/report-comments instead."
+      message:
+        "Comment added successfully. Note: This endpoint is deprecated, please use /api/reports/[id]/report-comments instead.",
     });
   } catch (error) {
     console.error("Error adding comment:", error);
     return NextResponse.json(
       { error: "Failed to add comment" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

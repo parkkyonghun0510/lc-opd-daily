@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { ReactNode } from 'react';
-import { AuthLoadingGuard } from './AuthLoadingGuard';
-import { DashboardLoadingState } from '@/components/dashboard/DashboardLoadingState';
-import { useAuth } from '@/auth/hooks/useAuth';
+import { ReactNode } from "react";
+import { AuthLoadingGuard } from "./AuthLoadingGuard";
+import { DashboardLoadingState } from "@/components/dashboard/DashboardLoadingState";
+import { useAuth } from "@/auth/hooks/useAuth";
 
 interface RoleBasedLoadingGuardProps {
   children: ReactNode;
@@ -18,11 +18,11 @@ interface RoleBasedLoadingGuardProps {
 export function RoleBasedLoadingGuard({
   children,
   minLoadingTime = 800,
-  customFallback
+  customFallback,
 }: RoleBasedLoadingGuardProps) {
   const { user } = useAuth();
-  const role = user?.role || 'USER';
-  
+  const role = user?.role || "USER";
+
   return (
     <AuthLoadingGuard
       minLoadingTime={minLoadingTime}
@@ -39,7 +39,7 @@ export function RoleBasedLoadingGuard({
 export function AdminLoadingGuard({
   children,
   minLoadingTime = 800,
-  customFallback
+  customFallback,
 }: RoleBasedLoadingGuardProps) {
   return (
     <AuthLoadingGuard
@@ -57,12 +57,14 @@ export function AdminLoadingGuard({
 export function BranchManagerLoadingGuard({
   children,
   minLoadingTime = 800,
-  customFallback
+  customFallback,
 }: RoleBasedLoadingGuardProps) {
   return (
     <AuthLoadingGuard
       minLoadingTime={minLoadingTime}
-      fallback={customFallback || <DashboardLoadingState role="BRANCH_MANAGER" />}
+      fallback={
+        customFallback || <DashboardLoadingState role="BRANCH_MANAGER" />
+      }
     >
       {children}
     </AuthLoadingGuard>
@@ -75,7 +77,7 @@ export function BranchManagerLoadingGuard({
 export function UserLoadingGuard({
   children,
   minLoadingTime = 800,
-  customFallback
+  customFallback,
 }: RoleBasedLoadingGuardProps) {
   return (
     <AuthLoadingGuard

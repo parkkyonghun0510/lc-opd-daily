@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
     if (!token || !token.sub) {
       return NextResponse.json(
         { error: "Unauthorized - Authentication required" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
     if (!branchId) {
       return NextResponse.json(
         { error: "Branch ID is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
     if (!branchAssignment) {
       return NextResponse.json(
         { error: "You don't have access to this branch" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -50,10 +50,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (!branch) {
-      return NextResponse.json(
-        { error: "Branch not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Branch not found" }, { status: 404 });
     }
 
     // Update user's current branch
@@ -87,7 +84,7 @@ export async function POST(request: NextRequest) {
     console.error("Error switching branch:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
-} 
+}

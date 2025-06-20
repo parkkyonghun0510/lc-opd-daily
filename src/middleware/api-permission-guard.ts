@@ -24,22 +24,22 @@ interface PermissionGuardOptions {
 
 /**
  * Creates a protected API route handler that checks permissions before execution
- * 
+ *
  * @param handler The actual route handler function
  * @param options Permission options to enforce
  * @returns A wrapped handler function that includes permission checks
  */
 export function withPermissionGuard<T>(
   handler: (
-    req: NextRequest, 
-    context: RouteHandlerContext, 
-    currentUser: ApiUser
+    req: NextRequest,
+    context: RouteHandlerContext,
+    currentUser: ApiUser,
   ) => Promise<NextResponse<T>>,
-  options: PermissionGuardOptions = {}
+  options: PermissionGuardOptions = {},
 ) {
   return async (
     req: NextRequest,
-    context: RouteHandlerContext
+    context: RouteHandlerContext,
   ): Promise<NextResponse<T>> => {
     try {
       // Get user from NextAuth token
@@ -48,7 +48,7 @@ export function withPermissionGuard<T>(
       if (!token || !token.id) {
         return NextResponse.json(
           { error: "Authentication required" },
-          { status: 401 }
+          { status: 401 },
         ) as NextResponse<T>;
       }
 
@@ -63,42 +63,40 @@ export function withPermissionGuard<T>(
       };
 
       // Check role requirement
-      if (
-        options.requiredRole && 
-        currentUser.role !== options.requiredRole
-      ) {
+      if (options.requiredRole && currentUser.role !== options.requiredRole) {
         return NextResponse.json(
           { error: "Insufficient role permissions" },
-          { status: 403 }
+          { status: 403 },
         ) as NextResponse<T>;
       }
 
       // Check permission requirement
       if (
-        options.requiredPermission && 
+        options.requiredPermission &&
         !checkPermission(currentUser.role, options.requiredPermission)
       ) {
         return NextResponse.json(
           { error: "Insufficient permissions" },
-          { status: 403 }
+          { status: 403 },
         ) as NextResponse<T>;
       }
 
       // Self-access check - for user endpoints
       if (options.allowSelf) {
         const { searchParams } = new URL(req.url);
-        const targetUserId = searchParams.get("userId") || searchParams.get("id");
+        const targetUserId =
+          searchParams.get("userId") || searchParams.get("id");
 
         // If not requesting self data, must have proper permissions
         if (
-          targetUserId && 
-          targetUserId !== currentUser.id && 
+          targetUserId &&
+          targetUserId !== currentUser.id &&
           currentUser.role !== UserRole.ADMIN &&
           !checkPermission(currentUser.role, Permission.MANAGE_USERS)
         ) {
           return NextResponse.json(
             { error: "You can only access your own user data" },
-            { status: 403 }
+            { status: 403 },
           ) as NextResponse<T>;
         }
       }
@@ -111,15 +109,15 @@ export function withPermissionGuard<T>(
 
         // If requesting another branch, must have ADMIN or MANAGE_BRANCHES permission
         if (
-          targetBranchId && 
-          currentUser.branchId !== targetBranchId && 
+          targetBranchId &&
+          currentUser.branchId !== targetBranchId &&
           currentUser.role !== UserRole.ADMIN &&
           !checkPermission(currentUser.role, Permission.MANAGE_BRANCHES) &&
           !currentUser.assignedBranchIds?.includes(targetBranchId)
         ) {
           return NextResponse.json(
             { error: "You can only access your own branch data" },
-            { status: 403 }
+            { status: 403 },
           ) as NextResponse<T>;
         }
       }
@@ -130,7 +128,7 @@ export function withPermissionGuard<T>(
       console.error("Permission guard error:", error);
       return NextResponse.json(
         { error: "Internal server error in permission check" },
-        { status: 500 }
+        { status: 500 },
       ) as NextResponse<T>;
     }
   };
@@ -153,4 +151,4 @@ export const POST = withPermissionGuard(
   },
   { requiredPermission: Permission.CREATE_REPORTS }
 );
-*/ 
+*/

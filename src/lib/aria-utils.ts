@@ -12,7 +12,7 @@ export function createFormFieldAriaProps(
   id: string,
   label: string,
   error?: string,
-  required?: boolean
+  required?: boolean,
 ) {
   return {
     id,
@@ -41,7 +41,7 @@ export function createButtonAriaProps(
   label: string,
   pressed?: boolean,
   expanded?: boolean,
-  controls?: string
+  controls?: string,
 ) {
   return {
     "aria-label": label,
@@ -57,7 +57,7 @@ export function createButtonAriaProps(
 export function createDialogAriaProps(
   id: string,
   title: string,
-  description?: string
+  description?: string,
 ) {
   return {
     id,
@@ -96,7 +96,7 @@ export function createDialogDescriptionAriaProps(id: string) {
 export function createListAriaProps(
   id: string,
   label: string,
-  type: "list" | "menu" | "tree" = "list"
+  type: "list" | "menu" | "tree" = "list",
 ) {
   return {
     id,
@@ -111,7 +111,7 @@ export function createListAriaProps(
 export function createListItemAriaProps(
   selected?: boolean,
   expanded?: boolean,
-  controls?: string
+  controls?: string,
 ) {
   return {
     role: "listitem",
@@ -127,7 +127,7 @@ export function createListItemAriaProps(
 export function createTabAriaProps(
   id: string,
   selected: boolean,
-  controls: string
+  controls: string,
 ) {
   return {
     id,
@@ -143,7 +143,7 @@ export function createTabAriaProps(
 export function createTabPanelAriaProps(
   id: string,
   labelledBy: string,
-  hidden: boolean
+  hidden: boolean,
 ) {
   return {
     id,

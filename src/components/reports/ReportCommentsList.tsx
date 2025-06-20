@@ -18,14 +18,17 @@ import {
   Keyboard,
   ChevronUp,
   Info,
-  ArrowDown
+  ArrowDown,
 } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import { sanitizeString } from "@/utils/clientSanitize";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { requestNotificationPermission, getNotificationStatus } from "@/utils/pushNotifications";
+import {
+  requestNotificationPermission,
+  getNotificationStatus,
+} from "@/utils/pushNotifications";
 import {
   Tooltip,
   TooltipContent,
@@ -39,54 +42,56 @@ import { ReportCommentType } from "@/types/reports";
 type ReportComment = ReportCommentType;
 
 // Define comment types for visual styling
-type CommentType = 'regular' | 'approval' | 'rejection' | 'system';
+type CommentType = "regular" | "approval" | "rejection" | "system";
 
 // Helper function to determine comment type and extract the actual content
-const processComment = (comment: ReportComment): { type: CommentType; content: string } => {
+const processComment = (
+  comment: ReportComment,
+): { type: CommentType; content: string } => {
   const content = comment.content;
   const lowerContent = content.toLowerCase();
 
   // Check for approval comments
   if (
-    lowerContent.includes('report approved') ||
-    lowerContent.includes('approved the report') ||
-    lowerContent.startsWith('approved:') ||
-    lowerContent.startsWith('approved') ||
-    lowerContent.includes('report has been approved')
+    lowerContent.includes("report approved") ||
+    lowerContent.includes("approved the report") ||
+    lowerContent.startsWith("approved:") ||
+    lowerContent.startsWith("approved") ||
+    lowerContent.includes("report has been approved")
   ) {
     // For comments that start with "Approved: ", remove the prefix to avoid duplication
-    if (content.startsWith('Approved: ')) {
-      return { type: 'approval', content: content.substring(10) };
+    if (content.startsWith("Approved: ")) {
+      return { type: "approval", content: content.substring(10) };
     }
 
     // Don't strip the content - show the full message
-    return { type: 'approval', content };
+    return { type: "approval", content };
   }
 
   // Check for rejection comments
   if (
-    lowerContent.includes('report rejected') ||
-    lowerContent.includes('rejected the report') ||
-    lowerContent.startsWith('rejected:') ||
-    lowerContent.startsWith('rejected') ||
-    lowerContent.includes('report has been rejected')
+    lowerContent.includes("report rejected") ||
+    lowerContent.includes("rejected the report") ||
+    lowerContent.startsWith("rejected:") ||
+    lowerContent.startsWith("rejected") ||
+    lowerContent.includes("report has been rejected")
   ) {
     // For comments that start with "Rejected: ", remove the prefix to avoid duplication
-    if (content.startsWith('Rejected: ')) {
-      return { type: 'rejection', content: content.substring(10) };
+    if (content.startsWith("Rejected: ")) {
+      return { type: "rejection", content: content.substring(10) };
     }
 
     // Don't strip the content - show the full message
-    return { type: 'rejection', content };
+    return { type: "rejection", content };
   }
 
   // Check for system comments
-  if (comment.user?.name === 'System' || !comment.user) {
-    return { type: 'system', content };
+  if (comment.user?.name === "System" || !comment.user) {
+    return { type: "system", content };
   }
 
   // Default to regular comment
-  return { type: 'regular', content };
+  return { type: "regular", content };
 };
 
 interface ReportCommentsListProps {
@@ -95,7 +100,11 @@ interface ReportCommentsListProps {
   autoFocusCommentForm?: boolean;
 }
 
-export function ReportCommentsList({ reportId, initialComments = [], autoFocusCommentForm = false }: ReportCommentsListProps) {
+export function ReportCommentsList({
+  reportId,
+  initialComments = [],
+  autoFocusCommentForm = false,
+}: ReportCommentsListProps) {
   const { data: session } = useSession();
   const [comments, setComments] = useState<ReportComment[]>(initialComments);
   const [newComment, setNewComment] = useState("");
@@ -132,54 +141,57 @@ export function ReportCommentsList({ reportId, initialComments = [], autoFocusCo
     checkNotificationStatus();
   }, []);
 
-  const fetchComments = useCallback(async (refresh = false) => {
-    if (!reportId) return;
+  const fetchComments = useCallback(
+    async (refresh = false) => {
+      if (!reportId) return;
 
-    if (refresh) {
-      setIsRefreshing(true);
-      setPage(1);
-    } else {
-      setIsLoading(true);
-    }
-
-    try {
-      const pageSize = 20; // Number of comments per page
-      const response = await fetch(
-        `/api/reports/${reportId}/report-comments?page=${refresh ? 1 : page}&limit=${pageSize}`
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch comments");
+      if (refresh) {
+        setIsRefreshing(true);
+        setPage(1);
+      } else {
+        setIsLoading(true);
       }
 
-      const data = await response.json();
-      if (data.success && Array.isArray(data.comments)) {
-        if (refresh || page === 1) {
-          setComments(data.comments);
-        } else {
-          setComments(prev => [...prev, ...data.comments]);
+      try {
+        const pageSize = 20; // Number of comments per page
+        const response = await fetch(
+          `/api/reports/${reportId}/report-comments?page=${refresh ? 1 : page}&limit=${pageSize}`,
+        );
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch comments");
         }
 
-        // Check if we have more comments to load
-        setHasMore(data.comments.length === pageSize);
+        const data = await response.json();
+        if (data.success && Array.isArray(data.comments)) {
+          if (refresh || page === 1) {
+            setComments(data.comments);
+          } else {
+            setComments((prev) => [...prev, ...data.comments]);
+          }
 
-        // Increment page for next fetch
-        if (!refresh && data.comments.length > 0) {
-          setPage(prev => prev + 1);
+          // Check if we have more comments to load
+          setHasMore(data.comments.length === pageSize);
+
+          // Increment page for next fetch
+          if (!refresh && data.comments.length > 0) {
+            setPage((prev) => prev + 1);
+          }
         }
+      } catch (error) {
+        console.error("Error fetching comments:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load comments. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+        setIsRefreshing(false);
       }
-    } catch (error) {
-      console.error("Error fetching comments:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load comments. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  }, [reportId, page, toast]);
+    },
+    [reportId, page, toast],
+  );
 
   // Function to refresh comments
   const refreshComments = useCallback(() => {
@@ -208,19 +220,19 @@ export function ReportCommentsList({ reportId, initialComments = [], autoFocusCo
     const optimisticComment: ReportComment = {
       id: `temp-${Date.now()}`,
       reportId,
-      userId: session.user.id || '',
+      userId: session.user.id || "",
       content: sanitizedComment,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       user: {
-        id: session.user.id || '',
-        name: session.user.name || 'You',
-        username: session.user.email || undefined
-      }
+        id: session.user.id || "",
+        name: session.user.name || "You",
+        username: session.user.email || undefined,
+      },
     };
 
     // Add optimistic comment to the list
-    setComments(prev => [...prev, optimisticComment]);
+    setComments((prev) => [...prev, optimisticComment]);
 
     // Clear the input immediately for better UX
     setNewComment("");
@@ -243,9 +255,9 @@ export function ReportCommentsList({ reportId, initialComments = [], autoFocusCo
       if (data.success && data.comment) {
         // Replace the optimistic comment with the real one
         setComments((prev) =>
-          prev.map(comment =>
-            comment.id === optimisticComment.id ? data.comment : comment
-          )
+          prev.map((comment) =>
+            comment.id === optimisticComment.id ? data.comment : comment,
+          ),
         );
 
         toast({
@@ -257,7 +269,8 @@ export function ReportCommentsList({ reportId, initialComments = [], autoFocusCo
         if (!notificationsEnabled && getNotificationStatus().isSupported) {
           toast({
             title: "Enable Notifications",
-            description: "Enable push notifications to get updates on this report?",
+            description:
+              "Enable push notifications to get updates on this report?",
             action: (
               <Button
                 variant="outline"
@@ -266,26 +279,29 @@ export function ReportCommentsList({ reportId, initialComments = [], autoFocusCo
                   // Call the function directly instead of using it as a dependency
                   setIsRequestingPermission(true);
                   requestNotificationPermission()
-                    .then(subscription => {
+                    .then((subscription) => {
                       if (subscription) {
                         setNotificationsEnabled(true);
                         toast({
                           title: "Notifications Enabled",
-                          description: "You will now receive push notifications for comments on this report.",
+                          description:
+                            "You will now receive push notifications for comments on this report.",
                         });
                       } else {
                         toast({
                           title: "Notifications Not Enabled",
-                          description: "Please allow notifications in your browser settings to receive updates.",
+                          description:
+                            "Please allow notifications in your browser settings to receive updates.",
                           variant: "destructive",
                         });
                       }
                     })
-                    .catch(error => {
+                    .catch((error) => {
                       console.error("Error enabling notifications:", error);
                       toast({
                         title: "Error",
-                        description: "Failed to enable notifications. Please try again.",
+                        description:
+                          "Failed to enable notifications. Please try again.",
                         variant: "destructive",
                       });
                     })
@@ -307,14 +323,17 @@ export function ReportCommentsList({ reportId, initialComments = [], autoFocusCo
       console.error("Error adding comment:", error);
 
       // Remove the optimistic comment on error
-      setComments(prev => prev.filter(comment => comment.id !== optimisticComment.id));
+      setComments((prev) =>
+        prev.filter((comment) => comment.id !== optimisticComment.id),
+      );
 
       // Restore the comment text so the user doesn't lose their input
       setNewComment(sanitizedComment);
 
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to add comment",
+        description:
+          error instanceof Error ? error.message : "Failed to add comment",
         variant: "destructive",
       });
     } finally {
@@ -326,35 +345,56 @@ export function ReportCommentsList({ reportId, initialComments = [], autoFocusCo
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Only handle shortcuts when not typing in a text field
-      const isTyping = ['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName);
+      const isTyping = ["INPUT", "TEXTAREA"].includes(
+        (e.target as HTMLElement)?.tagName,
+      );
 
       // Ctrl+Enter to submit comment
-      if (e.ctrlKey && e.key === 'Enter' && !isSubmitting && newComment.trim() && !isTyping) {
+      if (
+        e.ctrlKey &&
+        e.key === "Enter" &&
+        !isSubmitting &&
+        newComment.trim() &&
+        !isTyping
+      ) {
         e.preventDefault();
         handleSubmitComment();
       }
 
       // Alt+N to focus comment box
-      if (e.altKey && e.key === 'n' && !isTyping) {
+      if (e.altKey && e.key === "n" && !isTyping) {
         e.preventDefault();
         textareaRef.current?.focus();
       }
 
       // Alt+R to refresh comments
-      if (e.altKey && e.key === 'r' && !isTyping && !isLoading && !isRefreshing) {
+      if (
+        e.altKey &&
+        e.key === "r" &&
+        !isTyping &&
+        !isLoading &&
+        !isRefreshing
+      ) {
         e.preventDefault();
         refreshComments();
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [newComment, isSubmitting, isLoading, isRefreshing, refreshComments, handleSubmitComment]);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [
+    newComment,
+    isSubmitting,
+    isLoading,
+    isRefreshing,
+    refreshComments,
+    handleSubmitComment,
+  ]);
 
   // Scroll to bottom when new comments are added
   useEffect(() => {
     if (comments.length > 0 && !isLoading) {
-      commentsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      commentsEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
   }, [comments.length, isLoading]);
 
@@ -371,22 +411,24 @@ export function ReportCommentsList({ reportId, initialComments = [], autoFocusCo
 
     setIsRequestingPermission(true);
     requestNotificationPermission()
-      .then(subscription => {
+      .then((subscription) => {
         if (subscription) {
           setNotificationsEnabled(true);
           toast({
             title: "Notifications Enabled",
-            description: "You will now receive push notifications for comments on this report.",
+            description:
+              "You will now receive push notifications for comments on this report.",
           });
         } else {
           toast({
             title: "Notifications Not Enabled",
-            description: "Please allow notifications in your browser settings to receive updates.",
+            description:
+              "Please allow notifications in your browser settings to receive updates.",
             variant: "destructive",
           });
         }
       })
-      .catch(error => {
+      .catch((error) => {
         console.error("Error enabling notifications:", error);
         toast({
           title: "Error",
@@ -399,72 +441,81 @@ export function ReportCommentsList({ reportId, initialComments = [], autoFocusCo
       });
   }, [isRequestingPermission, toast]);
 
-  const handleDeleteComment = useCallback(async (commentId: string) => {
-    if (!reportId || !commentId || !session?.user) return;
+  const handleDeleteComment = useCallback(
+    async (commentId: string) => {
+      if (!reportId || !commentId || !session?.user) return;
 
-    if (!confirm("Are you sure you want to delete this comment?")) {
-      return;
-    }
-
-    // Store the comment for potential restoration
-    const commentToDelete = comments.find(comment => comment.id === commentId);
-    if (!commentToDelete) return;
-
-    // Optimistically remove the comment
-    setComments(prev => prev.filter(comment => comment.id !== commentId));
-
-    // Show toast with undo option
-    const undoToast = toast({
-      title: "Comment Deleted",
-      description: "The comment has been removed",
-      action: (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            // Restore the comment if user clicks undo
-            setComments(prev => [...prev, commentToDelete]);
-          }}
-          className="mt-2"
-        >
-          Undo
-        </Button>
-      ),
-      duration: 5000,
-    });
-
-    try {
-      const response = await fetch(`/api/reports/${reportId}/report-comments/${commentId}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to delete comment");
+      if (!confirm("Are you sure you want to delete this comment?")) {
+        return;
       }
 
-      const data = await response.json();
-      if (data.success) {
-        // Comment already removed optimistically, just update the toast
+      // Store the comment for potential restoration
+      const commentToDelete = comments.find(
+        (comment) => comment.id === commentId,
+      );
+      if (!commentToDelete) return;
+
+      // Optimistically remove the comment
+      setComments((prev) => prev.filter((comment) => comment.id !== commentId));
+
+      // Show toast with undo option
+      const undoToast = toast({
+        title: "Comment Deleted",
+        description: "The comment has been removed",
+        action: (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              // Restore the comment if user clicks undo
+              setComments((prev) => [...prev, commentToDelete]);
+            }}
+            className="mt-2"
+          >
+            Undo
+          </Button>
+        ),
+        duration: 5000,
+      });
+
+      try {
+        const response = await fetch(
+          `/api/reports/${reportId}/report-comments/${commentId}`,
+          {
+            method: "DELETE",
+          },
+        );
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || "Failed to delete comment");
+        }
+
+        const data = await response.json();
+        if (data.success) {
+          // Comment already removed optimistically, just update the toast
+          toast({
+            title: "Success",
+            description: "Comment deleted successfully",
+            duration: 2000,
+          });
+        }
+      } catch (error) {
+        console.error("Error deleting comment:", error);
+
+        // Restore the comment on error
+        setComments((prev) => [...prev, commentToDelete]);
+
         toast({
-          title: "Success",
-          description: "Comment deleted successfully",
-          duration: 2000,
+          title: "Error",
+          description:
+            error instanceof Error ? error.message : "Failed to delete comment",
+          variant: "destructive",
         });
       }
-    } catch (error) {
-      console.error("Error deleting comment:", error);
-
-      // Restore the comment on error
-      setComments(prev => [...prev, commentToDelete]);
-
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to delete comment",
-        variant: "destructive",
-      });
-    }
-  }, [reportId, session, comments]);
+    },
+    [reportId, session, comments],
+  );
 
   return (
     <div className="space-y-4">
@@ -486,10 +537,9 @@ export function ReportCommentsList({ reportId, initialComments = [], autoFocusCo
                   onClick={refreshComments}
                   disabled={isRefreshing}
                 >
-                  <RefreshCw className={cn(
-                    "h-4 w-4",
-                    isRefreshing && "animate-spin"
-                  )} />
+                  <RefreshCw
+                    className={cn("h-4 w-4", isRefreshing && "animate-spin")}
+                  />
                   <span className="sr-only">Refresh comments</span>
                 </Button>
               </TooltipTrigger>
@@ -508,9 +558,12 @@ export function ReportCommentsList({ reportId, initialComments = [], autoFocusCo
                   size="sm"
                   className={cn(
                     "h-8 w-8 p-0 rounded-full",
-                    showKeyboardShortcuts && "bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-300"
+                    showKeyboardShortcuts &&
+                      "bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-300",
                   )}
-                  onClick={() => setShowKeyboardShortcuts(!showKeyboardShortcuts)}
+                  onClick={() =>
+                    setShowKeyboardShortcuts(!showKeyboardShortcuts)
+                  }
                 >
                   <Keyboard className="h-4 w-4" />
                   <span className="sr-only">Keyboard shortcuts</span>
@@ -544,15 +597,21 @@ export function ReportCommentsList({ reportId, initialComments = [], autoFocusCo
           </div>
           <ul className="space-y-2 text-blue-700 dark:text-blue-300">
             <li className="flex items-center gap-2">
-              <kbd className="px-2 py-1 bg-white dark:bg-gray-800 rounded border border-blue-200 dark:border-blue-700 text-xs font-mono">Ctrl+Enter</kbd>
+              <kbd className="px-2 py-1 bg-white dark:bg-gray-800 rounded border border-blue-200 dark:border-blue-700 text-xs font-mono">
+                Ctrl+Enter
+              </kbd>
               <span>Submit comment</span>
             </li>
             <li className="flex items-center gap-2">
-              <kbd className="px-2 py-1 bg-white dark:bg-gray-800 rounded border border-blue-200 dark:border-blue-700 text-xs font-mono">Alt+N</kbd>
+              <kbd className="px-2 py-1 bg-white dark:bg-gray-800 rounded border border-blue-200 dark:border-blue-700 text-xs font-mono">
+                Alt+N
+              </kbd>
               <span>Focus comment box</span>
             </li>
             <li className="flex items-center gap-2">
-              <kbd className="px-2 py-1 bg-white dark:bg-gray-800 rounded border border-blue-200 dark:border-blue-700 text-xs font-mono">Alt+R</kbd>
+              <kbd className="px-2 py-1 bg-white dark:bg-gray-800 rounded border border-blue-200 dark:border-blue-700 text-xs font-mono">
+                Alt+R
+              </kbd>
               <span>Refresh comments</span>
             </li>
           </ul>
@@ -593,30 +652,39 @@ export function ReportCommentsList({ reportId, initialComments = [], autoFocusCo
           )}
 
           {comments.map((comment) => {
-            const { type: commentType, content: commentContent } = processComment(comment);
+            const { type: commentType, content: commentContent } =
+              processComment(comment);
 
             // Determine background and border colors based on comment type
             const bgColorClass = {
-              'regular': 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700',
-              'approval': 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800',
-              'rejection': 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800',
-              'system': 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'
+              regular:
+                "bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700",
+              approval:
+                "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800",
+              rejection:
+                "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800",
+              system:
+                "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800",
             }[commentType];
 
             // Determine avatar gradient based on comment type
             const avatarGradient = {
-              'regular': 'from-blue-400 to-blue-600 hover:ring-blue-200 dark:hover:ring-blue-800',
-              'approval': 'from-green-400 to-green-600 hover:ring-green-200 dark:hover:ring-green-800',
-              'rejection': 'from-red-400 to-red-600 hover:ring-red-200 dark:hover:ring-red-800',
-              'system': 'from-purple-400 to-purple-600 hover:ring-purple-200 dark:hover:ring-purple-800'
+              regular:
+                "from-blue-400 to-blue-600 hover:ring-blue-200 dark:hover:ring-blue-800",
+              approval:
+                "from-green-400 to-green-600 hover:ring-green-200 dark:hover:ring-green-800",
+              rejection:
+                "from-red-400 to-red-600 hover:ring-red-200 dark:hover:ring-red-800",
+              system:
+                "from-purple-400 to-purple-600 hover:ring-purple-200 dark:hover:ring-purple-800",
             }[commentType];
 
             // Determine icon based on comment type
             const CommentIcon = {
-              'regular': User,
-              'approval': CheckCircle,
-              'rejection': XCircle,
-              'system': Shield
+              regular: User,
+              approval: CheckCircle,
+              rejection: XCircle,
+              system: Shield,
             }[commentType];
 
             return (
@@ -627,7 +695,9 @@ export function ReportCommentsList({ reportId, initialComments = [], autoFocusCo
                 <div className="flex items-start gap-3">
                   {/* User Avatar with Icon */}
                   <div className="flex-shrink-0">
-                    <div className={`h-8 w-8 rounded-full bg-gradient-to-br ${avatarGradient} text-white flex items-center justify-center font-medium shadow-sm transition-transform duration-200 hover:scale-110 ring-2 ring-transparent`}>
+                    <div
+                      className={`h-8 w-8 rounded-full bg-gradient-to-br ${avatarGradient} text-white flex items-center justify-center font-medium shadow-sm transition-transform duration-200 hover:scale-110 ring-2 ring-transparent`}
+                    >
                       <CommentIcon className="h-4 w-4" />
                     </div>
                   </div>
@@ -636,29 +706,44 @@ export function ReportCommentsList({ reportId, initialComments = [], autoFocusCo
                     <div className="flex justify-between items-start">
                       <div className="flex items-center gap-2">
                         <span className="font-medium text-sm">
-                          {comment.user?.name || comment.user?.username || 'User'}
+                          {comment.user?.name ||
+                            comment.user?.username ||
+                            "User"}
                         </span>
 
                         {/* Comment type badge */}
-                        {commentType !== 'regular' && (
-                          <Badge variant={
-                            commentType === 'approval' ? 'success' :
-                              commentType === 'rejection' ? 'destructive' :
-                                'secondary'
-                          } className="text-xs px-1 py-0">
-                            {commentType === 'approval' ? 'Approved' :
-                              commentType === 'rejection' ? 'Rejected' :
-                                'System'}
+                        {commentType !== "regular" && (
+                          <Badge
+                            variant={
+                              commentType === "approval"
+                                ? "success"
+                                : commentType === "rejection"
+                                  ? "destructive"
+                                  : "secondary"
+                            }
+                            className="text-xs px-1 py-0"
+                          >
+                            {commentType === "approval"
+                              ? "Approved"
+                              : commentType === "rejection"
+                                ? "Rejected"
+                                : "System"}
                           </Badge>
                         )}
 
-                        <span className="text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 cursor-default transition-colors duration-200" title={new Date(comment.createdAt).toLocaleString()}>
-                          {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
+                        <span
+                          className="text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 cursor-default transition-colors duration-200"
+                          title={new Date(comment.createdAt).toLocaleString()}
+                        >
+                          {formatDistanceToNow(new Date(comment.createdAt), {
+                            addSuffix: true,
+                          })}
                         </span>
                       </div>
 
                       {/* Delete button - only visible to comment author or admin */}
-                      {(session?.user?.id === comment.userId || session?.user?.role === "ADMIN") && (
+                      {(session?.user?.id === comment.userId ||
+                        session?.user?.role === "ADMIN") && (
                         <Button
                           variant="ghost"
                           size="sm"
@@ -684,35 +769,43 @@ export function ReportCommentsList({ reportId, initialComments = [], autoFocusCo
                       )}
                     </div>
 
-                    <div className={cn(
-                      "mt-1 text-sm whitespace-pre-wrap leading-relaxed",
-                      commentType === 'approval' && "text-green-800 dark:text-green-200",
-                      commentType === 'rejection' && "text-red-800 dark:text-red-200",
-                      commentType === 'system' && "text-blue-800 dark:text-blue-200"
-                    )}>
+                    <div
+                      className={cn(
+                        "mt-1 text-sm whitespace-pre-wrap leading-relaxed",
+                        commentType === "approval" &&
+                          "text-green-800 dark:text-green-200",
+                        commentType === "rejection" &&
+                          "text-red-800 dark:text-red-200",
+                        commentType === "system" &&
+                          "text-blue-800 dark:text-blue-200",
+                      )}
+                    >
                       {/* For approval/rejection comments, add a prefix icon */}
-                      {commentType === 'approval' && (
+                      {commentType === "approval" && (
                         <span className="inline-flex items-center mr-1 text-green-600 dark:text-green-400">
                           <CheckCircle className="h-4 w-4 mr-1" />
                           <strong>Approved</strong>&nbsp;
                         </span>
                       )}
-                      {commentType === 'rejection' && (
+                      {commentType === "rejection" && (
                         <span className="inline-flex items-center mr-1 text-red-600 dark:text-red-400">
                           <XCircle className="h-4 w-4 mr-1" />
                           <strong>Rejected</strong>&nbsp;
                         </span>
                       )}
-                      {commentType === 'system' && (
+                      {commentType === "system" && (
                         <span className="inline-flex items-center mr-1 text-blue-600 dark:text-blue-400">
                           <Shield className="h-4 w-4 mr-1" />
                           <strong>System</strong>&nbsp;
                         </span>
                       )}
 
-                      {commentContent.split(' ').map((word, i) => {
+                      {commentContent.split(" ").map((word, i) => {
                         // Simple URL detection
-                        if (word.startsWith('http://') || word.startsWith('https://')) {
+                        if (
+                          word.startsWith("http://") ||
+                          word.startsWith("https://")
+                        ) {
                           return (
                             <span key={i}>
                               <a
@@ -729,13 +822,12 @@ export function ReportCommentsList({ reportId, initialComments = [], autoFocusCo
                                 }}
                               >
                                 {word}
-                              </a>
-                              {' '}
+                              </a>{" "}
                             </span>
                           );
                         }
                         // Hashtag detection
-                        else if (word.startsWith('#')) {
+                        else if (word.startsWith("#")) {
                           return (
                             <span key={i}>
                               <span
@@ -748,13 +840,12 @@ export function ReportCommentsList({ reportId, initialComments = [], autoFocusCo
                                 }}
                               >
                                 {word}
-                              </span>
-                              {' '}
+                              </span>{" "}
                             </span>
                           );
                         }
                         // Mention detection
-                        else if (word.startsWith('@')) {
+                        else if (word.startsWith("@")) {
                           return (
                             <span key={i}>
                               <span
@@ -767,8 +858,7 @@ export function ReportCommentsList({ reportId, initialComments = [], autoFocusCo
                                 }}
                               >
                                 {word}
-                              </span>
-                              {' '}
+                              </span>{" "}
                             </span>
                           );
                         }
@@ -778,7 +868,7 @@ export function ReportCommentsList({ reportId, initialComments = [], autoFocusCo
                     </div>
 
                     {/* Reaction buttons could be added here in the future */}
-                    {commentType === 'regular' && (
+                    {commentType === "regular" && (
                       <div className="mt-2 flex justify-end">
                         <Button
                           variant="ghost"
@@ -787,7 +877,8 @@ export function ReportCommentsList({ reportId, initialComments = [], autoFocusCo
                           onClick={() => {
                             toast({
                               title: "Reply Feature",
-                              description: "Reply functionality would be implemented here in a future update.",
+                              description:
+                                "Reply functionality would be implemented here in a future update.",
                             });
                           }}
                         >
@@ -821,7 +912,11 @@ export function ReportCommentsList({ reportId, initialComments = [], autoFocusCo
             {/* User Avatar */}
             <div className="flex-shrink-0">
               <div className="h-8 w-8 rounded-full bg-gradient-to-br from-green-400 to-green-600 text-white flex items-center justify-center font-medium shadow-sm transition-transform duration-200 hover:scale-110 ring-2 ring-transparent hover:ring-green-200 dark:hover:ring-green-800">
-                {session.user.name ? session.user.name.charAt(0).toUpperCase() : (session.user.email ? session.user.email.charAt(0).toUpperCase() : 'U')}
+                {session.user.name
+                  ? session.user.name.charAt(0).toUpperCase()
+                  : session.user.email
+                    ? session.user.email.charAt(0).toUpperCase()
+                    : "U"}
               </div>
             </div>
 
@@ -837,7 +932,7 @@ export function ReportCommentsList({ reportId, initialComments = [], autoFocusCo
               <div className="flex justify-between items-center mt-2">
                 {/* Emoji buttons and notification toggle */}
                 <div className="flex space-x-1 items-center">
-                  {['😊', '👍', '🎉', '❤️', '🔥'].map((emoji) => (
+                  {["😊", "👍", "🎉", "❤️", "🔥"].map((emoji) => (
                     <Button
                       key={emoji}
                       type="button"
@@ -845,14 +940,20 @@ export function ReportCommentsList({ reportId, initialComments = [], autoFocusCo
                       size="sm"
                       className="h-8 w-8 p-0 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 hover:scale-110 focus:scale-110 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-800 group"
                       onClick={() => {
-                        setNewComment(prev => prev + ' ' + emoji);
+                        setNewComment((prev) => prev + " " + emoji);
                         toast({
                           title: "Emoji Added",
                           description: `Added ${emoji} to your comment`,
                         });
                       }}
                     >
-                      <span role="img" aria-label="emoji" className="text-lg transform transition-transform duration-200 group-hover:scale-125">{emoji}</span>
+                      <span
+                        role="img"
+                        aria-label="emoji"
+                        className="text-lg transform transition-transform duration-200 group-hover:scale-125"
+                      >
+                        {emoji}
+                      </span>
                     </Button>
                   ))}
 
@@ -867,7 +968,9 @@ export function ReportCommentsList({ reportId, initialComments = [], autoFocusCo
                             size="sm"
                             className={cn(
                               "ml-2 rounded-full transition-all duration-200 hover:scale-110 focus:scale-110 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-800",
-                              notificationsEnabled ? "text-blue-500 dark:text-blue-400" : "text-gray-500 dark:text-gray-400"
+                              notificationsEnabled
+                                ? "text-blue-500 dark:text-blue-400"
+                                : "text-gray-500 dark:text-gray-400",
                             )}
                             onClick={handleEnableNotifications}
                             disabled={isRequestingPermission}
@@ -899,7 +1002,9 @@ export function ReportCommentsList({ reportId, initialComments = [], autoFocusCo
                         disabled={!newComment.trim() || isSubmitting}
                         className={cn(
                           "flex items-center gap-1 transition-all duration-200",
-                          newComment.trim() ? "bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700" : ""
+                          newComment.trim()
+                            ? "bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
+                            : "",
                         )}
                       >
                         {isSubmitting ? (

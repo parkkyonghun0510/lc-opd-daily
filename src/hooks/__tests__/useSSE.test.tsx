@@ -1,16 +1,16 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
-import { useSSE } from '../useSSE';
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { renderHook, act } from "@testing-library/react";
+import { useSSE } from "../useSSE";
 
 // Mock dependencies
-vi.mock('next-auth/react', () => ({
+vi.mock("next-auth/react", () => ({
   useSession: () => ({
-    data: { user: { id: 'test-user-id' } },
-    status: 'authenticated'
-  })
+    data: { user: { id: "test-user-id" } },
+    status: "authenticated",
+  }),
 }));
 
-vi.mock('@/auth/store', () => {
+vi.mock("@/auth/store", () => {
   const connect = vi.fn();
   const disconnect = vi.fn();
   const reconnect = vi.fn();
@@ -24,17 +24,15 @@ vi.mock('@/auth/store', () => {
       connect,
       disconnect,
       reconnect,
-      setOptions
+      setOptions,
     }),
     useAuth: () => ({
-      user: { id: 'test-user-id' },
+      user: { id: "test-user-id" },
       needsTokenRefresh: () => false,
-      refreshAuthToken: vi.fn().mockResolvedValue(true)
-    })
+      refreshAuthToken: vi.fn().mockResolvedValue(true),
+    }),
   };
 });
-
-
 
 // Mock EventSource
 const MockEventSource = vi.fn().mockImplementation((url: string) => {
@@ -45,7 +43,7 @@ const MockEventSource = vi.fn().mockImplementation((url: string) => {
     onmessage: null,
     onerror: null,
     addEventListener: vi.fn(),
-    close: vi.fn()
+    close: vi.fn(),
   };
 });
 
@@ -53,13 +51,13 @@ const MockEventSource = vi.fn().mockImplementation((url: string) => {
 MockEventSource.mock = {
   instances: [],
   calls: [],
-  mockClear: vi.fn()
+  mockClear: vi.fn(),
 };
 
 // Store the original EventSource
 const OriginalEventSource = global.EventSource;
 
-describe('useSSE Hook', () => {
+describe("useSSE Hook", () => {
   beforeEach(() => {
     // Mock EventSource
     global.EventSource = MockEventSource as any;
@@ -67,7 +65,7 @@ describe('useSSE Hook', () => {
     // Mock crypto.randomUUID
     global.crypto = {
       ...global.crypto,
-      randomUUID: vi.fn().mockReturnValue('test-uuid')
+      randomUUID: vi.fn().mockReturnValue("test-uuid"),
     };
 
     // Reset mocks
@@ -79,27 +77,27 @@ describe('useSSE Hook', () => {
     global.EventSource = OriginalEventSource;
   });
 
-  it('should initialize with default options', () => {
+  it("should initialize with default options", () => {
     const { result } = renderHook(() => useSSE());
 
     expect(result.current.isConnected).toBe(false);
     expect(result.current.error).toBe(null);
     expect(result.current.lastEvent).toBe(null);
-    expect(typeof result.current.reconnect).toBe('function');
-    expect(typeof result.current.closeConnection).toBe('function');
+    expect(typeof result.current.reconnect).toBe("function");
+    expect(typeof result.current.closeConnection).toBe("function");
   });
 
-  it('should initialize with default options', () => {
+  it("should initialize with default options", () => {
     const { result } = renderHook(() => useSSE());
 
     expect(result.current.isConnected).toBe(false);
     expect(result.current.error).toBe(null);
     expect(result.current.lastEvent).toBe(null);
-    expect(typeof result.current.reconnect).toBe('function');
-    expect(typeof result.current.closeConnection).toBe('function');
+    expect(typeof result.current.reconnect).toBe("function");
+    expect(typeof result.current.closeConnection).toBe("function");
   });
 
-  it('should connect when mounted', () => {
+  it("should connect when mounted", () => {
     const { result } = renderHook(() => useSSE());
 
     // Get the mocked connect function from our store mock
@@ -109,26 +107,28 @@ describe('useSSE Hook', () => {
     expect(connect).toBeDefined();
   });
 
-  it('should pass options to the store', () => {
+  it("should pass options to the store", () => {
     const { rerender } = renderHook((props = {}) => useSSE(props));
 
     // Rerender with new options
     const newOptions = {
-      endpoint: '/api/custom-sse',
+      endpoint: "/api/custom-sse",
       enableCache: false,
-      debug: true
+      debug: true,
     };
 
     rerender(newOptions);
 
     // The setOptions function should have been called with the new options
-    const { useSSE } = vi.mocked(require('@/auth/store'));
+    const { useSSE } = vi.mocked(require("@/auth/store"));
     const { setOptions } = useSSE();
 
-    expect(setOptions).toHaveBeenCalledWith(expect.objectContaining(newOptions));
+    expect(setOptions).toHaveBeenCalledWith(
+      expect.objectContaining(newOptions),
+    );
   });
 
-  it('should disconnect when unmounted', () => {
+  it("should disconnect when unmounted", () => {
     const { unmount, result } = renderHook(() => useSSE());
 
     // Get the disconnect function
@@ -141,7 +141,7 @@ describe('useSSE Hook', () => {
     expect(disconnect).toHaveBeenCalled();
   });
 
-  it('should reconnect when the reconnect function is called', () => {
+  it("should reconnect when the reconnect function is called", () => {
     const { result } = renderHook(() => useSSE());
 
     // Get the reconnect function

@@ -75,7 +75,7 @@ export function CommandPalette() {
     setIsLoading(true);
     try {
       const response = await fetch(
-        `/api/search?q=${encodeURIComponent(value)}`
+        `/api/search?q=${encodeURIComponent(value)}`,
       );
       const data = await response.json();
       setResults(data);

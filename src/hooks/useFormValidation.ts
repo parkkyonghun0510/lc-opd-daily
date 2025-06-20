@@ -25,7 +25,8 @@ interface UseFormValidationProps<T extends FieldValues> {
   };
 }
 
-interface UseFormValidationReturn<T extends FieldValues> extends Omit<UseFormReturn<T>, 'handleSubmit'> {
+interface UseFormValidationReturn<T extends FieldValues>
+  extends Omit<UseFormReturn<T>, "handleSubmit"> {
   handleSubmit: UseFormHandleSubmit<T>;
   isDirty: boolean;
   isSubmitting: boolean;
@@ -109,7 +110,7 @@ export function useFormValidation<T extends FieldValues>({
   // Confirm navigation when form is dirty
   useBeforeUnload(
     Boolean(isDirty && options.confirmNavigation),
-    "You have unsaved changes. Are you sure you want to leave?"
+    "You have unsaved changes. Are you sure you want to leave?",
   );
 
   return {

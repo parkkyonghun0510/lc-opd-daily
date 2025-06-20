@@ -1,3 +1,5 @@
+# LC-OPD-Daily
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
@@ -44,8 +46,8 @@ For more information about the authentication system, see the following document
 ### Usage Example
 
 ```tsx
-import { useAuth } from '@/auth/hooks/useAuth';
-import { PermissionGate } from '@/auth/components/PermissionGate';
+import { useAuth } from "@/auth/hooks/useAuth";
+import { PermissionGate } from "@/auth/components/PermissionGate";
 
 function AdminPanel() {
   const { user, isAuthenticated } = useAuth();
@@ -78,11 +80,49 @@ To learn more about Next.js, take a look at the following resources:
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-## Deploy on Vercel
+## Project Structure
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+The project has been organized into the following structure:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+/
+├── docs/            # Documentation files
+├── scripts/         # Scripts for building, deployment, and utilities
+│   ├── build/       # Build scripts
+│   ├── db/          # Database scripts
+│   ├── deploy/      # Deployment scripts
+│   ├── test/        # Test scripts
+│   └── utils/       # Utility scripts
+├── src/             # Source code
+│   ├── app/         # Next.js app directory
+│   ├── auth/        # Authentication system
+│   ├── components/  # Reusable components
+│   └── ...
+└── tests/           # Test files
+    ├── api/         # API tests
+    ├── sse/         # Server-Sent Events tests
+    └── workflow/    # Workflow tests
+```
+
+## Deployment
+
+This project can be deployed using various methods:
+
+### Railway Deployment
+
+The project is configured for deployment on Railway using NIXPACKS:
+
+```bash
+npm run build:railway
+```
+
+### PM2 Deployment
+
+For production deployment with PM2:
+
+```bash
+npm run deploy:production
+```
 
 ## PostgreSQL Performance Optimization
 

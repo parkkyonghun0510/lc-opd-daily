@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 // GET /api/branches/[id] - Get a specific branch by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     // Use NextAuth for authentication
@@ -13,7 +13,7 @@ export async function GET(
     if (!token) {
       return NextResponse.json(
         { error: "Unauthorized - Authentication required" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -35,7 +35,7 @@ export async function GET(
     if (!branch) {
       return NextResponse.json(
         { error: `Branch with ID ${id} not found` },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -44,7 +44,7 @@ export async function GET(
     console.error(`Error fetching branch by ID:`, error);
     return NextResponse.json(
       { error: "Failed to fetch branch" },
-      { status: 500 }
+      { status: 500 },
     );
   }
-} 
+}

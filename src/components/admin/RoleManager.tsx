@@ -5,7 +5,12 @@ import { toast } from "sonner";
 import { ErrorBoundary } from "react-error-boundary";
 import { fetchUsers, fetchBranches, assignUserRole } from "@/lib/api";
 import { Input } from "@/components/ui/input";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { HelpCircle } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -57,10 +62,10 @@ function ErrorFallback({
 }
 
 interface RoleManagerProps {
-  context?: 'branch' | 'user';
+  context?: "branch" | "user";
 }
 
-export function RoleManager({ context = 'user' }: RoleManagerProps) {
+export function RoleManager({ context = "user" }: RoleManagerProps) {
   const [users, setUsers] = useState<User[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [loading, setLoading] = useState(true);
@@ -85,7 +90,9 @@ export function RoleManager({ context = 'user' }: RoleManagerProps) {
       setUsers(data.users);
     } catch (error) {
       console.error("Error fetching users:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to fetch users");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to fetch users",
+      );
     } finally {
       setLoading(false);
     }
@@ -97,7 +104,9 @@ export function RoleManager({ context = 'user' }: RoleManagerProps) {
       setBranches(data);
     } catch (error) {
       console.error("Error fetching branches:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to fetch branches");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to fetch branches",
+      );
     }
   }
 
@@ -117,7 +126,10 @@ export function RoleManager({ context = 'user' }: RoleManagerProps) {
 
   // Reset form when role changes to clear branch selection if not needed
   useEffect(() => {
-    const isAdminRole = selectedRole === UserRole.ADMIN || availableRoles.find(r => r.id === selectedRole)?.name === UserRole.ADMIN;
+    const isAdminRole =
+      selectedRole === UserRole.ADMIN ||
+      availableRoles.find((r) => r.id === selectedRole)?.name ===
+        UserRole.ADMIN;
     if (isAdminRole) {
       // Admin doesn't need branch assignment
       setSelectedBranch(null);
@@ -135,8 +147,11 @@ export function RoleManager({ context = 'user' }: RoleManagerProps) {
     try {
       // If the role is admin, no branch is needed
       // If the role requires a branch but none is selected, show an error
-      const isAdminRole = selectedRole === UserRole.ADMIN || availableRoles.find(r => r.id === selectedRole)?.name === UserRole.ADMIN;
-      
+      const isAdminRole =
+        selectedRole === UserRole.ADMIN ||
+        availableRoles.find((r) => r.id === selectedRole)?.name ===
+          UserRole.ADMIN;
+
       if (!isAdminRole && !selectedBranch) {
         toast.error("Please select a branch for this role");
         setSubmitting(false);
@@ -144,17 +159,18 @@ export function RoleManager({ context = 'user' }: RoleManagerProps) {
       }
 
       // Find the role name to pass to the API
-      const selectedRoleName = availableRoles.find(r => r.id === selectedRole)?.name || selectedRole;
+      const selectedRoleName =
+        availableRoles.find((r) => r.id === selectedRole)?.name || selectedRole;
 
       await assignUserRole(
         selectedUser,
         selectedRoleName,
-        isAdminRole ? null : selectedBranch
+        isAdminRole ? null : selectedBranch,
       );
 
       toast.success("Role assigned successfully");
       await loadUsers(); // Refresh user list
-      
+
       // Reset form
       setSelectedUser(null);
       setSelectedRole("");
@@ -162,7 +178,7 @@ export function RoleManager({ context = 'user' }: RoleManagerProps) {
     } catch (error) {
       console.error("Error assigning role:", error);
       toast.error(
-        error instanceof Error ? error.message : "Failed to assign role"
+        error instanceof Error ? error.message : "Failed to assign role",
       );
     } finally {
       setSubmitting(false);
@@ -170,16 +186,19 @@ export function RoleManager({ context = 'user' }: RoleManagerProps) {
   }
 
   // Filter users based on search query
-  const filteredUsers = users.filter(user => {
-    const matchesSearch = user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         user.email.toLowerCase().includes(searchQuery.toLowerCase());
-    return context === 'branch' 
+  const filteredUsers = users.filter((user) => {
+    const matchesSearch =
+      user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.email.toLowerCase().includes(searchQuery.toLowerCase());
+    return context === "branch"
       ? matchesSearch && user.role !== UserRole.ADMIN
       : matchesSearch;
   });
 
   // Get current user info
-  const selectedUserData = selectedUser ? users.find(u => u.id === selectedUser) : null;
+  const selectedUserData = selectedUser
+    ? users.find((u) => u.id === selectedUser)
+    : null;
 
   if (loading) {
     return (
@@ -237,9 +256,7 @@ export function RoleManager({ context = 'user' }: RoleManagerProps) {
             {/* User Selection */}
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <label className="block text-sm font-medium">
-                  Select User
-                </label>
+                <label className="block text-sm font-medium">Select User</label>
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger>
@@ -277,8 +294,16 @@ export function RoleManager({ context = 'user' }: RoleManagerProps) {
             {selectedUserData && (
               <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-md">
                 <p className="text-sm font-medium">Current settings:</p>
-                <p className="text-sm">Role: <span className="font-semibold">{selectedUserData.role}</span></p>
-                <p className="text-sm">Branch: <span className="font-semibold">{selectedUserData.branch?.name || "None"}</span></p>
+                <p className="text-sm">
+                  Role:{" "}
+                  <span className="font-semibold">{selectedUserData.role}</span>
+                </p>
+                <p className="text-sm">
+                  Branch:{" "}
+                  <span className="font-semibold">
+                    {selectedUserData.branch?.name || "None"}
+                  </span>
+                </p>
               </div>
             )}
 
@@ -314,43 +339,49 @@ export function RoleManager({ context = 'user' }: RoleManagerProps) {
             </div>
 
             {/* Branch Selection */}
-            {selectedRole && !(selectedRole === UserRole.ADMIN || availableRoles.find(r => r.id === selectedRole)?.name === UserRole.ADMIN) && (
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <label className="block text-sm font-medium">
-                    Select Branch
-                  </label>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger>
-                        <HelpCircle className="h-4 w-4 text-muted-foreground" />
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Select a branch for the user to manage</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+            {selectedRole &&
+              !(
+                selectedRole === UserRole.ADMIN ||
+                availableRoles.find((r) => r.id === selectedRole)?.name ===
+                  UserRole.ADMIN
+              ) && (
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <label className="block text-sm font-medium">
+                      Select Branch
+                    </label>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Select a branch for the user to manage</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                  <select
+                    className="w-full p-2 border rounded dark:bg-gray-800 dark:border-gray-700"
+                    value={selectedBranch || ""}
+                    onChange={(e) => setSelectedBranch(e.target.value || null)}
+                    required
+                  >
+                    <option value="">Select a branch...</option>
+                    {branches.map((branch) => (
+                      <option key={branch.id} value={branch.id}>
+                        {branch.name} ({branch.code})
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    {availableRoles.find((r) => r.id === selectedRole)?.name ===
+                    "BRANCH_MANAGER"
+                      ? "Branch managers can access their assigned branch and all sub-branches"
+                      : "Users can only access explicitly assigned branches"}
+                  </p>
                 </div>
-                <select
-                  className="w-full p-2 border rounded dark:bg-gray-800 dark:border-gray-700"
-                  value={selectedBranch || ""}
-                  onChange={(e) => setSelectedBranch(e.target.value || null)}
-                  required
-                >
-                  <option value="">Select a branch...</option>
-                  {branches.map((branch) => (
-                    <option key={branch.id} value={branch.id}>
-                      {branch.name} ({branch.code})
-                    </option>
-                  ))}
-                </select>
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  {availableRoles.find(r => r.id === selectedRole)?.name === 'BRANCH_MANAGER' 
-                    ? "Branch managers can access their assigned branch and all sub-branches" 
-                    : "Users can only access explicitly assigned branches"}
-                </p>
-              </div>
-            )}
+              )}
 
             {/* Role Permissions Display */}
             {selectedRole && (
@@ -372,8 +403,8 @@ export function RoleManager({ context = 'user' }: RoleManagerProps) {
                   {Object.values(Permission)
                     .filter((permission) =>
                       ROLE_PERMISSIONS[selectedRole as UserRole]?.includes(
-                        permission
-                      )
+                        permission,
+                      ),
                     )
                     .map((permission) => (
                       <div

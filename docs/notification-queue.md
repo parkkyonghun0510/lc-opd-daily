@@ -58,11 +58,13 @@ npm run build:worker
 ### 5. Run the Worker
 
 For development:
+
 ```bash
 npm run start:worker
 ```
 
 For production, you can use a process manager like PM2:
+
 ```bash
 pm2 start npm --name "notification-worker" -- run start:worker
 ```
@@ -78,7 +80,7 @@ To send a notification, make a POST request to `/api/push/send` with the followi
     "reportId": "123",
     "submitterName": "John Doe"
   },
-  "userIds": ["user1", "user2"]  // Optional: specific users to target
+  "userIds": ["user1", "user2"] // Optional: specific users to target
 }
 ```
 
@@ -127,6 +129,7 @@ To scale the notification system:
 
 1. Run multiple worker processes on different machines
 2. Configure the SQS queue for higher throughput
+
 ## Related Documentation
 
 - [Notification Worker](./notification-worker.md)
@@ -135,4 +138,4 @@ To scale the notification system:
 - [Performance Optimizations](./performance-optimizations.md)
 - [Production Deployment](./production-deployment.md)
 
-3. Monitor queue depth and adjust number of workers accordingly 
+3. Monitor queue depth and adjust number of workers accordingly

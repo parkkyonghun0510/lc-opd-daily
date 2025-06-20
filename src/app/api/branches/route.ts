@@ -17,7 +17,7 @@ const branchSchema = z.object({
     .max(10, "Branch code must be at most 10 characters")
     .regex(
       /^[A-Z0-9-]+$/,
-      "Branch code must contain only uppercase letters, numbers, and hyphens"
+      "Branch code must contain only uppercase letters, numbers, and hyphens",
     ),
   name: z
     .string()
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
     if (!token) {
       return NextResponse.json(
         { error: "Unauthorized - Authentication required" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -43,35 +43,46 @@ export async function GET(request: NextRequest) {
     const url = new URL(request.url);
     const searchQuery = url.searchParams.get("search") || "";
     const filterByAccess = url.searchParams.get("filterByAccess") !== "false"; // Default to true
-    
+
     // If filtered access is requested (default), get only branches the user has access to
     if (filterByAccess) {
       // Get branches the user has access to
       const accessibleBranches = await getAccessibleBranches(userId);
-      
+
       // Apply search filter if needed
       let filteredBranches = accessibleBranches;
       if (searchQuery) {
-        filteredBranches = accessibleBranches.filter(branch => 
-          branch.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          branch.code.toLowerCase().includes(searchQuery.toLowerCase())
+        filteredBranches = accessibleBranches.filter(
+          (branch) =>
+            branch.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            branch.code.toLowerCase().includes(searchQuery.toLowerCase()),
         );
       }
-      
+
       // Sort by code for consistency
       filteredBranches.sort((a, b) => a.code.localeCompare(b.code));
-      
+
       return NextResponse.json(filteredBranches);
     } else {
       // For admin-only views, get all branches
       // Build the query
-      const where: Prisma.BranchWhereInput = searchQuery 
+      const where: Prisma.BranchWhereInput = searchQuery
         ? {
             OR: [
-              { name: { contains: searchQuery, mode: Prisma.QueryMode.insensitive } },
-              { code: { contains: searchQuery, mode: Prisma.QueryMode.insensitive } },
+              {
+                name: {
+                  contains: searchQuery,
+                  mode: Prisma.QueryMode.insensitive,
+                },
+              },
+              {
+                code: {
+                  contains: searchQuery,
+                  mode: Prisma.QueryMode.insensitive,
+                },
+              },
             ],
-          } 
+          }
         : {};
 
       // Fetch branches
@@ -88,15 +99,15 @@ export async function GET(request: NextRequest) {
               id: true,
               code: true,
               name: true,
-            }
+            },
           },
           _count: {
             select: {
               users: true,
               reports: true,
               children: true,
-            }
-          }
+            },
+          },
         },
         orderBy: { code: "asc" },
       });
@@ -107,7 +118,7 @@ export async function GET(request: NextRequest) {
     console.error("Error fetching branches:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -120,7 +131,7 @@ export async function POST(request: NextRequest) {
     if (!token || token.role !== "ADMIN") {
       return NextResponse.json(
         { error: "Unauthorized - Admin access required" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -138,7 +149,7 @@ export async function POST(request: NextRequest) {
       if (existingBranch) {
         return NextResponse.json(
           { error: "Branch code already exists" },
-          { status: 409 }
+          { status: 409 },
         );
       }
 
@@ -169,7 +180,7 @@ export async function POST(request: NextRequest) {
       if (error instanceof z.ZodError) {
         return NextResponse.json(
           { error: "Validation failed", details: error.errors },
-          { status: 400 }
+          { status: 400 },
         );
       }
       throw error;
@@ -178,7 +189,7 @@ export async function POST(request: NextRequest) {
     console.error("Error creating branch:", error);
     return NextResponse.json(
       { error: "Failed to create branch" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -191,7 +202,7 @@ export async function PATCH(request: NextRequest) {
     if (!token) {
       return NextResponse.json(
         { error: "Unauthorized - Authentication required" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -199,7 +210,7 @@ export async function PATCH(request: NextRequest) {
     if (token.role !== "ADMIN") {
       return NextResponse.json(
         { error: "Unauthorized - Admin access required" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -209,7 +220,7 @@ export async function PATCH(request: NextRequest) {
     if (!id) {
       return NextResponse.json(
         { error: "Branch ID is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -225,7 +236,7 @@ export async function PATCH(request: NextRequest) {
       if (!existingBranch) {
         return NextResponse.json(
           { error: "Branch not found" },
-          { status: 404 }
+          { status: 404 },
         );
       }
 
@@ -238,7 +249,7 @@ export async function PATCH(request: NextRequest) {
         if (codeExists) {
           return NextResponse.json(
             { error: "Branch code already exists" },
-            { status: 409 }
+            { status: 409 },
           );
         }
       }
@@ -260,8 +271,8 @@ export async function PATCH(request: NextRequest) {
               id: true,
               code: true,
               name: true,
-            }
-          }
+            },
+          },
         },
       });
 
@@ -279,7 +290,7 @@ export async function PATCH(request: NextRequest) {
       if (error instanceof z.ZodError) {
         return NextResponse.json(
           { error: "Validation failed", details: error.errors },
-          { status: 400 }
+          { status: 400 },
         );
       }
       throw error;
@@ -288,7 +299,7 @@ export async function PATCH(request: NextRequest) {
     console.error("Error updating branch:", error);
     return NextResponse.json(
       { error: "Failed to update branch" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -301,7 +312,7 @@ export async function DELETE(request: NextRequest) {
     if (!token || token.role !== "ADMIN") {
       return NextResponse.json(
         { error: "Unauthorized - Admin access required" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -311,7 +322,7 @@ export async function DELETE(request: NextRequest) {
     if (!id) {
       return NextResponse.json(
         { error: "Branch ID is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -344,7 +355,7 @@ export async function DELETE(request: NextRequest) {
           error:
             "Cannot delete branch with associated users, reports, or child branches",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -367,7 +378,7 @@ export async function DELETE(request: NextRequest) {
     console.error("Error deleting branch:", error);
     return NextResponse.json(
       { error: "Failed to delete branch" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

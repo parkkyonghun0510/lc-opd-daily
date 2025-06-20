@@ -33,21 +33,21 @@ export function UserSettings() {
   const router = useRouter();
   const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [loading, setLoading] = useState(true);
-  
+
   useEffect(() => {
     const fetchUserStats = async () => {
       try {
         setLoading(true);
-        const response = await fetch('/api/users/stats');
-        
+        const response = await fetch("/api/users/stats");
+
         if (!response.ok) {
-          throw new Error('Failed to fetch user statistics');
+          throw new Error("Failed to fetch user statistics");
         }
-        
+
         const data = await response.json();
         setUserStats(data);
       } catch (error) {
-        console.error('Error fetching user statistics:', error);
+        console.error("Error fetching user statistics:", error);
         toast({
           title: "Error",
           description: "Failed to load user statistics",
@@ -57,19 +57,19 @@ export function UserSettings() {
         setLoading(false);
       }
     };
-    
+
     fetchUserStats();
   }, []);
-  
+
   const formatDate = (dateString: string) => {
     try {
       const date = new Date(dateString);
       return formatDistanceToNow(date, { addSuffix: true });
     } catch (e) {
-      return 'Unknown';
+      return "Unknown";
     }
   };
-  
+
   return (
     <div className="space-y-6">
       <div>
@@ -78,14 +78,14 @@ export function UserSettings() {
           Manage user accounts, assign roles, and control access permissions.
         </p>
       </div>
-      
+
       <Tabs defaultValue="overview" className="space-y-4">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="roles">Role Assignment</TabsTrigger>
           <TabsTrigger value="permissions">Permissions</TabsTrigger>
         </TabsList>
-        
+
         <TabsContent value="overview" className="space-y-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
@@ -111,19 +111,31 @@ export function UserSettings() {
                     </CardHeader>
                     <CardContent>
                       <div className="flex flex-col gap-2">
-                        <Button variant="outline" asChild className="justify-start">
+                        <Button
+                          variant="outline"
+                          asChild
+                          className="justify-start"
+                        >
                           <Link href="/dashboard/admin/users">
                             <Users className="mr-2 h-4 w-4" />
                             Manage Users
                           </Link>
                         </Button>
-                        <Button variant="outline" asChild className="justify-start">
+                        <Button
+                          variant="outline"
+                          asChild
+                          className="justify-start"
+                        >
                           <Link href="/dashboard/admin/users/create">
                             <UserPlus className="mr-2 h-4 w-4" />
                             Add New User
                           </Link>
                         </Button>
-                        <Button variant="outline" asChild className="justify-start">
+                        <Button
+                          variant="outline"
+                          asChild
+                          className="justify-start"
+                        >
                           <Link href="/dashboard/admin/audit">
                             <ShieldCheck className="mr-2 h-4 w-4" />
                             View Audit Logs
@@ -132,10 +144,12 @@ export function UserSettings() {
                       </div>
                     </CardContent>
                   </Card>
-                  
+
                   <Card>
                     <CardHeader className="pb-2">
-                      <CardTitle className="text-base">System Information</CardTitle>
+                      <CardTitle className="text-base">
+                        System Information
+                      </CardTitle>
                     </CardHeader>
                     <CardContent>
                       {loading ? (
@@ -145,23 +159,37 @@ export function UserSettings() {
                       ) : (
                         <div className="space-y-2">
                           <div className="flex justify-between">
-                            <span className="text-sm text-muted-foreground">Total Users:</span>
-                            <span className="font-medium">{userStats?.total || 0}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-sm text-muted-foreground">Active Users:</span>
-                            <span className="font-medium">{userStats?.active || 0}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-sm text-muted-foreground">Admin Users:</span>
-                            <span className="font-medium">{userStats?.admin || 0}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-sm text-muted-foreground">Last Account Created:</span>
+                            <span className="text-sm text-muted-foreground">
+                              Total Users:
+                            </span>
                             <span className="font-medium">
-                              {userStats?.lastCreated ? 
-                                `${userStats.lastCreated.name} (${formatDate(userStats.lastCreated.createdAt)})` : 
-                                'None'}
+                              {userStats?.total || 0}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-sm text-muted-foreground">
+                              Active Users:
+                            </span>
+                            <span className="font-medium">
+                              {userStats?.active || 0}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-sm text-muted-foreground">
+                              Admin Users:
+                            </span>
+                            <span className="font-medium">
+                              {userStats?.admin || 0}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-sm text-muted-foreground">
+                              Last Account Created:
+                            </span>
+                            <span className="font-medium">
+                              {userStats?.lastCreated
+                                ? `${userStats.lastCreated.name} (${formatDate(userStats.lastCreated.createdAt)})`
+                                : "None"}
                             </span>
                           </div>
                         </div>
@@ -173,7 +201,7 @@ export function UserSettings() {
             </CardContent>
           </Card>
         </TabsContent>
-        
+
         <TabsContent value="roles" className="space-y-4">
           <Card>
             <CardHeader>
@@ -187,7 +215,7 @@ export function UserSettings() {
             </CardContent>
           </Card>
         </TabsContent>
-        
+
         <TabsContent value="permissions" className="space-y-4">
           <Card>
             <CardHeader>
@@ -199,12 +227,15 @@ export function UserSettings() {
             <CardContent>
               <div className="text-sm text-muted-foreground space-y-4">
                 <p>
-                  Each role in the system has predefined permissions that determine what users can access and modify.
+                  Each role in the system has predefined permissions that
+                  determine what users can access and modify.
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
                   <div className="border rounded-md p-4">
                     <h4 className="font-medium mb-2">Admin</h4>
-                    <p className="text-sm text-muted-foreground mb-2">Full system access with all permissions.</p>
+                    <p className="text-sm text-muted-foreground mb-2">
+                      Full system access with all permissions.
+                    </p>
                     <ul className="list-disc list-inside text-sm space-y-1">
                       <li>Manage users and roles</li>
                       <li>Configure system settings</li>
@@ -213,10 +244,12 @@ export function UserSettings() {
                       <li>Access audit logs</li>
                     </ul>
                   </div>
-                  
+
                   <div className="border rounded-md p-4">
                     <h4 className="font-medium mb-2">Branch Manager</h4>
-                    <p className="text-sm text-muted-foreground mb-2">Manage assigned branches and their sub-branches.</p>
+                    <p className="text-sm text-muted-foreground mb-2">
+                      Manage assigned branches and their sub-branches.
+                    </p>
                     <ul className="list-disc list-inside text-sm space-y-1">
                       <li>Manage branch users</li>
                       <li>Access branch reports</li>
@@ -224,10 +257,12 @@ export function UserSettings() {
                       <li>View branch analytics</li>
                     </ul>
                   </div>
-                  
+
                   <div className="border rounded-md p-4">
                     <h4 className="font-medium mb-2">User</h4>
-                    <p className="text-sm text-muted-foreground mb-2">Standard access to assigned branches only.</p>
+                    <p className="text-sm text-muted-foreground mb-2">
+                      Standard access to assigned branches only.
+                    </p>
                     <ul className="list-disc list-inside text-sm space-y-1">
                       <li>Create and edit reports</li>
                       <li>View assigned branch data</li>

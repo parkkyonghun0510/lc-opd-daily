@@ -9,7 +9,7 @@ import { SystemSettings } from "@/components/admin/system-settings";
 import { AdminOverview } from "@/components/admin/AdminOverview";
 import { PermissionGate } from "@/components/auth/PermissionGate";
 import { Permission } from "@/lib/auth/roles";
-import { ZustandDashboardProvider } from '@/components/dashboard/ZustandDashboardProvider';
+import { ZustandDashboardProvider } from "@/components/dashboard/ZustandDashboardProvider";
 import { useEffect, useState } from "react";
 import { fetchAdminStats } from "@/lib/api";
 // Removed direct SSE import to reduce connections
@@ -53,21 +53,24 @@ export default function AdminDashboard() {
     getStats();
 
     // Expose debug utilities in development mode
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       exposeDebugUtils();
     }
   }, []);
 
   // Auto-refresh stats every 2 minutes
   useEffect(() => {
-    const refreshInterval = setInterval(async () => {
-      try {
-        const apiStats = await fetchAdminStats();
-        setStats(apiStats);
-      } catch (err) {
-        console.error("Error refreshing admin stats:", err);
-      }
-    }, 2 * 60 * 1000); // 2 minutes
+    const refreshInterval = setInterval(
+      async () => {
+        try {
+          const apiStats = await fetchAdminStats();
+          setStats(apiStats);
+        } catch (err) {
+          console.error("Error refreshing admin stats:", err);
+        }
+      },
+      2 * 60 * 1000,
+    ); // 2 minutes
 
     return () => clearInterval(refreshInterval);
   }, []);
@@ -86,7 +89,7 @@ export default function AdminDashboard() {
 
   return (
     <ZustandDashboardProvider
-      debug={process.env.NODE_ENV === 'development'}
+      debug={process.env.NODE_ENV === "development"}
       autoRefreshInterval={2 * 60 * 1000} // 2 minutes
     >
       {/* Loading indicator is included in the ZustandDashboardProvider */}
@@ -107,7 +110,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* Permission debugger - only visible in development mode */}
-        {process.env.NODE_ENV === 'development' && <PermissionDebugger />}
+        {process.env.NODE_ENV === "development" && <PermissionDebugger />}
 
         {/* Wrap content in AuthLoadingGuard to show loading state while determining permissions */}
         <AdminLoadingGuard>
@@ -116,7 +119,9 @@ export default function AdminDashboard() {
             fallback={
               <div className="p-6 text-red-500 border border-red-200 rounded-md bg-red-50 dark:bg-red-900/20 dark:border-red-800">
                 <h3 className="font-medium text-lg">Access Denied</h3>
-                <p>You don&apos;t have permission to access the admin dashboard</p>
+                <p>
+                  You don&apos;t have permission to access the admin dashboard
+                </p>
               </div>
             }
           >
@@ -124,7 +129,6 @@ export default function AdminDashboard() {
               <div className="p-6 text-red-500">{error}</div>
             ) : (
               <Tabs defaultValue="overview" className="space-y-4">
-
                 <TabsList className="grid w-full grid-cols-4">
                   <TabsTrigger value="overview">Overview</TabsTrigger>
                   <TabsTrigger value="users">Users</TabsTrigger>
@@ -138,7 +142,8 @@ export default function AdminDashboard() {
                   <div className="flex flex-wrap gap-3">
                     <Link href="/dashboard/consolidated" passHref>
                       <Button variant="outline">
-                        <TrendingUp className="mr-2 h-4 w-4" /> Consolidated View
+                        <TrendingUp className="mr-2 h-4 w-4" /> Consolidated
+                        View
                       </Button>
                     </Link>
                     <Link href="/dashboard/reports" passHref>
@@ -148,7 +153,6 @@ export default function AdminDashboard() {
                     </Link>
                   </div>
                 </div>
-
 
                 <TabsContent value="overview">
                   <AdminOverview stats={{ ...(stats || dummyStats) }} />

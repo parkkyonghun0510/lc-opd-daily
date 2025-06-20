@@ -1,7 +1,11 @@
-import { StateCreator } from 'zustand';
-import { UserPreferences } from '@/app/types';
-import { fetchUserData, updateUserProfile, updateUserPreferences } from '@/app/_actions/user-actions';
-import { toast } from 'sonner';
+import { StateCreator } from "zustand";
+import { UserPreferences } from "@/app/types";
+import {
+  fetchUserData,
+  updateUserProfile,
+  updateUserPreferences,
+} from "@/app/_actions/user-actions";
+import { toast } from "sonner";
 // import { trackAuthEvent, AuthEventType } from '@/auth/utils/analytics';
 
 // Define the types for our user profile state
@@ -34,7 +38,7 @@ export interface ProfileActions {
   updateProfile: (data: Partial<UserProfile>) => Promise<boolean>;
   updatePreferences: (
     type: keyof UserPreferences,
-    preferences: Partial<UserPreferences[typeof type]>
+    preferences: Partial<UserPreferences[typeof type]>,
   ) => Promise<boolean>;
   clearProfile: () => void;
   setLoading: (isLoading: boolean) => void;
@@ -77,9 +81,9 @@ export const createProfileSlice: StateCreator<
         set({
           profile: {
             id: result.data.id,
-            name: result.data.name || '',
-            email: result.data.email || '',
-            role: result.data.role || '',
+            name: result.data.name || "",
+            email: result.data.email || "",
+            role: result.data.role || "",
             branchId: result.data.branch?.id,
             image: result.data.image,
             preferences: result.data.preferences,
@@ -90,13 +94,13 @@ export const createProfileSlice: StateCreator<
           error: null,
         });
       } else {
-        set({ error: result.error || 'Failed to fetch user profile' });
-        toast.error(result.error || 'Failed to fetch user profile');
+        set({ error: result.error || "Failed to fetch user profile" });
+        toast.error(result.error || "Failed to fetch user profile");
       }
     } catch (error) {
-      console.error('Error fetching user profile:', error);
-      set({ error: 'Error fetching user profile' });
-      toast.error('Error fetching user profile');
+      console.error("Error fetching user profile:", error);
+      set({ error: "Error fetching user profile" });
+      toast.error("Error fetching user profile");
     } finally {
       set({ isLoading: false });
     }
@@ -104,10 +108,12 @@ export const createProfileSlice: StateCreator<
 
   setProfile: (profile) => {
     set({
-      profile: profile ? {
-        ...profile,
-        lastUpdated: Date.now(),
-      } : null,
+      profile: profile
+        ? {
+            ...profile,
+            lastUpdated: Date.now(),
+          }
+        : null,
       lastFetchTime: profile ? Date.now() : null,
       error: null,
     });
@@ -121,17 +127,17 @@ export const createProfileSlice: StateCreator<
 
       if (result.status === 200 && result.data) {
         // For build, we'll just show a success message without updating the state
-        toast.success('Profile updated successfully');
+        toast.success("Profile updated successfully");
         return true;
       } else {
-        set({ error: result.error || 'Failed to update profile' });
-        toast.error(result.error || 'Failed to update profile');
+        set({ error: result.error || "Failed to update profile" });
+        toast.error(result.error || "Failed to update profile");
         return false;
       }
     } catch (error) {
-      console.error('Error updating profile:', error);
-      set({ error: 'Error updating profile' });
-      toast.error('Error updating profile');
+      console.error("Error updating profile:", error);
+      set({ error: "Error updating profile" });
+      toast.error("Error updating profile");
       return false;
     } finally {
       set({ isLoading: false });
@@ -148,17 +154,17 @@ export const createProfileSlice: StateCreator<
 
       if (result.status === 200 && result.data?.preferences) {
         // For build, we'll just show a success message without updating the state
-        toast.success('Preferences updated successfully');
+        toast.success("Preferences updated successfully");
         return true;
       } else {
-        set({ error: result.error || 'Failed to update preferences' });
-        toast.error(result.error || 'Failed to update preferences');
+        set({ error: result.error || "Failed to update preferences" });
+        toast.error(result.error || "Failed to update preferences");
         return false;
       }
     } catch (error) {
-      console.error('Error updating preferences:', error);
-      set({ error: 'Error updating preferences' });
-      toast.error('Error updating preferences');
+      console.error("Error updating preferences:", error);
+      set({ error: "Error updating preferences" });
+      toast.error("Error updating preferences");
       return false;
     } finally {
       set({ isLoading: false });
@@ -189,29 +195,29 @@ export const createProfileSlice: StateCreator<
 
   displayName: () => {
     const { profile } = get();
-    if (!profile) return '';
+    if (!profile) return "";
 
-    return profile.name || profile.email.split('@')[0];
+    return profile.name || profile.email.split("@")[0];
   },
 
   formattedRole: () => {
     const { profile } = get();
-    if (!profile) return '';
+    if (!profile) return "";
 
     return profile.role
-      .split('_')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-      .join(' ');
+      .split("_")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(" ");
   },
 
   initials: () => {
     const { profile } = get();
-    if (!profile || !profile.name) return '';
+    if (!profile || !profile.name) return "";
 
     return profile.name
-      .split(' ')
-      .map(n => n[0])
-      .join('')
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
       .toUpperCase();
   },
 

@@ -49,11 +49,11 @@ export async function GET(request: Request) {
       permissions: {
         canAccessAdmin: userData.role === "admin",
         canViewAnalytics: ["admin", "manager", "analyst"].includes(
-          userData.role
+          userData.role,
         ),
         canViewAuditLogs: ["admin", "manager"].includes(userData.role),
         canCustomizeDashboard: ["admin", "manager", "analyst"].includes(
-          userData.role
+          userData.role,
         ),
         canManageSettings: ["admin", "manager"].includes(userData.role),
       },
@@ -80,7 +80,7 @@ export async function GET(request: Request) {
       user.id,
       "view_profile",
       { method: "api" },
-      { ipAddress: ip, userAgent }
+      { ipAddress: ip, userAgent },
     );
 
     // Calculate ETag based on user data
@@ -89,7 +89,7 @@ export async function GET(request: Request) {
         id: user.id,
         updatedAt: user.updatedAt,
         role: user.role,
-      })
+      }),
     ).toString("base64")}"`;
 
     // Check if client has a valid cached version
@@ -109,7 +109,7 @@ export async function GET(request: Request) {
     // Add caching headers
     response.headers.set(
       "Cache-Control",
-      `public, max-age=${CACHE_MAX_AGE}, stale-while-revalidate=${STALE_WHILE_REVALIDATE}`
+      `public, max-age=${CACHE_MAX_AGE}, stale-while-revalidate=${STALE_WHILE_REVALIDATE}`,
     );
     response.headers.set("ETag", etag);
 
@@ -118,7 +118,7 @@ export async function GET(request: Request) {
     console.error("Error in /api/auth/me:", error);
     return NextResponse.json(
       { error: "Failed to fetch user data" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

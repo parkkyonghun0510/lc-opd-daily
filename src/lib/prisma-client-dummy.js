@@ -11,7 +11,7 @@ class DummyPrismaClient {
         ) {
           throw new Error(
             "PrismaClient is unable to run in the browser.\n" +
-              "Use server actions or API routes for database operations instead."
+              "Use server actions or API routes for database operations instead.",
           );
         }
         return undefined;

@@ -1,9 +1,9 @@
-import { useStore } from './index';
-import { toast } from 'sonner';
-import { signIn } from 'next-auth/react';
-import { trackAuthEvent, AuthEventType } from '@/auth/utils/analytics';
-import { UserPreferences } from '@/app/types';
-import { ROLE_PERMISSIONS, UserRole, Permission } from '@/lib/auth/roles';
+import { useStore } from "./index";
+import { toast } from "sonner";
+import { signIn } from "next-auth/react";
+import { trackAuthEvent, AuthEventType } from "@/auth/utils/analytics";
+import { UserPreferences } from "@/app/types";
+import { ROLE_PERMISSIONS, UserRole, Permission } from "@/lib/auth/roles";
 
 /**
  * Action creator for refreshing the session
@@ -33,24 +33,25 @@ export const refreshSession = async () => {
             role: store.user.role,
             details: {
               expiresAt: sessionExpiresAt,
-              expiresIn: '30 minutes'
-            }
+              expiresIn: "30 minutes",
+            },
           });
         }
 
-        toast.success('Session refreshed successfully');
+        toast.success("Session refreshed successfully");
         return true;
       }
     }
 
     // Fallback to NextAuth's refresh mechanism
     // Get the current URL to use as callbackUrl if needed
-    const currentUrl = typeof window !== 'undefined' ? window.location.href : '/dashboard';
+    const currentUrl =
+      typeof window !== "undefined" ? window.location.href : "/dashboard";
 
     // Use the current URL as the callbackUrl to ensure we return to the same page
-    await signIn('refresh', {
+    await signIn("refresh", {
       redirect: false,
-      callbackUrl: currentUrl
+      callbackUrl: currentUrl,
     });
 
     // Update the session expiry time (30 minutes from now)
@@ -70,16 +71,16 @@ export const refreshSession = async () => {
         role: store.user.role,
         details: {
           expiresAt: sessionExpiresAt,
-          expiresIn: '30 minutes'
-        }
+          expiresIn: "30 minutes",
+        },
       });
     }
 
-    toast.success('Session refreshed successfully');
+    toast.success("Session refreshed successfully");
     return true;
   } catch (error) {
-    console.error('Error refreshing session:', error);
-    toast.error('Failed to refresh session');
+    console.error("Error refreshing session:", error);
+    toast.error("Failed to refresh session");
     return false;
   } finally {
     store.setLoading(false);
@@ -109,7 +110,7 @@ export const synchronizeUserData = async () => {
 
     return true;
   } catch (error) {
-    console.error('Error synchronizing user data:', error);
+    console.error("Error synchronizing user data:", error);
     return false;
   } finally {
     store.setLoading(false);
@@ -124,7 +125,11 @@ export const handleSessionTimeout = async () => {
   const store = useStore.getState();
 
   // Try to refresh the token first if we have a refresh token
-  if (store.isAuthenticated && await store.refreshAuthToken() && !store.refreshInProgress) {
+  if (
+    store.isAuthenticated &&
+    (await store.refreshAuthToken()) &&
+    !store.refreshInProgress
+  ) {
     try {
       // Use the refreshSession function which handles token refresh
       const success = await refreshSession();
@@ -134,11 +139,11 @@ export const handleSessionTimeout = async () => {
         store.setSessionExpiry(sessionExpiresAt);
         store.updateLastActivity();
 
-        toast.success('Your session has been refreshed');
+        toast.success("Your session has been refreshed");
         return false;
       }
     } catch (error) {
-      console.error('Error refreshing token during session timeout:', error);
+      console.error("Error refreshing token during session timeout:", error);
     }
   }
 
@@ -152,16 +157,19 @@ export const handleSessionTimeout = async () => {
         role: store.user.role,
         details: {
           lastActivity: store.lastActivity,
-          inactivityTime: store.inactivityTime()
-        }
+          inactivityTime: store.inactivityTime(),
+        },
       });
     }
 
     // Get the current URL to use as callbackUrl
-    const currentUrl = typeof window !== 'undefined' ? window.location.pathname + window.location.search : '/dashboard';
+    const currentUrl =
+      typeof window !== "undefined"
+        ? window.location.pathname + window.location.search
+        : "/dashboard";
     const encodedCallbackUrl = encodeURIComponent(currentUrl);
 
-    toast.error('Your session has expired. Please log in again.');
+    toast.error("Your session has expired. Please log in again.");
     await store.logout(`/login?timeout=true&callbackUrl=${encodedCallbackUrl}`);
     return true;
   }
@@ -174,7 +182,7 @@ export const handleSessionTimeout = async () => {
  */
 export const updatePreferencesOptimistic = async (
   type: keyof UserPreferences,
-  preferences: Partial<UserPreferences[typeof type]>
+  preferences: Partial<UserPreferences[typeof type]>,
 ) => {
   const store = useStore.getState();
 
@@ -186,7 +194,7 @@ export const updatePreferencesOptimistic = async (
   // Store the original preferences for rollback
   const originalPreferences = store.profile.preferences?.[type]
     ? { ...store.profile.preferences[type] }
-    : {} as Partial<UserPreferences[typeof type]>;
+    : ({} as Partial<UserPreferences[typeof type]>);
 
   try {
     // Optimistically update the UI
@@ -243,14 +251,14 @@ export const updatePreferencesOptimistic = async (
         role: store.profile.role,
         details: {
           type,
-          preferences
-        }
+          preferences,
+        },
       });
     }
 
     return true;
   } catch (error) {
-    console.error('Error updating preferences:', error);
+    console.error("Error updating preferences:", error);
 
     // Rollback on error
     store.setProfile({
@@ -282,14 +290,16 @@ export const hasPermission = (permission: string) => {
 
   // Convert the enum-based permissions to string arrays for easier handling
   const rolePermissions: Record<string, string[]> = {
-    'ADMIN': ROLE_PERMISSIONS[UserRole.ADMIN].map(p => p.toString()),
-    'BRANCH_MANAGER': ROLE_PERMISSIONS[UserRole.BRANCH_MANAGER].map(p => p.toString()),
-    'SUPERVISOR': ROLE_PERMISSIONS[UserRole.SUPERVISOR].map(p => p.toString()),
-    'USER': ROLE_PERMISSIONS[UserRole.USER].map(p => p.toString()),
+    ADMIN: ROLE_PERMISSIONS[UserRole.ADMIN].map((p) => p.toString()),
+    BRANCH_MANAGER: ROLE_PERMISSIONS[UserRole.BRANCH_MANAGER].map((p) =>
+      p.toString(),
+    ),
+    SUPERVISOR: ROLE_PERMISSIONS[UserRole.SUPERVISOR].map((p) => p.toString()),
+    USER: ROLE_PERMISSIONS[UserRole.USER].map((p) => p.toString()),
   };
 
   // Get user role
-  const role = store.user?.role || '';
+  const role = store.user?.role || "";
 
   // For debugging permission issues
   const debug = false; // Set to true to enable debug logging
@@ -309,7 +319,10 @@ export const hasPermission = (permission: string) => {
   // Check if the permission exists in any role (to catch typos)
   const allPermissions = Object.values(rolePermissions).flat();
   if (!allPermissions.includes(permission)) {
-    if (debug) console.log(`Permission check warning: Unknown permission "${permission}"`);
+    if (debug)
+      console.log(
+        `Permission check warning: Unknown permission "${permission}"`,
+      );
     // Continue with the check anyway, as this might be a new permission
   }
 
@@ -318,7 +331,9 @@ export const hasPermission = (permission: string) => {
     console.log(`Permission check: ${permission} for role ${role}`);
     console.log(`User has role: ${role}`);
     console.log(`Role has permissions:`, rolePermissions[role]);
-    console.log(`Has permission: ${rolePermissions[role]?.includes(permission)}`);
+    console.log(
+      `Has permission: ${rolePermissions[role]?.includes(permission)}`,
+    );
   }
 
   // Check if the role has the permission
@@ -348,11 +363,11 @@ export const debugPermissions = () => {
   const store = useStore.getState();
 
   if (!store.user) {
-    console.log('No authenticated user found');
+    console.log("No authenticated user found");
     return {
       authenticated: false,
       user: null,
-      permissions: []
+      permissions: [],
     };
   }
 
@@ -360,22 +375,24 @@ export const debugPermissions = () => {
 
   // Use the same permission mapping as in hasPermission
   const rolePermissions: Record<string, string[]> = {
-    'ADMIN': ROLE_PERMISSIONS[UserRole.ADMIN].map(p => p.toString()),
-    'BRANCH_MANAGER': ROLE_PERMISSIONS[UserRole.BRANCH_MANAGER].map(p => p.toString()),
-    'SUPERVISOR': ROLE_PERMISSIONS[UserRole.SUPERVISOR].map(p => p.toString()),
-    'USER': ROLE_PERMISSIONS[UserRole.USER].map(p => p.toString()),
+    ADMIN: ROLE_PERMISSIONS[UserRole.ADMIN].map((p) => p.toString()),
+    BRANCH_MANAGER: ROLE_PERMISSIONS[UserRole.BRANCH_MANAGER].map((p) =>
+      p.toString(),
+    ),
+    SUPERVISOR: ROLE_PERMISSIONS[UserRole.SUPERVISOR].map((p) => p.toString()),
+    USER: ROLE_PERMISSIONS[UserRole.USER].map((p) => p.toString()),
   };
 
   const userPermissions = rolePermissions[role] || [];
 
-  console.log('=== Permission Debug Information ===');
+  console.log("=== Permission Debug Information ===");
   console.log(`User: ${store.user.name} (${store.user.email})`);
   console.log(`Role: ${role}`);
-  console.log(`Branch ID: ${store.user.branchId || 'None'}`);
+  console.log(`Branch ID: ${store.user.branchId || "None"}`);
   console.log(`Authenticated: ${store.isAuthenticated}`);
   console.log(`Admin: ${store.isAdmin()}`);
   console.log(`Permissions (${userPermissions.length}):`);
-  userPermissions.forEach(permission => {
+  userPermissions.forEach((permission) => {
     console.log(`- ${permission}`);
   });
 
@@ -384,6 +401,6 @@ export const debugPermissions = () => {
     user: store.user,
     role,
     permissions: userPermissions,
-    hasPermission: (permission: string) => userPermissions.includes(permission)
+    hasPermission: (permission: string) => userPermissions.includes(permission),
   };
 };

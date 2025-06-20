@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useRef } from 'react';
-import { useStore } from '@/auth/store';
-import { synchronizeUserData } from '@/auth/store/actions';
-import { useSession } from 'next-auth/react';
+import { useEffect, useRef } from "react";
+import { useStore } from "@/auth/store";
+import { synchronizeUserData } from "@/auth/store/actions";
+import { useSession } from "next-auth/react";
 
 interface StoreSynchronizerProps {
   // Sync interval in seconds
@@ -32,16 +32,16 @@ export function StoreSynchronizer({
 
   // Sync NextAuth session with Zustand store
   useEffect(() => {
-    if (status === 'authenticated' && session?.user) {
+    if (status === "authenticated" && session?.user) {
       setUser({
         id: session.user.id,
-        name: session.user.name || '',
-        email: session.user.email || '',
-        role: session.user.role || '',
+        name: session.user.name || "",
+        email: session.user.email || "",
+        role: session.user.role || "",
         branchId: session.user.branchId,
         image: session.user.image,
       });
-    } else if (status === 'unauthenticated') {
+    } else if (status === "unauthenticated") {
       setUser(null);
     }
   }, [session, status, setUser]);
@@ -85,10 +85,10 @@ export function StoreSynchronizer({
       }
     };
 
-    window.addEventListener('focus', handleFocus);
+    window.addEventListener("focus", handleFocus);
 
     return () => {
-      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener("focus", handleFocus);
     };
   }, [isAuthenticated, syncOnFocus]);
 
@@ -101,10 +101,10 @@ export function StoreSynchronizer({
       lastSyncTime.current = Date.now();
     };
 
-    window.addEventListener('online', handleOnline);
+    window.addEventListener("online", handleOnline);
 
     return () => {
-      window.removeEventListener('online', handleOnline);
+      window.removeEventListener("online", handleOnline);
     };
   }, [isAuthenticated, syncOnReconnect]);
 

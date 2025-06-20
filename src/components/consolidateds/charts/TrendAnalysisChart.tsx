@@ -13,7 +13,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ConsolidatedData, TimeSeriesDataPoint } from "../types/consolidated-types";
+import {
+  ConsolidatedData,
+  TimeSeriesDataPoint,
+} from "../types/consolidated-types";
 
 interface TrendAnalysisChartProps {
   data: ConsolidatedData;
@@ -31,19 +34,21 @@ export function TrendAnalysisChart({
   const getFormattedData = (): TimeSeriesDataPoint[] => {
     if (!data.historicalData || !data.historicalData.length) return [];
 
-    return data.historicalData.map((item) => ({
-      date: item.date,
-      rawDate: null,
-      writeOffs: item.writeOffs,
-      ninetyPlus: item.ninetyPlus,
-      count: item.count,
-      writeOffsChange: null,
-      ninetyPlusChange: null,
-      avgWriteOffs: 0,
-      avgNinetyPlus: 0,
-      writeOffsTrend: "stable",
-      ninetyPlusTrend: "stable",
-    })).reverse(); // Reverse to show oldest to newest
+    return data.historicalData
+      .map((item) => ({
+        date: item.date,
+        rawDate: null,
+        writeOffs: item.writeOffs,
+        ninetyPlus: item.ninetyPlus,
+        count: item.count,
+        writeOffsChange: null,
+        ninetyPlusChange: null,
+        avgWriteOffs: 0,
+        avgNinetyPlus: 0,
+        writeOffsTrend: "stable",
+        ninetyPlusTrend: "stable",
+      }))
+      .reverse(); // Reverse to show oldest to newest
   };
 
   const chartData = getFormattedData();
@@ -72,7 +77,9 @@ export function TrendAnalysisChart({
       <div
         className={cn(
           "transition-all duration-300 ease-in-out",
-          collapsed ? "max-h-0 opacity-0 overflow-hidden" : "max-h-[500px] opacity-100"
+          collapsed
+            ? "max-h-0 opacity-0 overflow-hidden"
+            : "max-h-[500px] opacity-100",
         )}
       >
         <div className="w-full h-[300px] sm:h-[400px] p-4">

@@ -48,7 +48,10 @@ export default function UserPage() {
         console.error("Error fetching user:", error);
         toast({
           title: "Error",
-          description: error instanceof Error ? error.message : "Failed to fetch user data",
+          description:
+            error instanceof Error
+              ? error.message
+              : "Failed to fetch user data",
           variant: "destructive",
         });
       } finally {
@@ -87,7 +90,10 @@ export default function UserPage() {
       console.error("Error updating security settings:", error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to update security settings",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to update security settings",
         variant: "destructive",
       });
       throw error;
@@ -119,7 +125,10 @@ export default function UserPage() {
     <div className="container mx-auto py-6 space-y-8">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">User Management</h1>
-        <Button variant="outline" onClick={() => router.push("/dashboard/admin/users")}>
+        <Button
+          variant="outline"
+          onClick={() => router.push("/dashboard/admin/users")}
+        >
           Back to Users
         </Button>
       </div>

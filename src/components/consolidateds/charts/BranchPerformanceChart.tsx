@@ -81,7 +81,9 @@ export function BranchPerformanceChart({
       <div
         className={cn(
           "transition-all duration-300 ease-in-out",
-          collapsed ? "max-h-0 opacity-0 overflow-hidden" : "max-h-[500px] opacity-100"
+          collapsed
+            ? "max-h-0 opacity-0 overflow-hidden"
+            : "max-h-[500px] opacity-100",
         )}
       >
         <div className="px-4 pt-4">

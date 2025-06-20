@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 
 export function useBeforeUnload(
   shouldConfirm: boolean,
-  message: string = "You have unsaved changes. Are you sure you want to leave?"
+  message: string = "You have unsaved changes. Are you sure you want to leave?",
 ) {
   const router = useRouter();
 

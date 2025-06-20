@@ -1,6 +1,6 @@
 // This file is kept for backward compatibility
 // It re-exports the permission hooks from our new authentication system
-import { usePermissions } from '@/auth/hooks/useAuth';
+import { usePermissions } from "@/auth/hooks/useAuth";
 import { Permission, UserRole } from "@/lib/auth/roles";
 import { useState, useEffect, useMemo } from "react";
 
@@ -19,9 +19,13 @@ interface PermissionState {
  */
 export function usePermissionCheck(
   requiredPermissions: Permission[],
-  requireAll: boolean = false
+  requireAll: boolean = false,
 ): PermissionState {
-  const { hasPermission: checkPermission, hasAllPermissions, hasAnyPermission } = usePermissions();
+  const {
+    hasPermission: checkPermission,
+    hasAllPermissions,
+    hasAnyPermission,
+  } = usePermissions();
   const [state, setState] = useState<PermissionState>({
     hasPermission: false,
     isLoading: false,
@@ -61,10 +65,13 @@ export function useMultiplePermissions(permissions: Permission[]) {
   const isLoading = false;
 
   const permissionResults = useMemo(() => {
-    return permissions.reduce((acc, permission) => {
-      acc[permission] = hasPermission(permission);
-      return acc;
-    }, {} as Record<Permission, boolean>);
+    return permissions.reduce(
+      (acc, permission) => {
+        acc[permission] = hasPermission(permission);
+        return acc;
+      },
+      {} as Record<Permission, boolean>,
+    );
   }, [permissions, hasPermission]);
 
   return {
@@ -99,10 +106,13 @@ export function useAllPermissions() {
   const isLoading = false;
 
   const allPermissions = useMemo(() => {
-    return Object.values(Permission).reduce((acc, permission) => {
-      acc[permission] = hasPermission(permission);
-      return acc;
-    }, {} as Record<Permission, boolean>);
+    return Object.values(Permission).reduce(
+      (acc, permission) => {
+        acc[permission] = hasPermission(permission);
+        return acc;
+      },
+      {} as Record<Permission, boolean>,
+    );
   }, [hasPermission]);
 
   return {

@@ -15,18 +15,18 @@ export async function POST(request: NextRequest) {
     if (!token?.sub) {
       return NextResponse.json(
         { error: "Unauthorized - Authentication required" },
-        { status: 401 }
+        { status: 401 },
       );
     }
     const userId = token.sub;
 
     // 2. Check if bot username is configured
     if (!TELEGRAM_BOT_USERNAME) {
-        console.error("TELEGRAM_BOT_USERNAME environment variable is not set.");
-        return NextResponse.json(
-          { error: "Telegram integration is not configured correctly." },
-          { status: 500 }
-        );
+      console.error("TELEGRAM_BOT_USERNAME environment variable is not set.");
+      return NextResponse.json(
+        { error: "Telegram integration is not configured correctly." },
+        { status: 500 },
+      );
     }
 
     // 3. Generate a unique code
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
     let isUnique = false;
     let attempts = 0;
     do {
-      code = crypto.randomBytes(5).toString('hex'); // Generate a 10-char hex code
+      code = crypto.randomBytes(5).toString("hex"); // Generate a 10-char hex code
       const existingCode = await prisma.telegramLinkingCode.findUnique({
         where: { code },
       });
@@ -43,10 +43,12 @@ export async function POST(request: NextRequest) {
     } while (!isUnique && attempts < 5); // Retry a few times if collision occurs
 
     if (!isUnique) {
-      console.error("Failed to generate a unique Telegram linking code after multiple attempts.");
+      console.error(
+        "Failed to generate a unique Telegram linking code after multiple attempts.",
+      );
       return NextResponse.json(
         { error: "Failed to generate linking code, please try again." },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -68,12 +70,11 @@ export async function POST(request: NextRequest) {
 
     // 7. Return the link
     return NextResponse.json({ telegramLink });
-
   } catch (error) {
     console.error("Error generating Telegram linking code:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
-} 
+}

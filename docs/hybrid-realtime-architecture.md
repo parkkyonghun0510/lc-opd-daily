@@ -19,17 +19,20 @@ This approach provides the best balance of real-time performance and reliability
 #### Event Emitter
 
 The Event Emitter is responsible for:
+
 - Storing events in memory
 - Emitting events to connected clients
 - Providing methods to retrieve events for specific users
 
 There are two implementations:
+
 - `eventEmitter.ts`: In-memory implementation for single-instance deployments
 - `redisEventEmitter.ts`: Redis-backed implementation for multi-instance deployments
 
 #### SSE Handler
 
 The SSE Handler is responsible for:
+
 - Managing SSE client connections
 - Sending events to connected clients
 - Handling connection cleanup
@@ -37,6 +40,7 @@ The SSE Handler is responsible for:
 #### Rate Limiter
 
 The Rate Limiter is responsible for:
+
 - Preventing abuse of the SSE endpoints
 - Limiting the number of connections per user/IP
 - Limiting the number of events per user/IP
@@ -44,6 +48,7 @@ The Rate Limiter is responsible for:
 #### Monitor
 
 The Monitor is responsible for:
+
 - Tracking connection statistics
 - Tracking event statistics
 - Tracking performance metrics
@@ -54,6 +59,7 @@ The Monitor is responsible for:
 #### Hybrid Realtime Hook
 
 The Hybrid Realtime Hook is responsible for:
+
 - Managing the connection to the server
 - Automatically switching between SSE and polling
 - Handling reconnection and error recovery
@@ -61,6 +67,7 @@ The Hybrid Realtime Hook is responsible for:
 #### Dashboard Context
 
 The Dashboard Context is responsible for:
+
 - Providing dashboard data with real-time updates
 - Managing the connection to the server
 - Handling data fetching and caching
@@ -135,13 +142,17 @@ Client                                Server
 // In-memory event emitter
 class EventEmitter {
   private events: EventRecord[] = [];
-  
-  emit(type: string, data: any, options: { userIds?: string[], roles?: string[] } = {}): string {
+
+  emit(
+    type: string,
+    data: any,
+    options: { userIds?: string[]; roles?: string[] } = {},
+  ): string {
     // Create event record
     // Store in memory
     // Return event ID
   }
-  
+
   getEventsForUser(userId: string, since?: number): EventRecord[] {
     // Return events for user
   }
@@ -154,19 +165,23 @@ class EventEmitter {
 // SSE handler
 class SSEHandler {
   private clients: Map<string, Client> = new Map();
-  
-  handleConnection(request: NextRequest, userId: string, response: any): string {
+
+  handleConnection(
+    request: NextRequest,
+    userId: string,
+    response: any,
+  ): string {
     // Create client record
     // Store client
     // Return client ID
   }
-  
-  sendEvent(response: any, event: { type: string, data: any }): boolean {
+
+  sendEvent(response: any, event: { type: string; data: any }): boolean {
     // Format event
     // Send to client
     // Return success
   }
-  
+
   broadcastEvent(eventType: string, data: any): number {
     // Send event to all clients
     // Return number of clients
@@ -183,7 +198,7 @@ class RateLimiter {
     // Check if user has exceeded limit
     // Return true if limit exceeded
   }
-  
+
   async checkIpLimit(ip: string, limitType: string): Promise<boolean> {
     // Check if IP has exceeded limit
     // Return true if limit exceeded
@@ -200,35 +215,37 @@ class RateLimiter {
 function useHybridRealtime(options: HybridRealtimeOptions = {}) {
   // State
   const [isConnected, setIsConnected] = useState(false);
-  const [activeMethod, setActiveMethod] = useState<'sse' | 'polling' | null>(null);
-  
+  const [activeMethod, setActiveMethod] = useState<"sse" | "polling" | null>(
+    null,
+  );
+
   // Set up SSE connection
   const setupSSE = () => {
     // Create EventSource
     // Set up event listeners
     // Return success
   };
-  
+
   // Set up polling
   const startPolling = () => {
     // Set up polling interval
     // Return cleanup function
   };
-  
+
   // Initialize connection
   useEffect(() => {
     // Try SSE first
     // Fall back to polling if SSE fails
     // Return cleanup function
   }, []);
-  
+
   // Return hook API
   return {
     isConnected,
     activeMethod,
     lastEvent,
     error,
-    reconnect
+    reconnect,
   };
 }
 ```
@@ -287,13 +304,14 @@ const DEFAULT_LIMITS = {
   // Max 100 events per user per minute
   USER_EVENTS: { max: 100, window: 60 },
   // Max 200 events per IP per minute
-  IP_EVENTS: { max: 200, window: 60 }
+  IP_EVENTS: { max: 200, window: 60 },
 };
 ```
 
 ## Monitoring
 
 The monitoring dashboard provides:
+
 - Connection statistics
 - Event statistics
 - Performance metrics

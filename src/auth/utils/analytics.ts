@@ -2,21 +2,21 @@
 
 /**
  * Authentication Analytics Module
- * 
+ *
  * This module provides functions for tracking authentication-related events.
  * It can be configured to send events to various analytics providers.
  */
 
 // Define the event types
 export enum AuthEventType {
-  LOGIN_SUCCESS = 'auth:login_success',
-  LOGIN_FAILURE = 'auth:login_failure',
-  LOGOUT = 'auth:logout',
-  SESSION_EXPIRED = 'auth:session_expired',
-  SESSION_EXTENDED = 'auth:session_extended',
-  PERMISSION_DENIED = 'auth:permission_denied',
-  PROFILE_UPDATED = 'auth:profile_updated',
-  PREFERENCES_UPDATED = 'auth:preferences_updated',
+  LOGIN_SUCCESS = "auth:login_success",
+  LOGIN_FAILURE = "auth:login_failure",
+  LOGOUT = "auth:logout",
+  SESSION_EXPIRED = "auth:session_expired",
+  SESSION_EXTENDED = "auth:session_extended",
+  PERMISSION_DENIED = "auth:permission_denied",
+  PROFILE_UPDATED = "auth:profile_updated",
+  PREFERENCES_UPDATED = "auth:preferences_updated",
 }
 
 // Define the event data interface
@@ -45,12 +45,12 @@ interface AnalyticsConfig {
 
 // Default configuration
 const defaultConfig: AnalyticsConfig = {
-  enabled: process.env.NODE_ENV === 'production',
-  debug: process.env.NODE_ENV === 'development',
+  enabled: process.env.NODE_ENV === "production",
+  debug: process.env.NODE_ENV === "development",
   providers: {
-    console: process.env.NODE_ENV === 'development',
+    console: process.env.NODE_ENV === "development",
     localStorage: true,
-    server: process.env.NODE_ENV === 'production',
+    server: process.env.NODE_ENV === "production",
   },
 };
 
@@ -59,7 +59,7 @@ let config: AnalyticsConfig = { ...defaultConfig };
 
 /**
  * Configure the analytics module
- * 
+ *
  * @param newConfig The new configuration
  */
 export function configureAnalytics(newConfig: Partial<AnalyticsConfig>): void {
@@ -68,13 +68,13 @@ export function configureAnalytics(newConfig: Partial<AnalyticsConfig>): void {
 
 /**
  * Track an authentication event
- * 
+ *
  * @param eventType The type of event
  * @param data The event data
  */
 export async function trackAuthEvent(
   eventType: AuthEventType,
-  data: Omit<AuthEventData, 'timestamp'>
+  data: Omit<AuthEventData, "timestamp">,
 ): Promise<void> {
   if (!config.enabled) return;
 
@@ -84,33 +84,37 @@ export async function trackAuthEvent(
     data: {
       ...data,
       timestamp: Date.now(),
-      userAgent: typeof window !== 'undefined' ? window.navigator.userAgent : undefined,
+      userAgent:
+        typeof window !== "undefined" ? window.navigator.userAgent : undefined,
     },
   };
 
   // Log to console if enabled
   if (config.providers.console) {
-    console.group(`%c Auth Event: ${eventType}`, 'color: #3b82f6; font-weight: bold;');
-    console.log('Data:', event.data);
+    console.group(
+      `%c Auth Event: ${eventType}`,
+      "color: #3b82f6; font-weight: bold;",
+    );
+    console.log("Data:", event.data);
     console.groupEnd();
   }
 
   // Store in localStorage if enabled
   if (config.providers.localStorage) {
     try {
-      const storageKey = 'auth_events';
-      const storedEvents = JSON.parse(localStorage.getItem(storageKey) || '[]');
+      const storageKey = "auth_events";
+      const storedEvents = JSON.parse(localStorage.getItem(storageKey) || "[]");
       storedEvents.push(event);
-      
+
       // Keep only the last 50 events
       if (storedEvents.length > 50) {
         storedEvents.shift();
       }
-      
+
       localStorage.setItem(storageKey, JSON.stringify(storedEvents));
     } catch (error) {
       if (config.debug) {
-        console.error('Failed to store auth event in localStorage:', error);
+        console.error("Failed to store auth event in localStorage:", error);
       }
     }
   }
@@ -119,19 +123,22 @@ export async function trackAuthEvent(
   if (config.providers.server && config.endpoint) {
     try {
       const response = await fetch(config.endpoint, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(event),
       });
 
       if (!response.ok && config.debug) {
-        console.error('Failed to send auth event to server:', await response.text());
+        console.error(
+          "Failed to send auth event to server:",
+          await response.text(),
+        );
       }
     } catch (error) {
       if (config.debug) {
-        console.error('Failed to send auth event to server:', error);
+        console.error("Failed to send auth event to server:", error);
       }
     }
   }
@@ -139,21 +146,21 @@ export async function trackAuthEvent(
 
 /**
  * Get the stored authentication events from localStorage
- * 
+ *
  * @returns The stored events
  */
 export function getStoredAuthEvents(): Array<{
   type: AuthEventType;
   data: AuthEventData;
 }> {
-  if (typeof window === 'undefined') return [];
+  if (typeof window === "undefined") return [];
 
   try {
-    const storageKey = 'auth_events';
-    return JSON.parse(localStorage.getItem(storageKey) || '[]');
+    const storageKey = "auth_events";
+    return JSON.parse(localStorage.getItem(storageKey) || "[]");
   } catch (error) {
     if (config.debug) {
-      console.error('Failed to get stored auth events:', error);
+      console.error("Failed to get stored auth events:", error);
     }
     return [];
   }
@@ -163,13 +170,13 @@ export function getStoredAuthEvents(): Array<{
  * Clear the stored authentication events from localStorage
  */
 export function clearStoredAuthEvents(): void {
-  if (typeof window === 'undefined') return;
+  if (typeof window === "undefined") return;
 
   try {
-    localStorage.removeItem('auth_events');
+    localStorage.removeItem("auth_events");
   } catch (error) {
     if (config.debug) {
-      console.error('Failed to clear stored auth events:', error);
+      console.error("Failed to clear stored auth events:", error);
     }
   }
 }

@@ -23,8 +23,8 @@ export async function GET(request: NextRequest) {
           data: {
             code: "TEST",
             name: "Test Branch",
-            isActive: true
-          }
+            isActive: true,
+          },
         });
         console.log("Created test branch:", branch.id);
       } else {
@@ -84,7 +84,10 @@ export async function GET(request: NextRequest) {
         },
       },
     });
-    console.log("Report fetched with comments:", reportWithComments?.ReportComment?.length);
+    console.log(
+      "Report fetched with comments:",
+      reportWithComments?.ReportComment?.length,
+    );
 
     // Step 4: Add a comment with special characters to test UTF-8 handling
     console.log("Testing UTF-8 handling with special characters...");
@@ -96,7 +99,10 @@ export async function GET(request: NextRequest) {
           content: "Testing special characters: 😀 🌟 ñ é ü ç 你好 こんにちは",
         },
       });
-      console.log("Special characters comment added successfully:", specialCharsComment.id);
+      console.log(
+        "Special characters comment added successfully:",
+        specialCharsComment.id,
+      );
     } catch (error) {
       console.error("Error adding special characters comment:", error);
       return NextResponse.json({
@@ -128,7 +134,10 @@ export async function GET(request: NextRequest) {
         },
       },
     });
-    console.log("Final report fetched with comments:", finalReport?.ReportComment?.length);
+    console.log(
+      "Final report fetched with comments:",
+      finalReport?.ReportComment?.length,
+    );
 
     return NextResponse.json({
       success: true,
@@ -138,8 +147,11 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error("Error in test endpoint:", error);
     return NextResponse.json(
-      { error: "Test failed", details: error instanceof Error ? error.message : "Unknown error" },
-      { status: 500 }
+      {
+        error: "Test failed",
+        details: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 },
     );
   }
 }

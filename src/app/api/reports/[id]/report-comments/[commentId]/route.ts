@@ -7,7 +7,7 @@ import { rateLimiter } from "@/lib/rate-limit";
 // DELETE /api/reports/[id]/report-comments/[commentId] - Delete a comment
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string; commentId: string }> }
+  { params }: { params: Promise<{ id: string; commentId: string }> },
 ) {
   try {
     const token = await getToken({ req: request });
@@ -15,7 +15,7 @@ export async function DELETE(
     if (!token) {
       return NextResponse.json(
         { error: "Unauthorized - Authentication required" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -27,10 +27,7 @@ export async function DELETE(
     });
 
     if (!existingComment) {
-      return NextResponse.json(
-        { error: "Comment not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Comment not found" }, { status: 404 });
     }
 
     // Check if the user is the comment author or an admin
@@ -40,7 +37,7 @@ export async function DELETE(
     if (!isAuthor && !isAdmin) {
       return NextResponse.json(
         { error: "You can only delete your own comments" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -49,7 +46,7 @@ export async function DELETE(
     const rateLimitResponse = await rateLimiter.applyRateLimit(request, {
       identifier: `delete_comment_${userId}`,
       limit: 10, // Maximum 10 comment deletions per minute
-      window: 60 // Within a 60-second window
+      window: 60, // Within a 60-second window
     });
 
     // If rate limited, return the response
@@ -70,7 +67,7 @@ export async function DELETE(
     console.error("Error deleting report comment:", error);
     return NextResponse.json(
       { error: "Failed to delete comment" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -78,7 +75,7 @@ export async function DELETE(
 // PATCH /api/reports/[id]/report-comments/[commentId] - Update a comment
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string; commentId: string }> }
+  { params }: { params: Promise<{ id: string; commentId: string }> },
 ) {
   try {
     const token = await getToken({ req: request });
@@ -86,7 +83,7 @@ export async function PATCH(
     if (!token) {
       return NextResponse.json(
         { error: "Unauthorized - Authentication required" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -96,7 +93,7 @@ export async function PATCH(
     if (!content) {
       return NextResponse.json(
         { error: "Comment content is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -106,10 +103,7 @@ export async function PATCH(
     });
 
     if (!existingComment) {
-      return NextResponse.json(
-        { error: "Comment not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Comment not found" }, { status: 404 });
     }
 
     // Check if the user is the comment author or an admin
@@ -119,7 +113,7 @@ export async function PATCH(
     if (!isAuthor && !isAdmin) {
       return NextResponse.json(
         { error: "You can only edit your own comments" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -128,7 +122,7 @@ export async function PATCH(
     const rateLimitResponse = await rateLimiter.applyRateLimit(request, {
       identifier: `edit_comment_${userId}`,
       limit: 10, // Maximum 10 comment edits per minute
-      window: 60 // Within a 60-second window
+      window: 60, // Within a 60-second window
     });
 
     // If rate limited, return the response
@@ -142,7 +136,7 @@ export async function PATCH(
     if (!sanitizedContent) {
       return NextResponse.json(
         { error: "Comment content cannot be empty after sanitization" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -173,23 +167,28 @@ export async function PATCH(
 
     // Check for specific PostgreSQL error codes
     if (error instanceof Error) {
-      const errorMessage = error.message || '';
+      const errorMessage = error.message || "";
 
       // Check for UTF-8 encoding issues (PostgreSQL error code 22021)
-      if (errorMessage.includes('22021') || errorMessage.includes('invalid byte sequence for encoding')) {
+      if (
+        errorMessage.includes("22021") ||
+        errorMessage.includes("invalid byte sequence for encoding")
+      ) {
         return NextResponse.json(
           {
-            error: "Invalid characters detected in the comment. Please remove any special characters or emojis and try again.",
-            details: "The system detected invalid UTF-8 characters that cannot be stored in the database."
+            error:
+              "Invalid characters detected in the comment. Please remove any special characters or emojis and try again.",
+            details:
+              "The system detected invalid UTF-8 characters that cannot be stored in the database.",
           },
-          { status: 400 }
+          { status: 400 },
         );
       }
     }
 
     return NextResponse.json(
       { error: "Failed to update comment" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 interface EventTypesTableProps {
   metrics: any;
@@ -22,7 +22,9 @@ export function EventTypesTable({ metrics }: EventTypesTableProps) {
   if (eventTypes.length === 0) {
     return (
       <div className="p-4 bg-gray-100 dark:bg-gray-800 rounded">
-        <p className="text-center text-gray-500 dark:text-gray-400">No events recorded</p>
+        <p className="text-center text-gray-500 dark:text-gray-400">
+          No events recorded
+        </p>
       </div>
     );
   }
@@ -51,7 +53,10 @@ export function EventTypesTable({ metrics }: EventTypesTableProps) {
         <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-800">
           {eventTypes.map(([eventType, count], index) => {
             // Calculate percentage
-            const percentage = totalEvents > 0 ? ((count as number / totalEvents) * 100).toFixed(1) : '0.0';
+            const percentage =
+              totalEvents > 0
+                ? (((count as number) / totalEvents) * 100).toFixed(1)
+                : "0.0";
 
             // Generate a color based on the index
             const hue = (index * 137) % 360; // Golden angle approximation for good distribution
@@ -80,7 +85,7 @@ export function EventTypesTable({ metrics }: EventTypesTableProps) {
                       className="h-2.5 rounded-full"
                       style={{
                         width: `${percentage}%`,
-                        backgroundColor: color
+                        backgroundColor: color,
                       }}
                     ></div>
                   </div>
@@ -91,15 +96,9 @@ export function EventTypesTable({ metrics }: EventTypesTableProps) {
         </tbody>
         <tfoot className="bg-gray-50 dark:bg-gray-800">
           <tr>
-            <td className="px-6 py-3 text-sm font-medium">
-              Total
-            </td>
-            <td className="px-6 py-3 text-sm font-medium">
-              {totalEvents}
-            </td>
-            <td className="px-6 py-3 text-sm font-medium">
-              100%
-            </td>
+            <td className="px-6 py-3 text-sm font-medium">Total</td>
+            <td className="px-6 py-3 text-sm font-medium">{totalEvents}</td>
+            <td className="px-6 py-3 text-sm font-medium">100%</td>
             <td className="px-6 py-3"></td>
           </tr>
         </tfoot>

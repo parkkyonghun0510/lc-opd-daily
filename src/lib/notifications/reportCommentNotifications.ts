@@ -5,16 +5,16 @@
  * including approvals, rejections, and regular comments.
  */
 
-import { ReportCommentType } from '@/types/reports';
-import { sendNotification } from '@/lib/redis/enhancedRedisNotificationService';
-import { prisma } from '@/lib/prisma';
-import { rateLimiter } from '@/lib/rate-limit';
+import { ReportCommentType } from "@/types/reports";
+import { sendNotification } from "@/lib/redis/enhancedRedisNotificationService";
+import { prisma } from "@/lib/prisma";
+import { rateLimiter } from "@/lib/rate-limit";
 
 // Comment notification types
 export enum CommentNotificationType {
-  COMMENT_ADDED = 'COMMENT_ADDED',
-  REPORT_APPROVED = 'REPORT_APPROVED',
-  REPORT_REJECTED = 'REPORT_REJECTED',
+  COMMENT_ADDED = "COMMENT_ADDED",
+  REPORT_APPROVED = "REPORT_APPROVED",
+  REPORT_REJECTED = "REPORT_REJECTED",
 }
 
 /**
@@ -26,7 +26,7 @@ export enum CommentNotificationType {
  */
 export async function processCommentNotification(
   comment: ReportCommentType,
-  reportId: string
+  reportId: string,
 ): Promise<string | null> {
   try {
     // Skip if no comment content
@@ -37,19 +37,19 @@ export async function processCommentNotification(
     const lowerContent = comment.content.toLowerCase();
 
     if (
-      lowerContent.includes('report approved') ||
-      lowerContent.includes('approved the report') ||
-      lowerContent.startsWith('approved:') ||
-      lowerContent.startsWith('approved') ||
-      lowerContent.includes('report has been approved')
+      lowerContent.includes("report approved") ||
+      lowerContent.includes("approved the report") ||
+      lowerContent.startsWith("approved:") ||
+      lowerContent.startsWith("approved") ||
+      lowerContent.includes("report has been approved")
     ) {
       notificationType = CommentNotificationType.REPORT_APPROVED;
     } else if (
-      lowerContent.includes('report rejected') ||
-      lowerContent.includes('rejected the report') ||
-      lowerContent.startsWith('rejected:') ||
-      lowerContent.startsWith('rejected') ||
-      lowerContent.includes('report has been rejected')
+      lowerContent.includes("report rejected") ||
+      lowerContent.includes("rejected the report") ||
+      lowerContent.startsWith("rejected:") ||
+      lowerContent.startsWith("rejected") ||
+      lowerContent.includes("report has been rejected")
     ) {
       notificationType = CommentNotificationType.REPORT_REJECTED;
     } else {
@@ -73,24 +73,30 @@ export async function processCommentNotification(
     // Apply rate limiting for notifications
     const isRateLimited = await checkNotificationRateLimit(comment.userId);
     if (isRateLimited) {
-      console.warn(`Rate limit exceeded for comment notifications from user ${comment.userId}`);
+      console.warn(
+        `Rate limit exceeded for comment notifications from user ${comment.userId}`,
+      );
       return null;
     }
 
     // Create notification data
     const notificationData = {
       reportId,
-      branchName: report.branch?.name || 'Unknown Branch',
+      branchName: report.branch?.name || "Unknown Branch",
       branchId: report.branchId,
       date: report.date,
       commentId: comment.id,
       commentContent: comment.content,
       commentType: notificationType,
       reportType: report.reportType,
-      submittedBy: 'Unknown User', // We don't have user relation in Report model
-      commenterName: comment.user?.name || 'Unknown User',
+      submittedBy: "Unknown User", // We don't have user relation in Report model
+      commenterName: comment.user?.name || "Unknown User",
       title: getNotificationTitle(notificationType, report.branch?.name),
-      body: getNotificationBody(notificationType, comment.content, comment.user?.name),
+      body: getNotificationBody(
+        notificationType,
+        comment.content,
+        comment.user?.name,
+      ),
       actionUrl: `/dashboard?viewReport=${reportId}&action=reply`,
     };
 
@@ -104,7 +110,7 @@ export async function processCommentNotification(
 
     return notificationId;
   } catch (error) {
-    console.error('Error processing comment notification:', error);
+    console.error("Error processing comment notification:", error);
     return null;
   }
 }
@@ -118,7 +124,7 @@ export async function processCommentNotification(
  */
 async function getTargetUsersForComment(
   comment: ReportCommentType,
-  report: any
+  report: any,
 ): Promise<string[]> {
   const targetUserIds = new Set<string>();
 
@@ -138,11 +144,11 @@ async function getTargetUsersForComment(
     select: {
       userId: true,
     },
-    distinct: ['userId'],
+    distinct: ["userId"],
   });
 
   // Add all commenters to target users
-  commenters.forEach(commenter => {
+  commenters.forEach((commenter) => {
     if (commenter.userId) {
       targetUserIds.add(commenter.userId);
     }
@@ -150,10 +156,7 @@ async function getTargetUsersForComment(
 
   // For approvals/rejections, also notify branch managers
   const lowerContent = comment.content.toLowerCase();
-  if (
-    lowerContent.includes('approved') ||
-    lowerContent.includes('rejected')
-  ) {
+  if (lowerContent.includes("approved") || lowerContent.includes("rejected")) {
     // Get branch managers for this branch
     const branchManagers = await prisma.userBranchAssignment.findMany({
       where: {
@@ -162,7 +165,7 @@ async function getTargetUsersForComment(
           userRoles: {
             some: {
               role: {
-                name: 'BRANCH_MANAGER',
+                name: "BRANCH_MANAGER",
               },
             },
           },
@@ -174,7 +177,7 @@ async function getTargetUsersForComment(
     });
 
     // Add branch managers to target users
-    branchManagers.forEach(manager => {
+    branchManagers.forEach((manager) => {
       if (manager.userId && manager.userId !== comment.userId) {
         targetUserIds.add(manager.userId);
       }
@@ -206,7 +209,7 @@ async function checkNotificationRateLimit(userId: string): Promise<boolean> {
     // Rate limit: 5 comment notifications per minute per user
     return (count as any)[0].count >= 5;
   } catch (error) {
-    console.error('Error checking notification rate limit:', error);
+    console.error("Error checking notification rate limit:", error);
     return false; // On error, allow the notification
   }
 }
@@ -216,17 +219,17 @@ async function checkNotificationRateLimit(userId: string): Promise<boolean> {
  */
 function getNotificationTitle(
   type: CommentNotificationType,
-  branchName?: string
+  branchName?: string,
 ): string {
   switch (type) {
     case CommentNotificationType.REPORT_APPROVED:
-      return `Report Approved - ${branchName || 'Branch'}`;
+      return `Report Approved - ${branchName || "Branch"}`;
     case CommentNotificationType.REPORT_REJECTED:
-      return `Report Rejected - ${branchName || 'Branch'}`;
+      return `Report Rejected - ${branchName || "Branch"}`;
     case CommentNotificationType.COMMENT_ADDED:
-      return `New Comment - ${branchName || 'Branch'} Report`;
+      return `New Comment - ${branchName || "Branch"} Report`;
     default:
-      return 'Report Update';
+      return "Report Update";
   }
 }
 
@@ -236,9 +239,9 @@ function getNotificationTitle(
 function getNotificationBody(
   type: CommentNotificationType,
   content: string,
-  userName?: string
+  userName?: string,
 ): string {
-  const user = userName || 'Someone';
+  const user = userName || "Someone";
 
   switch (type) {
     case CommentNotificationType.REPORT_APPROVED:
@@ -257,7 +260,7 @@ function getNotificationBody(
  */
 function truncateContent(content: string, maxLength = 100): string {
   if (content.length <= maxLength) return content;
-  return content.substring(0, maxLength - 3) + '...';
+  return content.substring(0, maxLength - 3) + "...";
 }
 
 /**
@@ -266,27 +269,29 @@ function truncateContent(content: string, maxLength = 100): string {
 function mapToSystemNotificationType(type: CommentNotificationType): string {
   switch (type) {
     case CommentNotificationType.REPORT_APPROVED:
-      return 'REPORT_APPROVED';
+      return "REPORT_APPROVED";
     case CommentNotificationType.REPORT_REJECTED:
-      return 'REPORT_REJECTED';
+      return "REPORT_REJECTED";
     case CommentNotificationType.COMMENT_ADDED:
-      return 'REPORT_COMMENT';
+      return "REPORT_COMMENT";
     default:
-      return 'SYSTEM_NOTIFICATION';
+      return "SYSTEM_NOTIFICATION";
   }
 }
 
 /**
  * Get priority for notification type
  */
-function getPriorityForNotificationType(type: CommentNotificationType): 'high' | 'normal' | 'low' {
+function getPriorityForNotificationType(
+  type: CommentNotificationType,
+): "high" | "normal" | "low" {
   switch (type) {
     case CommentNotificationType.REPORT_APPROVED:
     case CommentNotificationType.REPORT_REJECTED:
-      return 'high';
+      return "high";
     case CommentNotificationType.COMMENT_ADDED:
-      return 'normal';
+      return "normal";
     default:
-      return 'normal';
+      return "normal";
   }
 }

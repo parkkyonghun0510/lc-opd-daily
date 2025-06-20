@@ -3,7 +3,7 @@ import { redis, CACHE_TTL, CACHE_KEYS } from "./redis";
 
 // Helper function to convert Decimal to number
 const toNumber = (value: any): number => {
-  if (typeof value === 'number') return value;
+  if (typeof value === "number") return value;
   return Number(value) || 0;
 };
 
@@ -66,8 +66,9 @@ async function getRevenue() {
   });
 
   return reports.reduce(
-    (sum, report) => sum + toNumber(report.writeOffs) + toNumber(report.ninetyPlus),
-    0
+    (sum, report) =>
+      sum + toNumber(report.writeOffs) + toNumber(report.ninetyPlus),
+    0,
   );
 }
 
@@ -87,7 +88,7 @@ async function getGrowthRate() {
   const prisma = await getPrisma();
   const currentMonthStart = new Date(new Date().setDate(1));
   const lastMonthStart = new Date(
-    new Date().setMonth(new Date().getMonth() - 1, 1)
+    new Date().setMonth(new Date().getMonth() - 1, 1),
   );
   const currentMonth = await prisma.report.aggregate({
     where: {
@@ -115,9 +116,11 @@ async function getGrowthRate() {
   });
 
   const currentTotal =
-    toNumber(currentMonth._sum.writeOffs || 0) + toNumber(currentMonth._sum.ninetyPlus || 0);
+    toNumber(currentMonth._sum.writeOffs || 0) +
+    toNumber(currentMonth._sum.ninetyPlus || 0);
   const lastTotal =
-    toNumber(lastMonth._sum.writeOffs || 0) + toNumber(lastMonth._sum.ninetyPlus || 0);
+    toNumber(lastMonth._sum.writeOffs || 0) +
+    toNumber(lastMonth._sum.ninetyPlus || 0);
 
   if (lastTotal === 0) return 0;
   return Math.round(((currentTotal - lastTotal) / lastTotal) * 100);
@@ -141,18 +144,23 @@ async function getRevenueData() {
     },
   });
 
-  const monthlyData = reports.reduce((acc, report) => {
-    const month = new Date(report.date).toLocaleString("default", {
-      month: "short",
-    });
-    const value = toNumber(report._sum.writeOffs || 0) + toNumber(report._sum.ninetyPlus || 0);
+  const monthlyData = reports.reduce(
+    (acc, report) => {
+      const month = new Date(report.date).toLocaleString("default", {
+        month: "short",
+      });
+      const value =
+        toNumber(report._sum.writeOffs || 0) +
+        toNumber(report._sum.ninetyPlus || 0);
 
-    if (!acc[month]) {
-      acc[month] = 0;
-    }
-    acc[month] += value;
-    return acc;
-  }, {} as Record<string, number>);
+      if (!acc[month]) {
+        acc[month] = 0;
+      }
+      acc[month] += value;
+      return acc;
+    },
+    {} as Record<string, number>,
+  );
 
   return Object.entries(monthlyData).map(([date, value]) => ({
     date,
@@ -177,15 +185,20 @@ async function getUserGrowthData() {
     },
   });
 
-  const monthlyData = userCounts.reduce((acc, data) => {
-    const month = data.createdAt.toLocaleString("default", { month: "short" });
+  const monthlyData = userCounts.reduce(
+    (acc, data) => {
+      const month = data.createdAt.toLocaleString("default", {
+        month: "short",
+      });
 
-    if (!acc[month]) {
-      acc[month] = 0;
-    }
-    acc[month] += data._count.id;
-    return acc;
-  }, {} as Record<string, number>);
+      if (!acc[month]) {
+        acc[month] = 0;
+      }
+      acc[month] += data._count.id;
+      return acc;
+    },
+    {} as Record<string, number>,
+  );
 
   let cumulative = 0;
   return Object.entries(monthlyData).map(([date, count]) => {

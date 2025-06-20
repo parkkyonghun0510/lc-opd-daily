@@ -2,7 +2,7 @@ import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import { UserRole } from "@/lib/auth/roles";
-import type { NextRequest } from 'next/server';
+import type { NextRequest } from "next/server";
 
 const prisma = new PrismaClient();
 
@@ -36,16 +36,20 @@ export default withAuth(
     }
 
     // Avatar handling in development
-    if (process.env.NODE_ENV === 'development' &&
-      path.startsWith('/uploads/avatars/') &&
-      !path.includes('.well-known')) {
-
+    if (
+      process.env.NODE_ENV === "development" &&
+      path.startsWith("/uploads/avatars/") &&
+      !path.includes(".well-known")
+    ) {
       // Extract the filename from the URL
-      const filename = path.split('/').pop();
+      const filename = path.split("/").pop();
 
       // Create a fallback URL for avatars that may not exist
       return NextResponse.rewrite(
-        new URL(`https://api.dicebear.com/7.x/initials/svg?seed=${filename}&backgroundColor=4f46e5`, req.url)
+        new URL(
+          `https://api.dicebear.com/7.x/initials/svg?seed=${filename}&backgroundColor=4f46e5`,
+          req.url,
+        ),
       );
     }
 
@@ -66,7 +70,9 @@ export default withAuth(
       if (token?.role === UserRole.ADMIN) {
         return NextResponse.redirect(new URL("/dashboard/admin", req.url));
       } else if (token?.role === UserRole.BRANCH_MANAGER) {
-        return NextResponse.redirect(new URL("/dashboard/branch-manager", req.url));
+        return NextResponse.redirect(
+          new URL("/dashboard/branch-manager", req.url),
+        );
       } else {
         return NextResponse.redirect(new URL("/dashboard/user", req.url));
       }
@@ -76,17 +82,19 @@ export default withAuth(
     if (path.startsWith("/api/admin") && token?.role !== UserRole.ADMIN) {
       return new NextResponse(
         JSON.stringify({ error: "Unauthorized: Admin access required" }),
-        { status: 403 }
+        { status: 403 },
       );
     }
 
     if (
       path.startsWith("/api/manager") &&
-      ![UserRole.ADMIN, UserRole.BRANCH_MANAGER].includes(token?.role as UserRole)
+      ![UserRole.ADMIN, UserRole.BRANCH_MANAGER].includes(
+        token?.role as UserRole,
+      )
     ) {
       return new NextResponse(
         JSON.stringify({ error: "Unauthorized: Manager access required" }),
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -96,7 +104,7 @@ export default withAuth(
       if (token.branchId !== branchId && token.role !== UserRole.ADMIN) {
         return new NextResponse(
           JSON.stringify({ error: "Unauthorized: Invalid branch access" }),
-          { status: 403 }
+          { status: 403 },
         );
       }
     }
@@ -135,7 +143,7 @@ export default withAuth(
     pages: {
       signIn: "/login",
     },
-  }
+  },
 );
 
 // Comprehensive matcher configuration
@@ -152,6 +160,6 @@ export const config = {
     "/api/:path*",
 
     // Add avatar path matcher
-    '/uploads/avatars/:path*',
+    "/uploads/avatars/:path*",
   ],
 };

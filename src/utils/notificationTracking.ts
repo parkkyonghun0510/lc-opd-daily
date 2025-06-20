@@ -1,13 +1,13 @@
-import { prisma } from '@/lib/prisma';
-import { NotificationEventType } from '@/types/notifications';
+import { prisma } from "@/lib/prisma";
+import { NotificationEventType } from "@/types/notifications";
 
 /**
  * Track a notification event
  */
 export async function trackNotificationEvent(
-  notificationId: string, 
+  notificationId: string,
   event: NotificationEventType,
-  metadata?: Record<string, any>
+  metadata?: Record<string, any>,
 ) {
   try {
     await prisma.notificationEvent.create({
@@ -15,8 +15,8 @@ export async function trackNotificationEvent(
         notificationId,
         event,
         metadata: metadata || {},
-        timestamp: new Date()
-      }
+        timestamp: new Date(),
+      },
     });
     return true;
   } catch (error) {
@@ -31,20 +31,20 @@ export async function trackNotificationEvent(
 export async function getNotificationStats(
   startDate?: Date,
   endDate?: Date,
-  type?: string
+  type?: string,
 ) {
   const where: any = {};
-  
+
   if (startDate || endDate) {
     where.createdAt = {};
     if (startDate) where.createdAt.gte = startDate;
     if (endDate) where.createdAt.lte = endDate;
   }
-  
+
   if (type) {
     where.type = type;
   }
-  
+
   const notifications = await prisma.inAppNotification.findMany({
     where,
     select: {
@@ -55,12 +55,12 @@ export async function getNotificationStats(
       events: {
         select: {
           event: true,
-          timestamp: true
-        }
-      }
-    }
+          timestamp: true,
+        },
+      },
+    },
   });
-  
+
   // Calculate statistics
   const stats = {
     total: notifications.length,
@@ -69,9 +69,9 @@ export async function getNotificationStats(
     delivered: 0,
     failed: 0,
     clicked: 0,
-    byType: {} as Record<string, number>
+    byType: {} as Record<string, number>,
   };
-  
+
   for (const notification of notifications) {
     // Count read/unread
     if (notification.isRead) {
@@ -79,14 +79,14 @@ export async function getNotificationStats(
     } else {
       stats.unread++;
     }
-    
+
     // Count by type
     const type = notification.type;
     if (!stats.byType[type]) {
       stats.byType[type] = 0;
     }
     stats.byType[type]++;
-    
+
     // Count delivery statuses
     for (const event of notification.events) {
       if (event.event === NotificationEventType.DELIVERED) {
@@ -98,23 +98,21 @@ export async function getNotificationStats(
       }
     }
   }
-  
+
   return stats;
 }
 
 /**
- * Get detailed notification delivery history 
+ * Get detailed notification delivery history
  */
-export async function getNotificationEventHistory(
-  notificationId: string
-) {
+export async function getNotificationEventHistory(notificationId: string) {
   return prisma.notificationEvent.findMany({
     where: {
-      notificationId
+      notificationId,
     },
     orderBy: {
-      timestamp: 'asc'
-    }
+      timestamp: "asc",
+    },
   });
 }
 
@@ -123,12 +121,12 @@ export async function getNotificationEventHistory(
  */
 export async function markNotificationDelivered(
   notificationId: string,
-  metadata?: Record<string, any>
+  metadata?: Record<string, any>,
 ) {
   return trackNotificationEvent(
     notificationId,
     NotificationEventType.DELIVERED,
-    metadata
+    metadata,
   );
 }
 
@@ -137,25 +135,25 @@ export async function markNotificationDelivered(
  */
 export async function trackNotificationClick(
   notificationId: string,
-  metadata?: Record<string, any>
+  metadata?: Record<string, any>,
 ) {
   try {
     // Record the click event
     await trackNotificationEvent(
       notificationId,
       NotificationEventType.CLICKED,
-      metadata
+      metadata,
     );
-    
+
     // Mark the notification as read
     await prisma.inAppNotification.update({
       where: { id: notificationId },
-      data: { isRead: true }
+      data: { isRead: true },
     });
-    
+
     return true;
   } catch (error) {
-    console.error('Failed to track notification click:', error);
+    console.error("Failed to track notification click:", error);
     return false;
   }
 }
@@ -167,72 +165,72 @@ export async function getNotificationMetrics() {
   // Today's date at 00:00:00
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
-  
+
   // Yesterday's date at 00:00:00
   const yesterdayStart = new Date(todayStart);
   yesterdayStart.setDate(yesterdayStart.getDate() - 1);
-  
+
   // Last week's start date
   const lastWeekStart = new Date(todayStart);
   lastWeekStart.setDate(lastWeekStart.getDate() - 7);
-  
+
   // Get counts for different time periods
   const [today, yesterday, lastWeek, total] = await Promise.all([
     prisma.inAppNotification.count({
       where: {
         createdAt: {
-          gte: todayStart
-        }
-      }
+          gte: todayStart,
+        },
+      },
     }),
     prisma.inAppNotification.count({
       where: {
         createdAt: {
           gte: yesterdayStart,
-          lt: todayStart
-        }
-      }
+          lt: todayStart,
+        },
+      },
     }),
     prisma.inAppNotification.count({
       where: {
         createdAt: {
-          gte: lastWeekStart
-        }
-      }
+          gte: lastWeekStart,
+        },
+      },
     }),
-    prisma.inAppNotification.count()
+    prisma.inAppNotification.count(),
   ]);
-  
+
   // Most active notification types
   const topTypes = await prisma.inAppNotification.groupBy({
-    by: ['type'],
+    by: ["type"],
     _count: true,
     orderBy: {
       _count: {
-        type: 'desc'
-      }
+        type: "desc",
+      },
     },
-    take: 5
+    take: 5,
   });
-  
+
   // Read vs unread ratio
   const readCount = await prisma.inAppNotification.count({
     where: {
-      isRead: true
-    }
+      isRead: true,
+    },
   });
-  
+
   return {
     counts: {
       today,
       yesterday,
       lastWeek,
-      total
+      total,
     },
-    topTypes: topTypes.map(item => ({
+    topTypes: topTypes.map((item) => ({
       type: item.type,
-      count: item._count
+      count: item._count,
     })),
-    readRatio: total > 0 ? readCount / total : 0
+    readRatio: total > 0 ? readCount / total : 0,
   };
-} 
+}

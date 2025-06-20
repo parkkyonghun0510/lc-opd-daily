@@ -141,7 +141,7 @@ export default function BranchHierarchy({ className }: BranchHierarchyProps) {
         // Break if we can't process any more branches
         if (!newlyProcessed && processed.size < branchMap.size) {
           console.warn(
-            "Some branches could not be processed - possible cycle detected"
+            "Some branches could not be processed - possible cycle detected",
           );
 
           // Handle remaining branches as disconnected

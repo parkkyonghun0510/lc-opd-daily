@@ -1,9 +1,9 @@
-import { Metadata } from 'next';
-import RealtimeMonitoringDashboard from '@/components/admin/RealtimeMonitoringDashboard';
+import { Metadata } from "next";
+import RealtimeMonitoringDashboard from "@/components/admin/RealtimeMonitoringDashboard";
 
 export const metadata: Metadata = {
-  title: 'Real-time Monitoring',
-  description: 'Monitor real-time connections and events',
+  title: "Real-time Monitoring",
+  description: "Monitor real-time connections and events",
 };
 
 export default function RealtimeMonitorPage() {

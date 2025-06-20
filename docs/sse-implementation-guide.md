@@ -49,27 +49,32 @@ The `SSEHandler` is a singleton that manages all SSE connections:
 // src/lib/sse/sseHandler.ts
 class SSEHandler {
   private clients: Map<string, Client> = new Map();
-  
+
   // Add a client connection
-  addClient(id: string, userId: string, response: any, metadata?: Record<string, any>) {
+  addClient(
+    id: string,
+    userId: string,
+    response: any,
+    metadata?: Record<string, any>,
+  ) {
     // Implementation...
   }
-  
+
   // Remove a client connection
   removeClient(id: string) {
     // Implementation...
   }
-  
+
   // Send an event to a specific user
   sendEventToUser(userId: string, eventType: string, data: any) {
     // Implementation...
   }
-  
+
   // Broadcast an event to all clients
   broadcastEvent(eventType: string, data: any) {
     // Implementation...
   }
-  
+
   // Get statistics about current connections
   getStats() {
     // Implementation...
@@ -107,13 +112,13 @@ export function useSSE(options: SSEOptions = {}) {
   // 3. Handle events
   // 4. Handle reconnection
   // 5. Clean up on unmount
-  
+
   return {
     isConnected,
     error,
     lastEvent,
     reconnect,
-    closeConnection
+    closeConnection,
   };
 }
 ```
@@ -140,26 +145,19 @@ Common event types include:
 
 ```typescript
 // Send an event to a specific user
-sseHandler.sendEventToUser(
-  userId,
-  'notification',
-  {
-    id: 'notification-123',
-    type: 'REPORT_APPROVED',
-    title: 'Report Approved',
-    body: 'Your report has been approved',
-    timestamp: Date.now()
-  }
-);
+sseHandler.sendEventToUser(userId, "notification", {
+  id: "notification-123",
+  type: "REPORT_APPROVED",
+  title: "Report Approved",
+  body: "Your report has been approved",
+  timestamp: Date.now(),
+});
 
 // Broadcast an event to all clients
-sseHandler.broadcastEvent(
-  'systemUpdate',
-  {
-    message: 'System maintenance in 10 minutes',
-    timestamp: Date.now()
-  }
-);
+sseHandler.broadcastEvent("systemUpdate", {
+  message: "System maintenance in 10 minutes",
+  timestamp: Date.now(),
+});
 ```
 
 ### Client-Side: Connecting to SSE
@@ -173,15 +171,15 @@ function NotificationListener() {
         toast({
           title: data.title,
           description: data.body,
-          status: 'info'
+          status: "info",
         });
-      }
-    }
+      },
+    },
   });
-  
+
   return (
     <div>
-      {isConnected ? 'Connected' : 'Disconnected'}
+      {isConnected ? "Connected" : "Disconnected"}
       {error && <div>Error: {error}</div>}
     </div>
   );

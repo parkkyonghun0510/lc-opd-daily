@@ -18,7 +18,7 @@ export default function Home() {
         if (!response.ok) {
           throw new Error("Failed to check system status");
         }
-        
+
         const data = await response.json();
 
         // If system is not set up, redirect to setup page

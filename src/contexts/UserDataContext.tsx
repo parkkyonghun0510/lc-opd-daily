@@ -1,6 +1,13 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, useMemo, useCallback } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+} from "react";
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { UserData, UserPreferences } from "@/app/types";
@@ -36,25 +43,30 @@ interface UserDataContextType {
   updateUserData: (newData: Partial<UserData>) => Promise<void>;
   updatePreferences: (
     type: keyof UserPreferences,
-    preferences: Partial<UserPreferences[typeof type]>
+    preferences: Partial<UserPreferences[typeof type]>,
   ) => Promise<void>;
   handleClearAuth: () => void;
 }
 
 const UserDataContext = createContext<UserDataContextType | undefined>(
-  undefined
+  undefined,
 );
 
 // Add this helper function to fix legacy avatar URLs that point to the production domain in development
-export function fixAvatarUrl(url: string | null | undefined): string | undefined {
+export function fixAvatarUrl(
+  url: string | null | undefined,
+): string | undefined {
   if (!url) return undefined;
 
   // If we're in development and S3 URLs might not work correctly
-  if (process.env.NODE_ENV === 'development') {
+  if (process.env.NODE_ENV === "development") {
     // If it's an S3 URL or a production URL
-    if (url.includes('.amazonaws.com/') || url.includes('reports.lchelpdesk.com/uploads/avatars')) {
+    if (
+      url.includes(".amazonaws.com/") ||
+      url.includes("reports.lchelpdesk.com/uploads/avatars")
+    ) {
       // Extract a unique identifier from the URL
-      const filename = url.split('/').pop() || 'default';
+      const filename = url.split("/").pop() || "default";
       // Use our placeholder API
       return `/api/placeholder/avatar?seed=${filename}`;
     }
@@ -81,18 +93,19 @@ export function UserDataProvider({ children }: { children: React.ReactNode }) {
     if (status === "authenticated") {
       // Only refresh data if we don't have it yet or if isLoading is manually set to true
       if ((!userData || isLoading) && retryCount < MAX_RETRIES) {
-        refreshUserData()
-          .catch(error => {
-            console.error("Error in initial data fetch:", error);
-            setIsLoading(false);
-            setRetryCount(prev => prev + 1);
-            setServerError("Server connection error. Please try refreshing the page.");
+        refreshUserData().catch((error) => {
+          console.error("Error in initial data fetch:", error);
+          setIsLoading(false);
+          setRetryCount((prev) => prev + 1);
+          setServerError(
+            "Server connection error. Please try refreshing the page.",
+          );
 
-            if (retryCount >= MAX_RETRIES - 1) {
-              console.warn("Max retry attempts reached when fetching user data");
-              setPersistentError(true);
-            }
-          });
+          if (retryCount >= MAX_RETRIES - 1) {
+            console.warn("Max retry attempts reached when fetching user data");
+            setPersistentError(true);
+          }
+        });
       }
     } else if (status === "unauthenticated") {
       setUserData(null);
@@ -117,24 +130,34 @@ export function UserDataProvider({ children }: { children: React.ReactNode }) {
       } catch (error) {
         clearTimeout(timeoutId);
         // If it's a network error, create a mock result for development
-        if (process.env.NODE_ENV === 'development' && error instanceof TypeError && error.message.includes('fetch')) {
-          console.warn('Network error when fetching user data. Using mock data for development.');
+        if (
+          process.env.NODE_ENV === "development" &&
+          error instanceof TypeError &&
+          error.message.includes("fetch")
+        ) {
+          console.warn(
+            "Network error when fetching user data. Using mock data for development.",
+          );
           result = {
             status: 200,
             data: {
-              id: 'mock-id',
-              name: 'Dev User',
-              email: 'dev@example.com',
-              role: 'ADMIN',
+              id: "mock-id",
+              name: "Dev User",
+              email: "dev@example.com",
+              role: "ADMIN",
               isActive: true,
               preferences: defaultPreferences || {
-                notifications: { reportUpdates: true, reportComments: true, reportApprovals: true },
+                notifications: {
+                  reportUpdates: true,
+                  reportComments: true,
+                  reportApprovals: true,
+                },
                 appearance: { compactMode: false },
               },
               computedFields: {
-                displayName: 'Dev User',
-                accessLevel: 'Admin',
-                status: 'Active',
+                displayName: "Dev User",
+                accessLevel: "Admin",
+                status: "Active",
               },
               permissions: {
                 canAccessAdmin: true,
@@ -152,8 +175,8 @@ export function UserDataProvider({ children }: { children: React.ReactNode }) {
                 canDeleteReports: true,
                 canApproveReports: true,
                 canExportReports: true,
-              }
-            }
+              },
+            },
           };
         } else {
           throw error;
@@ -164,7 +187,10 @@ export function UserDataProvider({ children }: { children: React.ReactNode }) {
         // Check if non-admin user has no branch assigned
         if (!result.data.branch && result.data.role !== "ADMIN") {
           console.error("User has no branch assigned");
-          await signOut({ redirect: true, callbackUrl: "/login?error=No+branch+assigned" });
+          await signOut({
+            redirect: true,
+            callbackUrl: "/login?error=No+branch+assigned",
+          });
           return;
         }
 
@@ -188,11 +214,14 @@ export function UserDataProvider({ children }: { children: React.ReactNode }) {
     if (!userData || !userData.id) return;
 
     // Poll for user data updates every 2 minutes
-    const pollingInterval = setInterval(() => {
-      refreshUserData().catch(err =>
-        console.error("Error refreshing user data during polling:", err)
-      );
-    }, 2 * 60 * 1000); // 2 minutes
+    const pollingInterval = setInterval(
+      () => {
+        refreshUserData().catch((err) =>
+          console.error("Error refreshing user data during polling:", err),
+        );
+      },
+      2 * 60 * 1000,
+    ); // 2 minutes
 
     return () => clearInterval(pollingInterval);
   }, [userData?.id, refreshUserData]);
@@ -237,52 +266,55 @@ export function UserDataProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const updatePreferences = useCallback(async (
-    type: keyof UserPreferences,
-    preferences: Partial<UserPreferences[typeof type]>
-  ) => {
-    try {
-      setIsLoading(true);
-      const result = await updateUserPreferences({
-        [type]: preferences,
-      });
-
-      if (result.status === 200 && result.data?.preferences) {
-        setUserData((prev) => {
-          if (!prev) return prev;
-          const updatedPreferences = {
-            ...prev.preferences,
-            [type]: {
-              ...prev.preferences[type],
-              ...preferences,
-            },
-          };
-          return {
-            ...prev,
-            preferences: updatedPreferences,
-          } as UserData;
+  const updatePreferences = useCallback(
+    async (
+      type: keyof UserPreferences,
+      preferences: Partial<UserPreferences[typeof type]>,
+    ) => {
+      try {
+        setIsLoading(true);
+        const result = await updateUserPreferences({
+          [type]: preferences,
         });
-      } else {
-        throw new Error(result.error || "Failed to update preferences");
+
+        if (result.status === 200 && result.data?.preferences) {
+          setUserData((prev) => {
+            if (!prev) return prev;
+            const updatedPreferences = {
+              ...prev.preferences,
+              [type]: {
+                ...prev.preferences[type],
+                ...preferences,
+              },
+            };
+            return {
+              ...prev,
+              preferences: updatedPreferences,
+            } as UserData;
+          });
+        } else {
+          throw new Error(result.error || "Failed to update preferences");
+        }
+      } catch (error) {
+        console.error("Error updating preferences:", error);
+        throw error;
+      } finally {
+        setIsLoading(false);
       }
-    } catch (error) {
-      console.error("Error updating preferences:", error);
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+    },
+    [],
+  );
 
   // Fix avatar URLs in development environment
   useEffect(() => {
     if (userData && userData.image) {
       const fixedImageUrl = fixAvatarUrl(userData.image);
       if (fixedImageUrl !== userData.image) {
-        setUserData(prev => {
+        setUserData((prev) => {
           if (!prev) return null;
           return {
             ...prev,
-            image: fixedImageUrl
+            image: fixedImageUrl,
           };
         });
       }
@@ -290,20 +322,32 @@ export function UserDataProvider({ children }: { children: React.ReactNode }) {
   }, [userData?.image]);
 
   // Memoize the context value to prevent unnecessary re-renders
-  const contextValue = useMemo(() => ({
-    userData,
-    isLoading,
-    serverError,
-    persistentError,
-    setIsLoading,
-    refreshUserData,
-    updateUserData,
-    updatePreferences,
-    handleClearAuth,
-    // Include SSE status if needed by consumers, though typically not directly exposed
-    // isSseConnected,
-    // sseError,
-  }), [userData, isLoading, serverError, persistentError, refreshUserData, updateUserData, updatePreferences, handleClearAuth]);
+  const contextValue = useMemo(
+    () => ({
+      userData,
+      isLoading,
+      serverError,
+      persistentError,
+      setIsLoading,
+      refreshUserData,
+      updateUserData,
+      updatePreferences,
+      handleClearAuth,
+      // Include SSE status if needed by consumers, though typically not directly exposed
+      // isSseConnected,
+      // sseError,
+    }),
+    [
+      userData,
+      isLoading,
+      serverError,
+      persistentError,
+      refreshUserData,
+      updateUserData,
+      updatePreferences,
+      handleClearAuth,
+    ],
+  );
 
   return (
     <UserDataContext.Provider value={contextValue}>

@@ -71,14 +71,14 @@ export async function GET(request: NextRequest) {
     if (!token) {
       return NextResponse.json(
         { error: "Unauthorized - Authentication required" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
     if (token.role !== UserRole.ADMIN) {
       return NextResponse.json(
         { error: "Forbidden - Admin access required" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -156,7 +156,7 @@ export async function GET(request: NextRequest) {
     console.error("Error fetching users:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -169,14 +169,14 @@ export async function POST(request: NextRequest) {
     if (!token) {
       return NextResponse.json(
         { error: "Unauthorized - Authentication required" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
     if (token.role !== UserRole.ADMIN) {
       return NextResponse.json(
         { error: "Forbidden - Admin access required" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -187,7 +187,7 @@ export async function POST(request: NextRequest) {
     if (!username || !email || !password) {
       return NextResponse.json(
         { error: "Username, email, and password are required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -201,7 +201,7 @@ export async function POST(request: NextRequest) {
     if (existingUser) {
       return NextResponse.json(
         { error: "Username or email already exists" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -234,7 +234,7 @@ export async function POST(request: NextRequest) {
     console.error("Error creating user:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -247,14 +247,14 @@ export async function PATCH(request: NextRequest) {
     if (!token) {
       return NextResponse.json(
         { error: "Unauthorized - Authentication required" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
     if (token.role !== UserRole.ADMIN) {
       return NextResponse.json(
         { error: "Forbidden - Admin access required" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -267,7 +267,7 @@ export async function PATCH(request: NextRequest) {
     if (!id) {
       return NextResponse.json(
         { error: "User ID is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -289,7 +289,7 @@ export async function PATCH(request: NextRequest) {
       if (usernameExists) {
         return NextResponse.json(
           { error: "Username already exists" },
-          { status: 400 }
+          { status: 400 },
         );
       }
     }
@@ -302,7 +302,7 @@ export async function PATCH(request: NextRequest) {
       if (emailExists) {
         return NextResponse.json(
           { error: "Email already exists" },
-          { status: 400 }
+          { status: 400 },
         );
       }
     }
@@ -340,7 +340,7 @@ export async function PATCH(request: NextRequest) {
     console.error("Error updating user:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -353,14 +353,14 @@ export async function DELETE(request: NextRequest) {
     if (!token) {
       return NextResponse.json(
         { error: "Unauthorized - Authentication required" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
     if (token.role !== UserRole.ADMIN) {
       return NextResponse.json(
         { error: "Forbidden - Admin access required" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -380,7 +380,7 @@ export async function DELETE(request: NextRequest) {
     if (existingUser.id === token.id) {
       return NextResponse.json(
         { error: "Cannot delete your own account" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -391,13 +391,13 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json(
       { message: "User deleted successfully" },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (error) {
     console.error("Error deleting user:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

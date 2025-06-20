@@ -10,21 +10,31 @@ export async function GET(request: NextRequest) {
     if (!token) {
       return NextResponse.json(
         { error: "Unauthorized - Authentication required" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
     const url = new URL(request.url);
     const searchQuery = url.searchParams.get("search") || "";
-    
+
     // Build the query
     let where: Prisma.BranchWhereInput = {};
-    
+
     if (searchQuery) {
       where = {
         OR: [
-          { name: { contains: searchQuery, mode: "insensitive" as Prisma.QueryMode } },
-          { code: { contains: searchQuery, mode: "insensitive" as Prisma.QueryMode } },
+          {
+            name: {
+              contains: searchQuery,
+              mode: "insensitive" as Prisma.QueryMode,
+            },
+          },
+          {
+            code: {
+              contains: searchQuery,
+              mode: "insensitive" as Prisma.QueryMode,
+            },
+          },
         ],
       };
     }
@@ -46,7 +56,7 @@ export async function GET(request: NextRequest) {
     console.error("Error fetching branches:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -18,7 +18,7 @@ export async function GET(request: Request) {
     if (!dateStr || !branchId || !reportType) {
       return NextResponse.json(
         { error: "Missing required parameters" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -29,11 +29,11 @@ export async function GET(request: Request) {
     if (isNaN(date.getTime())) {
       return NextResponse.json(
         { error: "Invalid date format" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    const reportDate = date.toISOString().split('T')[0]; // 'YYYY-MM-DD'
+    const reportDate = date.toISOString().split("T")[0]; // 'YYYY-MM-DD'
     const reportDateISO = `${reportDate}T00:00:00.000Z`;
 
     //console.log(`Checking for duplicate: date=${date.toLocaleDateString()}, branchId=${branchId}, reportType=${reportType}`);
@@ -56,7 +56,7 @@ export async function GET(request: Request) {
     console.error("Error checking for duplicate report:", error);
     return NextResponse.json(
       { error: "Failed to check for duplicate report" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

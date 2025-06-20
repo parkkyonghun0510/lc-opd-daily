@@ -5,7 +5,7 @@ import { UserRole } from "@/lib/auth/roles";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const token = await getToken({ req: request });
@@ -14,7 +14,7 @@ export async function GET(
     if (!token) {
       return NextResponse.json(
         { error: "Unauthorized - Authentication required" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -31,10 +31,7 @@ export async function GET(
     });
 
     if (!user) {
-      return NextResponse.json(
-        { error: "User not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
     // If user is admin, return all branches
@@ -71,7 +68,10 @@ export async function GET(
         },
       });
 
-      if (defaultBranch && !assignedBranches.some(b => b.id === defaultBranch.id)) {
+      if (
+        defaultBranch &&
+        !assignedBranches.some((b) => b.id === defaultBranch.id)
+      ) {
         assignedBranches.push(defaultBranch);
       }
     }
@@ -81,7 +81,7 @@ export async function GET(
     console.error("Error fetching user branches:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
-} 
+}

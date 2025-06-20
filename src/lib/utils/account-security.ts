@@ -19,7 +19,7 @@ const LOCKOUT_DURATION_MINUTES = 15;
  * @returns True if the account is now locked, false otherwise
  */
 export async function recordFailedLoginAttempt(
-  usernameValue: string
+  usernameValue: string,
 ): Promise<boolean> {
   const prisma = await getPrisma();
 
@@ -106,7 +106,7 @@ export async function isAccountLocked(username: string): Promise<boolean> {
  * @returns The remaining lockout time in minutes, or 0 if not locked
  */
 export async function getRemainingLockoutTime(
-  username: string
+  username: string,
 ): Promise<number> {
   const prisma = await getPrisma();
   const user = await prisma.user.findUnique({

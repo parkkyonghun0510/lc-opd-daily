@@ -26,14 +26,16 @@ export function useReports({
   initialSubmittedBy,
   pageSize = 10,
 }: UseReportsProps = {}) {
-  const [startDate, setStartDate] = useState<Date | undefined>(initialStartDate);
+  const [startDate, setStartDate] = useState<Date | undefined>(
+    initialStartDate,
+  );
   const [endDate, setEndDate] = useState<Date | undefined>(initialEndDate);
   const [reportType, setReportType] = useState<ReportType>(initialReportType);
   const [selectedBranchId, setSelectedBranchId] = useState<string | undefined>(
-    initialBranchId
+    initialBranchId,
   );
   const [selectedUserId, setSelectedUserId] = useState<string | undefined>(
-    initialSubmittedBy
+    initialSubmittedBy,
   );
   const [reports, setReports] = useState<Report[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -94,7 +96,7 @@ export function useReports({
           page: 1,
           limit: pageSize,
           totalPages: 0,
-        }
+        },
       );
     } catch (error) {
       toast({
@@ -118,7 +120,7 @@ export function useReports({
         acc.totalNinetyPlus += report.ninetyPlus || 0;
         return acc;
       },
-      { totalWriteOffs: 0, totalNinetyPlus: 0 }
+      { totalWriteOffs: 0, totalNinetyPlus: 0 },
     );
   };
 
@@ -162,9 +164,9 @@ export function useReports({
       // Handle the CSV download
       const blob = await response.blob();
       const downloadUrl = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = downloadUrl;
-      a.download = `reports-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+      a.download = `reports-${format(new Date(), "yyyy-MM-dd")}.csv`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(downloadUrl);
@@ -177,7 +179,8 @@ export function useReports({
     } catch (error) {
       toast({
         title: "Export Failed",
-        description: error instanceof Error ? error.message : "Failed to export reports",
+        description:
+          error instanceof Error ? error.message : "Failed to export reports",
         variant: "destructive",
       });
     } finally {
@@ -225,9 +228,9 @@ export function useReports({
       // Handle the PDF download
       const blob = await response.blob();
       const downloadUrl = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = downloadUrl;
-      a.download = `reports-${format(new Date(), 'yyyy-MM-dd')}.pdf`;
+      a.download = `reports-${format(new Date(), "yyyy-MM-dd")}.pdf`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(downloadUrl);
@@ -240,7 +243,8 @@ export function useReports({
     } catch (error) {
       toast({
         title: "Export Failed",
-        description: error instanceof Error ? error.message : "Failed to export reports",
+        description:
+          error instanceof Error ? error.message : "Failed to export reports",
         variant: "destructive",
       });
     } finally {
@@ -373,7 +377,7 @@ export function useReports({
     setPagination((prev) => ({
       ...prev,
       limit: size,
-      page: 1 // Reset to first page when changing page size
+      page: 1, // Reset to first page when changing page size
     }));
   };
 
@@ -406,7 +410,15 @@ export function useReports({
 
   useEffect(() => {
     fetchReports();
-  }, [pagination.page, pagination.limit, startDate, endDate, reportType, selectedBranchId, selectedUserId]);
+  }, [
+    pagination.page,
+    pagination.limit,
+    startDate,
+    endDate,
+    reportType,
+    selectedBranchId,
+    selectedUserId,
+  ]);
 
   return {
     startDate,

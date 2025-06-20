@@ -6,36 +6,33 @@ import { prisma } from "@/lib/prisma";
 // POST /api/notifications/[id]/read - Mark a notification as read
 export async function POST(
   req: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const session = await getServerSession(authOptions);
 
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { id } = await context.params;
-    
+
     if (!id) {
       return NextResponse.json(
         { error: "Notification ID is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     // Get the notification to check ownership
     const notification = await prisma.inAppNotification.findUnique({
-      where: { id }
+      where: { id },
     });
 
     if (!notification) {
       return NextResponse.json(
         { error: "Notification not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -43,14 +40,14 @@ export async function POST(
     if (notification.userId !== session.user.id) {
       return NextResponse.json(
         { error: "You don't have permission to access this notification" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
     // Already read, no need to update
     if (notification.isRead) {
       return NextResponse.json({
-        message: "Notification already marked as read"
+        message: "Notification already marked as read",
       });
     }
 
@@ -60,7 +57,7 @@ export async function POST(
       data: {
         isRead: true,
         readAt: new Date(),
-      }
+      },
     });
 
     // Create a "READ" event for the notification
@@ -70,21 +67,21 @@ export async function POST(
         event: "READ",
         metadata: {
           readAt: new Date().toISOString(),
-          method: "api"
-        }
-      }
+          method: "api",
+        },
+      },
     });
 
     return NextResponse.json({
       success: true,
       notification: updatedNotification,
-      message: "Notification marked as read"
+      message: "Notification marked as read",
     });
   } catch (error) {
     console.error("Error marking notification as read:", error);
     return NextResponse.json(
       { error: "Failed to mark notification as read" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

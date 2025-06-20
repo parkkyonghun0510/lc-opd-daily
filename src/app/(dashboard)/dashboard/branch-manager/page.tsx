@@ -15,12 +15,12 @@ export default function BranchManagerDashboardPage() {
 
   useEffect(() => {
     if (userData?.computedFields?.accessLevel !== UserRole.BRANCH_MANAGER) {
-      router.push('/dashboard');
+      router.push("/dashboard");
     }
   }, [userData, router]);
 
   return (
-    <ZustandDashboardProvider debug={process.env.NODE_ENV === 'development'}>
+    <ZustandDashboardProvider debug={process.env.NODE_ENV === "development"}>
       <BranchManagerLoadingGuard>
         <RoleBasedDashboard />
         <ReportViewHandler />

@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
     if (!token) {
       return NextResponse.json(
         { error: "Unauthorized - Authentication required" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -19,8 +19,11 @@ export async function POST(request: NextRequest) {
     const userRole = token.role as UserRole;
     if (!checkPermission(userRole, Permission.APPROVE_REPORTS)) {
       return NextResponse.json(
-        { error: "Forbidden - You don't have permission to view approval history" },
-        { status: 403 }
+        {
+          error:
+            "Forbidden - You don't have permission to view approval history",
+        },
+        { status: 403 },
       );
     }
 
@@ -32,7 +35,7 @@ export async function POST(request: NextRequest) {
       reportType,
       status,
       dateRange,
-      searchTerm
+      searchTerm,
     } = await request.json();
 
     // Calculate pagination
@@ -41,8 +44,8 @@ export async function POST(request: NextRequest) {
     // Build the where condition for UserActivity
     const where: any = {
       action: {
-        in: [AuditAction.REPORT_APPROVED, AuditAction.REPORT_REJECTED]
-      }
+        in: [AuditAction.REPORT_APPROVED, AuditAction.REPORT_REJECTED],
+      },
     };
 
     // Add search filter if provided
@@ -50,18 +53,18 @@ export async function POST(request: NextRequest) {
       where.OR = [
         {
           details: {
-            path: ['branchName'],
-            string_contains: searchTerm
-          }
+            path: ["branchName"],
+            string_contains: searchTerm,
+          },
         },
         {
           user: {
             name: {
               contains: searchTerm,
-              mode: 'insensitive'
-            }
-          }
-        }
+              mode: "insensitive",
+            },
+          },
+        },
       ];
     }
 
@@ -69,8 +72,8 @@ export async function POST(request: NextRequest) {
     if (branchId) {
       where.details = {
         ...where.details,
-        path: ['branchId'],
-        equals: branchId
+        path: ["branchId"],
+        equals: branchId,
       };
     }
 
@@ -78,26 +81,27 @@ export async function POST(request: NextRequest) {
     if (reportType) {
       where.details = {
         ...where.details,
-        path: ['reportType'],
-        equals: reportType
+        path: ["reportType"],
+        equals: reportType,
       };
     }
 
     // Add status filter if provided
     if (status) {
-      where.action = status === 'approved' 
-        ? AuditAction.REPORT_APPROVED 
-        : AuditAction.REPORT_REJECTED;
+      where.action =
+        status === "approved"
+          ? AuditAction.REPORT_APPROVED
+          : AuditAction.REPORT_REJECTED;
     }
 
     // Add date range filter if provided
     if (dateRange?.from || dateRange?.to) {
       where.createdAt = {};
-      
+
       if (dateRange.from) {
         where.createdAt.gte = new Date(dateRange.from);
       }
-      
+
       if (dateRange.to) {
         where.createdAt.lte = new Date(dateRange.to);
       }
@@ -117,7 +121,7 @@ export async function POST(request: NextRequest) {
           },
         },
         orderBy: {
-          createdAt: 'desc',
+          createdAt: "desc",
         },
         skip,
         take: limit,
@@ -126,19 +130,22 @@ export async function POST(request: NextRequest) {
     ]);
 
     // Process the activities to extract report details
-    const approvalHistory = activities.map(activity => {
+    const approvalHistory = activities.map((activity) => {
       const details = activity.details as any;
       return {
         id: activity.id,
-        reportId: details.reportId || '',
-        branchId: details.branchId || '',
-        branchName: details.branchName || 'Unknown Branch',
-        reportDate: details.reportDate || '',
-        reportType: details.reportType || '',
-        status: activity.action === AuditAction.REPORT_APPROVED ? 'approved' : 'rejected',
-        comments: details.comments || '',
+        reportId: details.reportId || "",
+        branchId: details.branchId || "",
+        branchName: details.branchName || "Unknown Branch",
+        reportDate: details.reportDate || "",
+        reportType: details.reportType || "",
+        status:
+          activity.action === AuditAction.REPORT_APPROVED
+            ? "approved"
+            : "rejected",
+        comments: details.comments || "",
         approvedBy: activity.userId,
-        approverName: activity.user?.name || 'Unknown User',
+        approverName: activity.user?.name || "Unknown User",
         timestamp: activity.createdAt,
       };
     });
@@ -156,7 +163,7 @@ export async function POST(request: NextRequest) {
     console.error("Error fetching approval history:", error);
     return NextResponse.json(
       { error: "Failed to fetch approval history" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

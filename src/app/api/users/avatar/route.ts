@@ -3,19 +3,21 @@ import { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { PrismaClient } from "@prisma/client";
 import { uploadToS3, deleteFromS3, getKeyFromUrl } from "@/lib/s3";
-import fs from 'fs';
-import path from 'path';
-import { mkdir } from 'fs/promises';
+import fs from "fs";
+import path from "path";
+import { mkdir } from "fs/promises";
 
 const prisma = new PrismaClient();
 
 // Feature flag for S3 usage
 const USE_S3_STORAGE = process.env.USE_S3_STORAGE === "true";
 const IS_DEVELOPMENT = process.env.NODE_ENV === "development";
-const BASE_URL = IS_DEVELOPMENT ? "http://localhost:3000" : "https://reports.lchelpdesk.com";
+const BASE_URL = IS_DEVELOPMENT
+  ? "http://localhost:3000"
+  : "https://reports.lchelpdesk.com";
 
 // Local file storage setup
-const UPLOAD_DIR = path.join(process.cwd(), 'public/uploads/avatars');
+const UPLOAD_DIR = path.join(process.cwd(), "public/uploads/avatars");
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,7 +26,7 @@ export async function POST(request: NextRequest) {
     if (!token) {
       return NextResponse.json(
         { error: "Unauthorized - Authentication required" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -39,7 +41,7 @@ export async function POST(request: NextRequest) {
     if (!file.type.startsWith("image/")) {
       return NextResponse.json(
         { error: "Invalid file type. Please upload an image." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -48,7 +50,7 @@ export async function POST(request: NextRequest) {
     if (file.size > maxSize) {
       return NextResponse.json(
         { error: "File size too large. Maximum size is 5MB." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -69,7 +71,7 @@ export async function POST(request: NextRequest) {
       avatarUrl = url;
 
       // If user has an existing S3 avatar, delete it
-      if (user?.image && user.image.includes('.amazonaws.com/')) {
+      if (user?.image && user.image.includes(".amazonaws.com/")) {
         const existingKey = getKeyFromUrl(user.image);
         if (existingKey) {
           try {
@@ -85,21 +87,21 @@ export async function POST(request: NextRequest) {
       // Create directory if it doesn't exist
       try {
         await mkdir(UPLOAD_DIR, { recursive: true });
-        
+
         // Generate a unique filename
-        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}.${file.type.split('/')[1]}`;
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}.${file.type.split("/")[1]}`;
         const filePath = path.join(UPLOAD_DIR, fileName);
-        
+
         // Write file to disk
         fs.writeFileSync(filePath, buffer);
-        
+
         // Set the URL for the avatar
         avatarUrl = `${BASE_URL}/uploads/avatars/${fileName}`;
-        
+
         // Delete old avatar file if it exists
         if (user?.image) {
           try {
-            const oldFileName = user.image.split('/').pop();
+            const oldFileName = user.image.split("/").pop();
             if (oldFileName) {
               const oldFilePath = path.join(UPLOAD_DIR, oldFileName);
               if (fs.existsSync(oldFilePath)) {
@@ -114,7 +116,7 @@ export async function POST(request: NextRequest) {
         console.error("Error saving avatar file locally:", error);
         return NextResponse.json(
           { error: "Failed to save avatar file" },
-          { status: 500 }
+          { status: 500 },
         );
       }
     }
@@ -145,7 +147,7 @@ export async function POST(request: NextRequest) {
     console.error("Avatar upload error:", error);
     return NextResponse.json(
       { error: "Failed to upload avatar" },
-      { status: 500 }
+      { status: 500 },
     );
   } finally {
     await prisma.$disconnect();

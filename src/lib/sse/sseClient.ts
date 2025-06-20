@@ -1,6 +1,9 @@
-'use client';
+"use client";
 
-import { EventType as SSEEventType, RealtimeEvent as SSEEvent } from '@/auth/store/slices/hybridRealtimeSlice';
+import {
+  EventType as SSEEventType,
+  RealtimeEvent as SSEEvent,
+} from "@/auth/store/slices/hybridRealtimeSlice";
 
 /**
  * SSE Client Configuration
@@ -50,7 +53,11 @@ export interface SSEClientConfig {
 /**
  * SSE Client Status
  */
-export type SSEClientStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
+export type SSEClientStatus =
+  | "disconnected"
+  | "connecting"
+  | "connected"
+  | "error";
 
 /**
  * SSE Client Class
@@ -63,7 +70,7 @@ export class SSEClient {
   private reconnectAttempts = 0;
   private reconnectTimeout: NodeJS.Timeout | null = null;
   private lastActivity = 0;
-  private status: SSEClientStatus = 'disconnected';
+  private status: SSEClientStatus = "disconnected";
   private lastEvent: SSEEvent | null = null;
   private error: Error | null = null;
 
@@ -75,7 +82,7 @@ export class SSEClient {
       autoReconnect: true,
       maxReconnectAttempts: 5,
       debug: false,
-      ...config
+      ...config,
     };
   }
 
@@ -84,11 +91,11 @@ export class SSEClient {
    */
   connect(): void {
     if (this.eventSource) {
-      this.log('Already connected');
+      this.log("Already connected");
       return;
     }
 
-    this.status = 'connecting';
+    this.status = "connecting";
     this.setupConnection();
   }
 
@@ -106,8 +113,8 @@ export class SSEClient {
       this.reconnectTimeout = null;
     }
 
-    this.status = 'disconnected';
-    this.log('Disconnected from SSE endpoint');
+    this.status = "disconnected";
+    this.log("Disconnected from SSE endpoint");
   }
 
   /**
@@ -141,16 +148,16 @@ export class SSEClient {
 
       // Add user ID if available
       if (this.config.userId) {
-        url.searchParams.append('userId', this.config.userId);
+        url.searchParams.append("userId", this.config.userId);
       }
 
       // Add client type if available
       if (this.config.clientType) {
-        url.searchParams.append('clientType', this.config.clientType);
+        url.searchParams.append("clientType", this.config.clientType);
       }
 
       // Add client info
-      url.searchParams.append('clientInfo', navigator.userAgent);
+      url.searchParams.append("clientInfo", navigator.userAgent);
 
       // Add any custom metadata
       if (this.config.metadata) {
@@ -166,29 +173,29 @@ export class SSEClient {
 
       // Connection opened
       this.eventSource.onopen = () => {
-        this.log('SSE connection opened');
+        this.log("SSE connection opened");
         this.reconnectAttempts = 0;
-        this.status = 'connected';
+        this.status = "connected";
         this.error = null;
         this.lastActivity = Date.now();
       };
 
       // Generic message handler (for unnamed events)
       this.eventSource.onmessage = (event) => {
-        this.log('Received generic SSE message:', event.data);
+        this.log("Received generic SSE message:", event.data);
         try {
           const data = JSON.parse(event.data);
           this.lastActivity = Date.now();
 
           // Handle as a generic update event
-          const eventType = data.type || 'message';
+          const eventType = data.type || "message";
           const timestamp = data.timestamp || Date.now();
 
           this.lastEvent = {
             id: crypto.randomUUID(),
             type: eventType,
             data: data,
-            timestamp
+            timestamp,
           };
 
           // Call the appropriate event handler if defined
@@ -197,7 +204,7 @@ export class SSEClient {
             handler(data);
           }
         } catch (err) {
-          console.error('Error parsing SSE message:', err);
+          console.error("Error parsing SSE message:", err);
         }
       };
 
@@ -206,9 +213,9 @@ export class SSEClient {
 
       // Error handler
       this.eventSource.onerror = (err) => {
-        this.log('SSE connection error:', err);
-        this.status = 'error';
-        this.error = new Error('Connection error');
+        this.log("SSE connection error:", err);
+        this.status = "error";
+        this.error = new Error("Connection error");
 
         // Close the connection
         if (this.eventSource) {
@@ -222,9 +229,12 @@ export class SSEClient {
         }
       };
     } catch (err) {
-      console.error('Error setting up SSE connection:', err);
-      this.status = 'error';
-      this.error = err instanceof Error ? err : new Error('Failed to establish connection');
+      console.error("Error setting up SSE connection:", err);
+      this.status = "error";
+      this.error =
+        err instanceof Error
+          ? err
+          : new Error("Failed to establish connection");
     }
   }
 
@@ -237,15 +247,22 @@ export class SSEClient {
     }
 
     // Common event types
-    const commonEventTypes = ['connected', 'notification', 'update', 'ping', 'dashboardUpdate', 'systemAlert'];
+    const commonEventTypes = [
+      "connected",
+      "notification",
+      "update",
+      "ping",
+      "dashboardUpdate",
+      "systemAlert",
+    ];
 
     // Set up handlers for common event types
-    commonEventTypes.forEach(eventType => {
+    commonEventTypes.forEach((eventType) => {
       this.setupEventHandler(eventType);
     });
 
     // Set up handlers for any additional event types
-    Object.keys(this.config.eventHandlers).forEach(eventType => {
+    Object.keys(this.config.eventHandlers).forEach((eventType) => {
       if (!commonEventTypes.includes(eventType)) {
         this.setupEventHandler(eventType);
       }
@@ -271,7 +288,7 @@ export class SSEClient {
           id: crypto.randomUUID(),
           type: eventType,
           data: data,
-          timestamp
+          timestamp,
         };
 
         // Call the appropriate event handler if defined
@@ -297,23 +314,30 @@ export class SSEClient {
 
     if (this.reconnectAttempts < maxAttempts) {
       // Exponential backoff with jitter
-      const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000) + Math.random() * 1000;
+      const delay =
+        Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000) +
+        Math.random() * 1000;
 
-      this.log(`Reconnecting in ${Math.round(delay / 1000)}s (attempt ${this.reconnectAttempts + 1}/${maxAttempts})`);
+      this.log(
+        `Reconnecting in ${Math.round(delay / 1000)}s (attempt ${this.reconnectAttempts + 1}/${maxAttempts})`,
+      );
 
       this.reconnectTimeout = setTimeout(() => {
         this.reconnectAttempts += 1;
         this.setupConnection();
       }, delay);
     } else {
-      this.log('Maximum reconnection attempts reached');
+      this.log("Maximum reconnection attempts reached");
 
       // After reaching max attempts, try one final reconnection after a longer delay (5 minutes)
-      this.reconnectTimeout = setTimeout(() => {
-        this.log('Attempting final reconnection after cooling period');
-        this.reconnectAttempts = 0;
-        this.setupConnection();
-      }, 5 * 60 * 1000);
+      this.reconnectTimeout = setTimeout(
+        () => {
+          this.log("Attempting final reconnection after cooling period");
+          this.reconnectAttempts = 0;
+          this.setupConnection();
+        },
+        5 * 60 * 1000,
+      );
     }
   }
 
@@ -322,7 +346,7 @@ export class SSEClient {
    */
   private log(...args: any[]): void {
     if (this.config.debug) {
-      console.log('[SSE Client]', ...args);
+      console.log("[SSE Client]", ...args);
     }
   }
 }

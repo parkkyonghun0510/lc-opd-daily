@@ -21,7 +21,7 @@ import {
   RefreshCw,
   MessageSquare,
   Clock,
-  Eye
+  Eye,
 } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { formatKHRCurrency, cn, formatDate } from "@/lib/utils";
@@ -92,7 +92,7 @@ const formatCommentHistory = (comments: string) => {
     // No resubmission markers, just return the original text
     return {
       hasConversation: false,
-      formattedComments: comments
+      formattedComments: comments,
     };
   }
 
@@ -102,23 +102,23 @@ const formatCommentHistory = (comments: string) => {
     if (i === 0 && parts[i].trim()) {
       // First part is the original rejection comment
       conversation.push({
-        type: 'rejection',
-        date: '',
-        text: parts[i].trim()
+        type: "rejection",
+        date: "",
+        text: parts[i].trim(),
       });
     } else if (i < parts.length - 1) {
       // This is a resubmission date followed by its comment
       conversation.push({
-        type: 'resubmission',
+        type: "resubmission",
         date: parts[i],
-        text: (i + 1 < parts.length) ? parts[i + 1].trim() : ''
+        text: i + 1 < parts.length ? parts[i + 1].trim() : "",
       });
     }
   }
 
   return {
     hasConversation: true,
-    conversation
+    conversation,
   };
 };
 
@@ -141,37 +141,45 @@ const CommentConversation = ({ comments }: { comments: string }) => {
           key={index}
           className={cn(
             "p-3 rounded-md",
-            entry.type === 'rejection'
+            entry.type === "rejection"
               ? "bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800"
-              : "bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800"
+              : "bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800",
           )}
         >
           <div className="flex items-center justify-between mb-1">
-            <span className={cn(
-              "text-xs font-medium",
-              entry.type === 'rejection'
-                ? "text-red-800 dark:text-red-300"
-                : "text-blue-800 dark:text-blue-300"
-            )}>
-              {entry.type === 'rejection' ? "Rejection Feedback" : "Resubmission"}
+            <span
+              className={cn(
+                "text-xs font-medium",
+                entry.type === "rejection"
+                  ? "text-red-800 dark:text-red-300"
+                  : "text-blue-800 dark:text-blue-300",
+              )}
+            >
+              {entry.type === "rejection"
+                ? "Rejection Feedback"
+                : "Resubmission"}
             </span>
             {entry.date && (
-              <span className={cn(
-                "text-xs",
-                entry.type === 'rejection'
-                  ? "text-red-700 dark:text-red-400"
-                  : "text-blue-700 dark:text-blue-400"
-              )}>
+              <span
+                className={cn(
+                  "text-xs",
+                  entry.type === "rejection"
+                    ? "text-red-700 dark:text-red-400"
+                    : "text-blue-700 dark:text-blue-400",
+                )}
+              >
                 {entry.date}
               </span>
             )}
           </div>
-          <p className={cn(
-            "text-sm whitespace-pre-wrap",
-            entry.type === 'rejection'
-              ? "text-red-800 dark:text-red-200"
-              : "text-blue-800 dark:text-blue-200"
-          )}>
+          <p
+            className={cn(
+              "text-sm whitespace-pre-wrap",
+              entry.type === "rejection"
+                ? "text-red-800 dark:text-red-200"
+                : "text-blue-800 dark:text-blue-200",
+            )}
+          >
             {entry.text}
           </p>
         </div>
@@ -188,7 +196,8 @@ export function ReportApproval({
   const { data: session } = useSession();
   const [isApproveDialogOpen, setIsApproveDialogOpen] = useState(false);
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
-  const [isViewCommentsDialogOpen, setIsViewCommentsDialogOpen] = useState(false);
+  const [isViewCommentsDialogOpen, setIsViewCommentsDialogOpen] =
+    useState(false);
   const [remarks, setRemarks] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasShownCommentToast, setHasShownCommentToast] = useState(false);
@@ -196,7 +205,8 @@ export function ReportApproval({
   // Show a toast notification for users about available comments - with stable dependencies
   useEffect(() => {
     // Use a ref to track if we've shown the toast to avoid dependency on state
-    const hasCommentsToShow = report.comments &&
+    const hasCommentsToShow =
+      report.comments &&
       !hasShownCommentToast &&
       report.status !== "pending" &&
       report.status !== "pending_approval";
@@ -235,9 +245,9 @@ export function ReportApproval({
       // Use server action instead of fetch API
       const result = await approveReportAction(
         report.id,
-        status as 'approved' | 'rejected',
+        status as "approved" | "rejected",
         currentRemarks,
-        true // notifyUsers
+        true, // notifyUsers
       );
 
       if (!result.success) {
@@ -259,10 +269,14 @@ export function ReportApproval({
         onApprovalComplete();
       }, 0);
     } catch (error) {
-      console.error(`Error ${isApproving ? "approving" : "rejecting"} report:`, error);
+      console.error(
+        `Error ${isApproving ? "approving" : "rejecting"} report:`,
+        error,
+      );
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : `Failed to process report`,
+        description:
+          error instanceof Error ? error.message : `Failed to process report`,
         variant: "destructive",
       });
     } finally {
@@ -284,7 +298,7 @@ export function ReportApproval({
 
   // Only render approval buttons if the report is in pending or pending_approval status
   if (report.status !== "pending" && report.status !== "pending_approval") {
-    const userRole = session?.user?.role as UserRole || UserRole.USER;
+    const userRole = (session?.user?.role as UserRole) || UserRole.USER;
 
     return (
       <div className="space-y-2">
@@ -293,7 +307,7 @@ export function ReportApproval({
             variant={report.status === "approved" ? "default" : "destructive"}
             className={cn(
               "capitalize",
-              report.status === "approved" ? "bg-green-500" : ""
+              report.status === "approved" ? "bg-green-500" : "",
             )}
           >
             {report.status}
@@ -326,24 +340,29 @@ export function ReportApproval({
                 "mt-2 w-full justify-start",
                 report.status === "approved"
                   ? "bg-green-100 text-green-800 hover:bg-green-200 border border-green-300"
-                  : "bg-red-100 text-red-800 hover:bg-red-200 border border-red-300"
+                  : "bg-red-100 text-red-800 hover:bg-red-200 border border-red-300",
               )}
             >
               <MessageSquare className="mr-2 h-4 w-4" />
-              <span className="font-medium">View {report.status === "approved" ? "Approval" : "Rejection"} Comments</span>
+              <span className="font-medium">
+                View {report.status === "approved" ? "Approval" : "Rejection"}{" "}
+                Comments
+              </span>
               <Eye className="ml-2 h-4 w-4" />
             </Button>
 
             {/* Role-specific guidance */}
-            {(userRole === UserRole.USER || userRole === UserRole.SUPERVISOR) && report.status === "rejected" && (
-              <Alert variant="destructive" className="mt-2 py-2">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Action Required</AlertTitle>
-                <AlertDescription>
-                  This report was rejected. Please review the comments and resubmit.
-                </AlertDescription>
-              </Alert>
-            )}
+            {(userRole === UserRole.USER || userRole === UserRole.SUPERVISOR) &&
+              report.status === "rejected" && (
+                <Alert variant="destructive" className="mt-2 py-2">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>Action Required</AlertTitle>
+                  <AlertDescription>
+                    This report was rejected. Please review the comments and
+                    resubmit.
+                  </AlertDescription>
+                </Alert>
+              )}
 
             {userRole === UserRole.BRANCH_MANAGER && (
               <Alert className="mt-2 py-2">
@@ -369,7 +388,10 @@ export function ReportApproval({
             className="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600 text-white"
             size="sm"
             onClick={openApproveDialog}
-            disabled={report.status !== "pending" && report.status !== "pending_approval"}
+            disabled={
+              report.status !== "pending" &&
+              report.status !== "pending_approval"
+            }
           >
             <CheckCircle className="mr-1 h-4 w-4" />
             Approve
@@ -379,7 +401,10 @@ export function ReportApproval({
             size="sm"
             className="dark:bg-red-700 dark:hover:bg-red-600"
             onClick={openRejectDialog}
-            disabled={report.status !== "pending" && report.status !== "pending_approval"}
+            disabled={
+              report.status !== "pending" &&
+              report.status !== "pending_approval"
+            }
           >
             <XCircle className="mr-1 h-4 w-4" />
             Reject
@@ -392,7 +417,9 @@ export function ReportApproval({
         <div className="mt-3">
           <div className="flex items-center gap-2 mb-1">
             <MessageSquare className="h-4 w-4 text-gray-500 dark:text-gray-400" />
-            <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">Comments</Label>
+            <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              Comments
+            </Label>
           </div>
           <div className="p-3 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md">
             <CommentConversation comments={report.comments} />
@@ -407,10 +434,15 @@ export function ReportApproval({
       )}
 
       {/* View Comments Dialog - keep this for detailed view */}
-      <Dialog open={isViewCommentsDialogOpen} onOpenChange={setIsViewCommentsDialogOpen}>
+      <Dialog
+        open={isViewCommentsDialogOpen}
+        onOpenChange={setIsViewCommentsDialogOpen}
+      >
         <DialogContent className="dark:bg-gray-800 dark:border-gray-700">
           <DialogHeader>
-            <DialogTitle className="dark:text-gray-100">Report Comments</DialogTitle>
+            <DialogTitle className="dark:text-gray-100">
+              Report Comments
+            </DialogTitle>
             <DialogDescription className="dark:text-gray-400">
               Comments for report from {branchName}
             </DialogDescription>
@@ -418,29 +450,44 @@ export function ReportApproval({
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label className="text-sm text-gray-500 dark:text-gray-400">Write-offs</Label>
-                <div className="font-semibold dark:text-gray-200">{formatKHRCurrency(report.writeOffs)}</div>
+                <Label className="text-sm text-gray-500 dark:text-gray-400">
+                  Write-offs
+                </Label>
+                <div className="font-semibold dark:text-gray-200">
+                  {formatKHRCurrency(report.writeOffs)}
+                </div>
               </div>
               <div>
-                <Label className="text-sm text-gray-500 dark:text-gray-400">90+ Days</Label>
-                <div className="font-semibold dark:text-gray-200">{formatKHRCurrency(report.ninetyPlus)}</div>
+                <Label className="text-sm text-gray-500 dark:text-gray-400">
+                  90+ Days
+                </Label>
+                <div className="font-semibold dark:text-gray-200">
+                  {formatKHRCurrency(report.ninetyPlus)}
+                </div>
               </div>
             </div>
             <div>
               <Label className="dark:text-gray-200">Comments</Label>
-              <div className={cn(
-                "mt-2 p-4 rounded-md",
-                (report.status as ReportStatus) === "approved"
-                  ? "bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800"
-                  : (report.status as ReportStatus) === "rejected"
-                    ? "bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800"
-                    : "bg-gray-100 dark:bg-gray-700"
-              )}>
+              <div
+                className={cn(
+                  "mt-2 p-4 rounded-md",
+                  (report.status as ReportStatus) === "approved"
+                    ? "bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800"
+                    : (report.status as ReportStatus) === "rejected"
+                      ? "bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800"
+                      : "bg-gray-100 dark:bg-gray-700",
+                )}
+              >
                 <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 mb-2">
                   <Clock className="h-4 w-4" />
-                  <span>Last updated: {report.updatedAt ? formatDate(report.updatedAt) : "N/A"}</span>
+                  <span>
+                    Last updated:{" "}
+                    {report.updatedAt ? formatDate(report.updatedAt) : "N/A"}
+                  </span>
                 </div>
-                <CommentConversation comments={report.comments || "No comments available"} />
+                <CommentConversation
+                  comments={report.comments || "No comments available"}
+                />
               </div>
             </div>
           </div>
@@ -460,7 +507,9 @@ export function ReportApproval({
       <Dialog open={isApproveDialogOpen} onOpenChange={setIsApproveDialogOpen}>
         <DialogContent className="dark:bg-gray-800 dark:border-gray-700">
           <DialogHeader>
-            <DialogTitle className="dark:text-gray-100">Approve Report</DialogTitle>
+            <DialogTitle className="dark:text-gray-100">
+              Approve Report
+            </DialogTitle>
             <DialogDescription className="dark:text-gray-400">
               You are about to approve the report for {branchName}
             </DialogDescription>
@@ -468,16 +517,26 @@ export function ReportApproval({
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label className="text-sm text-gray-500 dark:text-gray-400">Write-offs</Label>
-                <div className="font-semibold dark:text-gray-200">{formatKHRCurrency(report.writeOffs)}</div>
+                <Label className="text-sm text-gray-500 dark:text-gray-400">
+                  Write-offs
+                </Label>
+                <div className="font-semibold dark:text-gray-200">
+                  {formatKHRCurrency(report.writeOffs)}
+                </div>
               </div>
               <div>
-                <Label className="text-sm text-gray-500 dark:text-gray-400">90+ Days</Label>
-                <div className="font-semibold dark:text-gray-200">{formatKHRCurrency(report.ninetyPlus)}</div>
+                <Label className="text-sm text-gray-500 dark:text-gray-400">
+                  90+ Days
+                </Label>
+                <div className="font-semibold dark:text-gray-200">
+                  {formatKHRCurrency(report.ninetyPlus)}
+                </div>
               </div>
             </div>
             <div>
-              <Label htmlFor="approval-remarks" className="dark:text-gray-200">Comments (optional)</Label>
+              <Label htmlFor="approval-remarks" className="dark:text-gray-200">
+                Comments (optional)
+              </Label>
               <Textarea
                 id="approval-remarks"
                 value={remarks}
@@ -517,7 +576,9 @@ export function ReportApproval({
       <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
         <DialogContent className="dark:bg-gray-800 dark:border-gray-700">
           <DialogHeader>
-            <DialogTitle className="dark:text-gray-100">Reject Report</DialogTitle>
+            <DialogTitle className="dark:text-gray-100">
+              Reject Report
+            </DialogTitle>
             <DialogDescription className="dark:text-gray-400">
               Please provide a reason for rejecting this report
             </DialogDescription>
@@ -525,12 +586,20 @@ export function ReportApproval({
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label className="text-sm text-gray-500 dark:text-gray-400">Write-offs</Label>
-                <div className="font-semibold dark:text-gray-200">{formatKHRCurrency(report.writeOffs)}</div>
+                <Label className="text-sm text-gray-500 dark:text-gray-400">
+                  Write-offs
+                </Label>
+                <div className="font-semibold dark:text-gray-200">
+                  {formatKHRCurrency(report.writeOffs)}
+                </div>
               </div>
               <div>
-                <Label className="text-sm text-gray-500 dark:text-gray-400">90+ Days</Label>
-                <div className="font-semibold dark:text-gray-200">{formatKHRCurrency(report.ninetyPlus)}</div>
+                <Label className="text-sm text-gray-500 dark:text-gray-400">
+                  90+ Days
+                </Label>
+                <div className="font-semibold dark:text-gray-200">
+                  {formatKHRCurrency(report.ninetyPlus)}
+                </div>
               </div>
             </div>
             <div>

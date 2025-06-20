@@ -27,7 +27,7 @@ export async function PATCH(request: NextRequest) {
     if (!token) {
       return NextResponse.json(
         { error: "Unauthorized - Authentication required" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -47,13 +47,13 @@ export async function PATCH(request: NextRequest) {
     // Verify current password
     const isValidPassword = await bcrypt.compare(
       validatedData.currentPassword,
-      user.password
+      user.password,
     );
 
     if (!isValidPassword) {
       return NextResponse.json(
         { error: "Current password is incorrect" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -77,12 +77,12 @@ export async function PATCH(request: NextRequest) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: "Invalid data", details: error.errors },
-        { status: 400 }
+        { status: 400 },
       );
     }
     return NextResponse.json(
       { error: "Failed to update password" },
-      { status: 500 }
+      { status: 500 },
     );
   } finally {
     await prisma.$disconnect();

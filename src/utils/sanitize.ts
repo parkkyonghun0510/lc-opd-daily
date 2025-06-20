@@ -16,7 +16,7 @@ export function sanitizeString(str: string | null | undefined): string | null {
   try {
     // First, try to ensure the string is valid UTF-8
     const encoder = new TextEncoder();
-    const decoder = new TextDecoder('utf-8', { fatal: false });
+    const decoder = new TextDecoder("utf-8", { fatal: false });
 
     // Encode and then decode to remove invalid UTF-8 sequences
     const encoded = encoder.encode(str);
@@ -27,13 +27,13 @@ export function sanitizeString(str: string | null | undefined): string | null {
     // Also remove any other characters that might cause PostgreSQL UTF-8 encoding issues
     const sanitized = decoded
       // Remove ASCII control characters and DEL
-      .replace(/[\x00-\x1F\x7F]/g, '')
+      .replace(/[\x00-\x1F\x7F]/g, "")
       // Remove non-printable and control characters from Unicode
-      .replace(/[\u0080-\u009F]/g, '')
+      .replace(/[\u0080-\u009F]/g, "")
       // Remove zero-width characters and other invisible formatting characters
-      .replace(/[\u200B-\u200F\u2028-\u202E\u2060-\u2064]/g, '')
+      .replace(/[\u200B-\u200F\u2028-\u202E\u2060-\u2064]/g, "")
       // Remove any remaining invalid UTF-8 sequences (represented as replacement character �)
-      .replace(/\uFFFD/g, '');
+      .replace(/\uFFFD/g, "");
 
     // If the sanitized string is different from the original, log it for debugging
     if (sanitized !== decoded) {
@@ -43,12 +43,16 @@ export function sanitizeString(str: string | null | undefined): string | null {
     return sanitized;
   } catch (error) {
     // If any error occurs during encoding/decoding, fall back to basic sanitization
-    console.warn("Error during UTF-8 sanitization, falling back to basic sanitization:", error);
+    console.warn(
+      "Error during UTF-8 sanitization, falling back to basic sanitization:",
+      error,
+    );
 
     // Apply a more aggressive fallback sanitization
     // Only keep basic ASCII printable characters (32-126) and common Unicode ranges
-    return str.replace(/[^\x20-\x7E\u00A0-\u00FF\u0100-\u017F\u0180-\u024F\u0370-\u03FF\u0400-\u04FF\u3040-\u30FF\u3400-\u4DBF\u4E00-\u9FFF]/g, '');
+    return str.replace(
+      /[^\x20-\x7E\u00A0-\u00FF\u0100-\u017F\u0180-\u024F\u0370-\u03FF\u0400-\u04FF\u3040-\u30FF\u3400-\u4DBF\u4E00-\u9FFF]/g,
+      "",
+    );
   }
 }
-
-

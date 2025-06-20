@@ -9,7 +9,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <ZustandDashboardProvider debug={process.env.NODE_ENV === 'development'}>
+    <ZustandDashboardProvider debug={process.env.NODE_ENV === "development"}>
       <DashboardLayout>{children}</DashboardLayout>
     </ZustandDashboardProvider>
   );

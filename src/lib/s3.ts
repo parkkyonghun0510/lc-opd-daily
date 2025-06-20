@@ -1,4 +1,9 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand, ObjectCannedACL } from "@aws-sdk/client-s3";
+import {
+  S3Client,
+  PutObjectCommand,
+  DeleteObjectCommand,
+  ObjectCannedACL,
+} from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { v4 as uuidv4 } from "uuid";
 
@@ -22,7 +27,7 @@ const bucketName = process.env.AWS_S3_BUCKET || "";
 export async function uploadToS3(
   file: Buffer,
   contentType: string,
-  folder: string = "avatars"
+  folder: string = "avatars",
 ): Promise<{ url: string; key: string }> {
   if (!bucketName) {
     throw new Error("AWS S3 bucket name is not defined");
@@ -88,7 +93,7 @@ export async function deleteFromS3(key: string): Promise<void> {
  */
 export function getKeyFromUrl(url: string): string | null {
   if (!url) return null;
-  
+
   try {
     const urlObj = new URL(url);
     // Extract the path without the leading slash
@@ -107,7 +112,7 @@ export function getKeyFromUrl(url: string): string | null {
  */
 export async function getSignedS3Url(
   key: string,
-  expiresIn: number = 3600
+  expiresIn: number = 3600,
 ): Promise<string> {
   if (!bucketName) {
     throw new Error("AWS S3 bucket name is not defined");
@@ -124,4 +129,4 @@ export async function getSignedS3Url(
     console.error("Error generating signed URL:", error);
     throw new Error("Failed to generate signed URL");
   }
-} 
+}

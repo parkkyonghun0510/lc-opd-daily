@@ -4,25 +4,25 @@ import {
   handleSessionTimeout,
   updatePreferencesOptimistic,
   hasPermission,
-  hasBranchAccess
-} from '@/auth/store/actions';
-import { useStore } from '@/auth/store';
-import { signIn } from 'next-auth/react';
+  hasBranchAccess,
+} from "@/auth/store/actions";
+import { useStore } from "@/auth/store";
+import { signIn } from "next-auth/react";
 
 // Mock the store
-jest.mock('@/auth/store', () => ({
+jest.mock("@/auth/store", () => ({
   useStore: {
     getState: jest.fn(),
   },
 }));
 
 // Mock next-auth
-jest.mock('next-auth/react', () => ({
+jest.mock("next-auth/react", () => ({
   signIn: jest.fn(),
 }));
 
 // Mock sonner toast
-jest.mock('sonner', () => ({
+jest.mock("sonner", () => ({
   toast: {
     success: jest.fn(),
     error: jest.fn(),
@@ -30,25 +30,30 @@ jest.mock('sonner', () => ({
 }));
 
 // Mock analytics
-jest.mock('@/auth/utils/analytics', () => ({
+jest.mock("@/auth/utils/analytics", () => ({
   trackAuthEvent: jest.fn(),
   AuthEventType: {
-    LOGIN_SUCCESS: 'auth:login_success',
-    LOGIN_FAILURE: 'auth:login_failure',
-    LOGOUT: 'auth:logout',
-    SESSION_EXPIRED: 'auth:session_expired',
-    SESSION_EXTENDED: 'auth:session_extended',
-    PERMISSION_DENIED: 'auth:permission_denied',
-    PROFILE_UPDATED: 'auth:profile_updated',
-    PREFERENCES_UPDATED: 'auth:preferences_updated',
+    LOGIN_SUCCESS: "auth:login_success",
+    LOGIN_FAILURE: "auth:login_failure",
+    LOGOUT: "auth:logout",
+    SESSION_EXPIRED: "auth:session_expired",
+    SESSION_EXTENDED: "auth:session_extended",
+    PERMISSION_DENIED: "auth:permission_denied",
+    PROFILE_UPDATED: "auth:profile_updated",
+    PREFERENCES_UPDATED: "auth:preferences_updated",
   },
 }));
 
-describe('Store Actions', () => {
+describe("Store Actions", () => {
   // Mock store state and functions
   const mockStore = {
     // Auth state
-    user: { id: '1', name: 'Test User', email: 'test@example.com', role: 'USER' },
+    user: {
+      id: "1",
+      name: "Test User",
+      email: "test@example.com",
+      role: "USER",
+    },
     isAuthenticated: true,
     isLoading: false,
     error: null,
@@ -57,12 +62,12 @@ describe('Store Actions', () => {
 
     // Profile state
     profile: {
-      id: '1',
-      name: 'Test User',
-      email: 'test@example.com',
-      role: 'USER',
+      id: "1",
+      name: "Test User",
+      email: "test@example.com",
+      role: "USER",
       preferences: {
-        ui: { theme: 'light' },
+        ui: { theme: "light" },
       },
     },
 
@@ -90,8 +95,8 @@ describe('Store Actions', () => {
     (useStore.getState as jest.Mock).mockReturnValue(mockStore);
   });
 
-  describe('refreshSession', () => {
-    it('should set loading state when called', async () => {
+  describe("refreshSession", () => {
+    it("should set loading state when called", async () => {
       // Mock signIn to return success
       (signIn as jest.Mock).mockResolvedValue({ ok: true });
 
@@ -102,7 +107,7 @@ describe('Store Actions', () => {
       expect(mockStore.setLoading).toHaveBeenCalledWith(true);
     });
 
-    it('should call signIn with refresh method', async () => {
+    it("should call signIn with refresh method", async () => {
       // Mock signIn to return success
       (signIn as jest.Mock).mockResolvedValue({ ok: true });
 
@@ -110,10 +115,10 @@ describe('Store Actions', () => {
       await refreshSession();
 
       // Check that signIn was called with refresh method
-      expect(signIn).toHaveBeenCalledWith('refresh', { redirect: false });
+      expect(signIn).toHaveBeenCalledWith("refresh", { redirect: false });
     });
 
-    it('should update session expiry and last activity on success', async () => {
+    it("should update session expiry and last activity on success", async () => {
       // Mock signIn to return success
       (signIn as jest.Mock).mockResolvedValue({ ok: true });
 
@@ -121,13 +126,15 @@ describe('Store Actions', () => {
       await refreshSession();
 
       // Check that setSessionExpiry was called
-      expect(mockStore.setSessionExpiry).toHaveBeenCalledWith(expect.any(Number));
+      expect(mockStore.setSessionExpiry).toHaveBeenCalledWith(
+        expect.any(Number),
+      );
 
       // Check that updateLastActivity was called
       expect(mockStore.updateLastActivity).toHaveBeenCalled();
     });
 
-    it('should return true on success', async () => {
+    it("should return true on success", async () => {
       // Mock signIn to return success
       (signIn as jest.Mock).mockResolvedValue({ ok: true });
 
@@ -138,9 +145,9 @@ describe('Store Actions', () => {
       expect(result).toBe(true);
     });
 
-    it('should handle errors', async () => {
+    it("should handle errors", async () => {
       // Mock signIn to throw error
-      (signIn as jest.Mock).mockRejectedValue(new Error('Network error'));
+      (signIn as jest.Mock).mockRejectedValue(new Error("Network error"));
 
       // Call refreshSession
       const result = await refreshSession();
@@ -149,7 +156,7 @@ describe('Store Actions', () => {
       expect(result).toBe(false);
     });
 
-    it('should set loading state to false when done', async () => {
+    it("should set loading state to false when done", async () => {
       // Mock signIn to return success
       (signIn as jest.Mock).mockResolvedValue({ ok: true });
 
@@ -161,8 +168,8 @@ describe('Store Actions', () => {
     });
   });
 
-  describe('synchronizeUserData', () => {
-    it('should skip if not authenticated', async () => {
+  describe("synchronizeUserData", () => {
+    it("should skip if not authenticated", async () => {
       // Set isAuthenticated to false
       (useStore.getState as jest.Mock).mockReturnValue({
         ...mockStore,
@@ -179,7 +186,7 @@ describe('Store Actions', () => {
       expect(mockStore.setLoading).not.toHaveBeenCalled();
     });
 
-    it('should skip if user is null', async () => {
+    it("should skip if user is null", async () => {
       // Set user to null
       (useStore.getState as jest.Mock).mockReturnValue({
         ...mockStore,
@@ -196,7 +203,7 @@ describe('Store Actions', () => {
       expect(mockStore.setLoading).not.toHaveBeenCalled();
     });
 
-    it('should set loading state when called', async () => {
+    it("should set loading state when called", async () => {
       // Call synchronizeUserData
       await synchronizeUserData();
 
@@ -204,7 +211,7 @@ describe('Store Actions', () => {
       expect(mockStore.setLoading).toHaveBeenCalledWith(true);
     });
 
-    it('should fetch profile data', async () => {
+    it("should fetch profile data", async () => {
       // Call synchronizeUserData
       await synchronizeUserData();
 
@@ -212,7 +219,7 @@ describe('Store Actions', () => {
       expect(mockStore.fetchProfile).toHaveBeenCalled();
     });
 
-    it('should update last activity', async () => {
+    it("should update last activity", async () => {
       // Call synchronizeUserData
       await synchronizeUserData();
 
@@ -220,7 +227,7 @@ describe('Store Actions', () => {
       expect(mockStore.updateLastActivity).toHaveBeenCalled();
     });
 
-    it('should return true on success', async () => {
+    it("should return true on success", async () => {
       // Call synchronizeUserData
       const result = await synchronizeUserData();
 
@@ -228,9 +235,9 @@ describe('Store Actions', () => {
       expect(result).toBe(true);
     });
 
-    it('should handle errors', async () => {
+    it("should handle errors", async () => {
       // Make fetchProfile throw error
-      mockStore.fetchProfile.mockRejectedValue(new Error('Network error'));
+      mockStore.fetchProfile.mockRejectedValue(new Error("Network error"));
 
       // Call synchronizeUserData
       const result = await synchronizeUserData();
@@ -239,7 +246,7 @@ describe('Store Actions', () => {
       expect(result).toBe(false);
     });
 
-    it('should set loading state to false when done', async () => {
+    it("should set loading state to false when done", async () => {
       // Call synchronizeUserData
       await synchronizeUserData();
 
@@ -248,8 +255,8 @@ describe('Store Actions', () => {
     });
   });
 
-  describe('handleSessionTimeout', () => {
-    it('should check if session has expired', async () => {
+  describe("handleSessionTimeout", () => {
+    it("should check if session has expired", async () => {
       // Call handleSessionTimeout
       await handleSessionTimeout();
 
@@ -257,11 +264,11 @@ describe('Store Actions', () => {
       expect(mockStore.isSessionExpired).toHaveBeenCalled();
     });
 
-    it('should try to refresh token if available', async () => {
+    it("should try to refresh token if available", async () => {
       // Set up mock store with refresh token
       (useStore.getState as jest.Mock).mockReturnValue({
         ...mockStore,
-        refreshToken: 'test-refresh-token',
+        refreshToken: "test-refresh-token",
         refreshInProgress: false,
       });
 
@@ -273,7 +280,7 @@ describe('Store Actions', () => {
       expect(mockStore.setLoading).toHaveBeenCalledWith(true);
     });
 
-    it('should log out user if session has expired', async () => {
+    it("should log out user if session has expired", async () => {
       // Make isSessionExpired return true
       mockStore.isSessionExpired.mockReturnValue(true);
 
@@ -284,7 +291,7 @@ describe('Store Actions', () => {
       expect(mockStore.logout).toHaveBeenCalled();
     });
 
-    it('should return true if session has expired', async () => {
+    it("should return true if session has expired", async () => {
       // Make isSessionExpired return true
       mockStore.isSessionExpired.mockReturnValue(true);
 
@@ -295,7 +302,7 @@ describe('Store Actions', () => {
       expect(result).toBe(true);
     });
 
-    it('should return false if session has not expired', async () => {
+    it("should return false if session has not expired", async () => {
       // Make isSessionExpired return false
       mockStore.isSessionExpired.mockReturnValue(false);
 
@@ -306,7 +313,7 @@ describe('Store Actions', () => {
       expect(result).toBe(false);
     });
 
-    it('should not log out user if session has not expired', async () => {
+    it("should not log out user if session has not expired", async () => {
       // Make isSessionExpired return false
       mockStore.isSessionExpired.mockReturnValue(false);
 
@@ -317,17 +324,17 @@ describe('Store Actions', () => {
       expect(mockStore.logout).not.toHaveBeenCalled();
     });
 
-    it('should handle token refresh errors gracefully', async () => {
+    it("should handle token refresh errors gracefully", async () => {
       // Set up mock store with refresh token but make refresh fail
       (useStore.getState as jest.Mock).mockReturnValue({
         ...mockStore,
-        refreshToken: 'test-refresh-token',
+        refreshToken: "test-refresh-token",
         refreshInProgress: false,
         isSessionExpired: jest.fn().mockReturnValue(true),
       });
 
       // Mock signIn to throw error
-      (signIn as jest.Mock).mockRejectedValue(new Error('Network error'));
+      (signIn as jest.Mock).mockRejectedValue(new Error("Network error"));
 
       // Call handleSessionTimeout
       const result = await handleSessionTimeout();
@@ -338,8 +345,8 @@ describe('Store Actions', () => {
     });
   });
 
-  describe('updatePreferencesOptimistic', () => {
-    it('should skip if not authenticated', async () => {
+  describe("updatePreferencesOptimistic", () => {
+    it("should skip if not authenticated", async () => {
       // Set isAuthenticated to false
       (useStore.getState as jest.Mock).mockReturnValue({
         ...mockStore,
@@ -347,7 +354,7 @@ describe('Store Actions', () => {
       });
 
       // Call updatePreferencesOptimistic
-      const result = await updatePreferencesOptimistic('ui', { theme: 'dark' });
+      const result = await updatePreferencesOptimistic("ui", { theme: "dark" });
 
       // Check that updatePreferencesOptimistic returned false
       expect(result).toBe(false);
@@ -356,7 +363,7 @@ describe('Store Actions', () => {
       expect(mockStore.setProfile).not.toHaveBeenCalled();
     });
 
-    it('should skip if profile is null', async () => {
+    it("should skip if profile is null", async () => {
       // Set profile to null
       (useStore.getState as jest.Mock).mockReturnValue({
         ...mockStore,
@@ -364,7 +371,7 @@ describe('Store Actions', () => {
       });
 
       // Call updatePreferencesOptimistic
-      const result = await updatePreferencesOptimistic('ui', { theme: 'dark' });
+      const result = await updatePreferencesOptimistic("ui", { theme: "dark" });
 
       // Check that updatePreferencesOptimistic returned false
       expect(result).toBe(false);
@@ -373,142 +380,165 @@ describe('Store Actions', () => {
       expect(mockStore.setProfile).not.toHaveBeenCalled();
     });
 
-    it('should optimistically update the UI', async () => {
+    it("should optimistically update the UI", async () => {
       // Mock updatePreferences to return success
       mockStore.updatePreferences.mockResolvedValue(true);
 
       // Call updatePreferencesOptimistic
-      await updatePreferencesOptimistic('ui', { theme: 'dark' });
+      await updatePreferencesOptimistic("ui", { theme: "dark" });
 
       // Check that setProfile was called with updated preferences
-      expect(mockStore.setProfile).toHaveBeenCalledWith(expect.objectContaining({
-        preferences: {
-          ui: {
-            theme: 'dark',
+      expect(mockStore.setProfile).toHaveBeenCalledWith(
+        expect.objectContaining({
+          preferences: {
+            ui: {
+              theme: "dark",
+            },
           },
-        },
-      }));
+        }),
+      );
     });
 
-    it('should call updatePreferences with the correct parameters', async () => {
+    it("should call updatePreferences with the correct parameters", async () => {
       // Mock updatePreferences to return success
       mockStore.updatePreferences.mockResolvedValue(true);
 
       // Call updatePreferencesOptimistic
-      await updatePreferencesOptimistic('ui', { theme: 'dark' });
+      await updatePreferencesOptimistic("ui", { theme: "dark" });
 
       // Check that updatePreferences was called with the correct parameters
-      expect(mockStore.updatePreferences).toHaveBeenCalledWith('ui', { theme: 'dark' });
+      expect(mockStore.updatePreferences).toHaveBeenCalledWith("ui", {
+        theme: "dark",
+      });
     });
 
-    it('should return true on success', async () => {
+    it("should return true on success", async () => {
       // Mock updatePreferences to return success
       mockStore.updatePreferences.mockResolvedValue(true);
 
       // Call updatePreferencesOptimistic
-      const result = await updatePreferencesOptimistic('ui', { theme: 'dark' });
+      const result = await updatePreferencesOptimistic("ui", { theme: "dark" });
 
       // Check that updatePreferencesOptimistic returned true
       expect(result).toBe(true);
     });
 
-    it('should rollback on failure', async () => {
+    it("should rollback on failure", async () => {
       // Mock updatePreferences to return failure
       mockStore.updatePreferences.mockResolvedValue(false);
 
       // Call updatePreferencesOptimistic
-      await updatePreferencesOptimistic('ui', { theme: 'dark' });
+      await updatePreferencesOptimistic("ui", { theme: "dark" });
 
       // Check that setProfile was called with original preferences
-      expect(mockStore.setProfile).toHaveBeenCalledWith(expect.objectContaining({
-        preferences: {
-          ui: {
-            theme: 'light',
+      expect(mockStore.setProfile).toHaveBeenCalledWith(
+        expect.objectContaining({
+          preferences: {
+            ui: {
+              theme: "light",
+            },
           },
-        },
-      }));
+        }),
+      );
     });
 
-    it('should return false on failure', async () => {
+    it("should return false on failure", async () => {
       // Mock updatePreferences to return failure
       mockStore.updatePreferences.mockResolvedValue(false);
 
       // Call updatePreferencesOptimistic
-      const result = await updatePreferencesOptimistic('ui', { theme: 'dark' });
+      const result = await updatePreferencesOptimistic("ui", { theme: "dark" });
 
       // Check that updatePreferencesOptimistic returned false
       expect(result).toBe(false);
     });
 
-    it('should handle errors', async () => {
+    it("should handle errors", async () => {
       // Mock updatePreferences to throw error
-      mockStore.updatePreferences.mockRejectedValue(new Error('Network error'));
+      mockStore.updatePreferences.mockRejectedValue(new Error("Network error"));
 
       // Call updatePreferencesOptimistic
-      const result = await updatePreferencesOptimistic('ui', { theme: 'dark' });
+      const result = await updatePreferencesOptimistic("ui", { theme: "dark" });
 
       // Check that updatePreferencesOptimistic returned false
       expect(result).toBe(false);
 
       // Check that setProfile was called with original preferences
-      expect(mockStore.setProfile).toHaveBeenCalledWith(expect.objectContaining({
-        preferences: {
-          ui: {
-            theme: 'light',
+      expect(mockStore.setProfile).toHaveBeenCalledWith(
+        expect.objectContaining({
+          preferences: {
+            ui: {
+              theme: "light",
+            },
           },
-        },
-      }));
+        }),
+      );
     });
   });
 
-  describe('hasPermission', () => {
-    it('should return true if user has permission', () => {
+  describe("hasPermission", () => {
+    it("should return true if user has permission", () => {
       // Set user role to ADMIN
       (useStore.getState as jest.Mock).mockReturnValue({
         ...mockStore,
-        user: { id: '1', name: 'Admin User', email: 'admin@example.com', role: 'ADMIN' },
+        user: {
+          id: "1",
+          name: "Admin User",
+          email: "admin@example.com",
+          role: "ADMIN",
+        },
       });
 
       // Check permissions
-      expect(hasPermission('VIEW_REPORTS')).toBe(true);
-      expect(hasPermission('CREATE_REPORTS')).toBe(true);
-      expect(hasPermission('EDIT_REPORTS')).toBe(true);
-      expect(hasPermission('DELETE_REPORTS')).toBe(true);
-      expect(hasPermission('APPROVE_REPORTS')).toBe(true);
-      expect(hasPermission('MANAGE_USERS')).toBe(true);
-      expect(hasPermission('MANAGE_BRANCHES')).toBe(true);
-      expect(hasPermission('VIEW_ANALYTICS')).toBe(true);
+      expect(hasPermission("VIEW_REPORTS")).toBe(true);
+      expect(hasPermission("CREATE_REPORTS")).toBe(true);
+      expect(hasPermission("EDIT_REPORTS")).toBe(true);
+      expect(hasPermission("DELETE_REPORTS")).toBe(true);
+      expect(hasPermission("APPROVE_REPORTS")).toBe(true);
+      expect(hasPermission("MANAGE_USERS")).toBe(true);
+      expect(hasPermission("MANAGE_BRANCHES")).toBe(true);
+      expect(hasPermission("VIEW_ANALYTICS")).toBe(true);
     });
 
-    it('should return false if user does not have permission', () => {
+    it("should return false if user does not have permission", () => {
       // Set user role to USER
       (useStore.getState as jest.Mock).mockReturnValue({
         ...mockStore,
-        user: { id: '1', name: 'Regular User', email: 'user@example.com', role: 'USER' },
+        user: {
+          id: "1",
+          name: "Regular User",
+          email: "user@example.com",
+          role: "USER",
+        },
       });
 
       // Check permissions
-      expect(hasPermission('VIEW_REPORTS')).toBe(true);
-      expect(hasPermission('CREATE_REPORTS')).toBe(true);
-      expect(hasPermission('EDIT_REPORTS')).toBe(true);
-      expect(hasPermission('APPROVE_REPORTS')).toBe(false);
-      expect(hasPermission('MANAGE_USERS')).toBe(false);
-      expect(hasPermission('MANAGE_BRANCHES')).toBe(false);
-      expect(hasPermission('VIEW_ANALYTICS')).toBe(false);
+      expect(hasPermission("VIEW_REPORTS")).toBe(true);
+      expect(hasPermission("CREATE_REPORTS")).toBe(true);
+      expect(hasPermission("EDIT_REPORTS")).toBe(true);
+      expect(hasPermission("APPROVE_REPORTS")).toBe(false);
+      expect(hasPermission("MANAGE_USERS")).toBe(false);
+      expect(hasPermission("MANAGE_BRANCHES")).toBe(false);
+      expect(hasPermission("VIEW_ANALYTICS")).toBe(false);
     });
 
-    it('should return false if user role is not recognized', () => {
+    it("should return false if user role is not recognized", () => {
       // Set user role to UNKNOWN
       (useStore.getState as jest.Mock).mockReturnValue({
         ...mockStore,
-        user: { id: '1', name: 'Unknown User', email: 'unknown@example.com', role: 'UNKNOWN' },
+        user: {
+          id: "1",
+          name: "Unknown User",
+          email: "unknown@example.com",
+          role: "UNKNOWN",
+        },
       });
 
       // Check permissions
-      expect(hasPermission('VIEW_REPORTS')).toBe(false);
+      expect(hasPermission("VIEW_REPORTS")).toBe(false);
     });
 
-    it('should return false if user is null', () => {
+    it("should return false if user is null", () => {
       // Set user to null
       (useStore.getState as jest.Mock).mockReturnValue({
         ...mockStore,
@@ -516,76 +546,81 @@ describe('Store Actions', () => {
       });
 
       // Check permissions
-      expect(hasPermission('VIEW_REPORTS')).toBe(false);
+      expect(hasPermission("VIEW_REPORTS")).toBe(false);
     });
   });
 
-  describe('hasBranchAccess', () => {
-    it('should return true if user is admin', () => {
+  describe("hasBranchAccess", () => {
+    it("should return true if user is admin", () => {
       // Set user role to ADMIN
       (useStore.getState as jest.Mock).mockReturnValue({
         ...mockStore,
-        user: { id: '1', name: 'Admin User', email: 'admin@example.com', role: 'ADMIN' },
+        user: {
+          id: "1",
+          name: "Admin User",
+          email: "admin@example.com",
+          role: "ADMIN",
+        },
         isAdmin: jest.fn().mockReturnValue(true),
       });
 
       // Check branch access
-      expect(hasBranchAccess('branch-1')).toBe(true);
-      expect(hasBranchAccess('branch-2')).toBe(true);
+      expect(hasBranchAccess("branch-1")).toBe(true);
+      expect(hasBranchAccess("branch-2")).toBe(true);
     });
 
-    it('should return true if user is assigned to the branch', () => {
+    it("should return true if user is assigned to the branch", () => {
       // Set user with branchId
       (useStore.getState as jest.Mock).mockReturnValue({
         ...mockStore,
         user: {
-          id: '1',
-          name: 'Branch User',
-          email: 'branch@example.com',
-          role: 'BRANCH_MANAGER',
-          branchId: 'branch-1',
+          id: "1",
+          name: "Branch User",
+          email: "branch@example.com",
+          role: "BRANCH_MANAGER",
+          branchId: "branch-1",
         },
         isAdmin: jest.fn().mockReturnValue(false),
       });
 
       // Check branch access
-      expect(hasBranchAccess('branch-1')).toBe(true);
-      expect(hasBranchAccess('branch-2')).toBe(false);
+      expect(hasBranchAccess("branch-1")).toBe(true);
+      expect(hasBranchAccess("branch-2")).toBe(false);
     });
 
-    it('should return false if user is not assigned to the branch', () => {
+    it("should return false if user is not assigned to the branch", () => {
       // Set user with different branchId
       (useStore.getState as jest.Mock).mockReturnValue({
         ...mockStore,
         user: {
-          id: '1',
-          name: 'Branch User',
-          email: 'branch@example.com',
-          role: 'BRANCH_MANAGER',
-          branchId: 'branch-1',
+          id: "1",
+          name: "Branch User",
+          email: "branch@example.com",
+          role: "BRANCH_MANAGER",
+          branchId: "branch-1",
         },
         isAdmin: jest.fn().mockReturnValue(false),
       });
 
       // Check branch access
-      expect(hasBranchAccess('branch-2')).toBe(false);
+      expect(hasBranchAccess("branch-2")).toBe(false);
     });
 
-    it('should return false if user has no branch assigned', () => {
+    it("should return false if user has no branch assigned", () => {
       // Set user without branchId
       (useStore.getState as jest.Mock).mockReturnValue({
         ...mockStore,
         user: {
-          id: '1',
-          name: 'No Branch User',
-          email: 'nobranch@example.com',
-          role: 'USER',
+          id: "1",
+          name: "No Branch User",
+          email: "nobranch@example.com",
+          role: "USER",
         },
         isAdmin: jest.fn().mockReturnValue(false),
       });
 
       // Check branch access
-      expect(hasBranchAccess('branch-1')).toBe(false);
+      expect(hasBranchAccess("branch-1")).toBe(false);
     });
   });
 });

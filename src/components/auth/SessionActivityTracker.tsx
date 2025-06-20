@@ -1,11 +1,17 @@
 "use client";
 
-import { useEffect, useCallback, useRef } from 'react';
-import { useStore } from '@/auth/store';
-import { handleSessionTimeout, refreshSession } from '@/auth/store/actions';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { useState } from 'react';
+import { useEffect, useCallback, useRef } from "react";
+import { useStore } from "@/auth/store";
+import { handleSessionTimeout, refreshSession } from "@/auth/store/actions";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { useState } from "react";
 
 interface SessionActivityTrackerProps {
   // Time in minutes before showing the warning
@@ -24,7 +30,7 @@ interface SessionActivityTrackerProps {
  */
 export function SessionActivityTracker({
   warningTime = 25, // Show warning 5 minutes before expiry (assuming 30 min session)
-  expiryTime = 30,  // Default session expiry time is 30 minutes
+  expiryTime = 30, // Default session expiry time is 30 minutes
   checkInterval = 30, // Check every 30 seconds
 }: SessionActivityTrackerProps) {
   const {
@@ -32,7 +38,7 @@ export function SessionActivityTracker({
     updateLastActivity,
     timeUntilExpiry,
     isSessionExpired,
-    logout
+    logout,
   } = useStore();
 
   const [showWarning, setShowWarning] = useState(false);
@@ -81,7 +87,7 @@ export function SessionActivityTracker({
       }
 
       timerInterval.current = setInterval(() => {
-        setTimeLeft(prev => {
+        setTimeLeft((prev) => {
           if (prev <= 1) {
             // Time's up, clear interval and log out
             if (timerInterval.current) {
@@ -101,19 +107,28 @@ export function SessionActivityTracker({
     if (!isAuthenticated) return;
 
     // Events to track for activity
-    const events = ['mousedown', 'keypress', 'scroll', 'mousemove', 'touchstart'];
+    const events = [
+      "mousedown",
+      "keypress",
+      "scroll",
+      "mousemove",
+      "touchstart",
+    ];
 
     // Add event listeners
-    events.forEach(event => {
+    events.forEach((event) => {
       window.addEventListener(event, handleUserActivity);
     });
 
     // Set up session checker
-    const sessionChecker = setInterval(checkSessionStatus, checkInterval * 1000);
+    const sessionChecker = setInterval(
+      checkSessionStatus,
+      checkInterval * 1000,
+    );
 
     // Cleanup
     return () => {
-      events.forEach(event => {
+      events.forEach((event) => {
         window.removeEventListener(event, handleUserActivity);
       });
 
@@ -141,7 +156,7 @@ export function SessionActivityTracker({
   const formatTimeLeft = () => {
     const minutes = Math.floor(timeLeft / 60);
     const seconds = timeLeft % 60;
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
   };
 
   // Extend session
@@ -179,7 +194,9 @@ export function SessionActivityTracker({
         </DialogHeader>
         <div className="py-4">
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            Your session will expire in <span className="font-bold">{formatTimeLeft()}</span> due to inactivity.
+            Your session will expire in{" "}
+            <span className="font-bold">{formatTimeLeft()}</span> due to
+            inactivity.
           </p>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
             Would you like to extend your session or log out?
@@ -189,9 +206,7 @@ export function SessionActivityTracker({
           <Button variant="outline" onClick={handleLogout}>
             Log Out
           </Button>
-          <Button onClick={extendSession}>
-            Extend Session
-          </Button>
+          <Button onClick={extendSession}>Extend Session</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

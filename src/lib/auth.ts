@@ -68,7 +68,7 @@ export async function hashPassword(password: string): Promise<string> {
 
 export async function verifyPassword(
   password: string,
-  hashedPassword: string
+  hashedPassword: string,
 ): Promise<boolean> {
   return compare(password, hashedPassword);
 }
@@ -113,14 +113,14 @@ export async function createUser(userData: CreateUserData): Promise<SafeUser> {
 
 export async function authenticateUser(
   username: string,
-  password: string
+  password: string,
 ): Promise<SafeUser | null> {
   const prisma = await getPrisma();
   const isLocked = await isAccountLocked(username);
   if (isLocked) {
     const remainingTime = await getRemainingLockoutTime(username);
     throw new Error(
-      `Account is locked. Try again in ${remainingTime} minutes.`
+      `Account is locked. Try again in ${remainingTime} minutes.`,
     );
   }
 
@@ -140,7 +140,7 @@ export async function authenticateUser(
     if (isNowLocked) {
       const remainingTime = await getRemainingLockoutTime(username);
       throw new Error(
-        `Account is now locked due to too many failed attempts. Try again in ${remainingTime} minutes.`
+        `Account is now locked due to too many failed attempts. Try again in ${remainingTime} minutes.`,
       );
     }
     return null;
@@ -208,7 +208,7 @@ export const authOptions: NextAuthOptions = {
 
         const isValid = await verifyPassword(
           credentials.password,
-          user.password
+          user.password,
         );
 
         if (!isValid) {

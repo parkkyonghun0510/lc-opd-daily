@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,12 +9,18 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
  *
  * @param role Optional role to show a role-specific loading state
  */
-export function DashboardLoadingState({ role = 'USER' }: { role?: 'USER' | 'BRANCH_MANAGER' | 'ADMIN' | string }) {
+export function DashboardLoadingState({
+  role = "USER",
+}: {
+  role?: "USER" | "BRANCH_MANAGER" | "ADMIN" | string;
+}) {
   // Determine the number of stats cards based on role
-  const statsCardCount = role === 'ADMIN' ? 6 : role === 'BRANCH_MANAGER' ? 5 : 4;
+  const statsCardCount =
+    role === "ADMIN" ? 6 : role === "BRANCH_MANAGER" ? 5 : 4;
 
   // Determine the number of list items based on role
-  const listItemCount = role === 'ADMIN' ? 8 : role === 'BRANCH_MANAGER' ? 6 : 4;
+  const listItemCount =
+    role === "ADMIN" ? 8 : role === "BRANCH_MANAGER" ? 6 : 4;
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -51,7 +57,7 @@ export function DashboardLoadingState({ role = 'USER' }: { role?: 'USER' | 'BRAN
       </div>
 
       {/* Role-specific content skeleton */}
-      {role === 'ADMIN' && (
+      {role === "ADMIN" && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Card>
             <CardHeader>
@@ -98,7 +104,7 @@ export function DashboardLoadingState({ role = 'USER' }: { role?: 'USER' | 'BRAN
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {role === 'BRANCH_MANAGER' && (
+            {role === "BRANCH_MANAGER" && (
               <div className="flex space-x-2 mb-4">
                 <Skeleton className="h-8 w-24 rounded-md" />
                 <Skeleton className="h-8 w-24 rounded-md" />

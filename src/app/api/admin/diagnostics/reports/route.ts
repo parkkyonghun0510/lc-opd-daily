@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
 
     // Find reports with invalid branch IDs
     const reportsWithInvalidBranches = reports.filter(
-      (report) => !validBranchIds.has(report.branchId)
+      (report) => !validBranchIds.has(report.branchId),
     );
 
     // Return diagnostic information
@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
     console.error("Error running report diagnostics:", error);
     return NextResponse.json(
       { error: "Failed to run report diagnostics" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
     if (!action || !Array.isArray(reportIds) || reportIds.length === 0) {
       return NextResponse.json(
         { error: "Invalid request parameters" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
         if (!targetBranchId) {
           return NextResponse.json(
             { error: "Target branch ID is required for reassign action" },
-            { status: 400 }
+            { status: 400 },
           );
         }
 
@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
         if (!targetBranch) {
           return NextResponse.json(
             { error: "Target branch does not exist" },
-            { status: 400 }
+            { status: 400 },
           );
         }
 
@@ -116,8 +116,8 @@ export async function POST(request: NextRequest) {
             prisma.report.update({
               where: { id },
               data: { branchId: targetBranchId },
-            })
-          )
+            }),
+          ),
         );
 
         return NextResponse.json({
@@ -141,14 +141,14 @@ export async function POST(request: NextRequest) {
       default:
         return NextResponse.json(
           { error: "Invalid action specified" },
-          { status: 400 }
+          { status: 400 },
         );
     }
   } catch (error) {
     console.error("Error fixing reports:", error);
     return NextResponse.json(
       { error: "Failed to fix reports" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

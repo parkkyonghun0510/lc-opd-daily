@@ -1,7 +1,7 @@
-import React from 'react';
+import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, FileText, Clock, ShieldCheck, TrendingUp } from 'lucide-react';
-import { formatKHRCurrency } from '@/lib/utils';
+import { Users, FileText, Clock, ShieldCheck, TrendingUp } from "lucide-react";
+import { formatKHRCurrency } from "@/lib/utils";
 
 interface DashboardCardProps {
   title: string;
@@ -11,10 +11,18 @@ interface DashboardCardProps {
   isLoading: boolean;
 }
 
-const DashboardCard: React.FC<DashboardCardProps> = ({ title, value, description, icon: Icon, isLoading }) => (
+const DashboardCard: React.FC<DashboardCardProps> = ({
+  title,
+  value,
+  description,
+  icon: Icon,
+  isLoading,
+}) => (
   <Card className="shadow-sm hover:shadow-md transition-shadow duration-200">
     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-      <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">{title}</CardTitle>
+      <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
+        {title}
+      </CardTitle>
       <Icon className="h-5 w-5 text-muted-foreground" />
     </CardHeader>
     <CardContent>
@@ -22,7 +30,9 @@ const DashboardCard: React.FC<DashboardCardProps> = ({ title, value, description
         <div className="h-8 w-1/2 mb-1 bg-gray-200 animate-pulse rounded" />
       ) : (
         <>
-          <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{value ?? 'N/A'}</div>
+          <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+            {value ?? "N/A"}
+          </div>
           <p className="text-xs text-muted-foreground">{description}</p>
         </>
       )}
@@ -35,12 +45,12 @@ interface AdminDashboardContentProps {
   isLoading: boolean;
 }
 
-const AdminDashboardContent: React.FC<AdminDashboardContentProps> = ({ 
-  dashboardData, 
-  isLoading 
+const AdminDashboardContent: React.FC<AdminDashboardContentProps> = ({
+  dashboardData,
+  isLoading,
 }) => {
   const formatNumber = (value: number | undefined): string => {
-    if (value === undefined) return 'N/A';
+    if (value === undefined) return "N/A";
     return value.toLocaleString();
   };
 
@@ -71,8 +81,8 @@ const AdminDashboardContent: React.FC<AdminDashboardContentProps> = ({
         <DashboardCard
           title="Total Amount"
           value={formatKHRCurrency(dashboardData?.totalAmount ?? 0)}
-          description="Amount across all actual transactions" 
-          icon={TrendingUp} 
+          description="Amount across all actual transactions"
+          icon={TrendingUp}
           isLoading={isLoading}
         />
         <DashboardCard
@@ -84,7 +94,7 @@ const AdminDashboardContent: React.FC<AdminDashboardContentProps> = ({
         />
         <DashboardCard
           title="Growth Rate"
-          value={`${dashboardData?.growthRate ?? 'N/A'}%`}
+          value={`${dashboardData?.growthRate ?? "N/A"}%`}
           description="Month-over-month growth"
           icon={TrendingUp}
           isLoading={isLoading}
@@ -98,11 +108,16 @@ const AdminDashboardContent: React.FC<AdminDashboardContentProps> = ({
           {isLoading ? (
             <div className="space-y-2">
               {[...Array(3)].map((_, i) => (
-                <div key={i} className="h-6 bg-gray-200 animate-pulse rounded w-full" />
+                <div
+                  key={i}
+                  className="h-6 bg-gray-200 animate-pulse rounded w-full"
+                />
               ))}
             </div>
           ) : (
-            <p className="text-muted-foreground">Activity log will appear here</p>
+            <p className="text-muted-foreground">
+              Activity log will appear here
+            </p>
           )}
         </div>
       </div>
@@ -110,4 +125,4 @@ const AdminDashboardContent: React.FC<AdminDashboardContentProps> = ({
   );
 };
 
-export default AdminDashboardContent; 
+export default AdminDashboardContent;

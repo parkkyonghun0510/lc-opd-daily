@@ -34,14 +34,18 @@ export function ZustandPermissionGate({
   requireAll = false,
   branchId,
   showLoading = true,
-  loadingComponent = <div className="flex justify-center p-4"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>,
+  loadingComponent = (
+    <div className="flex justify-center p-4">
+      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+    </div>
+  ),
 }: PermissionGateProps) {
   const {
     hasPermission,
     hasAnyPermission,
     hasAllPermissions,
     hasRole,
-    hasBranchAccess
+    hasBranchAccess,
   } = usePermissions();
 
   // Since usePermissions doesn't have isLoading, we'll set it to false
@@ -74,7 +78,16 @@ export function ZustandPermissionGate({
 
     // Update access state
     setHasAccess(accessGranted);
-  }, [permissions, requiredRole, requireAll, branchId, hasAllPermissions, hasAnyPermission, hasRole, hasBranchAccess]);
+  }, [
+    permissions,
+    requiredRole,
+    requireAll,
+    branchId,
+    hasAllPermissions,
+    hasAnyPermission,
+    hasRole,
+    hasBranchAccess,
+  ]);
 
   // Show loading state if needed
   if (isLoading && showLoading) {

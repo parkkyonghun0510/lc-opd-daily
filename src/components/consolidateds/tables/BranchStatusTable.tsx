@@ -1,6 +1,13 @@
 "use client";
 
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { cn, formatKHRCurrency } from "@/lib/utils";
 import { ConsolidatedData } from "../types/consolidated-types";
@@ -51,7 +58,7 @@ export function BranchStatusTable({
               const planBranch =
                 reportType === "actual" && planData
                   ? planData.branchData.find(
-                      (plan) => plan.branchId === branch.branchId
+                      (plan) => plan.branchId === branch.branchId,
                     )
                   : null;
 
@@ -84,7 +91,7 @@ export function BranchStatusTable({
                               ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
                               : writeOffsAchievement >= 80
                                 ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
-                                : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
+                                : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
                           )}
                         >
                           {writeOffsAchievement.toFixed(1)}%
@@ -107,7 +114,7 @@ export function BranchStatusTable({
                               ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
                               : ninetyPlusAchievement >= 80
                                 ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
-                                : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
+                                : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
                           )}
                         >
                           {ninetyPlusAchievement.toFixed(1)}%

@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     if (!token) {
       return NextResponse.json(
         { error: "Unauthorized - Authentication required" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     if (!checkPermission(userRole, Permission.VIEW_AUDIT_LOGS)) {
       return NextResponse.json(
         { error: "Forbidden - You don't have permission to view audit logs" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -38,29 +38,29 @@ export async function GET(request: NextRequest) {
 
     // Prepare filter for ActivityLog
     const activityLogWhere: any = {};
-    
+
     if (search) {
       activityLogWhere.OR = [
         { action: { contains: search, mode: "insensitive" } },
         { details: { contains: search, mode: "insensitive" } },
       ];
     }
-    
+
     if (userId) {
       activityLogWhere.userId = userId;
     }
-    
+
     if (action) {
       activityLogWhere.action = action;
     }
-    
+
     if (fromDate) {
       activityLogWhere.timestamp = {
         ...(activityLogWhere.timestamp || {}),
         gte: new Date(fromDate),
       };
     }
-    
+
     if (toDate) {
       activityLogWhere.timestamp = {
         ...(activityLogWhere.timestamp || {}),
@@ -70,28 +70,28 @@ export async function GET(request: NextRequest) {
 
     // Prepare filter for UserActivity
     const userActivityWhere: any = {};
-    
+
     if (search) {
       userActivityWhere.OR = [
         { action: { contains: search, mode: "insensitive" } },
       ];
     }
-    
+
     if (userId) {
       userActivityWhere.userId = userId;
     }
-    
+
     if (action) {
       userActivityWhere.action = action;
     }
-    
+
     if (fromDate) {
       userActivityWhere.createdAt = {
         ...(userActivityWhere.createdAt || {}),
         gte: new Date(fromDate),
       };
     }
-    
+
     if (toDate) {
       userActivityWhere.createdAt = {
         ...(userActivityWhere.createdAt || {}),
@@ -133,7 +133,7 @@ export async function GET(request: NextRequest) {
         }),
         prisma.activityLog.count({ where: activityLogWhere }),
       ]);
-      
+
       activityLogs = logs;
       if (type === "activity") total = activityTotal;
       else total += activityTotal;
@@ -168,7 +168,7 @@ export async function GET(request: NextRequest) {
         }),
         prisma.userActivity.count({ where: userActivityWhere }),
       ]);
-      
+
       userActivities = activities;
       if (type === "userActivity") total = userActivityTotal;
       else total += userActivityTotal;
@@ -202,9 +202,12 @@ export async function GET(request: NextRequest) {
     // Combine and sort if needed
     let auditLogs = [];
     if (type === "all") {
-      auditLogs = [...formattedActivityLogs, ...formattedUserActivities].sort((a, b) => 
-        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-      ).slice(0, limit);
+      auditLogs = [...formattedActivityLogs, ...formattedUserActivities]
+        .sort(
+          (a, b) =>
+            new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+        )
+        .slice(0, limit);
     } else if (type === "activity") {
       auditLogs = formattedActivityLogs;
     } else {
@@ -222,10 +225,13 @@ export async function GET(request: NextRequest) {
       ) as actions
       ORDER BY action;
     `;
-    
+
     // Ensure each action has a non-empty action field
-    const filteredActions = Array.isArray(actionResults) 
-      ? actionResults.filter((action: any) => action && action.action && action.action.trim() !== "")
+    const filteredActions = Array.isArray(actionResults)
+      ? actionResults.filter(
+          (action: any) =>
+            action && action.action && action.action.trim() !== "",
+        )
       : [];
 
     return NextResponse.json({
@@ -242,7 +248,7 @@ export async function GET(request: NextRequest) {
     console.error("Error fetching audit logs:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -254,7 +260,7 @@ export async function POST(request: NextRequest) {
     if (!token) {
       return NextResponse.json(
         { error: "Unauthorized - Authentication required" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -264,15 +270,16 @@ export async function POST(request: NextRequest) {
     if (!action) {
       return NextResponse.json(
         { error: "Action is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     // Get client IP and user agent
-    const ip = request.headers.get("x-real-ip") || 
-               request.headers.get("x-forwarded-for") || 
-               "unknown";
-    
+    const ip =
+      request.headers.get("x-real-ip") ||
+      request.headers.get("x-forwarded-for") ||
+      "unknown";
+
     const userAgent = request.headers.get("user-agent") || "unknown";
 
     // Create a new audit log entry
@@ -304,7 +311,7 @@ export async function POST(request: NextRequest) {
     console.error("Error creating audit log:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
-} 
+}

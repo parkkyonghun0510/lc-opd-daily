@@ -10,30 +10,30 @@ export async function GET() {
     // Check database connection
     const prisma = await getPrisma();
     await prisma.$queryRaw`SELECT 1`;
-    
+
     const health = {
-      status: 'ok',
+      status: "ok",
       timestamp: new Date().toISOString(),
       services: {
-        database: 'connected',
-        api: 'running'
+        database: "connected",
+        api: "running",
       },
-      version: process.env.NEXT_PUBLIC_APP_VERSION || '1.0.0'
+      version: process.env.NEXT_PUBLIC_APP_VERSION || "1.0.0",
     };
-    
+
     return NextResponse.json(health, { status: 200 });
   } catch (error) {
-    console.error('Health check failed:', error);
-    
+    console.error("Health check failed:", error);
+
     const health = {
-      status: 'error',
+      status: "error",
       timestamp: new Date().toISOString(),
       services: {
-        database: error instanceof Error ? error.message : 'unknown error',
-        api: 'running'
-      }
+        database: error instanceof Error ? error.message : "unknown error",
+        api: "running",
+      },
     };
-    
+
     return NextResponse.json(health, { status: 500 });
   }
 }

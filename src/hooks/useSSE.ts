@@ -1,6 +1,9 @@
-'use client';
+"use client";
 
-import { useHybridRealtime, HybridRealtimeOptions as SSEOptions } from '@/hooks/useHybridRealtime';
+import {
+  useHybridRealtime,
+  HybridRealtimeOptions as SSEOptions,
+} from "@/hooks/useHybridRealtime";
 
 /**
  * DEPRECATED: Use useHybridRealtime from @/auth/store directly instead.
@@ -31,20 +34,15 @@ import { useHybridRealtime, HybridRealtimeOptions as SSEOptions } from '@/hooks/
  */
 export function useSSE(options: SSEOptions = {}) {
   // Simply forward to the Zustand hybrid realtime hook
-  const {
-    isConnected,
-    error,
-    lastEvent,
-    reconnect,
-    disconnect
-  } = useHybridRealtime(options);
+  const { isConnected, error, lastEvent, reconnect, disconnect } =
+    useHybridRealtime(options);
 
   return {
     isConnected,
     error,
     lastEvent,
     reconnect,
-    closeConnection: disconnect
+    closeConnection: disconnect,
   };
 }
 

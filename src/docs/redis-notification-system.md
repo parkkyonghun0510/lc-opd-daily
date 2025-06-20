@@ -80,36 +80,36 @@ The following API endpoints are available for interacting with the notification 
 ### Sending a Notification
 
 ```typescript
-import { sendNotification } from '@/lib/redis/enhancedRedisNotificationService';
+import { sendNotification } from "@/lib/redis/enhancedRedisNotificationService";
 
 // Send a notification
 const notificationId = await sendNotification({
-  type: 'REPORT_APPROVED',
+  type: "REPORT_APPROVED",
   data: {
-    reportId: '123',
-    title: 'Report Approved',
-    body: 'Your report has been approved',
-    actionUrl: '/reports/123'
+    reportId: "123",
+    title: "Report Approved",
+    body: "Your report has been approved",
+    actionUrl: "/reports/123",
   },
-  userIds: ['user-123'],
-  priority: 'high',
-  idempotencyKey: `report-123-approved-${Date.now()}`
+  userIds: ["user-123"],
+  priority: "high",
+  idempotencyKey: `report-123-approved-${Date.now()}`,
 });
 ```
 
 ### Emitting a Real-time Event
 
 ```typescript
-import { emitNotification } from '@/lib/realtime/redisEventEmitter';
+import { emitNotification } from "@/lib/realtime/redisEventEmitter";
 
 // Emit a notification event
 const eventId = await emitNotification(
-  'New Message',
-  'You have a new message',
+  "New Message",
+  "You have a new message",
   {
-    userIds: ['user-123'],
-    type: 'info'
-  }
+    userIds: ["user-123"],
+    type: "info",
+  },
 );
 ```
 

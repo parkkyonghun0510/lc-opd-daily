@@ -1,7 +1,7 @@
-import { StateCreator } from 'zustand';
-import { signIn, signOut } from 'next-auth/react';
-import { toast } from 'sonner';
-import { trackAuthEvent, AuthEventType } from '@/auth/utils/analytics';
+import { StateCreator } from "zustand";
+import { signIn, signOut } from "next-auth/react";
+import { toast } from "sonner";
+import { trackAuthEvent, AuthEventType } from "@/auth/utils/analytics";
 
 // Define the types for our authentication state
 export interface User {
@@ -26,7 +26,11 @@ export interface AuthState {
 }
 
 export interface AuthActions {
-  login: (username: string, password: string, callbackUrl?: string) => Promise<boolean>;
+  login: (
+    username: string,
+    password: string,
+    callbackUrl?: string,
+  ) => Promise<boolean>;
   logout: (callbackUrl?: string) => Promise<void>;
   setUser: (user: User | null) => void;
   clearError: () => void;
@@ -55,7 +59,10 @@ export interface AuthSelectors {
 export type AuthSlice = AuthState & AuthActions & AuthSelectors;
 
 // Create the auth slice
-export const createAuthSlice: StateCreator<AuthSlice, [], [], AuthSlice> = (set, get) => ({
+export const createAuthSlice: StateCreator<AuthSlice, [], [], AuthSlice> = (
+  set,
+  get,
+) => ({
   // State
   user: null,
   isLoading: false,
@@ -68,16 +75,20 @@ export const createAuthSlice: StateCreator<AuthSlice, [], [], AuthSlice> = (set,
   refreshInProgress: false,
 
   // Actions
-  login: async (username: string, password: string, callbackUrl = '/dashboard') => {
+  login: async (
+    username: string,
+    password: string,
+    callbackUrl = "/dashboard",
+  ) => {
     try {
       set({
         isLoading: true,
         error: null,
-        lastActivity: Date.now()
+        lastActivity: Date.now(),
       });
 
       // Use NextAuth's signIn function
-      const result = await signIn('credentials', {
+      const result = await signIn("credentials", {
         username,
         password,
         redirect: false,
@@ -86,14 +97,16 @@ export const createAuthSlice: StateCreator<AuthSlice, [], [], AuthSlice> = (set,
 
       if (!result?.ok) {
         // Handle specific error messages
-        let errorMessage = 'Failed to sign in';
+        let errorMessage = "Failed to sign in";
 
-        if (result?.error?.includes('No branch assigned')) {
-          errorMessage = 'Your account has no branch assigned. Please contact your administrator.';
-        } else if (result?.error?.includes('Account is inactive')) {
-          errorMessage = 'Your account is inactive. Please contact your administrator.';
-        } else if (result?.error?.includes('Invalid credentials')) {
-          errorMessage = 'Invalid email or password';
+        if (result?.error?.includes("No branch assigned")) {
+          errorMessage =
+            "Your account has no branch assigned. Please contact your administrator.";
+        } else if (result?.error?.includes("Account is inactive")) {
+          errorMessage =
+            "Your account is inactive. Please contact your administrator.";
+        } else if (result?.error?.includes("Invalid credentials")) {
+          errorMessage = "Invalid email or password";
         }
 
         set({ error: errorMessage, isLoading: false });
@@ -103,7 +116,7 @@ export const createAuthSlice: StateCreator<AuthSlice, [], [], AuthSlice> = (set,
         trackAuthEvent(AuthEventType.LOGIN_FAILURE, {
           username,
           error: errorMessage,
-          details: { callbackUrl }
+          details: { callbackUrl },
         });
 
         return false;
@@ -123,10 +136,10 @@ export const createAuthSlice: StateCreator<AuthSlice, [], [], AuthSlice> = (set,
         isLoading: false,
         sessionExpiresAt,
         tokenExpiresAt,
-        refreshToken
+        refreshToken,
       });
 
-      toast.success('Signed in successfully');
+      toast.success("Signed in successfully");
 
       // Track login success
       if (get().user) {
@@ -134,21 +147,21 @@ export const createAuthSlice: StateCreator<AuthSlice, [], [], AuthSlice> = (set,
           userId: get().user?.id,
           username: get().user?.email,
           role: get().user?.role,
-          details: { callbackUrl }
+          details: { callbackUrl },
         });
       }
 
       return true;
     } catch (error) {
-      console.error('Login error:', error);
-      const errorMessage = 'An error occurred during sign in';
+      console.error("Login error:", error);
+      const errorMessage = "An error occurred during sign in";
       set({ error: errorMessage, isLoading: false });
       toast.error(errorMessage);
       return false;
     }
   },
 
-  logout: async (callbackUrl = '/login') => {
+  logout: async (callbackUrl = "/login") => {
     try {
       set({ isLoading: true });
 
@@ -159,14 +172,14 @@ export const createAuthSlice: StateCreator<AuthSlice, [], [], AuthSlice> = (set,
           userId: user.id,
           username: user.email,
           role: user.role,
-          details: { callbackUrl }
+          details: { callbackUrl },
         });
       }
 
       // Ensure we're preserving the callbackUrl when signing out
       await signOut({
         redirect: false,
-        callbackUrl
+        callbackUrl,
       });
 
       set({
@@ -176,21 +189,21 @@ export const createAuthSlice: StateCreator<AuthSlice, [], [], AuthSlice> = (set,
         sessionExpiresAt: null,
         refreshToken: null,
         tokenExpiresAt: null,
-        refreshInProgress: false
+        refreshInProgress: false,
       });
 
       // Ensure the callbackUrl is properly handled
       // If it already has query parameters, append to them
-      if (callbackUrl.includes('?')) {
+      if (callbackUrl.includes("?")) {
         window.location.href = callbackUrl;
       } else {
         // Otherwise, add the current timestamp to prevent caching issues
         window.location.href = `${callbackUrl}?t=${Date.now()}`;
       }
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error("Logout error:", error);
       set({ isLoading: false });
-      toast.error('An error occurred during sign out');
+      toast.error("An error occurred during sign out");
     }
   },
 
@@ -199,17 +212,17 @@ export const createAuthSlice: StateCreator<AuthSlice, [], [], AuthSlice> = (set,
       user,
       isAuthenticated: !!user,
       error: null,
-      lastActivity: Date.now()
+      lastActivity: Date.now(),
     });
 
     // If user is set, also set session and token expiry
     if (user) {
       const sessionExpiresAt = Date.now() + 30 * 60 * 1000; // 30 minutes
-      const tokenExpiresAt = Date.now() + 60 * 60 * 1000;   // 1 hour
+      const tokenExpiresAt = Date.now() + 60 * 60 * 1000; // 1 hour
 
       set({
         sessionExpiresAt,
-        tokenExpiresAt
+        tokenExpiresAt,
       });
     }
   },
@@ -259,20 +272,21 @@ export const createAuthSlice: StateCreator<AuthSlice, [], [], AuthSlice> = (set,
       set({ refreshInProgress: true });
 
       // Get the current URL to use as callbackUrl if needed
-      const currentUrl = typeof window !== 'undefined' ? window.location.href : '/dashboard';
+      const currentUrl =
+        typeof window !== "undefined" ? window.location.href : "/dashboard";
 
       // Use NextAuth's signIn function with refresh token and current URL as callbackUrl
-      const result = await signIn('refresh', {
+      const result = await signIn("refresh", {
         refreshToken,
         redirect: false,
-        callbackUrl: currentUrl
+        callbackUrl: currentUrl,
       });
 
       if (!result?.ok) {
         // Handle refresh token error
         set({
-          error: 'Failed to refresh token',
-          refreshInProgress: false
+          error: "Failed to refresh token",
+          refreshInProgress: false,
         });
         return false;
       }
@@ -282,7 +296,7 @@ export const createAuthSlice: StateCreator<AuthSlice, [], [], AuthSlice> = (set,
       set({
         tokenExpiresAt,
         refreshInProgress: false,
-        error: null
+        error: null,
       });
 
       // Also update session expiry
@@ -290,10 +304,10 @@ export const createAuthSlice: StateCreator<AuthSlice, [], [], AuthSlice> = (set,
 
       return true;
     } catch (error) {
-      console.error('Token refresh error:', error);
+      console.error("Token refresh error:", error);
       set({
-        error: 'Failed to refresh token',
-        refreshInProgress: false
+        error: "Failed to refresh token",
+        refreshInProgress: false,
       });
       return false;
     }
@@ -310,7 +324,7 @@ export const createAuthSlice: StateCreator<AuthSlice, [], [], AuthSlice> = (set,
     try {
       return await get().refreshAuthToken();
     } catch (error) {
-      console.error('Silent refresh error:', error);
+      console.error("Silent refresh error:", error);
       return false;
     }
   },
@@ -318,12 +332,12 @@ export const createAuthSlice: StateCreator<AuthSlice, [], [], AuthSlice> = (set,
   // Selectors (derived state)
   isAdmin: () => {
     const { user } = get();
-    return user?.role === 'ADMIN';
+    return user?.role === "ADMIN";
   },
 
   isBranchManager: () => {
     const { user } = get();
-    return user?.role === 'BRANCH_MANAGER';
+    return user?.role === "BRANCH_MANAGER";
   },
 
   isSessionExpired: () => {
@@ -364,5 +378,5 @@ export const createAuthSlice: StateCreator<AuthSlice, [], [], AuthSlice> = (set,
     // Refresh if token expires in less than 5 minutes
     const fiveMinutesFromNow = Date.now() + 5 * 60 * 1000;
     return tokenExpiresAt < fiveMinutesFromNow;
-  }
+  },
 });

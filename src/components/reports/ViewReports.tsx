@@ -79,7 +79,10 @@ import { PaginationControl } from "@/components/ui/pagination-control";
 import { ReportFilters } from "@/components/reports/ReportFilters";
 import { useRouter } from "next/navigation";
 import { Separator } from "@/components/ui/separator";
-import { ReportDetailModal, CommentConversation } from "@/components/reports/ReportDetailModal";
+import {
+  ReportDetailModal,
+  CommentConversation,
+} from "@/components/reports/ReportDetailModal";
 import { CommentItem as CommentItemType } from "@/types/reports";
 import { useAccessibleBranches } from "@/hooks/useAccessibleBranches";
 
@@ -93,20 +96,20 @@ const calculateTrends = (reports: Report[]) => {
       writeOffs: {
         average: 0,
         trend: 0,
-        direction: "stable" as const
+        direction: "stable" as const,
       },
       ninetyPlus: {
         average: 0,
         trend: 0,
-        direction: "stable" as const
+        direction: "stable" as const,
       },
-      branchPerformance: []
+      branchPerformance: [],
     };
   }
 
   // Sort reports by date
   const sortedReports = [...reports].sort(
-    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
   );
 
   // Calculate moving averages and trends
@@ -116,14 +119,32 @@ const calculateTrends = (reports: Report[]) => {
     const ninetyPlusWindow = reports.slice(-windowSize);
 
     return {
-      currentWriteOffsAvg: writeOffsWindow.reduce((sum, r) => sum + r.writeOffs, 0) / windowSize,
-      currentNinetyPlusAvg: ninetyPlusWindow.reduce((sum, r) => sum + r.ninetyPlus, 0) / windowSize,
-      previousWriteOffsAvg: reports.slice(-windowSize * 2, -windowSize).length > 0
-        ? reports.slice(-windowSize * 2, -windowSize).reduce((sum, r) => sum + r.writeOffs, 0) / Math.min(windowSize, reports.slice(-windowSize * 2, -windowSize).length)
-        : writeOffsWindow.reduce((sum, r) => sum + r.writeOffs, 0) / windowSize,
-      previousNinetyPlusAvg: reports.slice(-windowSize * 2, -windowSize).length > 0
-        ? reports.slice(-windowSize * 2, -windowSize).reduce((sum, r) => sum + r.ninetyPlus, 0) / Math.min(windowSize, reports.slice(-windowSize * 2, -windowSize).length)
-        : ninetyPlusWindow.reduce((sum, r) => sum + r.ninetyPlus, 0) / windowSize
+      currentWriteOffsAvg:
+        writeOffsWindow.reduce((sum, r) => sum + r.writeOffs, 0) / windowSize,
+      currentNinetyPlusAvg:
+        ninetyPlusWindow.reduce((sum, r) => sum + r.ninetyPlus, 0) / windowSize,
+      previousWriteOffsAvg:
+        reports.slice(-windowSize * 2, -windowSize).length > 0
+          ? reports
+              .slice(-windowSize * 2, -windowSize)
+              .reduce((sum, r) => sum + r.writeOffs, 0) /
+            Math.min(
+              windowSize,
+              reports.slice(-windowSize * 2, -windowSize).length,
+            )
+          : writeOffsWindow.reduce((sum, r) => sum + r.writeOffs, 0) /
+            windowSize,
+      previousNinetyPlusAvg:
+        reports.slice(-windowSize * 2, -windowSize).length > 0
+          ? reports
+              .slice(-windowSize * 2, -windowSize)
+              .reduce((sum, r) => sum + r.ninetyPlus, 0) /
+            Math.min(
+              windowSize,
+              reports.slice(-windowSize * 2, -windowSize).length,
+            )
+          : ninetyPlusWindow.reduce((sum, r) => sum + r.ninetyPlus, 0) /
+            windowSize,
     };
   };
 
@@ -131,11 +152,14 @@ const calculateTrends = (reports: Report[]) => {
     currentWriteOffsAvg,
     currentNinetyPlusAvg,
     previousWriteOffsAvg,
-    previousNinetyPlusAvg
+    previousNinetyPlusAvg,
   } = calculateMovingAverages(sortedReports);
 
-  const writeOffsTrend = ((currentWriteOffsAvg - previousWriteOffsAvg) / previousWriteOffsAvg) * 100;
-  const ninetyPlusTrend = ((currentNinetyPlusAvg - previousNinetyPlusAvg) / previousNinetyPlusAvg) * 100;
+  const writeOffsTrend =
+    ((currentWriteOffsAvg - previousWriteOffsAvg) / previousWriteOffsAvg) * 100;
+  const ninetyPlusTrend =
+    ((currentNinetyPlusAvg - previousNinetyPlusAvg) / previousNinetyPlusAvg) *
+    100;
 
   // Calculate branch performance with weighted metrics
   const branchPerformance = calculateBranchPerformance(sortedReports);
@@ -144,14 +168,14 @@ const calculateTrends = (reports: Report[]) => {
     writeOffs: {
       average: currentWriteOffsAvg,
       trend: Math.abs(writeOffsTrend),
-      direction: getDirection(writeOffsTrend)
+      direction: getDirection(writeOffsTrend),
     },
     ninetyPlus: {
       average: currentNinetyPlusAvg,
       trend: Math.abs(ninetyPlusTrend),
-      direction: getDirection(ninetyPlusTrend)
+      direction: getDirection(ninetyPlusTrend),
     },
-    branchPerformance
+    branchPerformance,
   };
 };
 
@@ -164,23 +188,26 @@ const getDirection = (trend: number): "up" | "down" | "stable" => {
 
 const calculateBranchPerformance = (reports: Report[]) => {
   // Group reports by branch for analysis
-  const branchStats = new Map<string, {
-    branchId: string,
-    branchName: string,
-    writeOffsTotal: number,
-    ninetyPlusTotal: number,
-    reportCount: number
-  }>();
+  const branchStats = new Map<
+    string,
+    {
+      branchId: string;
+      branchName: string;
+      writeOffsTotal: number;
+      ninetyPlusTotal: number;
+      reportCount: number;
+    }
+  >();
 
   // Calculate totals per branch
-  reports.forEach(report => {
+  reports.forEach((report) => {
     if (!branchStats.has(report.branch.id)) {
       branchStats.set(report.branch.id, {
         branchId: report.branch.id,
         branchName: report.branch.name,
         writeOffsTotal: report.writeOffs,
         ninetyPlusTotal: report.ninetyPlus,
-        reportCount: 1
+        reportCount: 1,
       });
     } else {
       const current = branchStats.get(report.branch.id)!;
@@ -188,18 +215,18 @@ const calculateBranchPerformance = (reports: Report[]) => {
         ...current,
         writeOffsTotal: current.writeOffsTotal + report.writeOffs,
         ninetyPlusTotal: current.ninetyPlusTotal + report.ninetyPlus,
-        reportCount: current.reportCount + 1
+        reportCount: current.reportCount + 1,
       });
     }
   });
 
   // Convert to array and calculate averages
   return Array.from(branchStats.values())
-    .map(stats => ({
+    .map((stats) => ({
       branchId: stats.branchId,
       averageWriteOffs: stats.writeOffsTotal / stats.reportCount,
       averageNinetyPlus: stats.ninetyPlusTotal / stats.reportCount,
-      reportCount: stats.reportCount
+      reportCount: stats.reportCount,
     }))
     .sort((a, b) => b.averageWriteOffs - a.averageWriteOffs)
     .slice(0, 5); // Keep top 5 branches
@@ -207,12 +234,15 @@ const calculateBranchPerformance = (reports: Report[]) => {
 
 // Calculate total amounts from reports
 const calculateTotals = (reports: Report[]) => {
-  return reports.reduce((totals, report) => {
-    return {
-      totalWriteOffs: totals.totalWriteOffs + report.writeOffs,
-      totalNinetyPlus: totals.totalNinetyPlus + report.ninetyPlus
-    };
-  }, { totalWriteOffs: 0, totalNinetyPlus: 0 });
+  return reports.reduce(
+    (totals, report) => {
+      return {
+        totalWriteOffs: totals.totalWriteOffs + report.writeOffs,
+        totalNinetyPlus: totals.totalNinetyPlus + report.ninetyPlus,
+      };
+    },
+    { totalWriteOffs: 0, totalNinetyPlus: 0 },
+  );
 };
 
 export function ViewReports() {
@@ -224,13 +254,21 @@ export function ViewReports() {
   const [editComments, setEditComments] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [createReportType, setCreateReportType] = useState<"plan" | "actual">("plan");
+  const [createReportType, setCreateReportType] = useState<"plan" | "actual">(
+    "plan",
+  );
   const [status, setStatus] = useState<string | undefined>(undefined);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
-  const [viewingReport, setViewingReport] = useState<ReportWithUser | null>(null);
+  const [viewingReport, setViewingReport] = useState<ReportWithUser | null>(
+    null,
+  );
 
   // Use the useAccessibleBranches hook for robust, DRY access
-  const { branches: accessibleBranches, loading: branchesLoading, error: branchesError } = useAccessibleBranches();
+  const {
+    branches: accessibleBranches,
+    loading: branchesLoading,
+    error: branchesError,
+  } = useAccessibleBranches();
 
   // Use the useReports hook for all data management
   const {
@@ -263,7 +301,10 @@ export function ViewReports() {
   });
 
   // Prefer accessibleBranches, fallback to userBranches for backward compatibility
-  const branchesToUse = accessibleBranches && accessibleBranches.length > 0 ? accessibleBranches : (userBranches || []);
+  const branchesToUse =
+    accessibleBranches && accessibleBranches.length > 0
+      ? accessibleBranches
+      : userBranches || [];
 
   // If user has no branches assigned, show error message
   if (!branchesToUse || branchesToUse.length === 0) {
@@ -294,7 +335,8 @@ export function ViewReports() {
       if (reportDate.getTime() !== today.getTime()) {
         toast({
           title: "Cannot Edit Report",
-          description: "You can only edit rejected reports from today's session.",
+          description:
+            "You can only edit rejected reports from today's session.",
           variant: "destructive",
         });
         return;
@@ -318,7 +360,9 @@ export function ViewReports() {
     if (report.status === "rejected") {
       toast({
         title: "Report Rejected",
-        description: report.comments || "This report was rejected. Please make the necessary corrections and resubmit.",
+        description:
+          report.comments ||
+          "This report was rejected. Please make the necessary corrections and resubmit.",
         variant: "destructive",
       });
     }
@@ -337,7 +381,7 @@ export function ViewReports() {
     const reportWithUser = {
       ...report,
       // Add any additional properties needed for ReportWithUser type
-      user: null // The actual user data will be displayed via UserDisplayName component
+      user: null, // The actual user data will be displayed via UserDisplayName component
     } as ReportWithUser;
 
     setViewingReport(reportWithUser);
@@ -422,14 +466,12 @@ export function ViewReports() {
         body: JSON.stringify(updatePayload),
       });
 
-
-
       if (!response.ok) {
-        console.log('Resubmitting report:', {
+        console.log("Resubmitting report:", {
           reportId: editingReport.id,
           reportStatus: editingReport.status,
           currentUser: session?.user?.id,
-          submittedBy: editingReport.submittedBy
+          submittedBy: editingReport.submittedBy,
         });
         const error = await response.json();
         throw new Error(error.error || "Failed to update report");
@@ -439,9 +481,10 @@ export function ViewReports() {
 
       toast({
         title: "Success",
-        description: editingReport.status === "rejected"
-          ? "Report resubmitted successfully. Waiting for approval."
-          : "Report updated successfully",
+        description:
+          editingReport.status === "rejected"
+            ? "Report resubmitted successfully. Waiting for approval."
+            : "Report updated successfully",
       });
 
       setIsEditModalOpen(false);
@@ -452,7 +495,8 @@ export function ViewReports() {
       console.error("Error updating report:", error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to update report",
+        description:
+          error instanceof Error ? error.message : "Failed to update report",
         variant: "destructive",
       });
     } finally {
@@ -477,7 +521,7 @@ export function ViewReports() {
 
         const formattedDate = format(startDate, "yyyy-MM-dd");
         const response = await fetch(
-          `/api/reports?date=${formattedDate}&branchId=${selectedBranchId || session?.user?.branchId}&reportType=plan`
+          `/api/reports?date=${formattedDate}&branchId=${selectedBranchId || session?.user?.branchId}&reportType=plan`,
         );
 
         if (!response.ok) {
@@ -541,7 +585,10 @@ export function ViewReports() {
       <div className="flex flex-col sm:flex-row justify-between items-center mb-2 gap-2">
         <div className="text-sm text-gray-500 dark:text-gray-400">
           {reports.length > 0 ? (
-            <span>Showing {reports.length} reports {startDate && `from ${format(startDate, "MMM d, yyyy")}`}</span>
+            <span>
+              Showing {reports.length} reports{" "}
+              {startDate && `from ${format(startDate, "MMM d, yyyy")}`}
+            </span>
           ) : !isLoading ? (
             <span>No reports match your filter criteria</span>
           ) : null}
@@ -573,8 +620,12 @@ export function ViewReports() {
           </div>
         ) : reports.length === 0 ? (
           <div className="text-center p-8 text-gray-500 dark:text-gray-400">
-            <div className="mb-2">No reports found for the selected filters.</div>
-            <div className="text-sm">Try adjusting your filter criteria or create a new report.</div>
+            <div className="mb-2">
+              No reports found for the selected filters.
+            </div>
+            <div className="text-sm">
+              Try adjusting your filter criteria or create a new report.
+            </div>
           </div>
         ) : (
           <>
@@ -586,7 +637,7 @@ export function ViewReports() {
               totalNinetyPlus={calculateTotals(reports).totalNinetyPlus}
               dateRange={{
                 start: startDate,
-                end: endDate
+                end: endDate,
               }}
               reportCount={reports.length}
             />
@@ -608,17 +659,27 @@ export function ViewReports() {
                 <TableBody>
                   {reports.map((report) => (
                     <TableRow key={report.id}>
-                      <TableCell>{format(new Date(report.date), "MMM d, yyyy")}</TableCell>
+                      <TableCell>
+                        {format(new Date(report.date), "MMM d, yyyy")}
+                      </TableCell>
                       <TableCell>{report.branch.name}</TableCell>
-                      <TableCell className="capitalize">{report.reportType}</TableCell>
-                      <TableCell>{formatKHRCurrency(report.writeOffs)}</TableCell>
-                      <TableCell>{formatKHRCurrency(report.ninetyPlus)}</TableCell>
+                      <TableCell className="capitalize">
+                        {report.reportType}
+                      </TableCell>
+                      <TableCell>
+                        {formatKHRCurrency(report.writeOffs)}
+                      </TableCell>
+                      <TableCell>
+                        {formatKHRCurrency(report.ninetyPlus)}
+                      </TableCell>
                       <TableCell>
                         <Badge
                           variant={
-                            report.status === "approved" ? "default" :
-                              report.status === "rejected" ? "destructive" :
-                                "secondary"
+                            report.status === "approved"
+                              ? "default"
+                              : report.status === "rejected"
+                                ? "destructive"
+                                : "secondary"
                           }
                           className="capitalize"
                         >
@@ -649,23 +710,23 @@ export function ViewReports() {
 
                           {(report.status === "pending" ||
                             report.status === "rejected") && (
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={() => handleEditClick(report)}
-                                    >
-                                      <PencilIcon className="h-4 w-4" />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>Edit Report</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            )}
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleEditClick(report)}
+                                  >
+                                    <PencilIcon className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Edit Report</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -677,17 +738,26 @@ export function ViewReports() {
             {/* Card view for mobile screens */}
             <div className="md:hidden space-y-4 p-4">
               {reports.map((report) => (
-                <div key={report.id} className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
+                <div
+                  key={report.id}
+                  className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 shadow-sm"
+                >
                   <div className="flex justify-between items-start mb-3">
                     <div>
-                      <div className="font-medium">{format(new Date(report.date), "MMM d, yyyy")}</div>
-                      <div className="text-sm text-gray-500">{report.branch.name}</div>
+                      <div className="font-medium">
+                        {format(new Date(report.date), "MMM d, yyyy")}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {report.branch.name}
+                      </div>
                     </div>
                     <Badge
                       variant={
-                        report.status === "approved" ? "default" :
-                          report.status === "rejected" ? "destructive" :
-                            "secondary"
+                        report.status === "approved"
+                          ? "default"
+                          : report.status === "rejected"
+                            ? "destructive"
+                            : "secondary"
                       }
                       className="capitalize"
                     >
@@ -698,11 +768,15 @@ export function ViewReports() {
                   <div className="grid grid-cols-2 gap-3 mb-3">
                     <div>
                       <div className="text-xs text-gray-500">Write-offs</div>
-                      <div className="font-medium">{formatKHRCurrency(report.writeOffs)}</div>
+                      <div className="font-medium">
+                        {formatKHRCurrency(report.writeOffs)}
+                      </div>
                     </div>
                     <div>
                       <div className="text-xs text-gray-500">90+ Days</div>
-                      <div className="font-medium">{formatKHRCurrency(report.ninetyPlus)}</div>
+                      <div className="font-medium">
+                        {formatKHRCurrency(report.ninetyPlus)}
+                      </div>
                     </div>
                     <div>
                       <div className="text-xs text-gray-500">Type</div>
@@ -727,7 +801,8 @@ export function ViewReports() {
                       View
                     </Button>
 
-                    {(report.status === "pending" || report.status === "rejected") && (
+                    {(report.status === "pending" ||
+                      report.status === "rejected") && (
                       <Button
                         variant="outline"
                         size="sm"
@@ -797,16 +872,21 @@ export function ViewReports() {
                   <CommentConversation
                     comments={editingReport.comments}
                     reportId={editingReport.id}
-                    onReplyAdded={() => { }}
+                    onReplyAdded={() => {}}
                   />
                 </div>
               )}
               <div className="mt-4">
                 <div className="flex items-center justify-between mb-2">
-                  <Label htmlFor="response" className="text-sm font-medium flex items-center gap-1">
+                  <Label
+                    htmlFor="response"
+                    className="text-sm font-medium flex items-center gap-1"
+                  >
                     <MessageSquare className="h-3.5 w-3.5 mr-1" />
                     {editingReport && editingReport.status === "rejected" ? (
-                      <>Add Your Response<span className="text-red-500">*</span></>
+                      <>
+                        Add Your Response<span className="text-red-500">*</span>
+                      </>
                     ) : (
                       "Add to Conversation"
                     )}
@@ -822,11 +902,13 @@ export function ViewReports() {
                   {/* User Avatar */}
                   <Avatar className="h-8 w-8 ring-2 ring-transparent hover:ring-blue-200 dark:hover:ring-blue-800 transition-all duration-200">
                     <AvatarImage
-                      src={`https://api.dicebear.com/7.x/initials/svg?seed=${session?.user?.name || 'User'}`}
-                      alt={session?.user?.name || 'User'}
+                      src={`https://api.dicebear.com/7.x/initials/svg?seed=${session?.user?.name || "User"}`}
+                      alt={session?.user?.name || "User"}
                     />
                     <AvatarFallback className="bg-gradient-to-br from-blue-400 to-blue-600 text-white">
-                      {session?.user?.name ? session.user.name.charAt(0).toUpperCase() : 'U'}
+                      {session?.user?.name
+                        ? session.user.name.charAt(0).toUpperCase()
+                        : "U"}
                     </AvatarFallback>
                   </Avatar>
 
@@ -835,9 +917,11 @@ export function ViewReports() {
                       id="response"
                       value={editComments}
                       onChange={(e) => setEditComments(e.target.value)}
-                      placeholder={editingReport && editingReport.status === "rejected"
-                        ? "Explain how you've addressed the rejection feedback..."
-                        : "Add your comment to the conversation..."}
+                      placeholder={
+                        editingReport && editingReport.status === "rejected"
+                          ? "Explain how you've addressed the rejection feedback..."
+                          : "Add your comment to the conversation..."
+                      }
                       className="min-h-[100px] resize-none border-gray-300 focus:border-blue-500"
                     />
 
@@ -856,7 +940,23 @@ export function ViewReports() {
                           className="h-8 px-2 text-gray-500 hover:text-blue-600"
                         >
                           <span className="sr-only">Add emoji</span>
-                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-smile"><circle cx="12" cy="12" r="10" /><path d="M8 14s1.5 2 4 2 4-2 4-2" /><line x1="9" x2="9.01" y1="9" y2="9" /><line x1="15" x2="15.01" y1="9" y2="9" /></svg>
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="lucide lucide-smile"
+                          >
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M8 14s1.5 2 4 2 4-2 4-2" />
+                            <line x1="9" x2="9.01" y1="9" y2="9" />
+                            <line x1="15" x2="15.01" y1="9" y2="9" />
+                          </svg>
                         </Button>
 
                         <Button
@@ -866,7 +966,20 @@ export function ViewReports() {
                           className="h-8 px-2 text-gray-500 hover:text-blue-600"
                         >
                           <span className="sr-only">Attach file</span>
-                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-paperclip"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48" /></svg>
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="lucide lucide-paperclip"
+                          >
+                            <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                          </svg>
                         </Button>
                       </div>
                     </div>
@@ -886,22 +999,32 @@ export function ViewReports() {
             <Button
               onClick={handleUpdateReport}
               disabled={isSubmitting}
-              variant={editingReport && editingReport.status === "rejected" ? "default" : "default"}
-              className={editingReport && editingReport.status === "rejected"
-                ? "bg-green-600 hover:bg-green-700 text-white"
-                : ""}
+              variant={
+                editingReport && editingReport.status === "rejected"
+                  ? "default"
+                  : "default"
+              }
+              className={
+                editingReport && editingReport.status === "rejected"
+                  ? "bg-green-600 hover:bg-green-700 text-white"
+                  : ""
+              }
             >
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {editingReport && editingReport.status === "rejected" ? "Resubmitting..." : "Updating..."}
+                  {editingReport && editingReport.status === "rejected"
+                    ? "Resubmitting..."
+                    : "Updating..."}
                 </>
               ) : (
                 <>
                   {editingReport && editingReport.status === "rejected" && (
                     <MessageSquare className="mr-2 h-4 w-4" />
                   )}
-                  {editingReport && editingReport.status === "rejected" ? "Resubmit Report" : "Update Report"}
+                  {editingReport && editingReport.status === "rejected"
+                    ? "Resubmit Report"
+                    : "Update Report"}
                 </>
               )}
             </Button>

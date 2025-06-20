@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
     if (!username || !name || !email || !password) {
       return NextResponse.json(
         { error: "Username, name, email, and password are required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     if (!passwordValidation.isValid) {
       return NextResponse.json(
         { error: "Password is too weak", details: passwordValidation.errors },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
         user.id,
         "register",
         { method: "api" },
-        { ipAddress: ip, userAgent }
+        { ipAddress: ip, userAgent },
       );
 
       return NextResponse.json({
@@ -73,12 +73,12 @@ export async function POST(request: NextRequest) {
         if (error.message.includes("Email already in use")) {
           return NextResponse.json(
             { error: "Email is already registered" },
-            { status: 409 }
+            { status: 409 },
           );
         } else if (error.message.includes("Username already in use")) {
           return NextResponse.json(
             { error: "Username is already taken" },
-            { status: 409 }
+            { status: 409 },
           );
         }
       }

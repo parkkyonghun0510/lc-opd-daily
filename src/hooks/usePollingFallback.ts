@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { useSession } from 'next-auth/react';
+import { useState, useEffect, useRef, useCallback } from "react";
+import { useSession } from "next-auth/react";
 
 /**
  * Polling fallback for browsers that don't support SSE
@@ -19,7 +19,7 @@ export function usePollingFallback(options: {
     endpoint,
     interval = 10000, // Default to 10 seconds
     onUpdate,
-    enabled = true
+    enabled = true,
   } = options;
 
   const { data: session } = useSession();
@@ -55,20 +55,22 @@ export function usePollingFallback(options: {
 
       // Add a timestamp to prevent caching
       const url = new URL(endpoint, window.location.origin);
-      url.searchParams.append('_t', Date.now().toString());
-      url.searchParams.append('userId', session.user.id);
+      url.searchParams.append("_t", Date.now().toString());
+      url.searchParams.append("userId", session.user.id);
 
       // Fetch updates
       const response = await fetch(url.toString(), {
-        method: 'GET',
+        method: "GET",
         headers: {
-          'Accept': 'application/json'
+          Accept: "application/json",
         },
-        signal: abortControllerRef.current.signal
+        signal: abortControllerRef.current.signal,
       });
 
       if (!response.ok) {
-        throw new Error(`Error fetching updates: ${response.status} ${response.statusText}`);
+        throw new Error(
+          `Error fetching updates: ${response.status} ${response.statusText}`,
+        );
       }
 
       const data = await response.json();
@@ -82,12 +84,12 @@ export function usePollingFallback(options: {
       }
     } catch (err) {
       // Ignore aborted requests
-      if (err instanceof Error && err.name === 'AbortError') {
+      if (err instanceof Error && err.name === "AbortError") {
         return;
       }
 
-      console.error('Error polling for updates:', err);
-      setError(err instanceof Error ? err.message : 'Unknown error');
+      console.error("Error polling for updates:", err);
+      setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
       setIsPolling(false);
     }
@@ -131,6 +133,6 @@ export function usePollingFallback(options: {
     lastUpdate,
     isPolling,
     error,
-    refresh: fetchUpdates
+    refresh: fetchUpdates,
   };
 }

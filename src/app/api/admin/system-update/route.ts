@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
     if (!token || token.role !== UserRole.ADMIN) {
       return NextResponse.json(
         { error: "Forbidden - Admin permission required" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     if (!parseResult.success) {
       return NextResponse.json(
         { error: "Validation error", details: parseResult.error.flatten() },
-        { status: 400 }
+        { status: 400 },
       );
     }
     const { title, message } = parseResult.data;
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
       select: { id: true },
     });
 
-    const activeUserIds = activeUsers.map(user => user.id);
+    const activeUserIds = activeUsers.map((user) => user.id);
 
     // 4. Queue the notification
     if (activeUserIds.length > 0) {
@@ -62,27 +62,25 @@ export async function POST(request: NextRequest) {
           success: true,
           message: `System update notification queued for ${activeUserIds.length} active users.`,
         });
-
       } catch (queueError) {
         console.error("Error sending system update to SQS queue:", queueError);
         // Optional: Implement fallback to direct DB notification if critical
         return NextResponse.json(
           { error: "Failed to queue notification" },
-          { status: 500 }
+          { status: 500 },
         );
       }
     } else {
       return NextResponse.json(
         { success: true, message: "No active users found to notify." },
-        { status: 200 }
+        { status: 200 },
       );
     }
-
   } catch (error) {
     console.error("Error in system update API:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
-} 
+}

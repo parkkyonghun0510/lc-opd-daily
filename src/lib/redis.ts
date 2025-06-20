@@ -40,7 +40,7 @@ export async function testRedisConnection() {
 // Helper function to safely interact with Redis
 export async function safeRedisOperation<T>(
   operation: () => Promise<T>,
-  fallback: T
+  fallback: T,
 ): Promise<T> {
   try {
     return await operation();

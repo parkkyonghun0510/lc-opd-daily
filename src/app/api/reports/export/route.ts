@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     if (!token) {
       return NextResponse.json(
         { error: "Unauthorized - Authentication required" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     if (!checkPermission(userRole, Permission.EXPORT_REPORTS)) {
       return NextResponse.json(
         { error: "Forbidden - You don't have permission to export reports" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -44,13 +44,13 @@ export async function GET(request: NextRequest) {
 
     // Get accessible branches for the user
     const accessibleBranches = await getAccessibleBranches(token.sub as string);
-    const accessibleBranchIds = accessibleBranches.map(branch => branch.id);
+    const accessibleBranchIds = accessibleBranches.map((branch) => branch.id);
 
     // Build where clause
     const where: any = {
       branchId: {
-        in: accessibleBranchIds
-      }
+        in: accessibleBranchIds,
+      },
     };
 
     if (branchId) {
@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
       if (!accessibleBranchIds.includes(branchId)) {
         return NextResponse.json(
           { error: "You don't have access to this branch" },
-          { status: 403 }
+          { status: 403 },
         );
       }
       where.branchId = branchId;
@@ -113,20 +113,20 @@ export async function GET(request: NextRequest) {
             select: {
               id: true,
               name: true,
-              code: true
-            }
+              code: true,
+            },
           },
           planReport: {
             select: {
               id: true,
               writeOffs: true,
               ninetyPlus: true,
-            }
+            },
           },
         },
         orderBy: [
           { date: "desc" },
-          { id: "asc" } // Secondary sort to ensure consistent ordering for pagination
+          { id: "asc" }, // Secondary sort to ensure consistent ordering for pagination
         ],
         take: batchSize,
       });
@@ -135,10 +135,12 @@ export async function GET(request: NextRequest) {
         hasMore = false;
       } else {
         // Filter out any duplicate reports before processing
-        const uniqueBatch = batch.filter(report => !processedIds.has(report.id));
+        const uniqueBatch = batch.filter(
+          (report) => !processedIds.has(report.id),
+        );
 
         // Add the IDs to the processed set
-        uniqueBatch.forEach(report => processedIds.add(report.id));
+        uniqueBatch.forEach((report) => processedIds.add(report.id));
 
         // Transform the batch (convert Decimal to number, add user info, etc.)
         const transformedBatch = await transformReportsBatch(uniqueBatch);
@@ -156,18 +158,20 @@ export async function GET(request: NextRequest) {
         acc.totalNinetyPlus += report.ninetyPlus || 0;
         return acc;
       },
-      { totalWriteOffs: 0, totalNinetyPlus: 0 }
+      { totalWriteOffs: 0, totalNinetyPlus: 0 },
     );
 
     // Ensure we have a unique set of reports by ID
     const uniqueReportsMap = new Map();
-    reports.forEach(report => {
+    reports.forEach((report) => {
       uniqueReportsMap.set(report.id, report);
     });
 
     // Get unique reports and sort them by date (newest first)
-    const uniqueReports = Array.from(uniqueReportsMap.values())
-      .sort((a, b) => new Date(b.originalDate).getTime() - new Date(a.originalDate).getTime());
+    const uniqueReports = Array.from(uniqueReportsMap.values()).sort(
+      (a, b) =>
+        new Date(b.originalDate).getTime() - new Date(a.originalDate).getTime(),
+    );
 
     // Recalculate totals based on unique reports
     const uniqueTotals = uniqueReports.reduce(
@@ -176,12 +180,14 @@ export async function GET(request: NextRequest) {
         acc.totalNinetyPlus += report.ninetyPlus || 0;
         return acc;
       },
-      { totalWriteOffs: 0, totalNinetyPlus: 0 }
+      { totalWriteOffs: 0, totalNinetyPlus: 0 },
     );
 
     // Log if we found and removed duplicates
     if (reports.length !== uniqueReports.length) {
-      console.log(`Removed ${reports.length - uniqueReports.length} duplicate reports before export`);
+      console.log(
+        `Removed ${reports.length - uniqueReports.length} duplicate reports before export`,
+      );
     }
 
     // Format the data based on the requested format
@@ -192,41 +198,41 @@ export async function GET(request: NextRequest) {
     } else {
       return NextResponse.json(
         { error: "Unsupported format. Use 'csv' or 'pdf'." },
-        { status: 400 }
+        { status: 400 },
       );
     }
   } catch (error) {
     console.error("Error exporting reports:", error);
     return NextResponse.json(
       { error: "Failed to export reports" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 async function transformReportsBatch(batch: any[]) {
   // Get all unique user IDs from the batch
-  const userIds = [...new Set(batch.map(report => report.submittedBy))];
+  const userIds = [...new Set(batch.map((report) => report.submittedBy))];
 
   // Fetch user data in a single query
   const users = await prisma.user.findMany({
     where: {
       id: {
-        in: userIds
-      }
+        in: userIds,
+      },
     },
     select: {
       id: true,
       name: true,
-      username: true
-    }
+      username: true,
+    },
   });
 
   // Create a map for quick user lookup
-  const userMap = new Map(users.map(user => [user.id, user]));
+  const userMap = new Map(users.map((user) => [user.id, user]));
 
   // Transform each report
-  return batch.map(report => {
+  return batch.map((report) => {
     const user = userMap.get(report.submittedBy);
 
     return {
@@ -240,36 +246,45 @@ async function transformReportsBatch(batch: any[]) {
       status: report.status,
       submittedBy: user?.name || "Unknown",
       submittedByUsername: user?.username || "Unknown",
-      submittedAt: report.submittedAt ? format(report.submittedAt, "dd/MMM/yyyy HH:mm") : null,
+      submittedAt: report.submittedAt
+        ? format(report.submittedAt, "dd/MMM/yyyy HH:mm")
+        : null,
       comments: report.comments || "",
       createdAt: format(report.createdAt, "dd/MMM/yyyy HH:mm"),
-      writeOffsPlan: report.planReport ? Number(report.planReport.writeOffs) : null,
-      ninetyPlusPlan: report.planReport ? Number(report.planReport.ninetyPlus) : null,
+      writeOffsPlan: report.planReport
+        ? Number(report.planReport.writeOffs)
+        : null,
+      ninetyPlusPlan: report.planReport
+        ? Number(report.planReport.ninetyPlus)
+        : null,
       // Store original date for sorting
       originalDate: report.date,
     };
   });
 }
 
-function generateCSV(reports: any[], totals: { totalWriteOffs: number; totalNinetyPlus: number }) {
+function generateCSV(
+  reports: any[],
+  totals: { totalWriteOffs: number; totalNinetyPlus: number },
+) {
   try {
     // Configure CSV parser options
     const opts = {
       fields: [
-        { label: 'Date', value: 'date' },
-        { label: 'Branch', value: 'branch' },
-        { label: 'Branch Code', value: 'branchCode' },
-        { label: 'Report Type', value: 'reportType' },
-        { label: 'Write-offs', value: 'writeOffs' },
-        { label: 'Write-offs Plan', value: 'writeOffsPlan' },
-        { label: '90+ Days', value: 'ninetyPlus' },
-        { label: '90+ Days Plan', value: 'ninetyPlusPlan' },
-        { label: 'Status', value: 'status' },
-        { label: 'Submitted By', value: 'submittedBy' },
-        { label: 'Submitted At', value: 'submittedAt' },
-        { label: 'Comments', value: 'comments' },
-        { label: 'Created At', value: 'createdAt' }
-      ]
+        { label: "Date", value: "date" },
+        { label: "Branch", value: "branch" },
+        { label: "Branch Code", value: "branchCode" },
+        { label: "Report Type", value: "reportType" },
+        { label: "Write-offs", value: "writeOffs" },
+        { label: "Write-offs Plan", value: "writeOffsPlan" },
+        { label: "90+ Days", value: "ninetyPlus" },
+        { label: "90+ Days Plan", value: "ninetyPlusPlan" },
+        { label: "Status", value: "status" },
+        { label: "Submitted By", value: "submittedBy" },
+        { label: "Submitted At", value: "submittedAt" },
+        { label: "Comments", value: "comments" },
+        { label: "Created At", value: "createdAt" },
+      ],
     };
 
     // Create parser instance
@@ -285,8 +300,8 @@ function generateCSV(reports: any[], totals: { totalWriteOffs: number; totalNine
     // Return CSV response
     return new NextResponse(csv, {
       headers: {
-        'Content-Type': 'text/csv',
-        'Content-Disposition': `attachment; filename="reports-${format(new Date(), 'dd-MMM-yyyy')}.csv"`,
+        "Content-Type": "text/csv",
+        "Content-Disposition": `attachment; filename="reports-${format(new Date(), "dd-MMM-yyyy")}.csv"`,
       },
     });
   } catch (error) {
@@ -295,16 +310,21 @@ function generateCSV(reports: any[], totals: { totalWriteOffs: number; totalNine
   }
 }
 
-async function generatePDF(reports: any[], totals: { totalWriteOffs: number; totalNinetyPlus: number }) {
+async function generatePDF(
+  reports: any[],
+  totals: { totalWriteOffs: number; totalNinetyPlus: number },
+) {
   try {
     // Log the number of reports being processed
     console.log(`Generating PDF for ${reports.length} reports`);
 
     // Check for duplicate IDs
-    const reportIds = reports.map(r => r.id);
+    const reportIds = reports.map((r) => r.id);
     const uniqueIds = new Set(reportIds);
     if (reportIds.length !== uniqueIds.size) {
-      console.warn(`Found ${reportIds.length - uniqueIds.size} duplicate report IDs in PDF generation`);
+      console.warn(
+        `Found ${reportIds.length - uniqueIds.size} duplicate report IDs in PDF generation`,
+      );
     }
     // Create a new PDF document
     const pdfDoc = await PDFDocument.create();
@@ -319,7 +339,7 @@ async function generatePDF(reports: any[], totals: { totalWriteOffs: number; tot
     const margin = 50;
 
     // Add title
-    page.drawText(`Reports - ${format(new Date(), 'dd/MMM/yyyy')}`, {
+    page.drawText(`Reports - ${format(new Date(), "dd/MMM/yyyy")}`, {
       x: margin,
       y: height - margin,
       size: 16,
@@ -328,20 +348,20 @@ async function generatePDF(reports: any[], totals: { totalWriteOffs: number; tot
 
     // Define columns and their widths
     const columns = [
-      { header: 'Date', field: 'date', width: 80 },
-      { header: 'Branch', field: 'branch', width: 100 },
-      { header: 'Type', field: 'reportType', width: 50 },
-      { header: 'Write-offs', field: 'writeOffs', width: 80, isNumeric: true },
-      { header: '90+ Days', field: 'ninetyPlus', width: 80, isNumeric: true },
-      { header: 'Status', field: 'status', width: 80 },
-      { header: 'By', field: 'submittedBy', width: 100 },
+      { header: "Date", field: "date", width: 80 },
+      { header: "Branch", field: "branch", width: 100 },
+      { header: "Type", field: "reportType", width: 50 },
+      { header: "Write-offs", field: "writeOffs", width: 80, isNumeric: true },
+      { header: "90+ Days", field: "ninetyPlus", width: 80, isNumeric: true },
+      { header: "Status", field: "status", width: 80 },
+      { header: "By", field: "submittedBy", width: 100 },
     ];
 
     // Draw table header
     let x = margin;
     let y = height - margin - 30;
 
-    columns.forEach(column => {
+    columns.forEach((column) => {
       page.drawText(column.header, {
         x,
         y,
@@ -374,16 +394,19 @@ async function generatePDF(reports: any[], totals: { totalWriteOffs: number; tot
         y = height - margin - 50;
 
         // Draw page header
-        newPage.drawText(`Reports - ${format(new Date(), 'dd/MMM/yyyy')} - Page ${pageIndex + 1}`, {
-          x: margin,
-          y: height - margin,
-          size: 14,
-          font: helveticaBold,
-        });
+        newPage.drawText(
+          `Reports - ${format(new Date(), "dd/MMM/yyyy")} - Page ${pageIndex + 1}`,
+          {
+            x: margin,
+            y: height - margin,
+            size: 14,
+            font: helveticaBold,
+          },
+        );
 
         // Draw column headers
         x = margin;
-        columns.forEach(column => {
+        columns.forEach((column) => {
           newPage.drawText(column.header, {
             x,
             y,
@@ -411,31 +434,33 @@ async function generatePDF(reports: any[], totals: { totalWriteOffs: number; tot
       const currentPage = pageIndex > 0 ? pdfDoc.getPages()[pageIndex] : page;
 
       // Draw table rows
-      pageReports.forEach(report => {
+      pageReports.forEach((report) => {
         x = margin;
 
-        columns.forEach(column => {
+        columns.forEach((column) => {
           let value = report[column.field];
 
           // Format numeric values
-          if (column.isNumeric && typeof value === 'number') {
+          if (column.isNumeric && typeof value === "number") {
             value = formatKHRCurrencyForPDF(value);
           }
 
           // Capitalize report type
-          if (column.field === 'reportType') {
+          if (column.field === "reportType") {
             value = value.charAt(0).toUpperCase() + value.slice(1);
           }
 
           // Format status
-          if (column.field === 'status') {
-            value = value.replace('_', ' ').charAt(0).toUpperCase() + value.replace('_', ' ').slice(1);
+          if (column.field === "status") {
+            value =
+              value.replace("_", " ").charAt(0).toUpperCase() +
+              value.replace("_", " ").slice(1);
           }
 
           // Truncate long text to fit in column
           const maxChars = Math.floor(column.width / 5);
           if (value && value.length > maxChars) {
-            value = value.substring(0, maxChars - 3) + '...';
+            value = value.substring(0, maxChars - 3) + "...";
           }
 
           if (value !== null && value !== undefined) {
@@ -476,7 +501,7 @@ async function generatePDF(reports: any[], totals: { totalWriteOffs: number; tot
     });
 
     // Add date range
-    summaryPage.drawText(`Generated on: ${format(new Date(), 'dd/MMM/yyyy')}`, {
+    summaryPage.drawText(`Generated on: ${format(new Date(), "dd/MMM/yyyy")}`, {
       x: margin,
       y: summaryPageSize.height - margin - 30,
       size: 10,
@@ -527,8 +552,8 @@ async function generatePDF(reports: any[], totals: { totalWriteOffs: number; tot
     // Return PDF response
     return new NextResponse(pdfBytes, {
       headers: {
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="reports-${format(new Date(), 'dd-MMM-yyyy')}.pdf"`,
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename="reports-${format(new Date(), "dd-MMM-yyyy")}.pdf"`,
       },
     });
   } catch (error) {

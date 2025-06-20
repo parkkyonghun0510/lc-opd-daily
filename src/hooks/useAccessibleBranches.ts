@@ -25,7 +25,9 @@ export const useAccessibleBranches = () => {
       .finally(() => {
         if (mounted) setLoading(false);
       });
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   return { branches, loading, error };

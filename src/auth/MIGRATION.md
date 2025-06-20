@@ -172,4 +172,3 @@ The store includes a logger middleware that logs all state changes to the consol
 ## Need Help?
 
 If you need help migrating to the new authentication system, please contact the development team.
-

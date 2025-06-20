@@ -145,7 +145,7 @@ export default function BranchesPage() {
       if (activeFilter !== "all")
         queryParams.append(
           "active",
-          activeFilter === "active" ? "true" : "false"
+          activeFilter === "active" ? "true" : "false",
         );
 
       const response = await fetch(`/api/branches?${queryParams.toString()}`, {
@@ -239,7 +239,7 @@ export default function BranchesPage() {
           data.error ||
             (data.details
               ? data.details[0]?.message
-              : "Failed to create branch")
+              : "Failed to create branch"),
         );
       }
 
@@ -250,7 +250,7 @@ export default function BranchesPage() {
     } catch (err) {
       console.error("Error creating branch:", err);
       setFormError(
-        err instanceof Error ? err.message : "Failed to create branch"
+        err instanceof Error ? err.message : "Failed to create branch",
       );
     } finally {
       setFormSubmitting(false);
@@ -284,7 +284,7 @@ export default function BranchesPage() {
           data.error ||
             (data.details
               ? data.details[0]?.message
-              : "Failed to update branch")
+              : "Failed to update branch"),
         );
       }
 
@@ -295,7 +295,7 @@ export default function BranchesPage() {
     } catch (err) {
       console.error("Error updating branch:", err);
       setFormError(
-        err instanceof Error ? err.message : "Failed to update branch"
+        err instanceof Error ? err.message : "Failed to update branch",
       );
     } finally {
       setFormSubmitting(false);
@@ -447,7 +447,7 @@ export default function BranchesPage() {
                       <TableRow>
                         <TableCell colSpan={8} className="text-center py-8">
                           No branches found
-                        <span className="text-muted-foreground">N/A</span>
+                          <span className="text-muted-foreground">N/A</span>
                         </TableCell>
                       </TableRow>
                     ) : (
@@ -463,21 +463,32 @@ export default function BranchesPage() {
                                 {branch.parent.code} - {branch.parent.name}
                               </span>
                             ) : (
-                              <span className="text-sm text-muted-foreground">None</span>
+                              <span className="text-sm text-muted-foreground">
+                                None
+                              </span>
                             )}
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1">
                               {(branch._count?.children ?? 0) > 0 ? (
-                                <Badge variant="outline" className="bg-blue-50 text-blue-800 border-blue-200">
+                                <Badge
+                                  variant="outline"
+                                  className="bg-blue-50 text-blue-800 border-blue-200"
+                                >
                                   {branch._count?.children ?? 0} Sub-branches
                                 </Badge>
                               ) : branch.parentId ? (
-                                <Badge variant="outline" className="bg-gray-50 text-gray-800 border-gray-200">
+                                <Badge
+                                  variant="outline"
+                                  className="bg-gray-50 text-gray-800 border-gray-200"
+                                >
                                   Sub-branch
                                 </Badge>
                               ) : (
-                                <Badge variant="outline" className="bg-purple-50 text-purple-800 border-purple-200">
+                                <Badge
+                                  variant="outline"
+                                  className="bg-purple-50 text-purple-800 border-purple-200"
+                                >
                                   Main Branch
                                 </Badge>
                               )}
@@ -570,11 +581,17 @@ export default function BranchesPage() {
                             <CardTitle className="text-base flex items-center gap-2">
                               <span>{branch.code}</span>
                               {branch.isActive ? (
-                                <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs">
+                                <Badge
+                                  variant="secondary"
+                                  className="bg-green-100 text-green-800 text-xs"
+                                >
                                   Active
                                 </Badge>
                               ) : (
-                                <Badge variant="destructive" className="text-xs">
+                                <Badge
+                                  variant="destructive"
+                                  className="text-xs"
+                                >
                                   Inactive
                                 </Badge>
                               )}
@@ -614,10 +631,9 @@ export default function BranchesPage() {
                           <div>
                             <p className="text-muted-foreground">Parent</p>
                             <p>
-                              {branch.parent 
+                              {branch.parent
                                 ? `${branch.parent.code} - ${branch.parent.name}`
-                                : "None"
-                              }
+                                : "None"}
                             </p>
                           </div>
                           <div>
@@ -626,9 +642,8 @@ export default function BranchesPage() {
                               {(branch._count?.children ?? 0) > 0
                                 ? `${branch._count?.children} Sub-branches`
                                 : branch.parentId
-                                ? "Sub-branch"
-                                : "Main Branch"
-                              }
+                                  ? "Sub-branch"
+                                  : "Main Branch"}
                             </p>
                           </div>
                           <div>
@@ -789,8 +804,8 @@ export default function BranchesPage() {
             >
               Cancel
             </Button>
-            <Button 
-              onClick={createBranch} 
+            <Button
+              onClick={createBranch}
               disabled={formSubmitting}
               className="w-full sm:w-auto"
             >
@@ -922,8 +937,8 @@ export default function BranchesPage() {
             >
               Cancel
             </Button>
-            <Button 
-              onClick={updateBranch} 
+            <Button
+              onClick={updateBranch}
               disabled={formSubmitting}
               className="w-full sm:w-auto"
             >
@@ -951,8 +966,10 @@ export default function BranchesPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col sm:flex-row gap-2">
-            <AlertDialogCancel className="w-full sm:w-auto">Cancel</AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogCancel className="w-full sm:w-auto">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
               onClick={deleteBranch}
               className="w-full sm:w-auto"
             >

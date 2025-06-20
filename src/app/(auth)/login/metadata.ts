@@ -7,4 +7,4 @@ export const metadata: Metadata = {
     index: false,
     follow: true,
   },
-}; 
+};

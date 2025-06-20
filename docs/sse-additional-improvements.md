@@ -42,9 +42,9 @@ Rate limiting is implemented to prevent abuse of the SSE endpoints:
 
 ```typescript
 const rateLimitResponse = await rateLimiter.applyRateLimit(req, {
-  identifier: 'sse',
+  identifier: "sse",
   limit: 5, // Maximum 5 connections per user/IP
-  window: 60 // Within a 60-second window
+  window: 60, // Within a 60-second window
 });
 ```
 
@@ -85,11 +85,11 @@ We've implemented fallback mechanisms for browsers that don't support SSE:
 
 ```typescript
 const { lastUpdate, isPolling, error } = usePollingFallback({
-  endpoint: '/api/polling',
+  endpoint: "/api/polling",
   interval: 10000,
   onUpdate: (data) => {
     // Handle updates
-  }
+  },
 });
 ```
 
@@ -98,15 +98,16 @@ This provides a way to get real-time updates even in browsers that don't support
 ### Combined Hook
 
 ```typescript
-const { isConnected, isLoading, error, lastUpdate, updateMethod } = useRealTimeUpdates({
-  sseEndpoint: '/api/sse',
-  pollingEndpoint: '/api/polling',
-  eventHandlers: {
-    notification: (data) => {
-      // Handle notification
-    }
-  }
-});
+const { isConnected, isLoading, error, lastUpdate, updateMethod } =
+  useRealTimeUpdates({
+    sseEndpoint: "/api/sse",
+    pollingEndpoint: "/api/polling",
+    eventHandlers: {
+      notification: (data) => {
+        // Handle notification
+      },
+    },
+  });
 ```
 
 This hook automatically uses SSE when available and falls back to polling when SSE is not supported.

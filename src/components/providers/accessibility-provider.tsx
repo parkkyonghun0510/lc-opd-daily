@@ -21,13 +21,13 @@ export function AccessibilityProvider({
       // Handle Tab key navigation
       if (e.key === "Tab") {
         const focusableElements = document.querySelectorAll<HTMLElement>(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
         );
         focusableElementsRef.current = Array.from(focusableElements);
 
         // Store the current focus position
         const currentIndex = focusableElementsRef.current.indexOf(
-          document.activeElement as HTMLElement
+          document.activeElement as HTMLElement,
         );
 
         // Handle Shift+Tab
@@ -59,7 +59,7 @@ export function AccessibilityProvider({
       const target = e.target as HTMLElement;
       if (
         target.matches(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
         )
       ) {
         target.setAttribute("data-focused", "true");

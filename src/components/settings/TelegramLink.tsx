@@ -1,21 +1,29 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { toast } from "@/components/ui/use-toast";
-import { Loader2, Link as LinkIcon, Unlink, ExternalLink } from 'lucide-react';
+import { Loader2, Link as LinkIcon, Unlink, ExternalLink } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface TelegramSubscription {
-    id: string;
-    chatId: string;
-    username: string | null;
-    createdAt: string;
+  id: string;
+  chatId: string;
+  username: string | null;
+  createdAt: string;
 }
 
 export function TelegramLink() {
-  const [subscription, setSubscription] = useState<TelegramSubscription | null>(null);
+  const [subscription, setSubscription] = useState<TelegramSubscription | null>(
+    null,
+  );
   const [isLinked, setIsLinked] = useState<boolean | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isGeneratingLink, setIsGeneratingLink] = useState(false);
@@ -31,15 +39,17 @@ export function TelegramLink() {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch('/api/users/me/telegram/subscription');
+      const response = await fetch("/api/users/me/telegram/subscription");
       const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to fetch status');
+        throw new Error(data.error || "Failed to fetch status");
       }
       setIsLinked(data.linked);
       setSubscription(data.subscription || null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An unknown error occurred');
+      setError(
+        err instanceof Error ? err.message : "An unknown error occurred",
+      );
       setIsLinked(null); // Indicate indeterminate state on error
     } finally {
       setIsLoading(false);
@@ -51,21 +61,23 @@ export function TelegramLink() {
     setGeneratedLink(null);
     setError(null);
     try {
-      const response = await fetch('/api/users/me/telegram/generate-link', {
-        method: 'POST'
+      const response = await fetch("/api/users/me/telegram/generate-link", {
+        method: "POST",
       });
       const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to generate link');
+        throw new Error(data.error || "Failed to generate link");
       }
       setGeneratedLink(data.telegramLink);
       toast({
         title: "Link Generated",
-        description: "Click the button below or open the link in Telegram to complete.",
+        description:
+          "Click the button below or open the link in Telegram to complete.",
       });
       // Optionally open immediately: window.open(data.telegramLink, '_blank');
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
+      const errorMessage =
+        err instanceof Error ? err.message : "An unknown error occurred";
       setError(errorMessage);
       toast({
         title: "Error Generating Link",
@@ -81,12 +93,12 @@ export function TelegramLink() {
     setIsUnlinking(true);
     setError(null);
     try {
-      const response = await fetch('/api/users/me/telegram/subscription', {
-        method: 'DELETE'
+      const response = await fetch("/api/users/me/telegram/subscription", {
+        method: "DELETE",
       });
       const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to unlink');
+        throw new Error(data.error || "Failed to unlink");
       }
       setIsLinked(false);
       setSubscription(null);
@@ -96,7 +108,8 @@ export function TelegramLink() {
         description: "Telegram account unlinked successfully.",
       });
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
+      const errorMessage =
+        err instanceof Error ? err.message : "An unknown error occurred";
       setError(errorMessage);
       toast({
         title: "Error Unlinking",
@@ -113,7 +126,8 @@ export function TelegramLink() {
       <CardHeader>
         <CardTitle>Telegram Notifications</CardTitle>
         <CardDescription>
-          Link your Telegram account to receive important notifications directly.
+          Link your Telegram account to receive important notifications
+          directly.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -133,26 +147,31 @@ export function TelegramLink() {
               </AlertDescription>
             </Alert>
             {!generatedLink && (
-                <Button 
-                    onClick={handleLinkTelegram} 
-                    disabled={isGeneratingLink}
-                >
+              <Button onClick={handleLinkTelegram} disabled={isGeneratingLink}>
                 {isGeneratingLink ? (
-                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Generating Link...</>
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Generating
+                    Link...
+                  </>
                 ) : (
-                    <><LinkIcon className="mr-2 h-4 w-4" /> Link Telegram Account</>
+                  <>
+                    <LinkIcon className="mr-2 h-4 w-4" /> Link Telegram Account
+                  </>
                 )}
-                </Button>
+              </Button>
             )}
             {generatedLink && (
-              <Alert variant="default" className="border-green-500 bg-green-50 dark:bg-green-950/20 dark:border-green-500/30">
+              <Alert
+                variant="default"
+                className="border-green-500 bg-green-50 dark:bg-green-950/20 dark:border-green-500/30"
+              >
                 <ExternalLink className="h-4 w-4 text-green-500" />
-                <AlertDescription className='flex flex-col sm:flex-row sm:items-center sm:gap-3'>
+                <AlertDescription className="flex flex-col sm:flex-row sm:items-center sm:gap-3">
                   <span>Click the button, then press "Start" in Telegram:</span>
-                  <Button 
+                  <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => window.open(generatedLink, '_blank')}
+                    onClick={() => window.open(generatedLink, "_blank")}
                   >
                     Open Telegram Link <ExternalLink className="ml-1 h-3 w-3" />
                   </Button>
@@ -164,22 +183,31 @@ export function TelegramLink() {
 
         {!isLoading && isLinked === true && subscription && (
           <div className="space-y-3">
-             <Alert variant="default" className="border-green-500 bg-green-50 dark:bg-green-950/20 dark:border-green-500/30">
+            <Alert
+              variant="default"
+              className="border-green-500 bg-green-50 dark:bg-green-950/20 dark:border-green-500/30"
+            >
               <LinkIcon className="h-4 w-4 text-green-500" />
               <AlertDescription>
-                Your account is linked to Telegram {subscription.username ? `@${subscription.username}` : ''}.
-                (Linked on: {new Date(subscription.createdAt).toLocaleDateString()})
+                Your account is linked to Telegram{" "}
+                {subscription.username ? `@${subscription.username}` : ""}.
+                (Linked on:{" "}
+                {new Date(subscription.createdAt).toLocaleDateString()})
               </AlertDescription>
             </Alert>
-            <Button 
+            <Button
               variant="destructive"
               onClick={handleUnlinkTelegram}
               disabled={isUnlinking}
             >
               {isUnlinking ? (
-                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Unlinking...</>
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Unlinking...
+                </>
               ) : (
-                  <><Unlink className="mr-2 h-4 w-4" /> Unlink Telegram</>
+                <>
+                  <Unlink className="mr-2 h-4 w-4" /> Unlink Telegram
+                </>
               )}
             </Button>
           </div>
@@ -193,4 +221,4 @@ export function TelegramLink() {
       </CardContent>
     </Card>
   );
-} 
+}

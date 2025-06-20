@@ -5,7 +5,7 @@ import {
   Permission,
   UserRole,
   getGroupedPermissions,
-  getPermissionDisplayName
+  getPermissionDisplayName,
 } from "@/lib/auth/roles";
 import {
   Card,
@@ -13,16 +13,15 @@ import {
   CardTitle,
   CardDescription,
   CardContent,
-  CardFooter
+  CardFooter,
 } from "@/components/ui/card";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger
-} from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { useAllPermissions, usePermissionCheck, useRoleCheck } from "@/hooks/usePermissionCheck";
+import {
+  useAllPermissions,
+  usePermissionCheck,
+  useRoleCheck,
+} from "@/hooks/usePermissionCheck";
 import { Separator } from "@/components/ui/separator";
 
 /**
@@ -71,13 +70,19 @@ export function RolePermissionDemo() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-sm">Permission Gate Example</CardTitle>
+                    <CardTitle className="text-sm">
+                      Permission Gate Example
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
                       <PermissionGate
                         permissions={[Permission.VIEW_REPORTS]}
-                        fallback={<div className="text-red-500">You don't have permission to view reports</div>}
+                        fallback={
+                          <div className="text-red-500">
+                            You don't have permission to view reports
+                          </div>
+                        }
                       >
                         <div className="p-2 bg-green-100 dark:bg-green-900 rounded">
                           You have permission to view reports
@@ -86,7 +91,11 @@ export function RolePermissionDemo() {
 
                       <PermissionGate
                         permissions={[Permission.DELETE_REPORTS]}
-                        fallback={<div className="text-red-500">You don't have permission to delete reports</div>}
+                        fallback={
+                          <div className="text-red-500">
+                            You don't have permission to delete reports
+                          </div>
+                        }
                       >
                         <div className="p-2 bg-green-100 dark:bg-green-900 rounded">
                           You have permission to delete reports
@@ -95,7 +104,11 @@ export function RolePermissionDemo() {
 
                       <PermissionGate
                         roles={[UserRole.ADMIN]}
-                        fallback={<div className="text-red-500">Admin role required</div>}
+                        fallback={
+                          <div className="text-red-500">
+                            Admin role required
+                          </div>
+                        }
                       >
                         <div className="p-2 bg-green-100 dark:bg-green-900 rounded">
                           You have the ADMIN role
@@ -107,17 +120,23 @@ export function RolePermissionDemo() {
 
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-sm">Permission Summary Variants</CardTitle>
+                    <CardTitle className="text-sm">
+                      Permission Summary Variants
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
                       <div className="p-2 border rounded">
-                        <h4 className="text-xs mb-2 font-medium">Inline variant:</h4>
+                        <h4 className="text-xs mb-2 font-medium">
+                          Inline variant:
+                        </h4>
                         <PermissionSummary variant="inline" />
                       </div>
 
                       <div className="p-2 border rounded">
-                        <h4 className="text-xs mb-2 font-medium">Accordion variant:</h4>
+                        <h4 className="text-xs mb-2 font-medium">
+                          Accordion variant:
+                        </h4>
                         <PermissionSummary variant="accordion" />
                       </div>
                     </div>
@@ -129,7 +148,9 @@ export function RolePermissionDemo() {
             <TabsContent value="hooks" className="space-y-4">
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-sm">Permission Hooks Usage</CardTitle>
+                  <CardTitle className="text-sm">
+                    Permission Hooks Usage
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
@@ -161,9 +182,12 @@ export function RolePermissionDemo() {
                   <Card>
                     <CardContent className="p-6">
                       <div className="text-center">
-                        <h3 className="text-lg font-medium mb-2">Admin Access Required</h3>
+                        <h3 className="text-lg font-medium mb-2">
+                          Admin Access Required
+                        </h3>
                         <p className="text-sm text-muted-foreground">
-                          This tab contains sensitive information that requires admin privileges.
+                          This tab contains sensitive information that requires
+                          admin privileges.
                         </p>
                       </div>
                     </CardContent>
@@ -172,16 +196,22 @@ export function RolePermissionDemo() {
               >
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-sm">Admin Control Panel</CardTitle>
+                    <CardTitle className="text-sm">
+                      Admin Control Panel
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="p-3 bg-green-100 dark:bg-green-900 rounded">
                       <p>Welcome, Administrator!</p>
-                      <p className="text-sm">You have access to all system features and permissions.</p>
+                      <p className="text-sm">
+                        You have access to all system features and permissions.
+                      </p>
                     </div>
                   </CardContent>
                   <CardFooter>
-                    <Button variant="outline" size="sm">System Settings</Button>
+                    <Button variant="outline" size="sm">
+                      System Settings
+                    </Button>
                   </CardFooter>
                 </Card>
               </PermissionGate>
@@ -194,7 +224,13 @@ export function RolePermissionDemo() {
 }
 
 // Helper component for the hooks example
-function PermissionHookExample({ permission, label }: { permission: Permission, label: string }) {
+function PermissionHookExample({
+  permission,
+  label,
+}: {
+  permission: Permission;
+  label: string;
+}) {
   const { hasPermission, isLoading } = usePermissionCheck([permission]);
 
   return (
@@ -207,10 +243,14 @@ function PermissionHookExample({ permission, label }: { permission: Permission, 
         {isLoading ? (
           <div className="animate-pulse h-6 w-16 bg-gray-200 dark:bg-gray-800 rounded"></div>
         ) : (
-          <div className={`text-sm px-2 py-1 rounded ${hasPermission
-            ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
-            : 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'}`}>
-            {hasPermission ? 'Granted' : 'Denied'}
+          <div
+            className={`text-sm px-2 py-1 rounded ${
+              hasPermission
+                ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
+                : "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"
+            }`}
+          >
+            {hasPermission ? "Granted" : "Denied"}
           </div>
         )}
       </div>

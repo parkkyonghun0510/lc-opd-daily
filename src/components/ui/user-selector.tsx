@@ -45,12 +45,12 @@ export function UserSelector({
   // Filter users based on search query
   const filteredUsers = useMemo(() => {
     if (!searchQuery) return users;
-    
+
     const query = searchQuery.toLowerCase();
     return users.filter(
       (user) =>
         user.name.toLowerCase().includes(query) ||
-        user.username.toLowerCase().includes(query)
+        user.username.toLowerCase().includes(query),
     );
   }, [users, searchQuery]);
 
@@ -59,20 +59,20 @@ export function UserSelector({
       try {
         setLoading(true);
         // Build the URL with optional role filter
-        let url = '/api/users';
+        let url = "/api/users";
         if (filterByRole) {
           url += `?role=${filterByRole}`;
         }
-        
+
         const response = await fetch(url);
         if (!response.ok) throw new Error("Failed to fetch users");
         const data = await response.json();
-        
+
         // Sort users by name for easier selection
-        const sortedUsers = (data.users || []).sort((a: UserData, b: UserData) => 
-          a.name.localeCompare(b.name)
+        const sortedUsers = (data.users || []).sort(
+          (a: UserData, b: UserData) => a.name.localeCompare(b.name),
         );
-        
+
         setUsers(sortedUsers);
       } catch (error) {
         console.error("Error fetching users:", error);
@@ -122,7 +122,11 @@ export function UserSelector({
           filteredUsers.map((user) => (
             <SelectItem key={user.id} value={user.id}>
               {user.name} ({user.username})
-              {user.role && <span className="ml-1 text-muted-foreground text-xs">({user.role})</span>}
+              {user.role && (
+                <span className="ml-1 text-muted-foreground text-xs">
+                  ({user.role})
+                </span>
+              )}
             </SelectItem>
           ))
         ) : (
@@ -133,4 +137,4 @@ export function UserSelector({
       </SelectContent>
     </Select>
   );
-} 
+}

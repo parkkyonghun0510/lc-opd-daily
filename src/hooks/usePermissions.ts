@@ -40,16 +40,20 @@ export function usePermissions() {
       }
 
       try {
-        const response = await fetch(`/api/user-branch-assignments?userId=${session.user.id}`);
+        const response = await fetch(
+          `/api/user-branch-assignments?userId=${session.user.id}`,
+        );
         if (!response.ok) {
-          throw new Error('Failed to fetch branch assignments');
+          throw new Error("Failed to fetch branch assignments");
         }
         const data = await response.json();
         // Extract branch IDs from assignments
-        const branchIds = data.data.map((assignment: any) => assignment.branch.id);
+        const branchIds = data.data.map(
+          (assignment: any) => assignment.branch.id,
+        );
         setAssignedBranchIds(branchIds);
       } catch (error) {
-        console.error('Error fetching branch assignments:', error);
+        console.error("Error fetching branch assignments:", error);
         // On error, use the default branch ID if available
         setAssignedBranchIds(userBranchId ? [userBranchId] : []);
       } finally {
@@ -79,7 +83,7 @@ export function usePermissions() {
         userBranchId,
         branchId,
         branchHierarchy ? convertBranchHierarchy(branchHierarchy) : undefined,
-        assignedBranchIds
+        assignedBranchIds,
       ),
 
     // Get user's role
@@ -97,7 +101,7 @@ export function usePermissions() {
         userRole,
         userBranchId,
         convertBranchHierarchy(branchHierarchy),
-        assignedBranchIds
+        assignedBranchIds,
       ),
 
     // Check if user is admin

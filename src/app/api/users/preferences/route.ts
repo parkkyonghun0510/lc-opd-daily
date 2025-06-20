@@ -43,7 +43,9 @@ export async function PATCH(req: NextRequest) {
     };
 
     // Convert the preferences to a plain object
-    const currentPreferences = JSON.parse(JSON.stringify(user.preferences || defaultPreferences));
+    const currentPreferences = JSON.parse(
+      JSON.stringify(user.preferences || defaultPreferences),
+    );
 
     // Update the preferences
     currentPreferences[validatedData.type] = {
@@ -71,12 +73,12 @@ export async function PATCH(req: NextRequest) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: "Invalid request data", details: error.errors },
-        { status: 400 }
+        { status: 400 },
       );
     }
     return NextResponse.json(
       { error: "Failed to update preferences" },
-      { status: 500 }
+      { status: 500 },
     );
   } finally {
     await prisma.$disconnect();

@@ -65,7 +65,7 @@ const passwordFormSchema = z
       .min(8, "Password must be at least 8 characters")
       .regex(
         /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
-        "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character"
+        "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character",
       ),
     confirmPassword: z.string(),
   })
@@ -168,7 +168,7 @@ export default function SettingsPage() {
   };
 
   const handleFileChange = async (
-    event: React.ChangeEvent<HTMLInputElement>
+    event: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -208,7 +208,7 @@ export default function SettingsPage() {
       toast.error(
         error instanceof Error
           ? error.message
-          : "Failed to upload profile picture"
+          : "Failed to upload profile picture",
       );
       console.error(error);
     } finally {
@@ -237,7 +237,7 @@ export default function SettingsPage() {
                 type: "manual",
                 message: error.message,
               });
-            }
+            },
           );
           throw new Error("Please fix the form errors");
         }
@@ -254,7 +254,7 @@ export default function SettingsPage() {
       toast.success("Profile updated successfully");
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Failed to update profile"
+        error instanceof Error ? error.message : "Failed to update profile",
       );
       console.error(error);
     } finally {
@@ -280,7 +280,7 @@ export default function SettingsPage() {
                 type: "manual",
                 message: error.message,
               });
-            }
+            },
           );
           throw new Error("Please fix the form errors");
         }
@@ -292,7 +292,7 @@ export default function SettingsPage() {
       setPasswordStrength(0);
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Failed to update password"
+        error instanceof Error ? error.message : "Failed to update password",
       );
       console.error(error);
     } finally {
@@ -382,15 +382,18 @@ export default function SettingsPage() {
                           <Loader2 className="h-6 w-6 text-white animate-spin" />
                         </div>
                       )}
-                      <AvatarImage 
-                        src={userData?.image || ""} 
+                      <AvatarImage
+                        src={userData?.image || ""}
                         referrerPolicy="no-referrer"
                         crossOrigin="anonymous"
                         onError={(e) => {
                           // If image fails to load, hide it and let the fallback show
                           const target = e.target as HTMLImageElement;
-                          target.style.display = 'none';
-                          console.error("Image failed to load:", userData?.image);
+                          target.style.display = "none";
+                          console.error(
+                            "Image failed to load:",
+                            userData?.image,
+                          );
                         }}
                       />
                       <AvatarFallback className="bg-primary/10">
@@ -531,7 +534,7 @@ export default function SettingsPage() {
                     } catch (error: unknown) {
                       console.error(
                         "Failed to update notification preferences:",
-                        error
+                        error,
                       );
                       toast.error("Failed to update notification preferences");
                     }
@@ -574,7 +577,7 @@ export default function SettingsPage() {
                     } catch (error: unknown) {
                       console.error(
                         "Failed to update notification preferences:",
-                        error
+                        error,
                       );
                       toast.error("Failed to update notification preferences");
                     }
@@ -618,7 +621,7 @@ export default function SettingsPage() {
                     } catch (error: unknown) {
                       console.error(
                         "Failed to update notification preferences:",
-                        error
+                        error,
                       );
                       toast.error("Failed to update notification preferences");
                     }
@@ -627,9 +630,8 @@ export default function SettingsPage() {
               </div>
               <Separator />
               <div className="md:col-span-3">
-                  <NotificationSubscription />
+                <NotificationSubscription />
               </div>
-              
             </CardContent>
           </Card>
         </TabsContent>
@@ -657,7 +659,7 @@ export default function SettingsPage() {
                     onClick={() => setTheme("light")}
                     className={cn(
                       "h-9 w-9",
-                      theme === "light" && "bg-primary text-primary-foreground"
+                      theme === "light" && "bg-primary text-primary-foreground",
                     )}
                   >
                     <Sun className="h-4 w-4" />
@@ -668,7 +670,7 @@ export default function SettingsPage() {
                     onClick={() => setTheme("dark")}
                     className={cn(
                       "h-9 w-9",
-                      theme === "dark" && "bg-primary text-primary-foreground"
+                      theme === "dark" && "bg-primary text-primary-foreground",
                     )}
                   >
                     <Moon className="h-4 w-4" />
@@ -711,7 +713,7 @@ export default function SettingsPage() {
                     } catch (error: unknown) {
                       console.error(
                         "Failed to update notification preferences:",
-                        error
+                        error,
                       );
                       toast.error("Failed to update notification preferences");
                     }
@@ -743,10 +745,10 @@ export default function SettingsPage() {
                       <FormItem>
                         <FormLabel>Current Password</FormLabel>
                         <FormControl>
-                          <Input 
-                            type="password" 
+                          <Input
+                            type="password"
                             autoComplete="current-password"
-                            {...field} 
+                            {...field}
                           />
                         </FormControl>
                         <FormMessage />
@@ -767,7 +769,9 @@ export default function SettingsPage() {
                               {...field}
                               onChange={(e) => {
                                 field.onChange(e);
-                                const strength = calculatePasswordStrength(e.target.value);
+                                const strength = calculatePasswordStrength(
+                                  e.target.value,
+                                );
                                 setPasswordStrength(strength);
                               }}
                             />
@@ -775,9 +779,15 @@ export default function SettingsPage() {
                               type="button"
                               className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
                               onClick={() => setShowPassword(!showPassword)}
-                              aria-label={showPassword ? "Hide password" : "Show password"}
+                              aria-label={
+                                showPassword ? "Hide password" : "Show password"
+                              }
                             >
-                              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                              {showPassword ? (
+                                <EyeOff className="h-4 w-4" />
+                              ) : (
+                                <Eye className="h-4 w-4" />
+                              )}
                             </button>
                           </div>
                         </FormControl>
@@ -792,10 +802,10 @@ export default function SettingsPage() {
                       <FormItem>
                         <FormLabel>Confirm Password</FormLabel>
                         <FormControl>
-                          <Input 
-                            type="password" 
+                          <Input
+                            type="password"
                             autoComplete="new-password"
-                            {...field} 
+                            {...field}
                           />
                         </FormControl>
                         <FormMessage />
@@ -812,37 +822,36 @@ export default function SettingsPage() {
                           passwordStrength <= 20
                             ? "text-red-500"
                             : passwordStrength <= 40
-                            ? "text-orange-500"
-                            : passwordStrength <= 60
-                            ? "text-yellow-500"
-                            : passwordStrength <= 80
-                            ? "text-blue-500"
-                            : "text-green-500"
+                              ? "text-orange-500"
+                              : passwordStrength <= 60
+                                ? "text-yellow-500"
+                                : passwordStrength <= 80
+                                  ? "text-blue-500"
+                                  : "text-green-500",
                         )}
                       >
                         {passwordStrength <= 20
                           ? "Very Weak"
                           : passwordStrength <= 40
-                          ? "Weak"
-                          : passwordStrength <= 60
-                          ? "Fair"
-                          : passwordStrength <= 80
-                          ? "Good"
-                          : "Strong"}
+                            ? "Weak"
+                            : passwordStrength <= 60
+                              ? "Fair"
+                              : passwordStrength <= 80
+                                ? "Good"
+                                : "Strong"}
                       </span>
                     </div>
                     <Progress
                       value={passwordStrength}
-                      className={cn(
-                        "h-2",
-                        getStrengthColor(passwordStrength)
-                      )}
+                      className={cn("h-2", getStrengthColor(passwordStrength))}
                     />
                   </div>
 
                   <Button
                     type="submit"
-                    disabled={isPasswordSaving || !passwordForm.formState.isDirty}
+                    disabled={
+                      isPasswordSaving || !passwordForm.formState.isDirty
+                    }
                   >
                     {isPasswordSaving ? (
                       <>
@@ -859,7 +868,6 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
       </Tabs>
-    
     </div>
   );
 }

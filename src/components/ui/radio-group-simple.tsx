@@ -1,21 +1,21 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { cn } from "@/lib/utils"
+import * as React from "react";
+import { cn } from "@/lib/utils";
 
 // Simple implementation of RadioGroup that doesn't rely on @radix-ui/react-radio-group
 // This is used as a fallback for production builds to avoid dependency issues
 
 interface RadioGroupProps extends React.HTMLAttributes<HTMLDivElement> {
-  value?: string
-  onValueChange?: (value: string) => void
-  defaultValue?: string
+  value?: string;
+  onValueChange?: (value: string) => void;
+  defaultValue?: string;
 }
 
 const RadioGroupContext = React.createContext<{
-  value?: string
-  onValueChange?: (value: string) => void
-}>({})
+  value?: string;
+  onValueChange?: (value: string) => void;
+}>({});
 
 function RadioGroup({
   className,
@@ -24,16 +24,19 @@ function RadioGroup({
   defaultValue,
   ...props
 }: RadioGroupProps) {
-  const [internalValue, setInternalValue] = React.useState(defaultValue || "")
-  
-  const contextValue = React.useMemo(() => ({
-    value: value !== undefined ? value : internalValue,
-    onValueChange: (newValue: string) => {
-      setInternalValue(newValue)
-      onValueChange?.(newValue)
-    }
-  }), [value, internalValue, onValueChange])
-  
+  const [internalValue, setInternalValue] = React.useState(defaultValue || "");
+
+  const contextValue = React.useMemo(
+    () => ({
+      value: value !== undefined ? value : internalValue,
+      onValueChange: (newValue: string) => {
+        setInternalValue(newValue);
+        onValueChange?.(newValue);
+      },
+    }),
+    [value, internalValue, onValueChange],
+  );
+
   return (
     <RadioGroupContext.Provider value={contextValue}>
       <div
@@ -42,11 +45,11 @@ function RadioGroup({
         {...props}
       />
     </RadioGroupContext.Provider>
-  )
+  );
 }
 
 interface RadioGroupItemProps extends React.HTMLAttributes<HTMLDivElement> {
-  value: string
+  value: string;
 }
 
 function RadioGroupItem({
@@ -55,9 +58,10 @@ function RadioGroupItem({
   children,
   ...props
 }: RadioGroupItemProps) {
-  const { value: groupValue, onValueChange } = React.useContext(RadioGroupContext)
-  const checked = value === groupValue
-  
+  const { value: groupValue, onValueChange } =
+    React.useContext(RadioGroupContext);
+  const checked = value === groupValue;
+
   return (
     <div className="flex items-center space-x-2">
       <div
@@ -68,7 +72,7 @@ function RadioGroupItem({
         className={cn(
           "border-input text-primary focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:bg-input/30 aspect-square size-4 shrink-0 rounded-full border shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50",
           checked && "border-primary",
-          className
+          className,
         )}
         {...props}
       >
@@ -80,7 +84,7 @@ function RadioGroupItem({
       </div>
       {children}
     </div>
-  )
+  );
 }
 
-export { RadioGroup, RadioGroupItem }
+export { RadioGroup, RadioGroupItem };

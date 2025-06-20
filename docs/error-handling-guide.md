@@ -22,27 +22,28 @@ All custom errors extend the base `AppError` class, which provides consistent pr
 
 ```typescript
 class AppError extends Error {
-    public readonly code: string;        // Error code for programmatic handling
-    public readonly httpStatus: number;  // HTTP status code
-    public readonly isOperational: boolean; // Whether this is an expected (operational) error
-    public readonly context?: Record<string, any>; // Additional context for debugging
+  public readonly code: string; // Error code for programmatic handling
+  public readonly httpStatus: number; // HTTP status code
+  public readonly isOperational: boolean; // Whether this is an expected (operational) error
+  public readonly context?: Record<string, any>; // Additional context for debugging
 }
 ```
 
 Available error classes:
 
-| Class | Default Status | Purpose |
-|-------|---------------|---------|
-| `AuthError` | 401 | Authentication failures |
-| `ForbiddenError` | 403 | Authorization/permission failures |
-| `ValidationError` | 400 | Input validation failures |
-| `NotFoundError` | 404 | Resource not found |
-| `DatabaseError` | 500 | Database operation failures |
-| `ExternalServiceError` | 502 | External API/service failures |
-| `ConflictError` | 409 | Resource conflicts (e.g., duplicates) |
-| `RateLimitError` | 429 | Rate limit exceeded |
+| Class                  | Default Status | Purpose                               |
+| ---------------------- | -------------- | ------------------------------------- |
+| `AuthError`            | 401            | Authentication failures               |
+| `ForbiddenError`       | 403            | Authorization/permission failures     |
+| `ValidationError`      | 400            | Input validation failures             |
+| `NotFoundError`        | 404            | Resource not found                    |
+| `DatabaseError`        | 500            | Database operation failures           |
+| `ExternalServiceError` | 502            | External API/service failures         |
+| `ConflictError`        | 409            | Resource conflicts (e.g., duplicates) |
+| `RateLimitError`       | 429            | Rate limit exceeded                   |
 
 Example:
+
 ```typescript
 // Instead of returning a generic error
 if (!session?.user?.id) {
@@ -94,8 +95,8 @@ Converts any error to a standardized server action response, ensuring consistent
 ```typescript
 async function tryCatch<T>(
   fn: () => Promise<T>,
-  errorHandler?: (error: unknown) => any
-): Promise<T>
+  errorHandler?: (error: unknown) => any,
+): Promise<T>;
 ```
 
 Wraps async functions in a try-catch block with optional custom error handling.
@@ -106,8 +107,8 @@ Wraps async functions in a try-catch block with optional custom error handling.
 async function tryNonCritical<T>(
   fn: () => Promise<T>,
   fallbackValue: T,
-  context?: Record<string, any>
-): Promise<T>
+  context?: Record<string, any>,
+): Promise<T>;
 ```
 
 Executes operations that shouldn't fail the main flow, with logging and fallback values. This is especially useful for background tasks like sending notifications.
@@ -157,15 +158,15 @@ validateObject<T extends Record<string, any>>(
 
 ```typescript
 // Examples
-ValidationRules.required()
-ValidationRules.minLength(5)
-ValidationRules.maxLength(100)
-ValidationRules.pattern(/^\d{5}$/, "Must be a 5-digit number")
-ValidationRules.email()
-ValidationRules.min(0)
-ValidationRules.max(100)
-ValidationRules.oneOf(['option1', 'option2'])
-ValidationRules.custom(value => value % 2 === 0, "Must be an even number")
+ValidationRules.required();
+ValidationRules.minLength(5);
+ValidationRules.maxLength(100);
+ValidationRules.pattern(/^\d{5}$/, "Must be a 5-digit number");
+ValidationRules.email();
+ValidationRules.min(0);
+ValidationRules.max(100);
+ValidationRules.oneOf(["option1", "option2"]);
+ValidationRules.custom((value) => value % 2 === 0, "Must be an even number");
 ```
 
 ## Usage Patterns
@@ -192,7 +193,7 @@ export async function myServerAction(params) {
 
     // Resource existence check
     const resource = await prisma.resource.findUnique({
-      where: { id: params.id }
+      where: { id: params.id },
     });
 
     if (!resource) {
@@ -209,12 +210,12 @@ export async function myServerAction(params) {
         return { sent: true };
       },
       { sent: false },
-      { operation: 'send-notification', resourceId: params.id }
+      { operation: "send-notification", resourceId: params.id },
     );
 
     return {
       success: true,
-      data: result
+      data: result,
     };
   }, handleActionError);
 }
@@ -251,7 +252,7 @@ await tryNonCritical(
     return { sent: true };
   },
   { sent: false }, // Fallback value if the operation fails
-  { operation: 'send-notification', userId: user.id } // Context for logging
+  { operation: "send-notification", userId: user.id }, // Context for logging
 );
 ```
 
@@ -260,18 +261,18 @@ await tryNonCritical(
 1. **Use Specific Error Classes**: Choose the most appropriate error class for each situation to enable precise error handling.
 
 2. **Include Context**: Add relevant context to errors to aid debugging:
+
    ```typescript
-   throw new ValidationError(
-     "Invalid input",
-     "VALIDATION_ERROR",
-     400,
-     { field: "email", value: input.email }
-   );
+   throw new ValidationError("Invalid input", "VALIDATION_ERROR", 400, {
+     field: "email",
+     value: input.email,
+   });
    ```
 
 3. **Handle Non-critical Operations**: Use `tryNonCritical` for operations that shouldn't fail the main flow, such as sending notifications or logging.
 
 4. **Consistent Response Format**:
+
    - Server actions: `{ success: boolean, data?: any, error?: string }`
    - API routes: Use appropriate HTTP status codes and consistent JSON structure
 

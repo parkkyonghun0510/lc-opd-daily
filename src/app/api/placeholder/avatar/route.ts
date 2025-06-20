@@ -6,11 +6,11 @@ import { NextRequest, NextResponse } from "next/server";
  */
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const seed = searchParams.get('seed') || 'user';
-  const bg = searchParams.get('bg') || '4f46e5';
-  
+  const seed = searchParams.get("seed") || "user";
+  const bg = searchParams.get("bg") || "4f46e5";
+
   // Redirect to a placeholder avatar service
   return NextResponse.redirect(
-    `https://api.dicebear.com/7.x/initials/svg?seed=${seed}&backgroundColor=${bg}`
+    `https://api.dicebear.com/7.x/initials/svg?seed=${seed}&backgroundColor=${bg}`,
   );
-} 
+}

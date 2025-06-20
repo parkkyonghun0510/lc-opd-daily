@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { useEffect, useRef } from 'react';
-import { useAuth } from '@/auth/hooks/useAuth';
-import { useHybridRealtime, EventHandlersMap } from '@/hooks/useHybridRealtime';
+import { useEffect, useRef } from "react";
+import { useAuth } from "@/auth/hooks/useAuth";
+import { useHybridRealtime, EventHandlersMap } from "@/hooks/useHybridRealtime";
 
 interface AuthenticatedSSEProps {
   eventHandlers: EventHandlersMap;
@@ -17,19 +17,15 @@ interface AuthenticatedSSEProps {
  */
 export function AuthenticatedSSE({
   eventHandlers,
-  debug = false
+  debug = false,
 }: AuthenticatedSSEProps) {
   const { user, isAuthenticated } = useAuth();
   const lastUserIdRef = useRef<string | null>(null);
 
   // Use the simplified realtime hook
-  const {
-    isConnected,
-    activeMethod,
-    reconnect
-  } = useHybridRealtime({
+  const { isConnected, activeMethod, reconnect } = useHybridRealtime({
     eventHandlers,
-    debug
+    debug,
   });
 
   // Reconnect when user changes
@@ -43,8 +39,12 @@ export function AuthenticatedSSE({
   // Debug logging
   useEffect(() => {
     if (debug) {
-      console.log(`[AuthenticatedSSE] Connection status: ${isConnected ? 'connected' : 'disconnected'}`);
-      console.log(`[AuthenticatedSSE] Active method: ${activeMethod || 'none'}`);
+      console.log(
+        `[AuthenticatedSSE] Connection status: ${isConnected ? "connected" : "disconnected"}`,
+      );
+      console.log(
+        `[AuthenticatedSSE] Active method: ${activeMethod || "none"}`,
+      );
     }
   }, [isConnected, activeMethod, debug]);
 

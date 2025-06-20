@@ -13,6 +13,7 @@ This document provides a checklist for deploying the application to production.
 ## Environment Setup
 
 1. Create production environment file:
+
    - [ ] Copy `.env.production.template` to `.env.production`
    - [ ] Fill in all required values
    - [ ] Ensure database connection details are correct
@@ -28,11 +29,13 @@ This document provides a checklist for deploying the application to production.
 ### Option 1: Docker Deployment (AWS Lightsail)
 
 1. Build and deploy:
+
    ```
    npm run build:deploy
    ```
 
    This will:
+
    - Build the Next.js application with production settings
    - Build a Docker image
    - Push to AWS Lightsail
@@ -46,11 +49,13 @@ This document provides a checklist for deploying the application to production.
 ### Option 2: Manual Deployment (PM2)
 
 1. Build the application:
+
    ```
    npm run build:production
    ```
 
 2. Start the application and worker:
+
    ```
    ./scripts/start-production.sh
    ```
@@ -79,6 +84,7 @@ This document provides a checklist for deploying the application to production.
 In case of deployment issues:
 
 1. If using Lightsail:
+
    - [ ] Revert to previous deployment in AWS Lightsail console
 
 2. If using PM2:
@@ -92,6 +98,7 @@ In case of deployment issues:
 - [ ] Verify authentication is working correctly
 - [ ] Check API endpoints for proper authorization
 - [ ] Ensure database is not publicly accessible
+
 ## Related Documentation
 
 - [PM2 Deployment Guide](./pm2-deployment.md)
@@ -101,4 +108,4 @@ In case of deployment issues:
 - [Error Handling Guide](./error-handling-guide.md)
 - [Performance Optimizations](./performance-optimizations.md)
 
-- [ ] Verify HTTPS is configured correctly 
+- [ ] Verify HTTPS is configured correctly

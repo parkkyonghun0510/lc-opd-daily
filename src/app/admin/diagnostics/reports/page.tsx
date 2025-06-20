@@ -3,8 +3,21 @@
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/use-toast";
@@ -141,7 +154,8 @@ export default function ReportDiagnosticsPage() {
       console.error("Error fixing reports:", error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to fix reports",
+        description:
+          error instanceof Error ? error.message : "Failed to fix reports",
         variant: "destructive",
       });
     } finally {
@@ -154,7 +168,7 @@ export default function ReportDiagnosticsPage() {
     setSelectedReports((prev) =>
       prev.includes(reportId)
         ? prev.filter((id) => id !== reportId)
-        : [...prev, reportId]
+        : [...prev, reportId],
     );
   };
 
@@ -162,11 +176,14 @@ export default function ReportDiagnosticsPage() {
   const toggleAllReports = () => {
     if (!diagnosticData) return;
 
-    if (selectedReports.length === diagnosticData.reportsWithInvalidBranches.length) {
+    if (
+      selectedReports.length ===
+      diagnosticData.reportsWithInvalidBranches.length
+    ) {
       setSelectedReports([]);
     } else {
       setSelectedReports(
-        diagnosticData.reportsWithInvalidBranches.map((report) => report.id)
+        diagnosticData.reportsWithInvalidBranches.map((report) => report.id),
       );
     }
   };
@@ -222,14 +239,20 @@ export default function ReportDiagnosticsPage() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-md">
                   <h3 className="text-lg font-medium">Total Reports</h3>
-                  <p className="text-3xl font-bold">{diagnosticData.totalReports}</p>
+                  <p className="text-3xl font-bold">
+                    {diagnosticData.totalReports}
+                  </p>
                 </div>
                 <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-md">
                   <h3 className="text-lg font-medium">Total Branches</h3>
-                  <p className="text-3xl font-bold">{diagnosticData.totalBranches}</p>
+                  <p className="text-3xl font-bold">
+                    {diagnosticData.totalBranches}
+                  </p>
                 </div>
                 <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-md">
-                  <h3 className="text-lg font-medium">Invalid Branch References</h3>
+                  <h3 className="text-lg font-medium">
+                    Invalid Branch References
+                  </h3>
                   <p className="text-3xl font-bold text-red-500">
                     {diagnosticData.invalidBranchCount}
                   </p>
@@ -238,14 +261,17 @@ export default function ReportDiagnosticsPage() {
 
               {diagnosticData.invalidBranchCount > 0 && (
                 <div className="space-y-4">
-                  <h3 className="text-xl font-medium">Reports with Invalid Branch References</h3>
+                  <h3 className="text-xl font-medium">
+                    Reports with Invalid Branch References
+                  </h3>
 
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center space-x-2">
                       <Checkbox
                         id="selectAll"
                         checked={
-                          selectedReports.length === diagnosticData.reportsWithInvalidBranches.length &&
+                          selectedReports.length ===
+                            diagnosticData.reportsWithInvalidBranches.length &&
                           diagnosticData.reportsWithInvalidBranches.length > 0
                         }
                         onCheckedChange={toggleAllReports}
@@ -258,14 +284,20 @@ export default function ReportDiagnosticsPage() {
                         <Label htmlFor="fixAction">Action:</Label>
                         <Select
                           value={fixAction}
-                          onValueChange={(value) => setFixAction(value as "reassign" | "delete")}
+                          onValueChange={(value) =>
+                            setFixAction(value as "reassign" | "delete")
+                          }
                         >
                           <SelectTrigger className="w-[180px]">
                             <SelectValue placeholder="Select action" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="reassign">Reassign to Branch</SelectItem>
-                            <SelectItem value="delete">Delete Reports</SelectItem>
+                            <SelectItem value="reassign">
+                              Reassign to Branch
+                            </SelectItem>
+                            <SelectItem value="delete">
+                              Delete Reports
+                            </SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -298,7 +330,9 @@ export default function ReportDiagnosticsPage() {
                           selectedReports.length === 0 ||
                           (fixAction === "reassign" && !targetBranchId)
                         }
-                        variant={fixAction === "delete" ? "destructive" : "default"}
+                        variant={
+                          fixAction === "delete" ? "destructive" : "default"
+                        }
                       >
                         {fixing ? (
                           <>
@@ -339,31 +373,35 @@ export default function ReportDiagnosticsPage() {
                         </tr>
                       </thead>
                       <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
-                        {diagnosticData.reportsWithInvalidBranches.map((report) => (
-                          <tr key={report.id}>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <Checkbox
-                                checked={selectedReports.includes(report.id)}
-                                onCheckedChange={() => toggleReportSelection(report.id)}
-                              />
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                              {report.id.substring(0, 8)}...
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                              {format(new Date(report.date), "PPP")}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 capitalize">
-                              {report.reportType}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 capitalize">
-                              {report.status.replace("_", " ")}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-red-500">
-                              {report.branchId}
-                            </td>
-                          </tr>
-                        ))}
+                        {diagnosticData.reportsWithInvalidBranches.map(
+                          (report) => (
+                            <tr key={report.id}>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <Checkbox
+                                  checked={selectedReports.includes(report.id)}
+                                  onCheckedChange={() =>
+                                    toggleReportSelection(report.id)
+                                  }
+                                />
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                                {report.id.substring(0, 8)}...
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                                {format(new Date(report.date), "PPP")}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 capitalize">
+                                {report.reportType}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 capitalize">
+                                {report.status.replace("_", " ")}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-red-500">
+                                {report.branchId}
+                              </td>
+                            </tr>
+                          ),
+                        )}
                       </tbody>
                     </table>
                   </div>

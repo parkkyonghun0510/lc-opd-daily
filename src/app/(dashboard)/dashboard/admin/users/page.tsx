@@ -99,7 +99,7 @@ export default function UsersPage() {
     total: 0,
     page: 1,
     limit: 10,
-    pages: 1  // Initialize pages to 1
+    pages: 1, // Initialize pages to 1
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -151,7 +151,7 @@ export default function UsersPage() {
       if (activeFilter !== "all")
         queryParams.append(
           "active",
-          activeFilter === "active" ? "true" : "false"
+          activeFilter === "active" ? "true" : "false",
         );
 
       const data = await fetchUsers(`?${queryParams.toString()}`);
@@ -198,18 +198,22 @@ export default function UsersPage() {
   };
 
   // Handle role change
-  const handleRoleChange = async (userId: string, newRole: string, branchId: string | null) => {
+  const handleRoleChange = async (
+    userId: string,
+    newRole: string,
+    branchId: string | null,
+  ) => {
     try {
-      const response = await fetch('/api/roles/assign', {
-        method: 'POST',
+      const response = await fetch("/api/roles/assign", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({ userId, role: newRole, branchId }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to update role');
+        throw new Error("Failed to update role");
       }
 
       // Refresh user list and reset editing state
@@ -217,8 +221,8 @@ export default function UsersPage() {
       setEditingRole(null);
       setSelectedUser(null);
     } catch (err) {
-      console.error('Error updating role:', err);
-      alert(err instanceof Error ? err.message : 'Failed to update role');
+      console.error("Error updating role:", err);
+      alert(err instanceof Error ? err.message : "Failed to update role");
     }
   };
 
@@ -313,7 +317,7 @@ export default function UsersPage() {
     } catch (err) {
       console.error("Error creating user:", err);
       setFormError(
-        err instanceof Error ? err.message : "Failed to create user"
+        err instanceof Error ? err.message : "Failed to create user",
       );
     } finally {
       setFormSubmitting(false);
@@ -359,7 +363,7 @@ export default function UsersPage() {
       } catch (err) {
         console.error("Error updating user:", err);
         setFormError(
-          err instanceof Error ? err.message : "Failed to update user"
+          err instanceof Error ? err.message : "Failed to update user",
         );
       } finally {
         setFormSubmitting(false);
@@ -387,7 +391,7 @@ export default function UsersPage() {
       } catch (err) {
         console.error("Error updating user:", err);
         setFormError(
-          err instanceof Error ? err.message : "Failed to update user"
+          err instanceof Error ? err.message : "Failed to update user",
         );
       } finally {
         setFormSubmitting(false);
@@ -546,7 +550,10 @@ export default function UsersPage() {
                                 <Select
                                   value={selectedUser?.role || user.role}
                                   onValueChange={(value) => {
-                                    setSelectedUser({ ...user, role: value as Role });
+                                    setSelectedUser({
+                                      ...user,
+                                      role: value as Role,
+                                    });
                                   }}
                                 >
                                   <SelectTrigger className="w-[140px]">
@@ -555,7 +562,8 @@ export default function UsersPage() {
                                   <SelectContent>
                                     {ROLES.map((role) => (
                                       <SelectItem key={role} value={role}>
-                                        {role.charAt(0).toUpperCase() + role.slice(1)}
+                                        {role.charAt(0).toUpperCase() +
+                                          role.slice(1)}
                                       </SelectItem>
                                     ))}
                                   </SelectContent>
@@ -568,7 +576,7 @@ export default function UsersPage() {
                                       handleRoleChange(
                                         user.id,
                                         selectedUser.role,
-                                        selectedUser.branchId
+                                        selectedUser.branchId,
                                       );
                                     }
                                   }}

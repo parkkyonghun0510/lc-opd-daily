@@ -1,10 +1,18 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
-  Users, Building2, Shield, Activity,
-  FileText, AlertTriangle, Clock,
-  TrendingUp, Settings, Database,
-  Loader2, ChevronRight
+  Users,
+  Building2,
+  Shield,
+  Activity,
+  FileText,
+  AlertTriangle,
+  Clock,
+  TrendingUp,
+  Settings,
+  Database,
+  Loader2,
+  ChevronRight,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -15,11 +23,11 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface SystemHealth {
-  status: 'healthy' | 'warning' | 'critical';
+  status: "healthy" | "warning" | "critical";
   lastChecked: Date;
   services: {
     name: string;
-    status: 'up' | 'down' | 'degraded';
+    status: "up" | "down" | "degraded";
     responseTime: number;
   }[];
 }
@@ -48,18 +56,20 @@ interface AdminOverviewProps {
 export function AdminOverview({ stats }: AdminOverviewProps) {
   const [systemHealth, setSystemHealth] = useState<SystemHealth | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [prioritizedTasks, setPrioritizedTasks] = useState<{ task: string; urgency: 'high' | 'medium' | 'low'; link: string }[]>([]);
+  const [prioritizedTasks, setPrioritizedTasks] = useState<
+    { task: string; urgency: "high" | "medium" | "low"; link: string }[]
+  >([]);
 
   useEffect(() => {
     // Fetch system health data
     const fetchSystemHealth = async () => {
       try {
         setIsLoading(true);
-        const response = await fetch('/api/admin/system/health');
+        const response = await fetch("/api/admin/system/health");
         const data = await response.json();
         setSystemHealth(data);
       } catch (error) {
-        console.error('Error fetching system health:', error);
+        console.error("Error fetching system health:", error);
       } finally {
         setIsLoading(false);
       }
@@ -73,34 +83,43 @@ export function AdminOverview({ stats }: AdminOverviewProps) {
       if (stats.pendingReports > 0) {
         tasks.push({
           task: `Review ${stats.pendingReports} pending reports`,
-          urgency: stats.pendingReports > 5 ? 'high' : 'medium',
-          link: '/dashboard/approvals'
+          urgency: stats.pendingReports > 5 ? "high" : "medium",
+          link: "/dashboard/approvals",
         });
       }
 
-      if (systemHealth?.status === 'critical') {
+      if (systemHealth?.status === "critical") {
         tasks.push({
-          task: 'Address critical system issues',
-          urgency: 'high',
-          link: '/dashboard/admin/system/health'
+          task: "Address critical system issues",
+          urgency: "high",
+          link: "/dashboard/admin/system/health",
         });
-      } else if (systemHealth?.status === 'warning') {
+      } else if (systemHealth?.status === "warning") {
         tasks.push({
-          task: 'Check system warnings',
-          urgency: 'medium',
-          link: '/dashboard/admin/system/health'
-        });
-      }
-
-      if ((stats.storageUsage.used / stats.storageUsage.total) > 0.8) {
-        tasks.push({
-          task: 'Storage usage is high',
-          urgency: (stats.storageUsage.used / stats.storageUsage.total) > 0.9 ? 'high' : 'medium' as const,
-          link: '/dashboard/admin/storage'
+          task: "Check system warnings",
+          urgency: "medium",
+          link: "/dashboard/admin/system/health",
         });
       }
 
-      setPrioritizedTasks(tasks as { task: string; urgency: 'high' | 'medium' | 'low'; link: string }[]);
+      if (stats.storageUsage.used / stats.storageUsage.total > 0.8) {
+        tasks.push({
+          task: "Storage usage is high",
+          urgency:
+            stats.storageUsage.used / stats.storageUsage.total > 0.9
+              ? "high"
+              : ("medium" as const),
+          link: "/dashboard/admin/storage",
+        });
+      }
+
+      setPrioritizedTasks(
+        tasks as {
+          task: string;
+          urgency: "high" | "medium" | "low";
+          link: string;
+        }[],
+      );
     }
 
     // Don't poll too frequently to avoid excess API calls
@@ -135,7 +154,10 @@ export function AdminOverview({ stats }: AdminOverviewProps) {
       description: "Review and manage pending reports",
       icon: FileText,
       href: "/dashboard/approvals",
-      badge: stats.pendingReports > 0 ? `${stats.pendingReports} pending` : undefined,
+      badge:
+        stats.pendingReports > 0
+          ? `${stats.pendingReports} pending`
+          : undefined,
     },
     {
       title: "System Settings",
@@ -168,7 +190,7 @@ export function AdminOverview({ stats }: AdminOverviewProps) {
   return (
     <div className="space-y-6">
       {/* System Alerts */}
-      {systemHealth?.status === 'critical' && (
+      {systemHealth?.status === "critical" && (
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>
@@ -188,16 +210,25 @@ export function AdminOverview({ stats }: AdminOverviewProps) {
               {prioritizedTasks.map((task, index) => (
                 <li key={index}>
                   <Link href={task.link} className="block">
-                    <div className={`p-3 rounded-md flex items-center justify-between ${task.urgency === 'high'
-                        ? 'bg-red-50 text-red-800 border border-red-200 hover:bg-red-100'
-                        : task.urgency === 'medium'
-                          ? 'bg-yellow-50 text-yellow-800 border border-yellow-200 hover:bg-yellow-100'
-                          : 'bg-blue-50 text-blue-800 border border-blue-200 hover:bg-blue-100'
-                      }`}>
+                    <div
+                      className={`p-3 rounded-md flex items-center justify-between ${
+                        task.urgency === "high"
+                          ? "bg-red-50 text-red-800 border border-red-200 hover:bg-red-100"
+                          : task.urgency === "medium"
+                            ? "bg-yellow-50 text-yellow-800 border border-yellow-200 hover:bg-yellow-100"
+                            : "bg-blue-50 text-blue-800 border border-blue-200 hover:bg-blue-100"
+                      }`}
+                    >
                       <div className="flex items-center gap-3">
-                        <span className={`h-2 w-2 rounded-full ${task.urgency === 'high' ? 'bg-red-500' :
-                            task.urgency === 'medium' ? 'bg-yellow-500' : 'bg-blue-500'
-                          }`}></span>
+                        <span
+                          className={`h-2 w-2 rounded-full ${
+                            task.urgency === "high"
+                              ? "bg-red-500"
+                              : task.urgency === "medium"
+                                ? "bg-yellow-500"
+                                : "bg-blue-500"
+                          }`}
+                        ></span>
                         <span>{task.task}</span>
                       </div>
                       <ChevronRight className="h-5 w-5" />
@@ -219,20 +250,42 @@ export function AdminOverview({ stats }: AdminOverviewProps) {
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-muted-foreground">Total Users</span>
+                <span className="text-sm font-medium text-muted-foreground">
+                  Total Users
+                </span>
                 <Users className="h-4 w-4 text-muted-foreground" />
               </div>
-              <div className="text-2xl font-bold">{isLoading ? <Skeleton className="h-8 w-16" /> : stats.totalUsers}</div>
+              <div className="text-2xl font-bold">
+                {isLoading ? (
+                  <Skeleton className="h-8 w-16" />
+                ) : (
+                  stats.totalUsers
+                )}
+              </div>
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <span>{isLoading ? <Skeleton className="h-4 w-20" /> : `${stats.activeUsers} active users`}</span>
+                <span>
+                  {isLoading ? (
+                    <Skeleton className="h-4 w-20" />
+                  ) : (
+                    `${stats.activeUsers} active users`
+                  )}
+                </span>
                 <span className="mx-1">•</span>
-                <span>{isLoading ? <Skeleton className="h-4 w-16" /> : `${stats.adminUsers} admins`}</span>
+                <span>
+                  {isLoading ? (
+                    <Skeleton className="h-4 w-16" />
+                  ) : (
+                    `${stats.adminUsers} admins`
+                  )}
+                </span>
               </div>
             </div>
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-muted-foreground">Storage Usage</span>
+                <span className="text-sm font-medium text-muted-foreground">
+                  Storage Usage
+                </span>
                 <Database className="h-4 w-4 text-muted-foreground" />
               </div>
               {isLoading ? (
@@ -244,14 +297,23 @@ export function AdminOverview({ stats }: AdminOverviewProps) {
               ) : (
                 <>
                   <div className="text-2xl font-bold">
-                    {Math.round((stats.storageUsage.used / stats.storageUsage.total) * 100)}%
+                    {Math.round(
+                      (stats.storageUsage.used / stats.storageUsage.total) *
+                        100,
+                    )}
+                    %
                   </div>
                   <Progress
-                    value={(stats.storageUsage.used / stats.storageUsage.total) * 100}
+                    value={
+                      (stats.storageUsage.used / stats.storageUsage.total) * 100
+                    }
                     className="mt-2"
                   />
                   <p className="text-xs text-muted-foreground mt-2">
-                    {Math.round(stats.storageUsage.used / 1024 / 1024 / 1024)}GB of {Math.round(stats.storageUsage.total / 1024 / 1024 / 1024)}GB used
+                    {Math.round(stats.storageUsage.used / 1024 / 1024 / 1024)}GB
+                    of{" "}
+                    {Math.round(stats.storageUsage.total / 1024 / 1024 / 1024)}
+                    GB used
                   </p>
                 </>
               )}
@@ -259,7 +321,9 @@ export function AdminOverview({ stats }: AdminOverviewProps) {
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-muted-foreground">System Health</span>
+                <span className="text-sm font-medium text-muted-foreground">
+                  System Health
+                </span>
                 <Activity className="h-4 w-4 text-muted-foreground" />
               </div>
               {isLoading ? (
@@ -270,18 +334,27 @@ export function AdminOverview({ stats }: AdminOverviewProps) {
               ) : (
                 <>
                   <div className="flex items-center space-x-2">
-                    <div className={`h-3 w-3 rounded-full ${systemHealth?.status === 'healthy' ? 'bg-green-500' :
-                        systemHealth?.status === 'warning' ? 'bg-yellow-500' :
-                          'bg-red-500'
-                      }`} />
+                    <div
+                      className={`h-3 w-3 rounded-full ${
+                        systemHealth?.status === "healthy"
+                          ? "bg-green-500"
+                          : systemHealth?.status === "warning"
+                            ? "bg-yellow-500"
+                            : "bg-red-500"
+                      }`}
+                    />
                     <span className="text-2xl font-bold capitalize">
-                      {systemHealth?.status || 'Unknown'}
+                      {systemHealth?.status || "Unknown"}
                     </span>
                   </div>
                   <p className="text-xs text-muted-foreground mt-2">
-                    Last checked: {systemHealth?.lastChecked ?
-                      formatDistanceToNow(new Date(systemHealth.lastChecked), { addSuffix: true }) :
-                      'Unknown'}
+                    Last checked:{" "}
+                    {systemHealth?.lastChecked
+                      ? formatDistanceToNow(
+                          new Date(systemHealth.lastChecked),
+                          { addSuffix: true },
+                        )
+                      : "Unknown"}
                   </p>
                 </>
               )}
@@ -289,14 +362,26 @@ export function AdminOverview({ stats }: AdminOverviewProps) {
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-muted-foreground">Pending Reports</span>
+                <span className="text-sm font-medium text-muted-foreground">
+                  Pending Reports
+                </span>
                 <FileText className="h-4 w-4 text-muted-foreground" />
               </div>
-              <div className="text-2xl font-bold">{isLoading ? <Skeleton className="h-8 w-16" /> : stats.pendingReports}</div>
+              <div className="text-2xl font-bold">
+                {isLoading ? (
+                  <Skeleton className="h-8 w-16" />
+                ) : (
+                  stats.pendingReports
+                )}
+              </div>
               {isLoading ? (
-                <span className="text-xs text-muted-foreground"><Skeleton className="h-4 w-24" /></span>
+                <span className="text-xs text-muted-foreground">
+                  <Skeleton className="h-4 w-24" />
+                </span>
               ) : (
-                <p className="text-xs text-muted-foreground">Awaiting approval</p>
+                <p className="text-xs text-muted-foreground">
+                  Awaiting approval
+                </p>
               )}
             </div>
           </div>
@@ -376,19 +461,31 @@ export function AdminOverview({ stats }: AdminOverviewProps) {
           ) : (
             <div className="space-y-4">
               {stats.recentActivity.map((activity, index) => (
-                <div key={index} className="flex items-center justify-between py-2">
+                <div
+                  key={index}
+                  className="flex items-center justify-between py-2"
+                >
                   <div className="flex items-center space-x-4">
-                    <div className={`w-2 h-2 rounded-full ${activity.type === 'warning' ? 'bg-yellow-500' :
-                        activity.type === 'error' ? 'bg-red-500' :
-                          'bg-green-500'
-                      }`} />
+                    <div
+                      className={`w-2 h-2 rounded-full ${
+                        activity.type === "warning"
+                          ? "bg-yellow-500"
+                          : activity.type === "error"
+                            ? "bg-red-500"
+                            : "bg-green-500"
+                      }`}
+                    />
                     <div>
                       <p className="text-sm font-medium">{activity.action}</p>
-                      <p className="text-xs text-muted-foreground">by {activity.user}</p>
+                      <p className="text-xs text-muted-foreground">
+                        by {activity.user}
+                      </p>
                     </div>
                   </div>
                   <span className="text-xs text-muted-foreground">
-                    {formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true })}
+                    {formatDistanceToNow(new Date(activity.timestamp), {
+                      addSuffix: true,
+                    })}
                   </span>
                 </div>
               ))}

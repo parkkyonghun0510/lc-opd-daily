@@ -1,7 +1,7 @@
-import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
-import { getNotificationMetrics } from '@/lib/notifications/redisNotificationService';
+import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
+import { getNotificationMetrics } from "@/lib/notifications/redisNotificationService";
 
 /**
  * Get Redis notification metrics
@@ -16,8 +16,14 @@ export async function GET(req: Request) {
     }
 
     // Check if user has admin role
-    if (session.user.role !== 'ADMIN' && session.user.role !== 'BRANCH_MANAGER') {
-      return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
+    if (
+      session.user.role !== "ADMIN" &&
+      session.user.role !== "BRANCH_MANAGER"
+    ) {
+      return NextResponse.json(
+        { error: "Insufficient permissions" },
+        { status: 403 },
+      );
     }
 
     // Get metrics from Redis notification service
@@ -26,13 +32,13 @@ export async function GET(req: Request) {
     return NextResponse.json({
       success: true,
       metrics,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    console.error('Error getting notification metrics:', error);
+    console.error("Error getting notification metrics:", error);
     return NextResponse.json(
-      { error: 'Failed to get notification metrics' },
-      { status: 500 }
+      { error: "Failed to get notification metrics" },
+      { status: 500 },
     );
   }
 }

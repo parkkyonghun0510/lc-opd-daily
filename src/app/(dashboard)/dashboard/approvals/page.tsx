@@ -35,7 +35,7 @@ import {
   FilterX,
   LayoutGrid,
   LayoutList,
-  Download
+  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -72,7 +72,7 @@ import {
 import { PrintDialog } from "@/components/reports/PrintDialog";
 import { PrintableReport } from "@/components/reports/PrintableReport";
 import { useReactToPrint } from "react-to-print";
-import type { UseReactToPrintOptions } from 'react-to-print';
+import type { UseReactToPrintOptions } from "react-to-print";
 
 // Types
 export type FilterState = {
@@ -84,27 +84,27 @@ export type FilterState = {
     from?: Date;
     to?: Date;
   };
-  sortField: 'date' | 'created' | 'branch' | 'writeOffs' | 'ninetyPlus';
-  sortDirection: 'asc' | 'desc';
+  sortField: "date" | "created" | "branch" | "writeOffs" | "ninetyPlus";
+  sortDirection: "asc" | "desc";
   currentPage: number;
 };
 
-export type ViewMode = 'card' | 'table';
+export type ViewMode = "card" | "table";
 
 const sortOptions = {
-  date: 'Report Date',
-  created: 'Submission Date',
-  branch: 'Branch',
-  writeOffs: 'Write-offs',
-  ninetyPlus: '90+ Days'
+  date: "Report Date",
+  created: "Submission Date",
+  branch: "Branch",
+  writeOffs: "Write-offs",
+  ninetyPlus: "90+ Days",
 } as const;
 
 const statusOptions = [
-  { value: 'all', label: 'All Statuses' },
-  { value: 'pending_approval', label: 'Pending Approval' },
-  { value: 'pending', label: 'Pending' },
-  { value: 'approved', label: 'Approved' },
-  { value: 'rejected', label: 'Rejected' }
+  { value: "all", label: "All Statuses" },
+  { value: "pending_approval", label: "Pending Approval" },
+  { value: "pending", label: "Pending" },
+  { value: "approved", label: "Approved" },
+  { value: "rejected", label: "Rejected" },
 ] as const;
 
 type ReportStatus = "pending" | "pending_approval" | "approved" | "rejected";
@@ -149,7 +149,7 @@ interface ApiReport {
       id: string;
       name: string;
       username: string;
-    }
+    };
   }>;
 }
 
@@ -190,7 +190,7 @@ export interface ProcessedReport {
       id: string;
       name: string;
       username: string;
-    }
+    };
   }>;
 }
 
@@ -216,31 +216,26 @@ export default function ApprovalsPage() {
     toggleSortDirection,
     setDateRange,
     setPage,
-    resetFilters
+    resetFilters,
   } = useApprovalFilterReducer();
 
   // Load report data with proper filter dependency
-  const {
-    reports,
-    loading,
-    error,
-    lastUpdated,
-    trends,
-    refresh
-  } = useReportData({
-    statusFilter: filters.statusFilter,
-    pollingInterval: 30000,
-    onNewReport: () => setNewReportNotification(true)
-  });
+  const { reports, loading, error, lastUpdated, trends, refresh } =
+    useReportData({
+      statusFilter: filters.statusFilter,
+      pollingInterval: 30000,
+      onNewReport: () => setNewReportNotification(true),
+    });
 
   const [branches, setBranches] = useState<Record<string, Branch>>({});
   const [refreshing, setRefreshing] = useState(false);
-  const [newReportNotification, setNewReportNotification] = useState<boolean>(false);
+  const [newReportNotification, setNewReportNotification] =
+    useState<boolean>(false);
   const [exportProgress, setExportProgress] = useState(0);
   const [isExporting, setIsExporting] = useState(false);
   const [printOptions, setPrintOptions] = useState({
     includeAnalytics: true,
-    includeComments: true
+    includeComments: true,
   });
 
   // Handle refresh with proper dependency
@@ -256,38 +251,43 @@ export default function ApprovalsPage() {
 
   const handlePrint = useReactToPrint({
     content: () => printRef.current,
-    documentTitle: `Reports_${new Date().toISOString().split('T')[0]}`,
+    documentTitle: `Reports_${new Date().toISOString().split("T")[0]}`,
     onBeforePrint: async () => {
       await Promise.resolve(); // Ensure it returns a Promise
-      trackEvent('reports_printed', {
+      trackEvent("reports_printed", {
         reportCount: memoizedSortedData.length,
-        options: printOptions
+        options: printOptions,
       });
     },
     onPrintError: (error: Error | string) => {
-      console.error('Print error:', error);
+      console.error("Print error:", error);
       toast({
-        title: 'Print Failed',
-        description: 'Failed to generate printable report',
-        variant: 'destructive',
+        title: "Print Failed",
+        description: "Failed to generate printable report",
+        variant: "destructive",
       });
       logError({
-        message: 'Print failed',
-        componentName: 'ApprovalsPage',
-        context: { error: typeof error === 'string' ? error : error.message }
+        message: "Print failed",
+        componentName: "ApprovalsPage",
+        context: { error: typeof error === "string" ? error : error.message },
       });
-    }
+    },
   } as UseReactToPrintOptions);
 
-  const handlePrintWithOptions = useCallback((options: typeof printOptions) => {
-    setPrintOptions(options);
-    handlePrint();
-  }, [handlePrint]);
+  const handlePrintWithOptions = useCallback(
+    (options: typeof printOptions) => {
+      setPrintOptions(options);
+      handlePrint();
+    },
+    [handlePrint],
+  );
 
   // View mode state
   const [viewMode, setViewMode] = useState<"card" | "table">(() => {
     if (typeof window !== "undefined") {
-      return localStorage.getItem("approvalsViewMode") === "table" ? "table" : "card";
+      return localStorage.getItem("approvalsViewMode") === "table"
+        ? "table"
+        : "card";
     }
     return "card";
   });
@@ -295,86 +295,108 @@ export default function ApprovalsPage() {
   // Update keyboard shortcuts to properly type the error parameter
   const { getShortcutDescriptions } = useKeyboardShortcuts([
     {
-      key: 'r',
+      key: "r",
       ctrl: true,
       action: handleRefresh,
-      description: 'Refresh reports'
+      description: "Refresh reports",
     },
     {
-      key: 'f',
+      key: "f",
       ctrl: true,
-      action: () => document.querySelector<HTMLInputElement>('input[placeholder*="Search"]')?.focus(),
-      description: 'Focus search'
+      action: () =>
+        document
+          .querySelector<HTMLInputElement>('input[placeholder*="Search"]')
+          ?.focus(),
+      description: "Focus search",
     },
     {
-      key: 'v',
+      key: "v",
       ctrl: true,
-      action: () => handleViewModeChange(viewMode === 'card' ? 'table' : 'card'),
-      description: 'Toggle view mode'
+      action: () =>
+        handleViewModeChange(viewMode === "card" ? "table" : "card"),
+      description: "Toggle view mode",
     },
     {
-      key: 'c',
+      key: "c",
       ctrl: true,
       action: resetFilters,
-      description: 'Clear all filters'
+      description: "Clear all filters",
     },
     {
-      key: 'ArrowLeft',
+      key: "ArrowLeft",
       alt: true,
       action: () => setPage(Math.max(1, filters.currentPage - 1)),
-      description: 'Previous page'
+      description: "Previous page",
     },
     {
-      key: 'ArrowRight',
+      key: "ArrowRight",
       alt: true,
-      action: () => setPage(Math.min(Math.ceil(memoizedSortedData.length / 10), filters.currentPage + 1)),
-      description: 'Next page'
+      action: () =>
+        setPage(
+          Math.min(
+            Math.ceil(memoizedSortedData.length / 10),
+            filters.currentPage + 1,
+          ),
+        ),
+      description: "Next page",
     },
     {
-      key: 'e',
+      key: "e",
       ctrl: true,
-      action: () => handleExport('xlsx'),
-      description: 'Export as Excel'
+      action: () => handleExport("xlsx"),
+      description: "Export as Excel",
     },
     {
-      key: 'e',
-      ctrl: true,
-      shift: true,
-      action: () => handleExport('csv'),
-      description: 'Export as CSV'
-    },
-    {
-      key: 'p',
-      ctrl: true,
-      action: () => handlePrintWithOptions({
-        includeAnalytics: true,
-        includeComments: true
-      }),
-      description: 'Print full report'
-    },
-    {
-      key: 'p',
+      key: "e",
       ctrl: true,
       shift: true,
-      action: () => handlePrintWithOptions({
-        includeAnalytics: false,
-        includeComments: false
-      }),
-      description: 'Print basic report'
-    }
+      action: () => handleExport("csv"),
+      description: "Export as CSV",
+    },
+    {
+      key: "p",
+      ctrl: true,
+      action: () =>
+        handlePrintWithOptions({
+          includeAnalytics: true,
+          includeComments: true,
+        }),
+      description: "Print full report",
+    },
+    {
+      key: "p",
+      ctrl: true,
+      shift: true,
+      action: () =>
+        handlePrintWithOptions({
+          includeAnalytics: false,
+          includeComments: false,
+        }),
+      description: "Print basic report",
+    },
   ]);
 
   // Memoize filtered and transformed data
   const memoizedFilteredData = useMemo(() => {
     if (!reports.length) return [];
-    return reports.filter(report => {
-      if (filters.branchFilter !== "all" && report.branchId !== filters.branchFilter) return false;
-      if (filters.reportTypeFilter !== "all" && report.reportType !== filters.reportTypeFilter) return false;
+    return reports.filter((report) => {
+      if (
+        filters.branchFilter !== "all" &&
+        report.branchId !== filters.branchFilter
+      )
+        return false;
+      if (
+        filters.reportTypeFilter !== "all" &&
+        report.reportType !== filters.reportTypeFilter
+      )
+        return false;
 
       if (filters.dateRange.from || filters.dateRange.to) {
         const reportDate = new Date(report.date);
-        if (filters.dateRange.from && reportDate < filters.dateRange.from) return false;
-        if (filters.dateRange.to && reportDate > filters.dateRange.to) return false;
+        if (filters.dateRange.from && reportDate < filters.dateRange.from)
+          return false;
+        if (filters.dateRange.to && reportDate > filters.dateRange.to)
+          return false;
       }
 
       if (filters.searchTerm) {
@@ -394,12 +416,18 @@ export default function ApprovalsPage() {
     return [...memoizedFilteredData].sort((a, b) => {
       const getValue = (item: ProcessedReport) => {
         switch (filters.sortField) {
-          case "date": return new Date(item.date);
-          case "branch": return item.branch.name;
-          case "created": return new Date(item.submittedAt);
-          case "writeOffs": return Number(item.writeOffs);
-          case "ninetyPlus": return Number(item.ninetyPlus);
-          default: return new Date(item.date);
+          case "date":
+            return new Date(item.date);
+          case "branch":
+            return item.branch.name;
+          case "created":
+            return new Date(item.submittedAt);
+          case "writeOffs":
+            return Number(item.writeOffs);
+          case "ninetyPlus":
+            return Number(item.ninetyPlus);
+          default:
+            return new Date(item.date);
         }
       };
 
@@ -428,81 +456,99 @@ export default function ApprovalsPage() {
     refresh();
   }, [refresh]);
 
-  const handleFilterChange = useCallback((filterType: string, value: any) => {
-    trackEvent('filter_changed', {
-      filterType,
-      value,
-      currentFilters: filters
-    });
-
-    switch (filterType) {
-      case 'search':
-        setSearch(value);
-        break;
-      case 'branch':
-        setBranchFilter(value);
-        break;
-      case 'reportType':
-        setReportTypeFilter(value);
-        break;
-      case 'status':
-        setStatusFilter(value);
-        break;
-      case 'dateRange':
-        setDateRange(value);
-        break;
-    }
-  }, [filters, setSearch, setBranchFilter, setReportTypeFilter, setStatusFilter, setDateRange, trackEvent]);
-
-  const handleViewModeChange = useCallback((mode: "card" | "table") => {
-    trackEvent('view_mode_changed', { mode });
-    setViewMode(mode);
-  }, [trackEvent]);
-
-  const handleExport = useCallback(async (format: 'csv' | 'xlsx') => {
-    setIsExporting(true);
-    setExportProgress(0);
-
-    try {
-      const result = await exportReports(memoizedSortedData, trends, {
-        format,
-        includeAnalytics: true,
-        onProgress: (progress) => setExportProgress(progress)
+  const handleFilterChange = useCallback(
+    (filterType: string, value: any) => {
+      trackEvent("filter_changed", {
+        filterType,
+        value,
+        currentFilters: filters,
       });
 
-      if (result.success) {
-        toast({
-          title: 'Export Successful',
-          description: `Reports exported as ${result.fileName}`,
-        });
-        trackEvent('reports_exported', {
-          format,
-          reportCount: memoizedSortedData.length,
-          includeAnalytics: true
-        });
-      } else {
-        throw new Error(result.error || 'Export failed');
+      switch (filterType) {
+        case "search":
+          setSearch(value);
+          break;
+        case "branch":
+          setBranchFilter(value);
+          break;
+        case "reportType":
+          setReportTypeFilter(value);
+          break;
+        case "status":
+          setStatusFilter(value);
+          break;
+        case "dateRange":
+          setDateRange(value);
+          break;
       }
-    } catch (error) {
-      console.error('Export error:', error);
-      toast({
-        title: 'Export Failed',
-        description: error instanceof Error ? error.message : 'Failed to export reports',
-        variant: 'destructive',
-      });
-      logError({
-        message: 'Export failed',
-        componentName: 'ApprovalsPage',
-        context: {
-          format,
-          error: error instanceof Error ? error.message : String(error)
-        }
-      });
-    } finally {
-      setIsExporting(false);
+    },
+    [
+      filters,
+      setSearch,
+      setBranchFilter,
+      setReportTypeFilter,
+      setStatusFilter,
+      setDateRange,
+      trackEvent,
+    ],
+  );
+
+  const handleViewModeChange = useCallback(
+    (mode: "card" | "table") => {
+      trackEvent("view_mode_changed", { mode });
+      setViewMode(mode);
+    },
+    [trackEvent],
+  );
+
+  const handleExport = useCallback(
+    async (format: "csv" | "xlsx") => {
+      setIsExporting(true);
       setExportProgress(0);
-    }
-  }, [memoizedSortedData, trends, toast, trackEvent, logError]);
+
+      try {
+        const result = await exportReports(memoizedSortedData, trends, {
+          format,
+          includeAnalytics: true,
+          onProgress: (progress) => setExportProgress(progress),
+        });
+
+        if (result.success) {
+          toast({
+            title: "Export Successful",
+            description: `Reports exported as ${result.fileName}`,
+          });
+          trackEvent("reports_exported", {
+            format,
+            reportCount: memoizedSortedData.length,
+            includeAnalytics: true,
+          });
+        } else {
+          throw new Error(result.error || "Export failed");
+        }
+      } catch (error) {
+        console.error("Export error:", error);
+        toast({
+          title: "Export Failed",
+          description:
+            error instanceof Error ? error.message : "Failed to export reports",
+          variant: "destructive",
+        });
+        logError({
+          message: "Export failed",
+          componentName: "ApprovalsPage",
+          context: {
+            format,
+            error: error instanceof Error ? error.message : String(error),
+          },
+        });
+      } finally {
+        setIsExporting(false);
+        setExportProgress(0);
+      }
+    },
+    [memoizedSortedData, trends, toast, trackEvent, logError],
+  );
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -518,8 +564,8 @@ export default function ApprovalsPage() {
     ReportComment: report.ReportComment?.map((comment) => ({
       ...comment,
       createdAt: comment.createdAt.toString(),
-      updatedAt: comment.updatedAt.toString()
-    }))
+      updatedAt: comment.updatedAt.toString(),
+    })),
   });
 
   return (
@@ -537,7 +583,11 @@ export default function ApprovalsPage() {
 
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
               <div className="flex items-center gap-2">
-                <div className="border rounded-md p-1" role="group" aria-label="View mode selection">
+                <div
+                  className="border rounded-md p-1"
+                  role="group"
+                  aria-label="View mode selection"
+                >
                   <Button
                     variant={viewMode === "card" ? "default" : "ghost"}
                     size="sm"
@@ -566,15 +616,23 @@ export default function ApprovalsPage() {
 
               <div className="flex items-center gap-2">
                 {!isConnected && (
-                  <div className="flex items-center text-yellow-500" role="status">
+                  <div
+                    className="flex items-center text-yellow-500"
+                    role="status"
+                  >
                     <AlertCircle className="h-4 w-4 mr-1" aria-hidden="true" />
                     <span className="text-xs font-medium">Connecting...</span>
                   </div>
                 )}
                 {newReportNotification && (
-                  <div className="flex items-center text-amber-500 animate-pulse" role="status">
+                  <div
+                    className="flex items-center text-amber-500 animate-pulse"
+                    role="status"
+                  >
                     <Bell className="h-4 w-4 mr-1" aria-hidden="true" />
-                    <span className="text-xs font-medium">New report available</span>
+                    <span className="text-xs font-medium">
+                      New report available
+                    </span>
                   </div>
                 )}
                 <PrintDialog
@@ -594,10 +652,10 @@ export default function ApprovalsPage() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => handleExport('xlsx')}>
+                    <DropdownMenuItem onClick={() => handleExport("xlsx")}>
                       Export as Excel
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleExport('csv')}>
+                    <DropdownMenuItem onClick={() => handleExport("csv")}>
                       Export as CSV
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -608,7 +666,9 @@ export default function ApprovalsPage() {
                   onClick={handleRefresh}
                   disabled={refreshing}
                   className="flex items-center gap-1"
-                  aria-label={refreshing ? "Refreshing reports" : "Refresh reports"}
+                  aria-label={
+                    refreshing ? "Refreshing reports" : "Refresh reports"
+                  }
                 >
                   <RefreshCw
                     className={cn("h-4 w-4", refreshing && "animate-spin")}
@@ -631,53 +691,77 @@ export default function ApprovalsPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4" role="search">
+                <div
+                  className="grid grid-cols-1 md:grid-cols-3 gap-4"
+                  role="search"
+                >
                   <div className="flex items-center space-x-2">
-                    <Search className="h-4 w-4 text-gray-500" aria-hidden="true" />
+                    <Search
+                      className="h-4 w-4 text-gray-500"
+                      aria-hidden="true"
+                    />
                     <Input
                       placeholder="Search branch, user..."
                       value={filters.searchTerm}
-                      onChange={(e) => handleFilterChange('search', e.target.value)}
+                      onChange={(e) =>
+                        handleFilterChange("search", e.target.value)
+                      }
                       className="flex-1"
                       aria-label="Search reports"
                     />
                   </div>
 
                   <div className="space-y-1">
-                    <label id="branch-filter-label" className="text-sm font-medium text-gray-500">
+                    <label
+                      id="branch-filter-label"
+                      className="text-sm font-medium text-gray-500"
+                    >
                       Branch
                     </label>
                     <Select
                       value={filters.branchFilter}
-                      onValueChange={(value) => handleFilterChange('branch', value)}
+                      onValueChange={(value) =>
+                        handleFilterChange("branch", value)
+                      }
                       aria-labelledby="branch-filter-label"
                     >
-                      <SelectTrigger className="w-full" aria-label="Filter by Branch">
+                      <SelectTrigger
+                        className="w-full"
+                        aria-label="Filter by Branch"
+                      >
                         <SelectValue placeholder="All Branches" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All Branches</SelectItem>
-                        {Object.values(branches).sort((a, b) =>
-                          a.name.localeCompare(b.name)
-                        ).map((branch) => (
-                          <SelectItem key={branch.id} value={branch.id}>
-                            {branch.name}
-                          </SelectItem>
-                        ))}
+                        {Object.values(branches)
+                          .sort((a, b) => a.name.localeCompare(b.name))
+                          .map((branch) => (
+                            <SelectItem key={branch.id} value={branch.id}>
+                              {branch.name}
+                            </SelectItem>
+                          ))}
                       </SelectContent>
                     </Select>
                   </div>
 
                   <div className="space-y-1">
-                    <label id="report-type-filter-label" className="text-sm font-medium text-gray-500">
+                    <label
+                      id="report-type-filter-label"
+                      className="text-sm font-medium text-gray-500"
+                    >
                       Report Type
                     </label>
                     <Select
                       value={filters.reportTypeFilter}
-                      onValueChange={(value) => handleFilterChange('reportType', value)}
+                      onValueChange={(value) =>
+                        handleFilterChange("reportType", value)
+                      }
                       aria-labelledby="report-type-filter-label"
                     >
-                      <SelectTrigger className="w-full" aria-label="Filter by Report Type">
+                      <SelectTrigger
+                        className="w-full"
+                        aria-label="Filter by Report Type"
+                      >
                         <SelectValue placeholder="All Types" />
                       </SelectTrigger>
                       <SelectContent>
@@ -691,12 +775,17 @@ export default function ApprovalsPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                   <div className="space-y-1">
-                    <label id="status-filter-label" className="text-sm font-medium text-gray-500">
+                    <label
+                      id="status-filter-label"
+                      className="text-sm font-medium text-gray-500"
+                    >
                       Status
                     </label>
                     <Select
                       value={filters.statusFilter}
-                      onValueChange={(value) => handleFilterChange('status', value)}
+                      onValueChange={(value) =>
+                        handleFilterChange("status", value)
+                      }
                       aria-labelledby="status-filter-label"
                     >
                       <SelectTrigger
@@ -716,7 +805,10 @@ export default function ApprovalsPage() {
                   </div>
 
                   <div className="space-y-1">
-                    <label id="date-range-filter-label" className="text-sm font-medium text-gray-500">
+                    <label
+                      id="date-range-filter-label"
+                      className="text-sm font-medium text-gray-500"
+                    >
                       Date Range
                     </label>
                     <Popover>
@@ -726,7 +818,10 @@ export default function ApprovalsPage() {
                           className="w-full justify-start text-left font-normal"
                           aria-labelledby="date-range-filter-label"
                         >
-                          <Calendar className="mr-2 h-4 w-4" aria-hidden="true" />
+                          <Calendar
+                            className="mr-2 h-4 w-4"
+                            aria-hidden="true"
+                          />
                           {filters.dateRange?.from ? (
                             filters.dateRange.to ? (
                               <>
@@ -747,7 +842,9 @@ export default function ApprovalsPage() {
                           mode="range"
                           defaultMonth={filters.dateRange?.from}
                           selected={filters.dateRange as any}
-                          onSelect={(range) => handleFilterChange('dateRange', range as any)}
+                          onSelect={(range) =>
+                            handleFilterChange("dateRange", range as any)
+                          }
                           numberOfMonths={2}
                         />
                       </PopoverContent>
@@ -757,7 +854,9 @@ export default function ApprovalsPage() {
 
                 <div className="flex items-center justify-between mt-4 pt-4 border-t">
                   <div className="text-sm text-gray-500" role="status">
-                    {memoizedSortedData.length} reports found, showing page {filters.currentPage} of {Math.ceil(memoizedSortedData.length / 10)}
+                    {memoizedSortedData.length} reports found, showing page{" "}
+                    {filters.currentPage} of{" "}
+                    {Math.ceil(memoizedSortedData.length / 10)}
                   </div>
 
                   <div className="flex items-center space-x-2">
@@ -772,7 +871,10 @@ export default function ApprovalsPage() {
                       Reset Filters
                     </Button>
 
-                    <label id="sort-select-label" className="text-sm font-medium mr-2">
+                    <label
+                      id="sort-select-label"
+                      className="text-sm font-medium mr-2"
+                    >
                       Sort by:
                     </label>
                     <Select
@@ -839,7 +941,7 @@ export default function ApprovalsPage() {
                         key={report.id}
                         report={processReport(report)}
                         branchName={report.branch?.name || "Unknown Branch"}
-                        branchCode={report.branch?.code || ''}
+                        branchCode={report.branch?.code || ""}
                         onApprovalComplete={handleApprovalComplete}
                       />
                     ))}
@@ -852,7 +954,10 @@ export default function ApprovalsPage() {
                 )}
 
                 {Math.ceil(memoizedSortedData.length / 10) > 1 && (
-                  <nav className="flex justify-center my-6" aria-label="Pagination">
+                  <nav
+                    className="flex justify-center my-6"
+                    aria-label="Pagination"
+                  >
                     <Pagination
                       currentPage={filters.currentPage}
                       totalPages={Math.ceil(memoizedSortedData.length / 10)}

@@ -26,7 +26,7 @@ const updateAssignmentSchema = z.object({
 // Helper function to check if user has access to branch
 async function checkBranchAccess(
   userId: string,
-  branchId: string
+  branchId: string,
 ): Promise<boolean> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -62,7 +62,7 @@ export async function GET(req: NextRequest) {
     if (!userId) {
       return NextResponse.json(
         { error: "User ID is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -70,13 +70,13 @@ export async function GET(req: NextRequest) {
     const isOwnAssignments = userId === session.user.id;
     const canManageUsers = hasPermission(
       session.user.role as UserRole,
-      Permission.MANAGE_USERS
+      Permission.MANAGE_USERS,
     );
 
     if (!isOwnAssignments && !canManageUsers) {
       return NextResponse.json(
         { error: "You do not have permission to view these assignments" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -108,7 +108,7 @@ export async function GET(req: NextRequest) {
     console.error("Error fetching user branch assignments:", error);
     return NextResponse.json(
       { error: "Failed to fetch user branch assignments" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -123,12 +123,12 @@ export async function POST(req: NextRequest) {
     // Check permission
     const canManageUsers = hasPermission(
       session.user.role as UserRole,
-      Permission.MANAGE_USERS
+      Permission.MANAGE_USERS,
     );
     if (!canManageUsers) {
       return NextResponse.json(
         { error: "You do not have permission to assign branches" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -139,7 +139,7 @@ export async function POST(req: NextRequest) {
     if (!result.success) {
       return NextResponse.json(
         { error: "Invalid input", details: result.error.flatten() },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -162,7 +162,7 @@ export async function POST(req: NextRequest) {
     if (!branch.isActive) {
       return NextResponse.json(
         { error: "Cannot assign user to an inactive branch" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -174,7 +174,7 @@ export async function POST(req: NextRequest) {
     if (existingAssignment) {
       return NextResponse.json(
         { error: "User is already assigned to this branch" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -182,7 +182,7 @@ export async function POST(req: NextRequest) {
     const assignment = await createBranchAssignment(
       userId,
       branchId,
-      isDefault === true
+      isDefault === true,
     );
 
     // Invalidate user's branch caches
@@ -213,7 +213,7 @@ export async function POST(req: NextRequest) {
     console.error("Error creating user branch assignment:", error);
     return NextResponse.json(
       { error: "Failed to create user branch assignment" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -228,12 +228,12 @@ export async function PATCH(req: NextRequest) {
     // Check permission
     const canManageUsers = hasPermission(
       session.user.role as UserRole,
-      Permission.MANAGE_USERS
+      Permission.MANAGE_USERS,
     );
     if (!canManageUsers) {
       return NextResponse.json(
         { error: "You do not have permission to update branch assignments" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -244,7 +244,7 @@ export async function PATCH(req: NextRequest) {
     if (!result.success) {
       return NextResponse.json(
         { error: "Invalid input", details: result.error.flatten() },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -261,7 +261,7 @@ export async function PATCH(req: NextRequest) {
     if (!assignment) {
       return NextResponse.json(
         { error: "Branch assignment not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -269,7 +269,7 @@ export async function PATCH(req: NextRequest) {
     if (!assignment.branch.isActive) {
       return NextResponse.json(
         { error: "Cannot update assignment for an inactive branch" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -313,7 +313,7 @@ export async function PATCH(req: NextRequest) {
     console.error("Error updating user branch assignment:", error);
     return NextResponse.json(
       { error: "Failed to update user branch assignment" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -328,12 +328,12 @@ export async function DELETE(req: NextRequest) {
     // Check permission
     const canManageUsers = hasPermission(
       session.user.role as UserRole,
-      Permission.MANAGE_USERS
+      Permission.MANAGE_USERS,
     );
     if (!canManageUsers) {
       return NextResponse.json(
         { error: "You do not have permission to delete branch assignments" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -343,7 +343,7 @@ export async function DELETE(req: NextRequest) {
     if (!id) {
       return NextResponse.json(
         { error: "Assignment ID is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -358,7 +358,7 @@ export async function DELETE(req: NextRequest) {
     if (!assignment) {
       return NextResponse.json(
         { error: "Branch assignment not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -369,7 +369,7 @@ export async function DELETE(req: NextRequest) {
           error:
             "Cannot delete default branch assignment. Please set another branch as default first.",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -390,7 +390,7 @@ export async function DELETE(req: NextRequest) {
     console.error("Error deleting user branch assignment:", error);
     return NextResponse.json(
       { error: "Failed to delete user branch assignment" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

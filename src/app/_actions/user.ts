@@ -66,16 +66,18 @@ export async function fetchUserData() {
       permissions: {
         canAccessAdmin: userData.role === "ADMIN",
         canViewAnalytics: ["ADMIN", "BRANCH_MANAGER", "SUPERVISOR"].includes(
-          userData.role as UserRole
+          userData.role as UserRole,
         ),
         canViewAuditLogs: ["ADMIN", "BRANCH_MANAGER"].includes(
-          userData.role as UserRole
+          userData.role as UserRole,
         ),
-        canCustomizeDashboard: ["ADMIN", "BRANCH_MANAGER", "SUPERVISOR"].includes(
-          userData.role as UserRole
-        ),
+        canCustomizeDashboard: [
+          "ADMIN",
+          "BRANCH_MANAGER",
+          "SUPERVISOR",
+        ].includes(userData.role as UserRole),
         canManageSettings: ["ADMIN", "BRANCH_MANAGER"].includes(
-          userData.role as UserRole
+          userData.role as UserRole,
         ),
       },
       preferences: userPreferences,
@@ -108,7 +110,7 @@ export async function updateUserProfileData(data: Partial<UserData>) {
 
     // Filter out undefined values
     const filteredData = Object.fromEntries(
-      Object.entries(updateData).filter(([_, v]) => v !== undefined)
+      Object.entries(updateData).filter(([_, v]) => v !== undefined),
     );
 
     if (Object.keys(filteredData).length === 0) {
@@ -131,7 +133,7 @@ export async function updateUserProfileData(data: Partial<UserData>) {
 // Update user preferences
 export async function updateUserPreferenceData(
   type: keyof UserPreferences,
-  preferences: Partial<UserPreferences[keyof UserPreferences]>
+  preferences: Partial<UserPreferences[keyof UserPreferences]>,
 ) {
   try {
     const session = await getServerSession(authOptions);

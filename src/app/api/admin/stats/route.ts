@@ -3,8 +3,11 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Permission } from "@/lib/auth/roles";
-import { DashboardEventTypes, createDashboardUpdate } from '@/lib/events/dashboard-events';
-import { broadcastDashboardUpdate } from '@/lib/events/dashboard-broadcaster';
+import {
+  DashboardEventTypes,
+  createDashboardUpdate,
+} from "@/lib/events/dashboard-events";
+import { broadcastDashboardUpdate } from "@/lib/events/dashboard-broadcaster";
 
 export async function GET() {
   try {
@@ -25,7 +28,14 @@ export async function GET() {
     }
 
     // Fetch statistics
-    const [totalUsers, adminUsers, totalBranches, activeUsers, pendingReports, recentActivityRaw] = await Promise.all([
+    const [
+      totalUsers,
+      adminUsers,
+      totalBranches,
+      activeUsers,
+      pendingReports,
+      recentActivityRaw,
+    ] = await Promise.all([
       prisma.user.count(),
       prisma.user.count({
         where: {
@@ -67,7 +77,10 @@ export async function GET() {
     }));
 
     // Dummy storage usage (replace with real logic if available)
-    const storageUsage = { used: 2.5 * 1024 * 1024 * 1024, total: 10 * 1024 * 1024 * 1024 };
+    const storageUsage = {
+      used: 2.5 * 1024 * 1024 * 1024,
+      total: 10 * 1024 * 1024 * 1024,
+    };
 
     const stats = {
       totalUsers,
@@ -81,7 +94,10 @@ export async function GET() {
     };
 
     // Broadcast update via SSE (optional: only if you want real-time dashboard updates)
-    broadcastDashboardUpdate(DashboardEventTypes.DASHBOARD_METRICS_UPDATED, stats);
+    broadcastDashboardUpdate(
+      DashboardEventTypes.DASHBOARD_METRICS_UPDATED,
+      stats,
+    );
 
     return NextResponse.json(stats);
   } catch (error) {

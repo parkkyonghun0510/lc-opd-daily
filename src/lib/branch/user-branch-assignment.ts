@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
  */
 export async function setDefaultBranchAssignment(
   userId: string,
-  assignmentId: string
+  assignmentId: string,
 ): Promise<void> {
   // Use a transaction to ensure atomicity
   await prisma.$transaction([
@@ -39,7 +39,7 @@ export async function setDefaultBranchAssignment(
 export async function createBranchAssignment(
   userId: string,
   branchId: string,
-  makeDefault: boolean = false
+  makeDefault: boolean = false,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<any> {
   // First create the assignment
@@ -69,7 +69,7 @@ export async function createBranchAssignment(
  */
 export async function setDefaultUserRole(
   userId: string,
-  userRoleId: string
+  userRoleId: string,
 ): Promise<void> {
   await prisma.$transaction([
     prisma.userRole.updateMany({

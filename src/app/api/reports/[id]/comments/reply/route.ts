@@ -10,28 +10,26 @@ import { sanitizeString } from "@/utils/sanitize";
 
 // POST /api/reports/[id]/comments/reply - Add a reply to a comment
 // @deprecated - This endpoint is deprecated. Use /api/reports/[id]/report-comments instead with a parentId parameter.
-export async function POST(
-  request: NextRequest
-) {
+export async function POST(request: NextRequest) {
   try {
     const token = await getToken({ req: request });
 
     if (!token) {
       return NextResponse.json(
         { error: "Unauthorized - Authentication required" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
     // Extract the ID from the URL path
     const url = new URL(request.url);
-    const pathParts = url.pathname.split('/');
+    const pathParts = url.pathname.split("/");
     const reportId = pathParts[pathParts.length - 3]; // Get the report ID from the URL path
 
     if (!reportId) {
       return NextResponse.json(
         { error: "Report ID is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -42,14 +40,14 @@ export async function POST(
     if (!comment || typeof comment !== "string" || comment.trim() === "") {
       return NextResponse.json(
         { error: "Comment text is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (!parentId) {
       return NextResponse.json(
         { error: "Parent comment ID is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -59,23 +57,20 @@ export async function POST(
     });
 
     if (!report) {
-      return NextResponse.json(
-        { error: "Report not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Report not found" }, { status: 404 });
     }
 
     // Get commenter's name for better display
     const user = await prisma.user.findUnique({
       where: { id: token.sub as string },
-      select: { name: true }
+      select: { name: true },
     });
 
     const commenterName = user?.name || token.email || "User";
     const timestamp = format(new Date(), "yyyy-MM-dd HH:mm:ss");
 
     // Sanitize the comment text
-    const sanitizedComment = sanitizeString(comment) || '';
+    const sanitizedComment = sanitizeString(comment) || "";
 
     // Format the reply for legacy support
     const replyWithMeta = `[COMMENT ${timestamp} by ${commenterName}]: ${comment} (Reply)`;
@@ -93,8 +88,8 @@ export async function POST(
         comments: sanitizeString(updatedComments), // Sanitize legacy comments
       },
       include: {
-        branch: true
-      }
+        branch: true,
+      },
     });
 
     // Also create a record in the ReportComment model (new approach)
@@ -103,12 +98,18 @@ export async function POST(
         data: {
           reportId,
           userId: token.sub as string,
-          content: sanitizeString(`Reply to comment ${parentId}: ${comment}`) || '',
-        }
+          content:
+            sanitizeString(`Reply to comment ${parentId}: ${comment}`) || "",
+        },
       });
-      console.log("[INFO] Created ReportComment record for reply (backward compatibility)");
+      console.log(
+        "[INFO] Created ReportComment record for reply (backward compatibility)",
+      );
     } catch (commentError) {
-      console.error("Error creating ReportComment record for reply (non-critical):", commentError);
+      console.error(
+        "Error creating ReportComment record for reply (non-critical):",
+        commentError,
+      );
       // We don't want to fail the reply creation if this fails
     }
 
@@ -129,13 +130,11 @@ export async function POST(
 
     return NextResponse.json({
       success: true,
-      message: "Reply added successfully. Note: This endpoint is deprecated, please use /api/reports/[id]/report-comments instead."
+      message:
+        "Reply added successfully. Note: This endpoint is deprecated, please use /api/reports/[id]/report-comments instead.",
     });
   } catch (error) {
     console.error("Error adding reply:", error);
-    return NextResponse.json(
-      { error: "Failed to add reply" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to add reply" }, { status: 500 });
   }
 }

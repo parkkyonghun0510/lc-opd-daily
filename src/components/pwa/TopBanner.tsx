@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { ReactNode } from 'react';
-import { Card } from '@/components/ui/card';
-import { X } from 'lucide-react';
+import { ReactNode } from "react";
+import { Card } from "@/components/ui/card";
+import { X } from "lucide-react";
 
 type BannerProps = {
   title: string;
@@ -12,7 +12,13 @@ type BannerProps = {
   actions: ReactNode;
 };
 
-export function TopBanner({ title, description, isVisible, onDismiss, actions }: BannerProps) {
+export function TopBanner({
+  title,
+  description,
+  isVisible,
+  onDismiss,
+  actions,
+}: BannerProps) {
   const animationClass = isVisible
     ? "translate-y-0 opacity-100 transition-all duration-300 ease-out"
     : "-translate-y-full opacity-0 transition-all duration-300 ease-in pointer-events-none";
@@ -30,18 +36,16 @@ export function TopBanner({ title, description, isVisible, onDismiss, actions }:
                 {description}
               </p>
             </div>
-            <button 
-              onClick={onDismiss} 
+            <button
+              onClick={onDismiss}
               className="ml-2 text-gray-400 hover:text-gray-500 dark:text-gray-500 dark:hover:text-gray-400"
             >
               <X className="h-5 w-5" />
             </button>
           </div>
-          <div className="flex justify-end gap-2">
-            {actions}
-          </div>
+          <div className="flex justify-end gap-2">{actions}</div>
         </div>
       </Card>
     </div>
   );
-} 
+}

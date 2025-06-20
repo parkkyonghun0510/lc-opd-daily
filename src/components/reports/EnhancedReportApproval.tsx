@@ -40,12 +40,14 @@ interface EnhancedReportApprovalProps {
 }
 
 // Helper function to safely format dates with improved performance
-const safeFormatDate = (dateValue: string | Date | null | undefined): string => {
+const safeFormatDate = (
+  dateValue: string | Date | null | undefined,
+): string => {
   if (!dateValue) return "N/A";
 
   try {
     // If it's already a string in ISO format, try to parse and format it
-    if (typeof dateValue === 'string') {
+    if (typeof dateValue === "string") {
       // Check if it's already in the desired format (yyyy-MM-dd)
       if (/^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
         return dateValue;
@@ -91,7 +93,7 @@ export function EnhancedReportApproval({
   const [processedReport, setProcessedReport] = useState<Report | null>(null);
 
   const branchName = report.branch?.name || "Unknown Branch";
-  const userRole = session?.user?.role as UserRole || UserRole.USER;
+  const userRole = (session?.user?.role as UserRole) || UserRole.USER;
 
   // Process the report to ensure all dates are strings using useMemo for better performance
   const processedReportData = useMemo(() => {
@@ -101,20 +103,27 @@ export function EnhancedReportApproval({
     return {
       ...report,
       date: safeFormatDate(report.date),
-      submittedAt: typeof report.submittedAt === 'string'
-        ? report.submittedAt
-        : safeFormatDate(report.submittedAt),
-      updatedAt: report.updatedAt ? safeFormatDate(report.updatedAt) : undefined,
+      submittedAt:
+        typeof report.submittedAt === "string"
+          ? report.submittedAt
+          : safeFormatDate(report.submittedAt),
+      updatedAt: report.updatedAt
+        ? safeFormatDate(report.updatedAt)
+        : undefined,
       // Process ReportComment dates if they exist
-      ReportComment: report.ReportComment ? report.ReportComment.map(comment => ({
-        ...comment,
-        createdAt: typeof comment.createdAt === 'string'
-          ? comment.createdAt
-          : safeFormatDate(comment.createdAt),
-        updatedAt: typeof comment.updatedAt === 'string'
-          ? comment.updatedAt
-          : safeFormatDate(comment.updatedAt),
-      })) : undefined,
+      ReportComment: report.ReportComment
+        ? report.ReportComment.map((comment) => ({
+            ...comment,
+            createdAt:
+              typeof comment.createdAt === "string"
+                ? comment.createdAt
+                : safeFormatDate(comment.createdAt),
+            updatedAt:
+              typeof comment.updatedAt === "string"
+                ? comment.updatedAt
+                : safeFormatDate(comment.updatedAt),
+          }))
+        : undefined,
     };
   }, [report]);
 
@@ -154,9 +163,9 @@ export function EnhancedReportApproval({
       // Use server action
       const result = await approveReportAction(
         processedReport.id,
-        status as 'approved' | 'rejected',
+        status as "approved" | "rejected",
         remarks.trim(),
-        true // notifyUsers
+        true, // notifyUsers
       );
 
       if (!result.success) {
@@ -174,10 +183,14 @@ export function EnhancedReportApproval({
       setRemarks("");
       onApprovalComplete();
     } catch (error) {
-      console.error(`Error ${isApproveDialogOpen ? "approving" : "rejecting"} report:`, error);
+      console.error(
+        `Error ${isApproveDialogOpen ? "approving" : "rejecting"} report:`,
+        error,
+      );
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : `Failed to process report`,
+        description:
+          error instanceof Error ? error.message : `Failed to process report`,
         variant: "destructive",
       });
     } finally {
@@ -188,7 +201,7 @@ export function EnhancedReportApproval({
     isRejectDialogOpen,
     isApproveDialogOpen,
     processedReport,
-    onApprovalComplete
+    onApprovalComplete,
   ]);
 
   // Helper functions to open dialogs with useCallback for better performance
@@ -210,15 +223,12 @@ export function EnhancedReportApproval({
       pending: "secondary",
       pending_approval: "secondary",
       approved: "success",
-      rejected: "destructive"
+      rejected: "destructive",
     };
 
     return (
-      <Badge
-        variant={variants[status] as any}
-        className="capitalize"
-      >
-        {status.replace('_', ' ')}
+      <Badge variant={variants[status] as any} className="capitalize">
+        {status.replace("_", " ")}
       </Badge>
     );
   }, []);
@@ -247,7 +257,10 @@ export function EnhancedReportApproval({
   }
 
   // For reports that are already approved or rejected
-  if (processedReport.status !== "pending" && processedReport.status !== "pending_approval") {
+  if (
+    processedReport.status !== "pending" &&
+    processedReport.status !== "pending_approval"
+  ) {
     return (
       <div className="space-y-3">
         <div className="flex items-center space-x-2">
@@ -270,15 +283,17 @@ export function EnhancedReportApproval({
         </div>
 
         {/* Role-specific guidance */}
-        {(userRole === UserRole.USER || userRole === UserRole.SUPERVISOR) && processedReport.status === "rejected" && (
-          <Alert variant="destructive" className="mt-2 py-2">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Action Required</AlertTitle>
-            <AlertDescription>
-              This report was rejected. Please review the comments and resubmit.
-            </AlertDescription>
-          </Alert>
-        )}
+        {(userRole === UserRole.USER || userRole === UserRole.SUPERVISOR) &&
+          processedReport.status === "rejected" && (
+            <Alert variant="destructive" className="mt-2 py-2">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Action Required</AlertTitle>
+              <AlertDescription>
+                This report was rejected. Please review the comments and
+                resubmit.
+              </AlertDescription>
+            </Alert>
+          )}
 
         {userRole === UserRole.BRANCH_MANAGER && (
           <Alert className="mt-2 py-2">
@@ -296,7 +311,9 @@ export function EnhancedReportApproval({
         <div className="mt-4">
           <ReportCommentsList
             reportId={processedReport.id}
-            initialComments={processedReport.ReportComment as ReportCommentType[]}
+            initialComments={
+              processedReport.ReportComment as ReportCommentType[]
+            }
           />
         </div>
       </div>
@@ -324,11 +341,7 @@ export function EnhancedReportApproval({
             <CheckCircle className="mr-1 h-4 w-4" />
             Approve
           </Button>
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={openRejectDialog}
-          >
+          <Button variant="destructive" size="sm" onClick={openRejectDialog}>
             <XCircle className="mr-1 h-4 w-4" />
             Reject
           </Button>
@@ -336,20 +349,25 @@ export function EnhancedReportApproval({
       </PermissionGate>
 
       {/* Display existing comments */}
-      {processedReport.ReportComment && processedReport.ReportComment.length > 0 && (
-        <div className="mt-4">
-          <ReportCommentsList
-            reportId={processedReport.id}
-            initialComments={processedReport.ReportComment as ReportCommentType[]}
-          />
-        </div>
-      )}
+      {processedReport.ReportComment &&
+        processedReport.ReportComment.length > 0 && (
+          <div className="mt-4">
+            <ReportCommentsList
+              reportId={processedReport.id}
+              initialComments={
+                processedReport.ReportComment as ReportCommentType[]
+              }
+            />
+          </div>
+        )}
 
       {/* Approve Dialog */}
       <Dialog open={isApproveDialogOpen} onOpenChange={setIsApproveDialogOpen}>
         <DialogContent className="dark:bg-gray-800 dark:border-gray-700">
           <DialogHeader>
-            <DialogTitle className="dark:text-gray-100">Approve Report</DialogTitle>
+            <DialogTitle className="dark:text-gray-100">
+              Approve Report
+            </DialogTitle>
             <DialogDescription className="dark:text-gray-400">
               You are about to approve the report for {branchName}
             </DialogDescription>
@@ -357,16 +375,26 @@ export function EnhancedReportApproval({
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label className="text-sm text-gray-500 dark:text-gray-400">Write-offs</Label>
-                <div className="font-semibold dark:text-gray-200">{formatKHRCurrency(processedReport.writeOffs)}</div>
+                <Label className="text-sm text-gray-500 dark:text-gray-400">
+                  Write-offs
+                </Label>
+                <div className="font-semibold dark:text-gray-200">
+                  {formatKHRCurrency(processedReport.writeOffs)}
+                </div>
               </div>
               <div>
-                <Label className="text-sm text-gray-500 dark:text-gray-400">90+ Days</Label>
-                <div className="font-semibold dark:text-gray-200">{formatKHRCurrency(processedReport.ninetyPlus)}</div>
+                <Label className="text-sm text-gray-500 dark:text-gray-400">
+                  90+ Days
+                </Label>
+                <div className="font-semibold dark:text-gray-200">
+                  {formatKHRCurrency(processedReport.ninetyPlus)}
+                </div>
               </div>
             </div>
             <div>
-              <Label htmlFor="approval-remarks" className="dark:text-gray-200">Comments (optional)</Label>
+              <Label htmlFor="approval-remarks" className="dark:text-gray-200">
+                Comments (optional)
+              </Label>
               <Textarea
                 id="approval-remarks"
                 value={remarks}
@@ -406,7 +434,9 @@ export function EnhancedReportApproval({
       <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
         <DialogContent className="dark:bg-gray-800 dark:border-gray-700">
           <DialogHeader>
-            <DialogTitle className="dark:text-gray-100">Reject Report</DialogTitle>
+            <DialogTitle className="dark:text-gray-100">
+              Reject Report
+            </DialogTitle>
             <DialogDescription className="dark:text-gray-400">
               Please provide a reason for rejecting this report
             </DialogDescription>
@@ -414,12 +444,20 @@ export function EnhancedReportApproval({
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label className="text-sm text-gray-500 dark:text-gray-400">Write-offs</Label>
-                <div className="font-semibold dark:text-gray-200">{formatKHRCurrency(processedReport.writeOffs)}</div>
+                <Label className="text-sm text-gray-500 dark:text-gray-400">
+                  Write-offs
+                </Label>
+                <div className="font-semibold dark:text-gray-200">
+                  {formatKHRCurrency(processedReport.writeOffs)}
+                </div>
               </div>
               <div>
-                <Label className="text-sm text-gray-500 dark:text-gray-400">90+ Days</Label>
-                <div className="font-semibold dark:text-gray-200">{formatKHRCurrency(processedReport.ninetyPlus)}</div>
+                <Label className="text-sm text-gray-500 dark:text-gray-400">
+                  90+ Days
+                </Label>
+                <div className="font-semibold dark:text-gray-200">
+                  {formatKHRCurrency(processedReport.ninetyPlus)}
+                </div>
               </div>
             </div>
             <div>

@@ -1,11 +1,21 @@
-import { Metadata } from 'next';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import SimpleHybridTest from '@/components/SimpleHybridTest';
-import { TestSSEButton, TestEventButton, TestPollingButton } from '@/components/TestButtons';
+import { Metadata } from "next";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import SimpleHybridTest from "@/components/SimpleHybridTest";
+import {
+  TestSSEButton,
+  TestEventButton,
+  TestPollingButton,
+} from "@/components/TestButtons";
 
 export const metadata: Metadata = {
-  title: 'Test Hybrid Realtime',
-  description: 'Simple test page for hybrid realtime updates',
+  title: "Test Hybrid Realtime",
+  description: "Simple test page for hybrid realtime updates",
 };
 
 export default function TestHybridPage() {
@@ -22,8 +32,9 @@ export default function TestHybridPage() {
         </CardHeader>
         <CardContent>
           <p className="mb-4">
-            This page includes a simple client-side script to test the hybrid realtime approach.
-            Open your browser console to see the connection status and events.
+            This page includes a simple client-side script to test the hybrid
+            realtime approach. Open your browser console to see the connection
+            status and events.
           </p>
 
           <div className="flex space-x-4">
@@ -36,14 +47,10 @@ export default function TestHybridPage() {
       <Card className="mb-6">
         <CardHeader>
           <CardTitle>Polling Test</CardTitle>
-          <CardDescription>
-            Test the polling fallback mechanism
-          </CardDescription>
+          <CardDescription>Test the polling fallback mechanism</CardDescription>
         </CardHeader>
         <CardContent>
-          <p className="mb-4">
-            This tests the polling fallback mechanism.
-          </p>
+          <p className="mb-4">This tests the polling fallback mechanism.</p>
 
           <TestPollingButton />
         </CardContent>

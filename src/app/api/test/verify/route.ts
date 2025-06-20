@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
     if (!token) {
       return NextResponse.json(
         { error: "Unauthorized - Authentication required" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
       canApproveReports: ["admin", "manager"].includes(token.role),
       canCreateReports: ["admin", "manager", "user"].includes(token.role),
       canViewReports: ["admin", "manager", "user", "readonly"].includes(
-        token.role
+        token.role,
       ),
     };
 
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
     console.error("Error verifying authentication:", error);
     return NextResponse.json(
       { error: "Failed to verify authentication" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

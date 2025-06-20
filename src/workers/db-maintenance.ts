@@ -1,16 +1,16 @@
 /**
  * Database Maintenance Worker
- * 
+ *
  * This script handles routine PostgreSQL maintenance tasks:
  * - VACUUM to reclaim storage
  * - ANALYZE to update query planner statistics
  * - Index maintenance
- * 
+ *
  * Run this script via a scheduled task (e.g., cron job)
  */
-import { PrismaClient } from '@prisma/client';
-import { exec } from 'child_process';
-import { promisify } from 'util';
+import { PrismaClient } from "@prisma/client";
+import { exec } from "child_process";
+import { promisify } from "util";
 
 const execAsync = promisify(exec);
 const prisma = new PrismaClient();
@@ -23,7 +23,7 @@ async function runMaintenance() {
     // Get database connection info from Prisma
     const url = process.env.DATABASE_URL;
     if (!url) {
-      throw new Error('DATABASE_URL environment variable is not set');
+      throw new Error("DATABASE_URL environment variable is not set");
     }
 
     // Extract database name from connection URL
@@ -31,16 +31,16 @@ async function runMaintenance() {
     const dbName = matches ? matches[1] : null;
 
     if (!dbName) {
-      throw new Error('Could not parse database name from connection URL');
+      throw new Error("Could not parse database name from connection URL");
     }
 
     // 1. Run VACUUM ANALYZE on all tables
     //console.log('Running VACUUM ANALYZE on all tables...');
-    await prisma.$executeRawUnsafe('VACUUM ANALYZE;');
+    await prisma.$executeRawUnsafe("VACUUM ANALYZE;");
 
     // 2. Update statistics for the query planner
     //console.log('Running ANALYZE to update query planner statistics...');
-    await prisma.$executeRawUnsafe('ANALYZE;');
+    await prisma.$executeRawUnsafe("ANALYZE;");
 
     // 3. Identify and rebuild bloated indexes
     //console.log('Checking for bloated indexes...');
@@ -69,7 +69,9 @@ async function runMaintenance() {
       for (const index of bloatedIndexes) {
         //console.log(`Rebuilding index ${index.index_name} on ${index.table_name} (${index.index_size})...`);
         try {
-          await prisma.$executeRawUnsafe(`REINDEX INDEX "${index.index_name}";`);
+          await prisma.$executeRawUnsafe(
+            `REINDEX INDEX "${index.index_name}";`,
+          );
           //console.log(`Successfully rebuilt index ${index.index_name}`);
         } catch (error) {
           console.error(`Error rebuilding index ${index.index_name}:`, error);
@@ -140,9 +142,8 @@ async function runMaintenance() {
 
     const elapsedTime = (Date.now() - startTime) / 1000;
     //console.log(`\nDatabase maintenance completed in ${elapsedTime.toFixed(2)} seconds`);
-
   } catch (error) {
-    console.error('Error during database maintenance:', error);
+    console.error("Error during database maintenance:", error);
   } finally {
     await prisma.$disconnect();
   }
@@ -156,9 +157,9 @@ if (require.main === module) {
       process.exit(0);
     })
     .catch((error) => {
-      console.error('Maintenance failed:', error);
+      console.error("Maintenance failed:", error);
       process.exit(1);
     });
 }
 
-export { runMaintenance }; 
+export { runMaintenance };

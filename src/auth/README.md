@@ -42,6 +42,7 @@ This authentication system follows a modern, modular architecture:
 The authentication store is built with Zustand and uses a sliced pattern for better organization:
 
 - **AuthSlice**: Manages authentication state (user, isAuthenticated, etc.)
+
   - Handles login/logout flows
   - Tracks session expiry
   - Manages authentication errors
@@ -56,24 +57,28 @@ The authentication store is built with Zustand and uses a sliced pattern for bet
 ### Components
 
 - **AuthStatusIndicator**: Shows the current authentication status in the UI
+
   - Displays user avatar and name
   - Provides quick access to profile, settings, etc.
   - Shows session expiry information
   - Handles theme switching
 
 - **PermissionGate**: Controls access to UI components based on permissions
+
   - Supports single or multiple permission checks
   - Can require all or any permissions
   - Provides fallback UI for unauthorized users
   - Handles loading states
 
 - **ProtectedRoute**: Protects routes based on authentication and permissions
+
   - Redirects unauthenticated users to login
   - Checks for required permissions or roles
   - Supports custom redirect paths
   - Handles loading states
 
 - **SessionActivityTracker**: Manages user session activity
+
   - Tracks user activity to prevent timeouts
   - Shows warning dialog before session expiry
   - Provides session extension functionality
@@ -88,12 +93,14 @@ The authentication store is built with Zustand and uses a sliced pattern for bet
 ### Hooks
 
 - **useAuth**: Provides access to authentication state and actions
+
   - Login/logout functionality
   - Authentication status
   - User information
   - Error handling
 
 - **useUserProfile**: Provides access to user profile data
+
   - Profile information
   - Profile update functions
   - Preferences management
@@ -119,7 +126,7 @@ The authentication system integrates seamlessly with NextAuth.js:
 ### Basic Authentication
 
 ```tsx
-import { useAuth } from '@/auth/hooks/useAuth';
+import { useAuth } from "@/auth/hooks/useAuth";
 
 function MyComponent() {
   const { user, isAuthenticated, login, logout, isLoading, error } = useAuth();
@@ -133,7 +140,7 @@ function MyComponent() {
       <div>
         <p>Please log in</p>
         {error && <p className="text-red-500">{error}</p>}
-        <button onClick={() => login('username', 'password')}>Login</button>
+        <button onClick={() => login("username", "password")}>Login</button>
       </div>
     );
   }
@@ -150,20 +157,16 @@ function MyComponent() {
 ### User Profile Management
 
 ```tsx
-import { useUserProfile } from '@/auth/hooks/useAuth';
+import { useUserProfile } from "@/auth/hooks/useAuth";
 
 function ProfilePage() {
-  const {
-    profile,
-    isLoading,
-    updateProfile,
-    updatePreferences
-  } = useUserProfile();
+  const { profile, isLoading, updateProfile, updatePreferences } =
+    useUserProfile();
 
   const handleUpdateProfile = async () => {
     const success = await updateProfile({
-      name: 'New Name',
-      email: 'new.email@example.com'
+      name: "New Name",
+      email: "new.email@example.com",
     });
 
     if (success) {
@@ -172,8 +175,8 @@ function ProfilePage() {
   };
 
   const handleUpdateTheme = async () => {
-    await updatePreferences('ui', {
-      theme: 'dark'
+    await updatePreferences("ui", {
+      theme: "dark",
     });
   };
 
@@ -186,7 +189,7 @@ function ProfilePage() {
       <h1>Profile: {profile.name}</h1>
       <p>Email: {profile.email}</p>
       <p>Role: {profile.role}</p>
-      <p>Branch: {profile.branch?.name || 'None'}</p>
+      <p>Branch: {profile.branch?.name || "None"}</p>
 
       <button onClick={handleUpdateProfile}>Update Profile</button>
       <button onClick={handleUpdateTheme}>Switch to Dark Theme</button>
@@ -198,19 +201,19 @@ function ProfilePage() {
 ### Permission Checking
 
 ```tsx
-import { PermissionGate } from '@/auth/components/PermissionGate';
-import { usePermissions } from '@/auth/hooks/useAuth';
+import { PermissionGate } from "@/auth/components/PermissionGate";
+import { usePermissions } from "@/auth/hooks/useAuth";
 
 function AdminPanel() {
   const { hasPermission, hasRole, can } = usePermissions();
 
   // Using the hook directly
-  if (!hasRole('ADMIN')) {
+  if (!hasRole("ADMIN")) {
     return <p>Admin access required</p>;
   }
 
   // Using the shorthand helper
-  const canManageUsers = can('MANAGE_USERS');
+  const canManageUsers = can("MANAGE_USERS");
 
   return (
     <div>
@@ -249,7 +252,7 @@ function AdminPanel() {
 ### Protected Routes
 
 ```tsx
-import { ProtectedRoute } from '@/auth/components/ProtectedRoute';
+import { ProtectedRoute } from "@/auth/components/ProtectedRoute";
 
 function AdminPage() {
   return (
@@ -283,18 +286,20 @@ function ReportsPage() {
 The authentication system includes advanced session management features:
 
 - **Session Timeout**: Automatically logs out users after a period of inactivity
+
   ```tsx
   // In your app layout or providers
   <SessionActivityTracker
     warningTime={25} // Show warning 5 minutes before expiry
-    expiryTime={30}  // Session expires after 30 minutes
+    expiryTime={30} // Session expires after 30 minutes
     checkInterval={30} // Check every 30 seconds
   />
   ```
 
 - **Token Refresh**: Automatically refreshes authentication tokens before they expire
+
   ```tsx
-  import { useAuth } from '@/auth/hooks/useAuth';
+  import { useAuth } from "@/auth/hooks/useAuth";
 
   // In a component
   const { refreshAuthToken, silentRefresh, needsTokenRefresh } = useAuth();
@@ -310,8 +315,9 @@ The authentication system includes advanced session management features:
   ```
 
 - **Session Refresh**: Allows users to refresh their session without logging out
+
   ```tsx
-  import { refreshSession } from '@/auth/store/actions';
+  import { refreshSession } from "@/auth/store/actions";
 
   // In a component
   const handleRefreshSession = async () => {
@@ -323,6 +329,7 @@ The authentication system includes advanced session management features:
   ```
 
 - **Session Expiry Warning**: Shows a warning dialog before the session expires
+
   ```tsx
   // The SessionActivityTracker handles this automatically
   // You can customize the warning dialog by modifying the component
@@ -343,6 +350,7 @@ The authentication system includes advanced session management features:
 The authentication system includes real-time synchronization features:
 
 - **Store Synchronization**: Synchronizes the store with the server at regular intervals
+
   ```tsx
   // In your app layout or providers
   <StoreSynchronizer
@@ -360,13 +368,14 @@ The authentication system includes real-time synchronization features:
 The authentication system includes optimistic update features:
 
 - **Optimistic Profile Updates**: Updates the UI immediately, then syncs with the server
+
   ```tsx
-  import { updatePreferencesOptimistic } from '@/auth/store/actions';
+  import { updatePreferencesOptimistic } from "@/auth/store/actions";
 
   // In a component
   const handleUpdateTheme = async () => {
-    const success = await updatePreferencesOptimistic('ui', {
-      theme: 'dark'
+    const success = await updatePreferencesOptimistic("ui", {
+      theme: "dark",
     });
 
     // UI is updated immediately, even before the server responds
@@ -381,21 +390,25 @@ The authentication system includes optimistic update features:
 The authentication system includes analytics tracking features:
 
 - **Event Tracking**: Tracks authentication events like login, logout, session expiry, etc.
+
   ```tsx
-  import { trackAuthEvent, AuthEventType } from '@/auth/utils/analytics';
+  import { trackAuthEvent, AuthEventType } from "@/auth/utils/analytics";
 
   // Track a custom authentication event
   trackAuthEvent(AuthEventType.LOGIN_SUCCESS, {
     userId: user.id,
     username: user.email,
     role: user.role,
-    details: { /* additional data */ }
+    details: {
+      /* additional data */
+    },
   });
   ```
 
 - **Analytics Dashboard**: Visualizes authentication events with charts and graphs
+
   ```tsx
-  import { AuthAnalyticsDashboard } from '@/auth/components/AuthAnalyticsDashboard';
+  import { AuthAnalyticsDashboard } from "@/auth/components/AuthAnalyticsDashboard";
 
   function AnalyticsPage() {
     return (
@@ -409,19 +422,20 @@ The authentication system includes analytics tracking features:
 
 - **Event Log**: Provides a detailed log of authentication events
 - **Configurable Providers**: Supports multiple analytics providers (console, localStorage, server)
+
   ```tsx
-  import { configureAnalytics } from '@/auth/utils/analytics';
+  import { configureAnalytics } from "@/auth/utils/analytics";
 
   // Configure analytics
   configureAnalytics({
     enabled: true,
-    debug: process.env.NODE_ENV === 'development',
+    debug: process.env.NODE_ENV === "development",
     providers: {
       console: true,
       localStorage: true,
       server: true,
     },
-    endpoint: '/api/auth/analytics',
+    endpoint: "/api/auth/analytics",
   });
   ```
 
@@ -430,16 +444,18 @@ The authentication system includes analytics tracking features:
 The authentication system includes security enhancement features:
 
 - **Token Validation**: Validates JWT tokens for authenticity and expiry
+
   ```tsx
-  import { validateToken } from '@/auth/utils/security';
+  import { validateToken } from "@/auth/utils/security";
 
   // Validate a JWT token
   const isValid = validateToken(token);
   ```
 
 - **Refresh Token**: Uses refresh tokens to maintain authentication without requiring re-login
+
   ```tsx
-  import { useAuth } from '@/auth/hooks/useAuth';
+  import { useAuth } from "@/auth/hooks/useAuth";
 
   // In a component
   const { refreshAuthToken, isTokenExpired, timeUntilTokenExpiry } = useAuth();
@@ -456,8 +472,12 @@ The authentication system includes security enhancement features:
   ```
 
 - **Browser Fingerprinting**: Validates browser fingerprint for additional security
+
   ```tsx
-  import { generateFingerprint, validateFingerprint } from '@/auth/utils/security';
+  import {
+    generateFingerprint,
+    validateFingerprint,
+  } from "@/auth/utils/security";
 
   // Generate a browser fingerprint
   const fingerprint = generateFingerprint();
@@ -467,8 +487,9 @@ The authentication system includes security enhancement features:
   ```
 
 - **Brute Force Protection**: Protects against brute force attacks with account lockouts
+
   ```tsx
-  import { trackLoginAttempt, isAccountLocked } from '@/auth/utils/security';
+  import { trackLoginAttempt, isAccountLocked } from "@/auth/utils/security";
 
   // Track a login attempt
   const isLocked = trackLoginAttempt(username, success);
@@ -478,6 +499,7 @@ The authentication system includes security enhancement features:
   ```
 
 - **Automatic Token Refresh**: Automatically refreshes tokens before they expire
+
   ```tsx
   // The StoreSynchronizer component handles this automatically
   <StoreSynchronizer
@@ -488,8 +510,9 @@ The authentication system includes security enhancement features:
   ```
 
 - **Configurable Security**: Allows customization of security features
+
   ```tsx
-  import { configureSecurity } from '@/auth/utils/security';
+  import { configureSecurity } from "@/auth/utils/security";
 
   // Configure security
   configureSecurity({
@@ -515,14 +538,14 @@ The authentication system includes developer tools for debugging:
 - **Local Storage Inspection**: Inspect and manage authentication data in local storage
 
 ```tsx
-import { AuthDevTools } from '@/auth/components/AuthDevTools';
+import { AuthDevTools } from "@/auth/components/AuthDevTools";
 
 // Add to your app layout for development only
 function AppLayout({ children }) {
   return (
     <>
       {children}
-      {process.env.NODE_ENV === 'development' && <AuthDevTools />}
+      {process.env.NODE_ENV === "development" && <AuthDevTools />}
     </>
   );
 }

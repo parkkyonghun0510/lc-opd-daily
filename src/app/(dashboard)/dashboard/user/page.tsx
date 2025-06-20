@@ -15,12 +15,12 @@ export default function UserDashboardPage() {
 
   useEffect(() => {
     if (userData?.computedFields?.accessLevel !== UserRole.USER) {
-      router.push('/dashboard');
+      router.push("/dashboard");
     }
   }, [userData, router]);
 
   return (
-    <ZustandDashboardProvider debug={process.env.NODE_ENV === 'development'}>
+    <ZustandDashboardProvider debug={process.env.NODE_ENV === "development"}>
       <UserLoadingGuard>
         <RoleBasedDashboard />
         <ReportViewHandler />

@@ -1,10 +1,21 @@
-'use client';
+"use client";
 
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { AlertCircle, CheckCircle, RefreshCw, Wifi, WifiOff } from 'lucide-react';
-import { useDashboardStore } from '@/stores/dashboardStore';
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  AlertCircle,
+  CheckCircle,
+  RefreshCw,
+  Wifi,
+  WifiOff,
+} from "lucide-react";
+import { useDashboardStore } from "@/stores/dashboardStore";
 
 // Completely rewritten component to avoid using hooks that might cause infinite loops
 export default function DashboardStatusIndicator() {
@@ -19,14 +30,14 @@ export default function DashboardStatusIndicator() {
 
   // Define handlers that call store methods directly
   const handleRefresh = () => {
-    const role = 'USER'; // Default role if we can't get it
+    const role = "USER"; // Default role if we can't get it
     store.refreshDashboardData(role);
   };
 
   const handleReconnect = () => {
     // Dispatch a custom event that the SSE component can listen for
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('sse-reconnect-requested'));
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("sse-reconnect-requested"));
     }
   };
 
@@ -38,15 +49,23 @@ export default function DashboardStatusIndicator() {
           <TooltipTrigger asChild>
             <div className="flex items-center">
               {isConnected ? (
-                <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 flex items-center">
+                <Badge
+                  variant="outline"
+                  className="bg-green-50 text-green-700 border-green-200 flex items-center"
+                >
                   <CheckCircle className="w-3 h-3 mr-1" />
                   Connected
                   {connectionMethod && (
-                    <span className="ml-1 text-xs text-green-600">({connectionMethod})</span>
+                    <span className="ml-1 text-xs text-green-600">
+                      ({connectionMethod})
+                    </span>
                   )}
                 </Badge>
               ) : (
-                <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 flex items-center">
+                <Badge
+                  variant="outline"
+                  className="bg-red-50 text-red-700 border-red-200 flex items-center"
+                >
                   <AlertCircle className="w-3 h-3 mr-1" />
                   Disconnected
                 </Badge>
@@ -60,7 +79,7 @@ export default function DashboardStatusIndicator() {
                 {isConnected ? (
                   <div className="flex items-center text-green-600">
                     <Wifi className="w-4 h-4 mr-1" />
-                    Connected using {connectionMethod || 'unknown'} method
+                    Connected using {connectionMethod || "unknown"} method
                   </div>
                 ) : (
                   <div className="flex items-center text-red-600">

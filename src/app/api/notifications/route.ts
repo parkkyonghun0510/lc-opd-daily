@@ -9,10 +9,7 @@ export async function GET(req: NextRequest) {
     const session = await getServerSession(authOptions);
 
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Get query parameters
@@ -37,31 +34,31 @@ export async function GET(req: NextRequest) {
       include: {
         events: {
           orderBy: {
-            timestamp: "desc"
+            timestamp: "desc",
           },
-          take: 5
-        }
+          take: 5,
+        },
       },
       orderBy: {
-        createdAt: "desc"
+        createdAt: "desc",
       },
       skip: offset,
-      take: limit
+      take: limit,
     });
 
     // Count unread notifications
     const unreadCount = await prisma.inAppNotification.count({
       where: {
         userId: session.user.id,
-        isRead: false
-      }
+        isRead: false,
+      },
     });
 
     // Count total notifications
     const totalCount = await prisma.inAppNotification.count({
       where: {
-        userId: session.user.id
-      }
+        userId: session.user.id,
+      },
     });
 
     return NextResponse.json({
@@ -71,14 +68,14 @@ export async function GET(req: NextRequest) {
       pagination: {
         limit,
         offset,
-        hasMore: offset + notifications.length < totalCount
-      }
+        hasMore: offset + notifications.length < totalCount,
+      },
     });
   } catch (error) {
     console.error("Error fetching notifications:", error);
     return NextResponse.json(
       { error: "Failed to fetch notifications" },
-      { status: 500 }
+      { status: 500 },
     );
   }
-} 
+}

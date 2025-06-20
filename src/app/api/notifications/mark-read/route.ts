@@ -1,7 +1,10 @@
-import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
-import { markNotificationAsRead, markAllNotificationsAsRead } from '@/lib/notifications/redisNotificationService';
+import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
+import {
+  markNotificationAsRead,
+  markAllNotificationsAsRead,
+} from "@/lib/notifications/redisNotificationService";
 
 /**
  * Mark a notification as read
@@ -25,33 +28,42 @@ export async function POST(req: Request) {
       return NextResponse.json({
         success: true,
         message: `Marked ${count} notifications as read`,
-        count
+        count,
       });
     }
 
     // Mark a single notification as read
     if (!notificationId) {
-      return NextResponse.json({ error: "Notification ID is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Notification ID is required" },
+        { status: 400 },
+      );
     }
 
-    const success = await markNotificationAsRead(notificationId, session.user.id);
+    const success = await markNotificationAsRead(
+      notificationId,
+      session.user.id,
+    );
 
     if (success) {
       return NextResponse.json({
         success: true,
-        message: "Notification marked as read"
+        message: "Notification marked as read",
       });
     } else {
-      return NextResponse.json({
-        success: false,
-        message: "Failed to mark notification as read"
-      }, { status: 404 });
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Failed to mark notification as read",
+        },
+        { status: 404 },
+      );
     }
   } catch (error) {
-    console.error('Error marking notification as read:', error);
+    console.error("Error marking notification as read:", error);
     return NextResponse.json(
-      { error: 'Failed to mark notification as read' },
-      { status: 500 }
+      { error: "Failed to mark notification as read" },
+      { status: 500 },
     );
   }
 }

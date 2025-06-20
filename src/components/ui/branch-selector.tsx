@@ -51,7 +51,7 @@ export function BranchSelector({
     return branches.filter(
       (branch) =>
         branch.name.toLowerCase().includes(query) ||
-        branch.code.toLowerCase().includes(query)
+        branch.code.toLowerCase().includes(query),
     );
   }, [branches, searchQuery]);
 
@@ -84,7 +84,9 @@ export function BranchSelector({
     return (
       <div className="flex items-center gap-2">
         <Loader2 className="h-4 w-4 animate-spin" />
-        <span className="text-sm text-muted-foreground">Loading branches...</span>
+        <span className="text-sm text-muted-foreground">
+          Loading branches...
+        </span>
       </div>
     );
   }
@@ -95,10 +97,7 @@ export function BranchSelector({
       onValueChange={onChange}
       disabled={disabled || loading || branches.length === 0}
     >
-      <SelectTrigger
-        className={`w-full ${className}`}
-        id={id}
-      >
+      <SelectTrigger className={`w-full ${className}`} id={id}>
         <Building2 className="h-4 w-4 mr-2" />
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
@@ -138,10 +137,12 @@ export function BranchSelector({
           ))
         ) : (
           <SelectItem value="no-results" disabled>
-            {searchQuery ? "No matching branches found" : "No branches available"}
+            {searchQuery
+              ? "No matching branches found"
+              : "No branches available"}
           </SelectItem>
         )}
       </SelectContent>
     </Select>
   );
-} 
+}

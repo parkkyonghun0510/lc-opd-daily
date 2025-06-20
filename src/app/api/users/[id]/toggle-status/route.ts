@@ -5,7 +5,7 @@ import { UserRole } from "@/lib/auth/roles";
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const token = await getToken({ req: request });
@@ -14,7 +14,7 @@ export async function POST(
     if (!token) {
       return NextResponse.json(
         { error: "Unauthorized - Authentication required" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -24,40 +24,39 @@ export async function POST(
 
     if (!isAdminUser && !isSelfUser) {
       return NextResponse.json(
-        { error: "Forbidden - You don't have permission to perform this action" },
-        { status: 403 }
+        {
+          error: "Forbidden - You don't have permission to perform this action",
+        },
+        { status: 403 },
       );
     }
 
     // Get the user
     const user = await prisma.user.findUnique({
       where: { id },
-      select: { 
+      select: {
         isActive: true,
-        role: true 
+        role: true,
       },
     });
 
     if (!user) {
-      return NextResponse.json(
-        { error: "User not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
     // Prevent deactivating the last admin user
     if (user.role === UserRole.ADMIN && user.isActive) {
       const adminCount = await prisma.user.count({
-        where: { 
+        where: {
           role: UserRole.ADMIN,
-          isActive: true 
+          isActive: true,
         },
       });
 
       if (adminCount <= 1) {
         return NextResponse.json(
           { error: "Cannot deactivate the last active admin user" },
-          { status: 400 }
+          { status: 400 },
         );
       }
     }
@@ -84,7 +83,7 @@ export async function POST(
     console.error("Error toggling user status:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
-} 
+}

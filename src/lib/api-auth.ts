@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 
-export type Role = "ADMIN" | "BRANCH" | "USER" | "MANAGER" | "SUPERVISOR" | "VIEWER";
+export type Role =
+  | "ADMIN"
+  | "BRANCH"
+  | "USER"
+  | "MANAGER"
+  | "SUPERVISOR"
+  | "VIEWER";
 export type BranchAccess = {
   branchId: string;
 };
@@ -14,7 +20,7 @@ interface AuthOptions {
 export async function withAuth(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   handler: (req: NextRequest, token: any) => Promise<NextResponse>,
-  options: AuthOptions = {}
+  options: AuthOptions = {},
 ) {
   return async function (req: NextRequest) {
     try {
@@ -23,7 +29,7 @@ export async function withAuth(
       if (!token) {
         return new NextResponse(
           JSON.stringify({ error: "Unauthorized: Authentication required" }),
-          { status: 401 }
+          { status: 401 },
         );
       }
 
@@ -38,7 +44,7 @@ export async function withAuth(
             JSON.stringify({
               error: `Unauthorized: Required role(s): ${roles.join(", ")}`,
             }),
-            { status: 403 }
+            { status: 403 },
           );
         }
       }
@@ -52,7 +58,7 @@ export async function withAuth(
         if (branchId && token.branchId !== branchId && token.role !== "admin") {
           return new NextResponse(
             JSON.stringify({ error: "Unauthorized: Invalid branch access" }),
-            { status: 403 }
+            { status: 403 },
           );
         }
       }
@@ -63,7 +69,7 @@ export async function withAuth(
       console.error("API Authentication Error:", error);
       return new NextResponse(
         JSON.stringify({ error: "Internal server error" }),
-        { status: 500 }
+        { status: 500 },
       );
     }
   };

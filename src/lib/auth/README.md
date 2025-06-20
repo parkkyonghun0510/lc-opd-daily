@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
   if (!token) {
     return NextResponse.json(
       { error: "Unauthorized - Authentication required" },
-      { status: 401 }
+      { status: 401 },
     );
   }
 
@@ -100,7 +100,7 @@ Example of role checking:
 if (token.role !== "admin") {
   return NextResponse.json(
     { error: "Forbidden - Admin access required" },
-    { status: 403 }
+    { status: 403 },
   );
 }
 ```

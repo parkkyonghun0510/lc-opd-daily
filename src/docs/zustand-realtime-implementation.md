@@ -39,7 +39,7 @@ We've implemented a robust hybrid real-time update system that uses Server-Sent 
 ### Basic Usage
 
 ```tsx
-import { useHybridRealtime } from '@/hooks/useHybridRealtime';
+import { useHybridRealtime } from "@/hooks/useHybridRealtime";
 
 function MyComponent() {
   const {
@@ -50,30 +50,30 @@ function MyComponent() {
     error,
     reconnect,
     getCachedEvents,
-    getTimeSinceLastEvent
+    getTimeSinceLastEvent,
   } = useHybridRealtime({
     eventHandlers: {
       notification: (data) => {
-        console.log('Received notification:', data);
+        console.log("Received notification:", data);
       },
       dashboardUpdate: (data) => {
-        console.log('Dashboard updated:', data);
+        console.log("Dashboard updated:", data);
       },
       // Wildcard handler for all events
-      '*': (event) => {
+      "*": (event) => {
         console.log(`Received ${event.type} event:`, event);
-      }
+      },
     },
-    preferredMethod: 'auto',
+    preferredMethod: "auto",
     pollingInterval: 15000,
     maxReconnectAttempts: 10,
     reconnectBackoffFactor: 1.5,
     enableCache: true,
-    debug: true
+    debug: true,
   });
 
   // Get cached events
-  const notifications = getCachedEvents('notification');
+  const notifications = getCachedEvents("notification");
 
   // Get time since last event
   const secondsSinceLastEvent = Math.round(getTimeSinceLastEvent() / 1000);
@@ -81,10 +81,18 @@ function MyComponent() {
   return (
     <div>
       <p>Connection status: {connectionStatus}</p>
-      <p>Active method: {activeMethod || 'none'}</p>
-      <p>Last event: {lastEvent ? new Date(lastEvent.timestamp).toLocaleString() : 'None'}</p>
+      <p>Active method: {activeMethod || "none"}</p>
+      <p>
+        Last event:{" "}
+        {lastEvent ? new Date(lastEvent.timestamp).toLocaleString() : "None"}
+      </p>
       <p>Cached notifications: {notifications.length}</p>
-      <p>Time since last event: {secondsSinceLastEvent === Infinity ? 'N/A' : `${secondsSinceLastEvent}s`}</p>
+      <p>
+        Time since last event:{" "}
+        {secondsSinceLastEvent === Infinity
+          ? "N/A"
+          : `${secondsSinceLastEvent}s`}
+      </p>
       <button onClick={reconnect}>Reconnect</button>
     </div>
   );
@@ -94,24 +102,24 @@ function MyComponent() {
 ### Using the Provider
 
 ```tsx
-import { HybridRealtimeProvider } from '@/components/providers/HybridRealtimeProvider';
+import { HybridRealtimeProvider } from "@/components/providers/HybridRealtimeProvider";
 
 function App({ children }) {
   return (
     <HybridRealtimeProvider
       options={{
-        preferredMethod: 'auto',
+        preferredMethod: "auto",
         pollingInterval: 15000,
         maxReconnectAttempts: 10,
         reconnectBackoffFactor: 1.5,
-        enableCache: true
+        enableCache: true,
       }}
       onEvent={(eventType, data) => {
         console.log(`Received ${eventType} event:`, data);
       }}
       showToasts={true}
       autoReconnect={true}
-      debug={process.env.NODE_ENV === 'development'}
+      debug={process.env.NODE_ENV === "development"}
     >
       {children}
     </HybridRealtimeProvider>
@@ -122,14 +130,14 @@ function App({ children }) {
 ### Dashboard-Specific Provider
 
 ```tsx
-import { ZustandHybridRealtimeProvider } from '@/components/dashboard/ZustandHybridRealtimeProvider';
+import { ZustandHybridRealtimeProvider } from "@/components/dashboard/ZustandHybridRealtimeProvider";
 
 function DashboardLayout({ children }) {
   return (
     <ZustandHybridRealtimeProvider
       autoRefreshInterval={10000}
       showToasts={true}
-      debug={process.env.NODE_ENV === 'development'}
+      debug={process.env.NODE_ENV === "development"}
     >
       {children}
     </ZustandHybridRealtimeProvider>

@@ -11,21 +11,31 @@ import { v4 as uuidv4 } from "uuid";
  * @param defaultUserId The default user ID to use if no user is specified
  * @returns An array of parsed comments with user info and parent-child relationships
  */
-async function parseCommentsString(comments: string | null, defaultUserId: string): Promise<Array<{ content: string, userId: string, parentId?: string }>> {
+async function parseCommentsString(
+  comments: string | null,
+  defaultUserId: string,
+): Promise<Array<{ content: string; userId: string; parentId?: string }>> {
   if (!comments) return [];
 
   try {
-    const parsedComments: Array<{ content: string, userId: string, parentId?: string, id?: string }> = [];
+    const parsedComments: Array<{
+      content: string;
+      userId: string;
+      parentId?: string;
+      id?: string;
+    }> = [];
 
     // First, sanitize the comments string to remove any invalid UTF-8 characters
-    const sanitizedComments = sanitizeString(comments) || '';
+    const sanitizedComments = sanitizeString(comments) || "";
 
     // Match all types of comment patterns:
     // 1. [RESUBMISSION timestamp]: message
     // 2. [COMMENT timestamp by username]: message
     // 3. [REJECTION timestamp]: message
     // 4. [REPLY parentId timestamp by username]: message
-    const commentParts = sanitizedComments.split(/\[(RESUBMISSION|COMMENT|REJECTION|REPLY) ([^\]]+)\]:/);
+    const commentParts = sanitizedComments.split(
+      /\[(RESUBMISSION|COMMENT|REJECTION|REPLY) ([^\]]+)\]:/,
+    );
 
     if (commentParts.length <= 1) {
       // No special markup, just add as a single comment
@@ -33,7 +43,7 @@ async function parseCommentsString(comments: string | null, defaultUserId: strin
         parsedComments.push({
           id: uuidv4(),
           content: sanitizedComments.trim(),
-          userId: defaultUserId
+          userId: defaultUserId,
         });
       }
       return parsedComments;
@@ -59,10 +69,10 @@ async function parseCommentsString(comments: string | null, defaultUserId: strin
 
       if (metaInfo) {
         // Handle REPLY type comments (extract parentId)
-        if (type === 'reply' && metaInfo.includes('to ')) {
-          const parts = metaInfo.split('to ');
+        if (type === "reply" && metaInfo.includes("to ")) {
+          const parts = metaInfo.split("to ");
           if (parts.length > 1) {
-            const parentRef = parts[1].split(' ')[0].trim();
+            const parentRef = parts[1].split(" ")[0].trim();
             // If the parentRef is a valid comment ID in our map, use it
             if (commentIdMap.has(parentRef)) {
               parentId = commentIdMap.get(parentRef);
@@ -71,8 +81,8 @@ async function parseCommentsString(comments: string | null, defaultUserId: strin
         }
 
         // Extract username if available
-        if (metaInfo.includes('by ')) {
-          const usernamePart = metaInfo.split('by ')[1];
+        if (metaInfo.includes("by ")) {
+          const usernamePart = metaInfo.split("by ")[1];
           if (usernamePart) {
             // Try to find the user by name
             try {
@@ -80,15 +90,18 @@ async function parseCommentsString(comments: string | null, defaultUserId: strin
                 where: {
                   OR: [
                     { name: { contains: usernamePart.trim() } },
-                    { username: { contains: usernamePart.trim() } }
-                  ]
-                }
+                    { username: { contains: usernamePart.trim() } },
+                  ],
+                },
               });
               if (user) {
                 userId = user.id;
               }
             } catch (error) {
-              console.warn(`Could not find user for name: ${usernamePart}`, error);
+              console.warn(
+                `Could not find user for name: ${usernamePart}`,
+                error,
+              );
             }
           }
         }
@@ -97,9 +110,9 @@ async function parseCommentsString(comments: string | null, defaultUserId: strin
       // Create a sanitized comment object
       const comment = {
         id: commentId,
-        content: sanitizeString(text) || '',
+        content: sanitizeString(text) || "",
         userId: userId,
-        parentId: parentId
+        parentId: parentId,
       };
 
       // Store the comment ID in the map for potential child comments
@@ -110,11 +123,13 @@ async function parseCommentsString(comments: string | null, defaultUserId: strin
 
     return parsedComments;
   } catch (error) {
-    console.error('Error parsing comments:', error);
-    return [{
-      content: 'Error parsing original comments',
-      userId: defaultUserId
-    }];
+    console.error("Error parsing comments:", error);
+    return [
+      {
+        content: "Error parsing original comments",
+        userId: defaultUserId,
+      },
+    ];
   }
 }
 
@@ -128,20 +143,22 @@ export async function POST(request: NextRequest) {
     if (!token || token.role !== "ADMIN") {
       return NextResponse.json(
         { error: "Unauthorized - Admin privileges required" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
     // Log the user who is running the migration
-    console.log(`Comment migration initiated by admin: ${token.sub} (${token.name || 'Unknown'})`);
+    console.log(
+      `Comment migration initiated by admin: ${token.sub} (${token.name || "Unknown"})`,
+    );
 
     // Query for reports with comments
     console.log("Querying for reports with comments field");
 
     const reports = await prisma.report.findMany({
       where: {
-        comments: { not: null }
-      }
+        comments: { not: null },
+      },
     });
 
     console.log(`Found ${reports.length} reports with comments to migrate`);
@@ -155,21 +172,28 @@ export async function POST(request: NextRequest) {
       try {
         // Get existing ReportComment records for this report
         const existingComments = await prisma.reportComment.findMany({
-          where: { reportId: report.id }
+          where: { reportId: report.id },
         });
 
         // Skip if comments already exist for this report
         if (existingComments.length > 0) {
-          console.log(`Skipping report ${report.id} - already has ${existingComments.length} comments`);
+          console.log(
+            `Skipping report ${report.id} - already has ${existingComments.length} comments`,
+          );
           continue;
         }
 
         // Parse comments from the comments string
-        const parsedComments = await parseCommentsString(report.comments, report.submittedBy);
+        const parsedComments = await parseCommentsString(
+          report.comments,
+          report.submittedBy,
+        );
 
         // Skip if no comments to migrate
         if (parsedComments.length === 0) {
-          console.log(`Skipping report ${report.id} - no valid comments to migrate`);
+          console.log(
+            `Skipping report ${report.id} - no valid comments to migrate`,
+          );
           continue;
         }
 
@@ -182,19 +206,26 @@ export async function POST(request: NextRequest) {
               reportId: report.id,
               userId: comment.userId,
               content: comment.content,
-              parentId: comment.parentId || null
-            }
+              parentId: comment.parentId || null,
+            },
           });
         }
 
         successCount++;
         if (successCount % 10 === 0) {
-          console.log(`Migrated comments for ${successCount} reports so far...`);
+          console.log(
+            `Migrated comments for ${successCount} reports so far...`,
+          );
         }
       } catch (error) {
-        console.error(`Error migrating comments for report ${report.id}:`, error);
+        console.error(
+          `Error migrating comments for report ${report.id}:`,
+          error,
+        );
         errorCount++;
-        errors.push(`Report ${report.id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        errors.push(
+          `Report ${report.id}: ${error instanceof Error ? error.message : "Unknown error"}`,
+        );
       }
     }
 
@@ -204,13 +235,16 @@ export async function POST(request: NextRequest) {
       totalReports: reports.length,
       successCount,
       errorCount,
-      errors: errors.length > 0 ? errors : undefined
+      errors: errors.length > 0 ? errors : undefined,
     });
   } catch (error) {
     console.error("Error in comment migration:", error);
     return NextResponse.json(
-      { error: "Migration failed", details: error instanceof Error ? error.message : "Unknown error" },
-      { status: 500 }
+      {
+        error: "Migration failed",
+        details: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 },
     );
   }
 }

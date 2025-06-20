@@ -35,7 +35,7 @@ export async function GET() {
     console.error("Error checking setup status:", error);
     return NextResponse.json(
       { error: "Failed to check setup status" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -57,7 +57,7 @@ export async function POST(request: Request) {
     if (secretKey !== SETUP_SECRET_KEY) {
       return NextResponse.json(
         { error: "Invalid setup secret key" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -65,7 +65,7 @@ export async function POST(request: Request) {
     if (!adminUsername || !adminName || !adminEmail || !adminPassword) {
       return NextResponse.json(
         { error: "All admin user fields are required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -74,7 +74,7 @@ export async function POST(request: Request) {
     if (userCount > 0) {
       return NextResponse.json(
         { error: "System is already set up" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -85,8 +85,8 @@ export async function POST(request: Request) {
         DEFAULT_BRANCHES.map((branch) =>
           prisma.branch.create({
             data: branch,
-          })
-        )
+          }),
+        ),
       );
     }
 
@@ -121,7 +121,7 @@ export async function POST(request: Request) {
       {
         ipAddress: request.headers.get("x-forwarded-for") || "unknown",
         userAgent: request.headers.get("user-agent") || "unknown",
-      }
+      },
     );
 
     return NextResponse.json({
@@ -147,7 +147,7 @@ export async function POST(request: Request) {
         error: "Failed to set up system",
         details: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

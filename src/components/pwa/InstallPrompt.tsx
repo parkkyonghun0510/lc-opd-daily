@@ -1,29 +1,30 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { TopBanner } from './TopBanner';
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { TopBanner } from "./TopBanner";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
 // Key for storing user preference in localStorage
-const INSTALL_PROMPT_DISMISSED_DATE_KEY = 'install_prompt_dismissed_date';
+const INSTALL_PROMPT_DISMISSED_DATE_KEY = "install_prompt_dismissed_date";
 
 // Function to track analytics events
 const trackAnalyticsEvent = (event: string, data?: Record<string, any>) => {
   try {
     // Replace with your analytics tracking logic
-    console.log('Analytics Event:', event, data);
+    console.log("Analytics Event:", event, data);
   } catch (error) {
-    console.error('Error tracking analytics event:', error);
+    console.error("Error tracking analytics event:", error);
   }
 };
 
 export function InstallPrompt() {
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [deferredPrompt, setDeferredPrompt] =
+    useState<BeforeInstallPromptEvent | null>(null);
   const [showPrompt, setShowPrompt] = useState(false);
 
   useEffect(() => {
@@ -41,12 +42,15 @@ export function InstallPrompt() {
 
       // Check if user has dismissed the prompt recently
       try {
-        const dismissedDateStr = localStorage.getItem(INSTALL_PROMPT_DISMISSED_DATE_KEY);
+        const dismissedDateStr = localStorage.getItem(
+          INSTALL_PROMPT_DISMISSED_DATE_KEY,
+        );
 
         // If user has dismissed the prompt recently (within last 7 days), don't show it again
         if (dismissedDateStr) {
           const dismissedDate = new Date(dismissedDateStr);
-          const daysSinceDismissed = (Date.now() - dismissedDate.getTime()) / (1000 * 60 * 60 * 24);
+          const daysSinceDismissed =
+            (Date.now() - dismissedDate.getTime()) / (1000 * 60 * 60 * 24);
 
           if (daysSinceDismissed < 7) {
             return;
@@ -59,23 +63,23 @@ export function InstallPrompt() {
         setShowPrompt(true);
       } catch (error) {
         // If there's an error with localStorage, proceed with default behavior
-        console.error('Error accessing localStorage:', error);
+        console.error("Error accessing localStorage:", error);
         setDeferredPrompt(e as BeforeInstallPromptEvent);
         setShowPrompt(true);
       }
     };
 
-    window.addEventListener('beforeinstallprompt', handler);
+    window.addEventListener("beforeinstallprompt", handler);
 
     return () => {
-      window.removeEventListener('beforeinstallprompt', handler);
+      window.removeEventListener("beforeinstallprompt", handler);
     };
   }, []);
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) {
       // Track iOS install banner clicks
-      trackAnalyticsEvent('install_prompt_clicked', { platform: 'iOS' });
+      trackAnalyticsEvent("install_prompt_clicked", { platform: "iOS" });
       return;
     }
 
@@ -86,9 +90,9 @@ export function InstallPrompt() {
     const { outcome } = await deferredPrompt.userChoice;
 
     // Track analytics for user choice
-    trackAnalyticsEvent('install_prompt_response', { outcome });
+    trackAnalyticsEvent("install_prompt_response", { outcome });
 
-    if (outcome === 'accepted') {
+    if (outcome === "accepted") {
       // Clear any dismissed date since they've accepted
       localStorage.removeItem(INSTALL_PROMPT_DISMISSED_DATE_KEY);
     }
@@ -101,25 +105,21 @@ export function InstallPrompt() {
   const handleDismiss = () => {
     setShowPrompt(false);
     // Store the current date when user dismisses the prompt
-    localStorage.setItem(INSTALL_PROMPT_DISMISSED_DATE_KEY, new Date().toISOString());
+    localStorage.setItem(
+      INSTALL_PROMPT_DISMISSED_DATE_KEY,
+      new Date().toISOString(),
+    );
 
     // Track dismiss action
-    trackAnalyticsEvent('install_prompt_dismissed');
+    trackAnalyticsEvent("install_prompt_dismissed");
   };
 
   const actions = (
     <>
-      <Button
-        variant="outline"
-        onClick={handleDismiss}
-        className="text-sm"
-      >
+      <Button variant="outline" onClick={handleDismiss} className="text-sm">
         Not now
       </Button>
-      <Button
-        onClick={handleInstallClick}
-        className="text-sm"
-      >
+      <Button onClick={handleInstallClick} className="text-sm">
         Install
       </Button>
     </>

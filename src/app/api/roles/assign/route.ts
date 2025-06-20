@@ -1,11 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/options";
-import {
-  Permission,
-  UserRole,
-  hasPermission,
-} from "@/lib/auth/roles";
+import { Permission, UserRole, hasPermission } from "@/lib/auth/roles";
 import { PrismaClient } from "@prisma/client";
 import { logUserActivity } from "@/lib/auth/log-user-activity";
 
@@ -31,7 +27,7 @@ export async function POST(request: Request) {
     if (!userId || !role) {
       return NextResponse.json(
         { error: "User ID and role are required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -59,7 +55,7 @@ export async function POST(request: Request) {
       if (!branch) {
         return NextResponse.json(
           { error: "Branch not found" },
-          { status: 404 }
+          { status: 404 },
         );
       }
     }
@@ -74,9 +70,10 @@ export async function POST(request: Request) {
     });
 
     // Get request metadata for logging
-    const ip = request.headers.get("x-forwarded-for") || 
-               request.headers.get("x-real-ip") || 
-               "unknown";
+    const ip =
+      request.headers.get("x-forwarded-for") ||
+      request.headers.get("x-real-ip") ||
+      "unknown";
     const userAgent = request.headers.get("user-agent") || "unknown";
 
     // Log the role change
@@ -90,7 +87,7 @@ export async function POST(request: Request) {
         oldBranchId: targetUser.branchId,
         newBranchId: branchId,
       },
-      { ipAddress: ip, userAgent }
+      { ipAddress: ip, userAgent },
     );
 
     return NextResponse.json(updatedUser);
@@ -98,7 +95,7 @@ export async function POST(request: Request) {
     console.error("Error assigning role:", error);
     return NextResponse.json(
       { error: "Failed to assign role" },
-      { status: 500 }
+      { status: 500 },
     );
   }
-} 
+}

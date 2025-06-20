@@ -1,13 +1,19 @@
-import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
-import { logger, performanceLogger } from './middleware/logger';
-import { createAuthSlice, AuthSlice } from './slices/authSlice';
-import { createProfileSlice, ProfileSlice } from './slices/profileSlice';
-import { createHybridRealtimeSlice, HybridRealtimeSlice } from './slices/hybridRealtimeSlice';
-import { devtools } from 'zustand/middleware';
+import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
+import { logger, performanceLogger } from "./middleware/logger";
+import { createAuthSlice, AuthSlice } from "./slices/authSlice";
+import { createProfileSlice, ProfileSlice } from "./slices/profileSlice";
+import {
+  createHybridRealtimeSlice,
+  HybridRealtimeSlice,
+} from "./slices/hybridRealtimeSlice";
+import { devtools } from "zustand/middleware";
 
 // Define the combined store type
-export interface StoreState extends AuthSlice, ProfileSlice, HybridRealtimeSlice { }
+export interface StoreState
+  extends AuthSlice,
+    ProfileSlice,
+    HybridRealtimeSlice {}
 
 // Create the combined store
 export const useStore = create<StoreState>()(
@@ -26,7 +32,7 @@ export const useStore = create<StoreState>()(
       //   )
       // ),
       {
-        name: 'auth-storage', // Name for localStorage
+        name: "auth-storage", // Name for localStorage
         storage: createJSONStorage(() => localStorage), // Use localStorage
         // Only persist these fields
         partialize: (state) => ({
@@ -38,9 +44,9 @@ export const useStore = create<StoreState>()(
           refreshToken: state.refreshToken,
           tokenExpiresAt: state.tokenExpiresAt,
         }),
-      }
-    )
-  )
+      },
+    ),
+  ),
 );
 
 // Create custom hooks for each slice
@@ -126,8 +132,8 @@ export const useHybridRealtime = () => {
           clientMetadata: {
             ...(options?.clientMetadata || {}),
             userId: store.user.id,
-            role: store.user.role || 'user'
-          }
+            role: store.user.role || "user",
+          },
         };
         store.connect(updatedOptions);
       } else {
@@ -162,6 +168,6 @@ export const useHybridRealtime = () => {
     getTimeSinceLastEvent: store.getTimeSinceLastEvent,
     shouldReconnect: store.shouldReconnect,
     isPollingActive: store.isPollingActive,
-    getTimeSinceLastAction: store.getTimeSinceLastAction
+    getTimeSinceLastAction: store.getTimeSinceLastAction,
   };
 };

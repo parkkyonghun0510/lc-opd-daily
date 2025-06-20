@@ -23,7 +23,7 @@ export function StatsCard({
     <div
       className={cn(
         "bg-white rounded-xl p-6 shadow-sm border border-gray-100",
-        className
+        className,
       )}
     >
       <div className="flex items-center justify-between">
@@ -35,7 +35,7 @@ export function StatsCard({
             <p
               className={cn(
                 "text-sm mt-2 flex items-center",
-                trend.isPositive ? "text-green-600" : "text-red-600"
+                trend.isPositive ? "text-green-600" : "text-red-600",
               )}
             >
               <span className="mr-1">{trend.isPositive ? "↑" : "↓"}</span>

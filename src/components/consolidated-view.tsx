@@ -37,37 +37,36 @@ import {
   PlanVsActualChart,
   TimeSeriesChart,
   TrendAnalysisChart,
-  
+
   // Dialogs
   BranchDetailDialog,
   BranchDetailsModal,
   ExportOptionsDialog,
-  
+
   // Filters
   DateFilter,
   ReportTypeFilter,
-  
+
   // Metrics
   MetricCards,
   MetricToggles,
-  
+
   // Skeletons
   ChartSkeleton,
   MetricCardSkeleton,
-  
+
   // Tables
   BranchStatusTable,
-  
+
   // Types
   type ConsolidatedData,
   type HistoricalDataPoint,
   type ExportSettings,
 } from "@/components/consolidateds";
 
-
 /**
  * ConsolidatedView Component
- * 
+ *
  * Displays consolidated reports data across branches with interactive
  * charts, filters, and metrics.
  */
@@ -165,21 +164,30 @@ export default function ConsolidatedView() {
 
   const fetchConsolidatedData = async () => {
     // Validate inputs before proceeding
-    if ((filterType === "single" && !date) || 
-        (filterType === "range" && (!dateRange.from || !dateRange.to))) {
+    if (
+      (filterType === "single" && !date) ||
+      (filterType === "range" && (!dateRange.from || !dateRange.to))
+    ) {
       return;
     }
 
     // Check if date is valid
-    if (filterType === "single" && (!(date instanceof Date) || isNaN(date.getTime()))) {
+    if (
+      filterType === "single" &&
+      (!(date instanceof Date) || isNaN(date.getTime()))
+    ) {
       setError("Invalid date selected. Please select a valid date.");
       return;
     }
 
     // Check if date range is valid
     if (filterType === "range") {
-      if (!(dateRange.from instanceof Date) || isNaN(dateRange.from.getTime()) ||
-          !(dateRange.to instanceof Date) || isNaN(dateRange.to.getTime())) {
+      if (
+        !(dateRange.from instanceof Date) ||
+        isNaN(dateRange.from.getTime()) ||
+        !(dateRange.to instanceof Date) ||
+        isNaN(dateRange.to.getTime())
+      ) {
         setError("Invalid date range selected. Please select valid dates.");
         return;
       }
@@ -198,7 +206,7 @@ export default function ConsolidatedView() {
       }
 
       const data = await response.json();
-      
+
       // Validate historical data to ensure dates are valid
       if (data && data.historicalData) {
         data.historicalData = validateHistoricalData(data.historicalData);
@@ -215,22 +223,30 @@ export default function ConsolidatedView() {
 
   const fetchPlanDataForComparison = async () => {
     // Validate inputs before proceeding
-    if ((filterType === "single" && !date) || 
-        (filterType === "range" && (!dateRange.from || !dateRange.to))) {
+    if (
+      (filterType === "single" && !date) ||
+      (filterType === "range" && (!dateRange.from || !dateRange.to))
+    ) {
       return;
     }
 
     // Validate date inputs
-    if ((filterType === "single" && (!(date instanceof Date) || isNaN(date.getTime()))) ||
-        (filterType === "range" && (!(dateRange.from instanceof Date) || isNaN(dateRange.from.getTime()) ||
-                                   !(dateRange.to instanceof Date) || isNaN(dateRange.to.getTime())))) {
+    if (
+      (filterType === "single" &&
+        (!(date instanceof Date) || isNaN(date.getTime()))) ||
+      (filterType === "range" &&
+        (!(dateRange.from instanceof Date) ||
+          isNaN(dateRange.from.getTime()) ||
+          !(dateRange.to instanceof Date) ||
+          isNaN(dateRange.to.getTime())))
+    ) {
       console.error("Invalid date for plan data comparison");
       return;
     }
 
     try {
       // Build API URL for plan data
-      const url = buildApiUrl('plan');
+      const url = buildApiUrl("plan");
       const response = await fetch(url);
 
       if (!response.ok) {
@@ -270,7 +286,7 @@ export default function ConsolidatedView() {
 
   // Helper function to validate historical data
   const validateHistoricalData = (historicalData: HistoricalDataPoint[]) => {
-    return historicalData.filter(item => {
+    return historicalData.filter((item) => {
       try {
         if (!item.date || typeof item.date !== "string") return false;
         const parsedDate = parseISO(item.date);
@@ -305,44 +321,56 @@ export default function ConsolidatedView() {
     try {
       // Filter branches based on settings
       let filteredBranches = [...consolidatedData.branchData];
-      
+
       // Apply status filter
       if (settings.statusFilter === "reported") {
-        filteredBranches = filteredBranches.filter(branch => branch.hasReports);
+        filteredBranches = filteredBranches.filter(
+          (branch) => branch.hasReports,
+        );
       } else if (settings.statusFilter === "missing") {
-        filteredBranches = filteredBranches.filter(branch => !branch.hasReports);
-      }
-      
-      // Apply branch filter if any
-      if (settings.branchFilter.length > 0) {
-        filteredBranches = filteredBranches.filter(branch => 
-          settings.branchFilter.includes(branch.branchId)
+        filteredBranches = filteredBranches.filter(
+          (branch) => !branch.hasReports,
         );
       }
-      
+
+      // Apply branch filter if any
+      if (settings.branchFilter.length > 0) {
+        filteredBranches = filteredBranches.filter((branch) =>
+          settings.branchFilter.includes(branch.branchId),
+        );
+      }
+
       // Apply sorting
       filteredBranches.sort((a, b) => {
         const aValue = a[settings.sortBy as keyof typeof a];
         const bValue = b[settings.sortBy as keyof typeof b];
-        
+
         // Handle special case for boolean values
-        if (typeof aValue === 'boolean' && typeof bValue === 'boolean') {
-          return settings.sortDirection === 'asc' 
-            ? (aValue === bValue ? 0 : aValue ? 1 : -1)
-            : (aValue === bValue ? 0 : aValue ? -1 : 1);
+        if (typeof aValue === "boolean" && typeof bValue === "boolean") {
+          return settings.sortDirection === "asc"
+            ? aValue === bValue
+              ? 0
+              : aValue
+                ? 1
+                : -1
+            : aValue === bValue
+              ? 0
+              : aValue
+                ? -1
+                : 1;
         }
-        
+
         // Handle numeric values
-        if (typeof aValue === 'number' && typeof bValue === 'number') {
-          return settings.sortDirection === 'asc' 
+        if (typeof aValue === "number" && typeof bValue === "number") {
+          return settings.sortDirection === "asc"
             ? aValue - bValue
             : bValue - aValue;
         }
-        
+
         // Handle string values
-        const aStr = String(aValue || '');
-        const bStr = String(bValue || '');
-        return settings.sortDirection === 'asc' 
+        const aStr = String(aValue || "");
+        const bStr = String(bValue || "");
+        return settings.sortDirection === "asc"
           ? aStr.localeCompare(bStr)
           : bStr.localeCompare(aStr);
       });
@@ -352,24 +380,26 @@ export default function ConsolidatedView() {
       const reportEndDate = new Date(consolidatedData.period.end);
       const startDateStr = format(reportStartDate, "yyyy-MM-dd");
       const endDateStr = format(reportEndDate, "yyyy-MM-dd");
-      
+
       // Format period type for header
-      const periodTypeStr = consolidatedData.period.type.charAt(0).toUpperCase() + consolidatedData.period.type.slice(1);
-      
+      const periodTypeStr =
+        consolidatedData.period.type.charAt(0).toUpperCase() +
+        consolidatedData.period.type.slice(1);
+
       // Create date range string based on period type
       let dateRangeStr = "";
       if (filterType === "single") {
         dateRangeStr = `Date: ${format(date || new Date(), "PPP")}`;
       } else {
-        dateRangeStr = `Date Range: ${dateRange.from ? format(dateRange.from, "PPP") : ''} to ${dateRange.to ? format(dateRange.to, "PPP") : ''}`;
+        dateRangeStr = `Date Range: ${dateRange.from ? format(dateRange.from, "PPP") : ""} to ${dateRange.to ? format(dateRange.to, "PPP") : ""}`;
       }
-      
+
       // Create CSV metadata header
       let csvContent = "LC OPD Daily Report System\n";
       csvContent += `Report Type: ${reportType.charAt(0).toUpperCase() + reportType.slice(1)}\n`;
       csvContent += `${dateRangeStr}\n`;
       csvContent += `Period Type: ${periodTypeStr}\n\n`;
-      
+
       // Include metrics summary if specified
       if (settings.includeMetrics) {
         csvContent += "SUMMARY METRICS\n";
@@ -378,80 +408,98 @@ export default function ConsolidatedView() {
         csvContent += `Branches Reported,${consolidatedData.metrics.reportedBranches}/${consolidatedData.metrics.totalBranches}\n`;
         csvContent += `Coverage Percentage,${consolidatedData.metrics.coveragePercentage.toFixed(2)}%\n\n`;
       }
-      
+
       // Create column headers based on selected fields
       const headers: string[] = [];
-      settings.includeFields.forEach(field => {
-        switch(field) {
-          case "branchCode": headers.push("Branch Code"); break;
-          case "branchName": headers.push("Branch Name"); break;
-          case "writeOffs": headers.push("Write-Offs (KHR)"); break;
-          case "ninetyPlus": headers.push("90+ Days (KHR)"); break;
-          case "hasReports": headers.push("Reported"); break;
-          case "reportsCount": headers.push("Reports Count"); break;
+      settings.includeFields.forEach((field) => {
+        switch (field) {
+          case "branchCode":
+            headers.push("Branch Code");
+            break;
+          case "branchName":
+            headers.push("Branch Name");
+            break;
+          case "writeOffs":
+            headers.push("Write-Offs (KHR)");
+            break;
+          case "ninetyPlus":
+            headers.push("90+ Days (KHR)");
+            break;
+          case "hasReports":
+            headers.push("Reported");
+            break;
+          case "reportsCount":
+            headers.push("Reports Count");
+            break;
         }
       });
-      
+
       // Add headers row
       csvContent += headers.join(",") + "\n";
 
       // Add data rows
       filteredBranches.forEach((branch) => {
         const row: string[] = [];
-        
-        settings.includeFields.forEach(field => {
-          switch(field) {
-            case "branchCode": 
-              row.push(branch.branchCode); 
+
+        settings.includeFields.forEach((field) => {
+          switch (field) {
+            case "branchCode":
+              row.push(branch.branchCode);
               break;
-            case "branchName": 
-              row.push(`"${branch.branchName}"`); 
+            case "branchName":
+              row.push(`"${branch.branchName}"`);
               break;
-            case "writeOffs": 
-              row.push(branch.writeOffs.toString()); 
+            case "writeOffs":
+              row.push(branch.writeOffs.toString());
               break;
-            case "ninetyPlus": 
-              row.push(branch.ninetyPlus.toString()); 
+            case "ninetyPlus":
+              row.push(branch.ninetyPlus.toString());
               break;
-            case "hasReports": 
-              row.push(branch.hasReports ? "Yes" : "No"); 
+            case "hasReports":
+              row.push(branch.hasReports ? "Yes" : "No");
               break;
-            case "reportsCount": 
-              row.push(branch.reportsCount.toString()); 
+            case "reportsCount":
+              row.push(branch.reportsCount.toString());
               break;
           }
         });
-        
+
         csvContent += row.join(",") + "\n";
       });
 
       // Add summary row if specified
       if (settings.includeSummary) {
         const summaryRow: string[] = [];
-        
-        settings.includeFields.forEach(field => {
-          switch(field) {
-            case "branchCode": 
-              summaryRow.push("TOTAL"); 
+
+        settings.includeFields.forEach((field) => {
+          switch (field) {
+            case "branchCode":
+              summaryRow.push("TOTAL");
               break;
-            case "branchName": 
-              summaryRow.push(""); 
+            case "branchName":
+              summaryRow.push("");
               break;
-            case "writeOffs": 
-              summaryRow.push(consolidatedData.metrics.totalWriteOffs.toString()); 
+            case "writeOffs":
+              summaryRow.push(
+                consolidatedData.metrics.totalWriteOffs.toString(),
+              );
               break;
-            case "ninetyPlus": 
-              summaryRow.push(consolidatedData.metrics.totalNinetyPlus.toString()); 
+            case "ninetyPlus":
+              summaryRow.push(
+                consolidatedData.metrics.totalNinetyPlus.toString(),
+              );
               break;
-            case "hasReports": 
-              summaryRow.push(`${consolidatedData.metrics.reportedBranches}/${consolidatedData.metrics.totalBranches}`); 
+            case "hasReports":
+              summaryRow.push(
+                `${consolidatedData.metrics.reportedBranches}/${consolidatedData.metrics.totalBranches}`,
+              );
               break;
-            case "reportsCount": 
-              summaryRow.push(""); 
+            case "reportsCount":
+              summaryRow.push("");
               break;
           }
         });
-        
+
         csvContent += "\n" + summaryRow.join(",") + "\n";
       }
 
@@ -463,11 +511,12 @@ export default function ConsolidatedView() {
       // Format the current date for the filename
       const formattedDate = format(reportStartDate, "yyyy-MM-dd");
       const formattedEndDate = format(reportEndDate, "yyyy-MM-dd");
-      
+
       // Create filename with date range if using range filter
-      const filename = filterType === "range" 
-        ? `consolidated_report_${reportType}_${formattedDate}_to_${formattedEndDate}.csv`
-        : `consolidated_report_${reportType}_${formattedDate}.csv`;
+      const filename =
+        filterType === "range"
+          ? `consolidated_report_${reportType}_${formattedDate}_to_${formattedEndDate}.csv`
+          : `consolidated_report_${reportType}_${formattedDate}.csv`;
 
       // Set link properties and trigger download
       link.setAttribute("href", url);
@@ -504,48 +553,60 @@ export default function ConsolidatedView() {
     try {
       // Filter branches based on settings
       let filteredBranches = [...consolidatedData.branchData];
-      
+
       // Apply status filter
       if (settings.statusFilter === "reported") {
-        filteredBranches = filteredBranches.filter(branch => branch.hasReports);
+        filteredBranches = filteredBranches.filter(
+          (branch) => branch.hasReports,
+        );
       } else if (settings.statusFilter === "missing") {
-        filteredBranches = filteredBranches.filter(branch => !branch.hasReports);
-      }
-      
-      // Apply branch filter if any
-      if (settings.branchFilter.length > 0) {
-        filteredBranches = filteredBranches.filter(branch => 
-          settings.branchFilter.includes(branch.branchId)
+        filteredBranches = filteredBranches.filter(
+          (branch) => !branch.hasReports,
         );
       }
-      
+
+      // Apply branch filter if any
+      if (settings.branchFilter.length > 0) {
+        filteredBranches = filteredBranches.filter((branch) =>
+          settings.branchFilter.includes(branch.branchId),
+        );
+      }
+
       // Apply sorting
       filteredBranches.sort((a, b) => {
         const aValue = a[settings.sortBy as keyof typeof a];
         const bValue = b[settings.sortBy as keyof typeof b];
-        
+
         // Handle special case for boolean values
-        if (typeof aValue === 'boolean' && typeof bValue === 'boolean') {
-          return settings.sortDirection === 'asc' 
-            ? (aValue === bValue ? 0 : aValue ? 1 : -1)
-            : (aValue === bValue ? 0 : aValue ? -1 : 1);
+        if (typeof aValue === "boolean" && typeof bValue === "boolean") {
+          return settings.sortDirection === "asc"
+            ? aValue === bValue
+              ? 0
+              : aValue
+                ? 1
+                : -1
+            : aValue === bValue
+              ? 0
+              : aValue
+                ? -1
+                : 1;
         }
-        
+
         // Handle numeric values
-        if (typeof aValue === 'number' && typeof bValue === 'number') {
-          return settings.sortDirection === 'asc' 
+        if (typeof aValue === "number" && typeof bValue === "number") {
+          return settings.sortDirection === "asc"
             ? aValue - bValue
             : bValue - aValue;
         }
-        
+
         // Handle string values
-        const aStr = String(aValue || '');
-        const bStr = String(bValue || '');
-        return settings.sortDirection === 'asc' 
+        const aStr = String(aValue || "");
+        const bStr = String(bValue || "");
+        return settings.sortDirection === "asc"
           ? aStr.localeCompare(bStr)
           : bStr.localeCompare(aStr);
       });
-      
+
       // Create a new window for the PDF content
       const printWindow = window.open("", "", `height=800,width=800`);
       if (!printWindow) {
@@ -557,31 +618,45 @@ export default function ConsolidatedView() {
       const reportEndDate = new Date(consolidatedData.period.end);
       const startDateStr = format(reportStartDate, "PPP");
       const endDateStr = format(reportEndDate, "PPP");
-      
+
       // Create date range string based on filter type
       let dateRangeStr = "";
       if (filterType === "single") {
         dateRangeStr = `Date: ${format(date || new Date(), "PPP")}`;
       } else {
-        dateRangeStr = `Date Range: ${dateRange.from ? format(dateRange.from, "PPP") : ''} to ${dateRange.to ? format(dateRange.to, "PPP") : ''}`;
+        dateRangeStr = `Date Range: ${dateRange.from ? format(dateRange.from, "PPP") : ""} to ${dateRange.to ? format(dateRange.to, "PPP") : ""}`;
       }
-      
+
       // Get logo URL
       const logoUrl = window.location.origin + "/lc-logo.png";
-      
+
       // Format period type for title
-      const periodTypeStr = consolidatedData.period.type.charAt(0).toUpperCase() + consolidatedData.period.type.slice(1);
+      const periodTypeStr =
+        consolidatedData.period.type.charAt(0).toUpperCase() +
+        consolidatedData.period.type.slice(1);
 
       // Create column headers based on selected fields
       const headers: string[] = [];
-      settings.includeFields.forEach(field => {
-        switch(field) {
-          case "branchCode": headers.push("Branch Code"); break;
-          case "branchName": headers.push("Branch Name"); break;
-          case "writeOffs": headers.push("Write-Offs (KHR)"); break;
-          case "ninetyPlus": headers.push("90+ Days (KHR)"); break;
-          case "hasReports": headers.push("Reported"); break;
-          case "reportsCount": headers.push("Reports Count"); break;
+      settings.includeFields.forEach((field) => {
+        switch (field) {
+          case "branchCode":
+            headers.push("Branch Code");
+            break;
+          case "branchName":
+            headers.push("Branch Name");
+            break;
+          case "writeOffs":
+            headers.push("Write-Offs (KHR)");
+            break;
+          case "ninetyPlus":
+            headers.push("90+ Days (KHR)");
+            break;
+          case "hasReports":
+            headers.push("Reported");
+            break;
+          case "reportsCount":
+            headers.push("Reports Count");
+            break;
         }
       });
 
@@ -594,7 +669,7 @@ export default function ConsolidatedView() {
               body { 
                 font-family: Arial, sans-serif; 
                 margin: 20px; 
-                ${settings.orientation === 'landscape' ? 'width: 1100px;' : 'width: 800px;'}
+                ${settings.orientation === "landscape" ? "width: 1100px;" : "width: 800px;"}
               }
               .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
               .logo { max-height: 60px; }
@@ -634,18 +709,20 @@ export default function ConsolidatedView() {
               </div>
             </div>
             
-            ${settings.includeMetrics ? `
+            ${
+              settings.includeMetrics
+                ? `
             <div class="metrics">
               <div class="metric-card">
                 <p class="metric-title">Total Write-Offs</p>
                 <p class="metric-value">${formatKHRCurrency(
-                  consolidatedData?.metrics.totalWriteOffs || 0.0
+                  consolidatedData?.metrics.totalWriteOffs || 0.0,
                 )}</p>
               </div>
               <div class="metric-card">
                 <p class="metric-title">Total 90+ Days</p>
                 <p class="metric-value">${formatKHRCurrency(
-                  consolidatedData?.metrics.totalNinetyPlus || 0.0
+                  consolidatedData?.metrics.totalNinetyPlus || 0.0,
                 )}</p>
               </div>
               <div class="metric-card">
@@ -655,66 +732,82 @@ export default function ConsolidatedView() {
                 } of ${consolidatedData?.metrics.totalBranches || 0.0}</p>
               </div>
             </div>
-            ` : ''}
+            `
+                : ""
+            }
             
             <table>
               <thead>
                 <tr>
-                  ${headers.map(header => `<th>${header}</th>`).join("")}
+                  ${headers.map((header) => `<th>${header}</th>`).join("")}
                 </tr>
               </thead>
               <tbody>
-                ${filteredBranches.map(branch => {
-                  const cells: string[] = [];
-                  
-                  settings.includeFields.forEach(field => {
-                    switch(field) {
-                      case "branchCode": 
-                        cells.push(`<td>${branch.branchCode}</td>`); 
-                        break;
-                      case "branchName": 
-                        cells.push(`<td>${branch.branchName}</td>`); 
-                        break;
-                      case "writeOffs": 
-                        cells.push(`<td>${formatKHRCurrency(branch.writeOffs)}</td>`); 
-                        break;
-                      case "ninetyPlus": 
-                        cells.push(`<td>${formatKHRCurrency(branch.ninetyPlus)}</td>`); 
-                        break;
-                      case "hasReports": 
-                        cells.push(`<td>${branch.hasReports ? "Yes" : "No"}</td>`); 
-                        break;
-                      case "reportsCount": 
-                        cells.push(`<td>${branch.reportsCount}</td>`); 
-                        break;
-                    }
-                  });
-                  
-                  return `<tr>${cells.join("")}</tr>`;
-                }).join("")}
+                ${filteredBranches
+                  .map((branch) => {
+                    const cells: string[] = [];
+
+                    settings.includeFields.forEach((field) => {
+                      switch (field) {
+                        case "branchCode":
+                          cells.push(`<td>${branch.branchCode}</td>`);
+                          break;
+                        case "branchName":
+                          cells.push(`<td>${branch.branchName}</td>`);
+                          break;
+                        case "writeOffs":
+                          cells.push(
+                            `<td>${formatKHRCurrency(branch.writeOffs)}</td>`,
+                          );
+                          break;
+                        case "ninetyPlus":
+                          cells.push(
+                            `<td>${formatKHRCurrency(branch.ninetyPlus)}</td>`,
+                          );
+                          break;
+                        case "hasReports":
+                          cells.push(
+                            `<td>${branch.hasReports ? "Yes" : "No"}</td>`,
+                          );
+                          break;
+                        case "reportsCount":
+                          cells.push(`<td>${branch.reportsCount}</td>`);
+                          break;
+                      }
+                    });
+
+                    return `<tr>${cells.join("")}</tr>`;
+                  })
+                  .join("")}
                 
-                ${settings.includeSummary ? `
+                ${
+                  settings.includeSummary
+                    ? `
                 <tr class="summary">
-                  ${settings.includeFields.map(field => {
-                    switch(field) {
-                      case "branchCode": 
-                        return `<td>TOTAL</td>`; 
-                      case "branchName": 
-                        return `<td></td>`; 
-                      case "writeOffs": 
-                        return `<td>${formatKHRCurrency(consolidatedData.metrics.totalWriteOffs)}</td>`; 
-                      case "ninetyPlus": 
-                        return `<td>${formatKHRCurrency(consolidatedData.metrics.totalNinetyPlus)}</td>`; 
-                      case "hasReports": 
-                        return `<td>${consolidatedData.metrics.reportedBranches}/${consolidatedData.metrics.totalBranches}</td>`; 
-                      case "reportsCount": 
-                        return `<td></td>`; 
-                      default:
-                        return `<td></td>`;
-                    }
-                  }).join("")}
+                  ${settings.includeFields
+                    .map((field) => {
+                      switch (field) {
+                        case "branchCode":
+                          return `<td>TOTAL</td>`;
+                        case "branchName":
+                          return `<td></td>`;
+                        case "writeOffs":
+                          return `<td>${formatKHRCurrency(consolidatedData.metrics.totalWriteOffs)}</td>`;
+                        case "ninetyPlus":
+                          return `<td>${formatKHRCurrency(consolidatedData.metrics.totalNinetyPlus)}</td>`;
+                        case "hasReports":
+                          return `<td>${consolidatedData.metrics.reportedBranches}/${consolidatedData.metrics.totalBranches}</td>`;
+                        case "reportsCount":
+                          return `<td></td>`;
+                        default:
+                          return `<td></td>`;
+                      }
+                    })
+                    .join("")}
                 </tr>
-                ` : ''}
+                `
+                    : ""
+                }
               </tbody>
             </table>
             
@@ -772,7 +865,7 @@ export default function ConsolidatedView() {
 
   // Handle chart bar click for drill-down
   const handleBarClick = (
-    data: Record<string, string | number | boolean | undefined>
+    data: Record<string, string | number | boolean | undefined>,
   ) => {
     if (!data) return;
 
@@ -829,7 +922,9 @@ export default function ConsolidatedView() {
       <CardHeader className="border-b bg-muted/50 px-6">
         <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <div>
-            <CardTitle className="text-2xl font-bold">Consolidated Reports</CardTitle>
+            <CardTitle className="text-2xl font-bold">
+              Consolidated Reports
+            </CardTitle>
             <CardDescription className="text-sm text-muted-foreground">
               View aggregated metrics across all branches
             </CardDescription>
@@ -872,9 +967,12 @@ export default function ConsolidatedView() {
             <div className="flex flex-wrap gap-2 sm:flex-nowrap">
               <Button
                 onClick={handleGenerateReport}
-                disabled={(filterType === "single" && !date) || 
-                         (filterType === "range" && (!dateRange.from || !dateRange.to)) || 
-                         isLoading}
+                disabled={
+                  (filterType === "single" && !date) ||
+                  (filterType === "range" &&
+                    (!dateRange.from || !dateRange.to)) ||
+                  isLoading
+                }
                 className="flex-1 sm:flex-none sm:w-32"
               >
                 {isLoading ? (
@@ -957,9 +1055,7 @@ export default function ConsolidatedView() {
                     <ul className="text-xs list-disc pl-5 space-y-1">
                       <li>Network connection issue</li>
                       <li>Server is temporarily unavailable</li>
-                      <li>
-                        You might not have permission to access this data
-                      </li>
+                      <li>You might not have permission to access this data</li>
                       <li>The requested date range contains no data</li>
                     </ul>
                   </div>
@@ -1012,11 +1108,15 @@ export default function ConsolidatedView() {
                     <BranchPerformanceChart
                       data={consolidatedData}
                       collapsed={collapsedSections.branchPerformance}
-                      onToggleCollapse={() => toggleSection("branchPerformance")}
+                      onToggleCollapse={() =>
+                        toggleSection("branchPerformance")
+                      }
                       visibleMetrics={visibleMetrics}
                       showYearOverYear={showYearOverYear}
                       onToggleMetric={toggleMetricVisibility}
-                      onToggleYearOverYear={() => setShowYearOverYear(!showYearOverYear)}
+                      onToggleYearOverYear={() =>
+                        setShowYearOverYear(!showYearOverYear)
+                      }
                       onChartClick={handleChartClick}
                     />
                   )}
@@ -1024,37 +1124,45 @@ export default function ConsolidatedView() {
 
                 {/* Time Series Chart */}
                 <div className="rounded-lg border shadow-sm">
-                  {consolidatedData && consolidatedData.historicalData && consolidatedData.historicalData.length > 0 && (
-                    <TimeSeriesChart
-                      data={consolidatedData}
-                      collapsed={collapsedSections.timeSeries}
-                      period={period}
-                      onToggleCollapse={() => toggleSection("timeSeries")}
-                      visibleMetrics={visibleMetrics}
-                      showYearOverYear={showYearOverYear}
-                      onToggleMetric={toggleMetricVisibility}
-                      onToggleYearOverYear={() => setShowYearOverYear(!showYearOverYear)}
-                      onChartClick={handleChartClick}
-                    />
-                  )}
+                  {consolidatedData &&
+                    consolidatedData.historicalData &&
+                    consolidatedData.historicalData.length > 0 && (
+                      <TimeSeriesChart
+                        data={consolidatedData}
+                        collapsed={collapsedSections.timeSeries}
+                        period={period}
+                        onToggleCollapse={() => toggleSection("timeSeries")}
+                        visibleMetrics={visibleMetrics}
+                        showYearOverYear={showYearOverYear}
+                        onToggleMetric={toggleMetricVisibility}
+                        onToggleYearOverYear={() =>
+                          setShowYearOverYear(!showYearOverYear)
+                        }
+                        onChartClick={handleChartClick}
+                      />
+                    )}
                 </div>
 
                 {/* Trend Analysis Chart */}
                 <div className="rounded-lg border shadow-sm">
-                  {consolidatedData && consolidatedData.historicalData && consolidatedData.historicalData.length > 0 && (
-                    <TrendAnalysisChart
-                      data={consolidatedData}
-                      collapsed={collapsedSections.trendAnalysis}
-                      onToggleCollapse={() => toggleSection("trendAnalysis")}
-                    />
-                  )}
+                  {consolidatedData &&
+                    consolidatedData.historicalData &&
+                    consolidatedData.historicalData.length > 0 && (
+                      <TrendAnalysisChart
+                        data={consolidatedData}
+                        collapsed={collapsedSections.trendAnalysis}
+                        onToggleCollapse={() => toggleSection("trendAnalysis")}
+                      />
+                    )}
                 </div>
 
                 {/* Plan vs Actual Comparison */}
                 {reportType === "actual" && planData && consolidatedData && (
                   <div className="rounded-lg border shadow-sm overflow-hidden">
                     <div className="bg-muted/50 p-4">
-                      <h3 className="text-lg font-medium">Plan vs. Actual Comparison</h3>
+                      <h3 className="text-lg font-medium">
+                        Plan vs. Actual Comparison
+                      </h3>
                     </div>
                     <div className="p-4">
                       <PlanVsActualChart
@@ -1073,7 +1181,7 @@ export default function ConsolidatedView() {
                         <h3 className="text-lg font-medium">Branch Status</h3>
                       </div>
                       <div className="p-4">
-                        <BranchStatusTable 
+                        <BranchStatusTable
                           consolidatedData={consolidatedData}
                           planData={planData}
                           reportType={reportType}
@@ -1087,7 +1195,7 @@ export default function ConsolidatedView() {
           )}
         </div>
       </CardContent>
-      
+
       {/* Modal components */}
       <BranchDetailsModal
         isOpen={detailsModalOpen}
@@ -1097,25 +1205,25 @@ export default function ConsolidatedView() {
         planData={planData}
         reportType={reportType}
       />
-      
+
       {selectedBranch && (
         <BranchDetailDialog
           selectedBranch={selectedBranch}
           selectedBranchData={consolidatedData?.branchData.find(
             (item) =>
               item.branchCode === selectedBranch ||
-              item.branchName === selectedBranch
+              item.branchName === selectedBranch,
           )}
           onClose={handleCloseDialog}
         />
       )}
-      
+
       <ExportOptionsDialog
         isOpen={exportDialogOpen}
         onClose={() => setExportDialogOpen(false)}
-        onExport={(settings) => 
-          exportType === "csv" 
-            ? handleExportCSV(settings) 
+        onExport={(settings) =>
+          exportType === "csv"
+            ? handleExportCSV(settings)
             : handleExportPDF(settings)
         }
         exportType={exportType}

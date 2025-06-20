@@ -37,7 +37,7 @@ const defaultOptions: PasswordValidationOptions = {
  */
 export function validatePassword(
   password: string,
-  options: PasswordValidationOptions = defaultOptions
+  options: PasswordValidationOptions = defaultOptions,
 ): { isValid: boolean; errors: string[] } {
   const {
     minLength = 8,

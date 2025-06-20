@@ -12,6 +12,7 @@ This guide explains how to deploy the LC-OPD-Daily application using PM2, a prod
 The application uses a PM2 ecosystem configuration file (`ecosystem.config.cjs`) that defines how the application should be run.
 
 Key settings:
+
 - **Name**: `lc-opd-daily`
 - **Script**: Uses Next.js start command
 - **Instances**: Set to "max" for optimal performance (uses all available CPU cores)
@@ -89,7 +90,7 @@ To configure PM2 to automatically start your application when the server reboots
 # Save the current PM2 process list
 pm2 save
 
-# Generate startup script 
+# Generate startup script
 pm2 startup
 # Then run the command it outputs
 ```
@@ -115,6 +116,7 @@ If you encounter issues:
 You can adjust the number of instances in the `ecosystem.config.cjs` file:
 
 - `max` - utilizes all available CPU cores
+
 ## Related Documentation
 
 - [Production Deployment](./production-deployment.md)
@@ -124,4 +126,4 @@ You can adjust the number of instances in the `ecosystem.config.cjs` file:
 - [Error Handling Guide](./error-handling-guide.md)
 - [Performance Optimizations](./performance-optimizations.md)
 
-- Specific number (e.g., `4`) - runs exactly that many instances 
+- Specific number (e.g., `4`) - runs exactly that many instances

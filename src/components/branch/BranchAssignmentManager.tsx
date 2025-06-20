@@ -47,7 +47,9 @@ interface BranchAssignmentManagerProps {
   userId: string;
 }
 
-export function BranchAssignmentManager({ userId }: BranchAssignmentManagerProps) {
+export function BranchAssignmentManager({
+  userId,
+}: BranchAssignmentManagerProps) {
   const { toast } = useToast();
   const [branches, setBranches] = useState<Branch[]>([]);
   const [assignedBranches, setAssignedBranches] = useState<Branch[]>([]);
@@ -71,20 +73,26 @@ export function BranchAssignmentManager({ userId }: BranchAssignmentManagerProps
         setBranches(branchesData);
 
         // Fetch user's assigned branches
-        const assignmentsResponse = await fetch(`/api/users/${userId}/branch-assignments`);
+        const assignmentsResponse = await fetch(
+          `/api/users/${userId}/branch-assignments`,
+        );
         if (!assignmentsResponse.ok) {
           throw new Error("Failed to fetch branch assignments");
         }
         const assignmentsData = await assignmentsResponse.json();
         setAssignedBranches(assignmentsData);
-        
+
         // Set initial selected branch IDs
-        const initialSelectedIds = assignmentsData.map((branch: Branch) => branch.id);
+        const initialSelectedIds = assignmentsData.map(
+          (branch: Branch) => branch.id,
+        );
         setSelectedBranchIds(initialSelectedIds);
-        
+
         // Filter out already assigned branches from available branches
         const assignedIds = new Set(initialSelectedIds);
-        setAvailableBranches(branchesData.filter((branch: Branch) => !assignedIds.has(branch.id)));
+        setAvailableBranches(
+          branchesData.filter((branch: Branch) => !assignedIds.has(branch.id)),
+        );
       } catch (error) {
         console.error("Error fetching data:", error);
         toast({
@@ -118,10 +126,14 @@ export function BranchAssignmentManager({ userId }: BranchAssignmentManagerProps
 
       const updatedAssignments = await response.json();
       setAssignedBranches(updatedAssignments);
-      
+
       // Update available branches
-      const assignedIds = new Set(updatedAssignments.map((branch: Branch) => branch.id));
-      setAvailableBranches(branches.filter((branch: Branch) => !assignedIds.has(branch.id)));
+      const assignedIds = new Set(
+        updatedAssignments.map((branch: Branch) => branch.id),
+      );
+      setAvailableBranches(
+        branches.filter((branch: Branch) => !assignedIds.has(branch.id)),
+      );
 
       toast({
         title: "Success",
@@ -131,7 +143,10 @@ export function BranchAssignmentManager({ userId }: BranchAssignmentManagerProps
       console.error("Error updating branch assignments:", error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to update branch assignments",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to update branch assignments",
         variant: "destructive",
       });
     } finally {
@@ -141,13 +156,13 @@ export function BranchAssignmentManager({ userId }: BranchAssignmentManagerProps
 
   const handleAssignBranch = async () => {
     if (!selectedBranch) return;
-    
+
     try {
       setIsSaving(true);
-      
+
       // Add the selected branch to the selectedBranchIds
       const updatedBranchIds = [...selectedBranchIds, selectedBranch];
-      
+
       const response = await fetch(`/api/users/${userId}/branch-assignments`, {
         method: "POST",
         headers: {
@@ -163,12 +178,18 @@ export function BranchAssignmentManager({ userId }: BranchAssignmentManagerProps
 
       const updatedAssignments = await response.json();
       setAssignedBranches(updatedAssignments);
-      setSelectedBranchIds(updatedAssignments.map((branch: Branch) => branch.id));
-      
+      setSelectedBranchIds(
+        updatedAssignments.map((branch: Branch) => branch.id),
+      );
+
       // Update available branches
-      const assignedIds = new Set(updatedAssignments.map((branch: Branch) => branch.id));
-      setAvailableBranches(branches.filter((branch: Branch) => !assignedIds.has(branch.id)));
-      
+      const assignedIds = new Set(
+        updatedAssignments.map((branch: Branch) => branch.id),
+      );
+      setAvailableBranches(
+        branches.filter((branch: Branch) => !assignedIds.has(branch.id)),
+      );
+
       // Clear selection
       setSelectedBranch("");
 
@@ -180,7 +201,8 @@ export function BranchAssignmentManager({ userId }: BranchAssignmentManagerProps
       console.error("Error assigning branch:", error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to assign branch",
+        description:
+          error instanceof Error ? error.message : "Failed to assign branch",
         variant: "destructive",
       });
     } finally {
@@ -191,10 +213,12 @@ export function BranchAssignmentManager({ userId }: BranchAssignmentManagerProps
   const handleRemoveBranch = async (branchId: string) => {
     try {
       setIsSaving(true);
-      
+
       // Remove the branch from selectedBranchIds
-      const updatedBranchIds = selectedBranchIds.filter(id => id !== branchId);
-      
+      const updatedBranchIds = selectedBranchIds.filter(
+        (id) => id !== branchId,
+      );
+
       const response = await fetch(`/api/users/${userId}/branch-assignments`, {
         method: "POST",
         headers: {
@@ -210,11 +234,17 @@ export function BranchAssignmentManager({ userId }: BranchAssignmentManagerProps
 
       const updatedAssignments = await response.json();
       setAssignedBranches(updatedAssignments);
-      setSelectedBranchIds(updatedAssignments.map((branch: Branch) => branch.id));
-      
+      setSelectedBranchIds(
+        updatedAssignments.map((branch: Branch) => branch.id),
+      );
+
       // Update available branches
-      const assignedIds = new Set(updatedAssignments.map((branch: Branch) => branch.id));
-      setAvailableBranches(branches.filter((branch: Branch) => !assignedIds.has(branch.id)));
+      const assignedIds = new Set(
+        updatedAssignments.map((branch: Branch) => branch.id),
+      );
+      setAvailableBranches(
+        branches.filter((branch: Branch) => !assignedIds.has(branch.id)),
+      );
 
       toast({
         title: "Success",
@@ -224,7 +254,8 @@ export function BranchAssignmentManager({ userId }: BranchAssignmentManagerProps
       console.error("Error removing branch:", error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to remove branch",
+        description:
+          error instanceof Error ? error.message : "Failed to remove branch",
         variant: "destructive",
       });
     } finally {
@@ -232,9 +263,10 @@ export function BranchAssignmentManager({ userId }: BranchAssignmentManagerProps
     }
   };
 
-  const filteredAvailableBranches = availableBranches.filter((branch) =>
-    branch.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    branch.code.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredAvailableBranches = availableBranches.filter(
+    (branch) =>
+      branch.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      branch.code.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   if (isLoading) {
@@ -250,30 +282,30 @@ export function BranchAssignmentManager({ userId }: BranchAssignmentManagerProps
       <Card>
         <CardHeader>
           <CardTitle>Assigned Branches</CardTitle>
-          <CardDescription>
-            Branches this user has access to
-          </CardDescription>
+          <CardDescription>Branches this user has access to</CardDescription>
         </CardHeader>
         <CardContent>
           {assignedBranches.length === 0 ? (
             <div className="text-center py-6 border rounded-md border-dashed border-gray-300 dark:border-gray-600">
               <p className="text-muted-foreground">No branches assigned yet</p>
-              <p className="text-sm text-muted-foreground mt-1">Assign branches below</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Assign branches below
+              </p>
             </div>
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {assignedBranches.map((branch) => (
-                <div 
-                  key={branch.id} 
+                <div
+                  key={branch.id}
                   className="flex items-center justify-between p-3 border rounded-md"
                 >
                   <div>
                     <p className="font-medium">{branch.name}</p>
                     <Badge variant="outline">{branch.code}</Badge>
                   </div>
-                  <Button 
-                    variant="outline" 
-                    size="icon" 
+                  <Button
+                    variant="outline"
+                    size="icon"
                     onClick={() => handleRemoveBranch(branch.id)}
                     disabled={isSaving}
                   >
@@ -289,9 +321,7 @@ export function BranchAssignmentManager({ userId }: BranchAssignmentManagerProps
       <Card>
         <CardHeader>
           <CardTitle>Assign New Branch</CardTitle>
-          <CardDescription>
-            Add branch access for this user
-          </CardDescription>
+          <CardDescription>Add branch access for this user</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
@@ -332,7 +362,7 @@ export function BranchAssignmentManager({ userId }: BranchAssignmentManagerProps
                 Assign Branch
               </Button>
             </div>
-            
+
             <div className="relative">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
@@ -353,8 +383,13 @@ export function BranchAssignmentManager({ userId }: BranchAssignmentManagerProps
                   </div>
                 </TooltipTrigger>
                 <TooltipContent className="max-w-xs">
-                  <p>Users can only access branch data for branches they are assigned to.</p>
-                  <p className="mt-1">Admins automatically have access to all branches.</p>
+                  <p>
+                    Users can only access branch data for branches they are
+                    assigned to.
+                  </p>
+                  <p className="mt-1">
+                    Admins automatically have access to all branches.
+                  </p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>

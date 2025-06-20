@@ -3,9 +3,10 @@ import { Metadata } from "next";
 export const metadata: Metadata = {
   title: {
     template: "%s | LC Help Desk Reports",
-    default: "LC Help Desk Reports - Daily Management System"
+    default: "LC Help Desk Reports - Daily Management System",
   },
-  description: "LC Help Desk professional daily reporting system for OPD management and tracking",
+  description:
+    "LC Help Desk professional daily reporting system for OPD management and tracking",
   manifest: "/manifest.json",
   themeColor: "#1a1a1a",
   viewport: {
@@ -33,7 +34,14 @@ export const metadata: Metadata = {
       { url: "/icons/icon-512x512.png", sizes: "512x512", type: "image/png" },
     ],
   },
-  keywords: ["LC Help Desk", "OPD Reports", "Daily Reports", "Medical Reports", "Healthcare Management", "Patient Tracking"],
+  keywords: [
+    "LC Help Desk",
+    "OPD Reports",
+    "Daily Reports",
+    "Medical Reports",
+    "Healthcare Management",
+    "Patient Tracking",
+  ],
   authors: [{ name: "LC Help Desk Team" }],
   creator: "LC Help Desk",
   publisher: "LC Help Desk",
@@ -42,7 +50,8 @@ export const metadata: Metadata = {
     locale: "en_US",
     url: "https://reports.lchelpdesk.com/",
     title: "LC Help Desk Reports",
-    description: "Professional daily reporting system for LC OPD management and tracking",
+    description:
+      "Professional daily reporting system for LC OPD management and tracking",
     siteName: "LC Help Desk Reports",
     images: [
       {
@@ -56,7 +65,8 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "LC Help Desk Reports",
-    description: "Professional daily reporting system for LC OPD management and tracking",
+    description:
+      "Professional daily reporting system for LC OPD management and tracking",
     images: ["/screenshots/home.png"],
     creator: "@lchelpdesk",
     site: "@lchelpdesk",
@@ -67,8 +77,8 @@ export const metadata: Metadata = {
     googleBot: {
       index: true,
       follow: true,
-      'max-image-preview': 'large',
-      'max-snippet': -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
     },
   },
   verification: {

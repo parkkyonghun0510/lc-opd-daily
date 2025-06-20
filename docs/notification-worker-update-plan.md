@@ -30,16 +30,16 @@ Integrate the notification worker with the new Server-Sent Events (SSE) system t
 
 ```typescript
 // src/workers/notification-processor.ts
-import { emitNotificationEvent } from '@/lib/sse/event-emitter';
+import { emitNotificationEvent } from "@/lib/sse/event-emitter";
 
 async function processNotification(message: SQSMessage) {
   try {
     // Existing notification processing...
     const notification = await createInAppNotification(/* ... */);
-    
+
     // New: Emit SSE event for real-time delivery
     await emitNotificationEvent(notification.userId, notification);
-    
+
     // Continue with existing processing...
   } catch (error) {
     // Enhanced error handling...
@@ -61,23 +61,26 @@ Implement a more sophisticated error handling and retry system with:
 export async function processWithRetries<T>(
   fn: () => Promise<T>,
   maxRetries: number = 3,
-  context: Record<string, any> = {}
+  context: Record<string, any> = {},
 ): Promise<T> {
   let attempt = 0;
-  
+
   while (true) {
     try {
       return await fn();
     } catch (error) {
       attempt++;
-      
+
       // Log the error with context
-      console.error(`Error processing notification (attempt ${attempt}/${maxRetries}):`, {
-        error: error.message,
-        stack: error.stack,
-        ...context
-      });
-      
+      console.error(
+        `Error processing notification (attempt ${attempt}/${maxRetries}):`,
+        {
+          error: error.message,
+          stack: error.stack,
+          ...context,
+        },
+      );
+
       // Check if we should retry
       if (isTransientError(error) && attempt < maxRetries) {
         // Calculate backoff time (exponential with jitter)
@@ -86,12 +89,12 @@ export async function processWithRetries<T>(
         await sleep(backoffMs);
         continue;
       }
-      
+
       // Move to dead-letter queue if configured
       if (context.messageId && context.receiptHandle) {
         await moveToDeadLetterQueue(context.messageId, context.receiptHandle);
       }
-      
+
       throw error;
     }
   }
@@ -100,9 +103,9 @@ export async function processWithRetries<T>(
 function isTransientError(error: any): boolean {
   // Determine if error is transient (network issues, temporary DB problems, etc.)
   return (
-    error.code === 'ECONNRESET' ||
-    error.code === 'ETIMEDOUT' ||
-    error.name === 'TransientDatabaseError' ||
+    error.code === "ECONNRESET" ||
+    error.code === "ETIMEDOUT" ||
+    error.name === "TransientDatabaseError" ||
     /temporary/i.test(error.message)
   );
 }
@@ -126,59 +129,71 @@ Implement comprehensive monitoring and logging:
 
 ```typescript
 // src/workers/monitoring.ts
-import { createLogger } from '@/lib/logger';
+import { createLogger } from "@/lib/logger";
 
-const logger = createLogger('notification-worker');
-const metrics = new MetricsCollector('notification-worker');
+const logger = createLogger("notification-worker");
+const metrics = new MetricsCollector("notification-worker");
 
-export function logProcessingStart(messageId: string, messageType: string): string {
+export function logProcessingStart(
+  messageId: string,
+  messageType: string,
+): string {
   const correlationId = `notif-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`;
-  
-  logger.info('Processing notification message', {
+
+  logger.info("Processing notification message", {
     correlationId,
     messageId,
     messageType,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
-  
-  metrics.increment('notifications.processing.started', {
-    messageType
+
+  metrics.increment("notifications.processing.started", {
+    messageType,
   });
-  
+
   return correlationId;
 }
 
-export function logProcessingComplete(correlationId: string, messageId: string, durationMs: number): void {
-  logger.info('Notification processing complete', {
+export function logProcessingComplete(
+  correlationId: string,
+  messageId: string,
+  durationMs: number,
+): void {
+  logger.info("Notification processing complete", {
     correlationId,
     messageId,
     durationMs,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
-  
-  metrics.histogram('notifications.processing.duration', durationMs, {
-    success: 'true'
+
+  metrics.histogram("notifications.processing.duration", durationMs, {
+    success: "true",
   });
-  
-  metrics.increment('notifications.processing.completed');
+
+  metrics.increment("notifications.processing.completed");
 }
 
-export function logProcessingError(correlationId: string, messageId: string, error: any, durationMs: number): void {
-  logger.error('Notification processing failed', {
+export function logProcessingError(
+  correlationId: string,
+  messageId: string,
+  error: any,
+  durationMs: number,
+): void {
+  logger.error("Notification processing failed", {
     correlationId,
     messageId,
     error: error.message,
     stack: error.stack,
     durationMs,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
-  
-  metrics.histogram('notifications.processing.duration', durationMs, {
-    success: 'false'
+
+  metrics.histogram("notifications.processing.duration", durationMs, {
+    success: "false",
   });
-  
-  metrics.increment('notifications.processing.failed', {
-    errorType: error.name || 'Unknown'
+
+  metrics.increment("notifications.processing.failed", {
+    errorType: error.name || "Unknown",
   });
 }
 ```
@@ -196,7 +211,7 @@ Implement a priority system for notifications:
 const QUEUE_URLS = {
   HIGH: process.env.AWS_SQS_HIGH_PRIORITY_QUEUE_URL,
   NORMAL: process.env.AWS_SQS_NOTIFICATION_QUEUE_URL,
-  LOW: process.env.AWS_SQS_LOW_PRIORITY_QUEUE_URL
+  LOW: process.env.AWS_SQS_LOW_PRIORITY_QUEUE_URL,
 };
 
 export async function pollQueues(): Promise<SQSMessage | null> {
@@ -205,28 +220,28 @@ export async function pollQueues(): Promise<SQSMessage | null> {
   if (highPriorityMessage) {
     return {
       ...highPriorityMessage,
-      priority: 'HIGH'
+      priority: "HIGH",
     };
   }
-  
+
   // Then try normal priority
   const normalPriorityMessage = await receiveMessage(QUEUE_URLS.NORMAL);
   if (normalPriorityMessage) {
     return {
       ...normalPriorityMessage,
-      priority: 'NORMAL'
+      priority: "NORMAL",
     };
   }
-  
+
   // Finally try low priority
   const lowPriorityMessage = await receiveMessage(QUEUE_URLS.LOW);
   if (lowPriorityMessage) {
     return {
       ...lowPriorityMessage,
-      priority: 'LOW'
+      priority: "LOW",
     };
   }
-  
+
   return null;
 }
 ```
@@ -241,25 +256,32 @@ Enhance the worker to support running multiple instances:
 
 ```typescript
 // src/workers/distributed-lock.ts
-import { Redis } from 'ioredis';
+import { Redis } from "ioredis";
 
 const redis = new Redis(process.env.REDIS_URL);
 const LOCK_TTL = 30000; // 30 seconds
 
-export async function acquireLock(lockName: string, ttlMs: number = LOCK_TTL): Promise<boolean> {
-  const workerId = process.env.WORKER_ID || `worker-${Math.random().toString(36).substring(2, 10)}`;
+export async function acquireLock(
+  lockName: string,
+  ttlMs: number = LOCK_TTL,
+): Promise<boolean> {
+  const workerId =
+    process.env.WORKER_ID ||
+    `worker-${Math.random().toString(36).substring(2, 10)}`;
   const lockKey = `lock:${lockName}`;
-  
+
   // Try to acquire the lock with NX (only if it doesn't exist)
-  const result = await redis.set(lockKey, workerId, 'PX', ttlMs, 'NX');
-  
-  return result === 'OK';
+  const result = await redis.set(lockKey, workerId, "PX", ttlMs, "NX");
+
+  return result === "OK";
 }
 
 export async function releaseLock(lockName: string): Promise<boolean> {
-  const workerId = process.env.WORKER_ID || `worker-${Math.random().toString(36).substring(2, 10)}`;
+  const workerId =
+    process.env.WORKER_ID ||
+    `worker-${Math.random().toString(36).substring(2, 10)}`;
   const lockKey = `lock:${lockName}`;
-  
+
   // Only release if we own the lock
   const script = `
     if redis.call("get", KEYS[1]) == ARGV[1] then
@@ -268,20 +290,24 @@ export async function releaseLock(lockName: string): Promise<boolean> {
       return 0
     end
   `;
-  
+
   const result = await redis.eval(script, 1, lockKey, workerId);
-  
+
   return result === 1;
 }
 
-export async function withLock<T>(lockName: string, fn: () => Promise<T>, ttlMs: number = LOCK_TTL): Promise<T | null> {
+export async function withLock<T>(
+  lockName: string,
+  fn: () => Promise<T>,
+  ttlMs: number = LOCK_TTL,
+): Promise<T | null> {
   const acquired = await acquireLock(lockName, ttlMs);
-  
+
   if (!acquired) {
     //console.log(`Failed to acquire lock: ${lockName}`);
     return null;
   }
-  
+
   try {
     return await fn();
   } finally {
@@ -314,87 +340,100 @@ export interface NotificationAction {
   label: string;
   url?: string;
   apiEndpoint?: string;
-  method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
+  method?: "GET" | "POST" | "PUT" | "DELETE";
   data?: Record<string, any>;
 }
 
 export const NOTIFICATION_TEMPLATES: Record<string, NotificationTemplate> = {
   REPORT_SUBMITTED: {
-    id: 'REPORT_SUBMITTED',
-    title: 'New Report Submitted',
-    message: '{{submitterName}} has submitted a new report for {{branchName}}',
-    htmlContent: '<p><strong>{{submitterName}}</strong> has submitted a new report for <strong>{{branchName}}</strong></p>',
+    id: "REPORT_SUBMITTED",
+    title: "New Report Submitted",
+    message: "{{submitterName}} has submitted a new report for {{branchName}}",
+    htmlContent:
+      "<p><strong>{{submitterName}}</strong> has submitted a new report for <strong>{{branchName}}</strong></p>",
     actions: [
       {
-        id: 'view',
-        label: 'View Report',
-        url: '/reports/{{reportId}}'
+        id: "view",
+        label: "View Report",
+        url: "/reports/{{reportId}}",
       },
       {
-        id: 'approve',
-        label: 'Approve',
-        apiEndpoint: '/api/reports/{{reportId}}/approve',
-        method: 'POST'
-      }
-    ]
+        id: "approve",
+        label: "Approve",
+        apiEndpoint: "/api/reports/{{reportId}}/approve",
+        method: "POST",
+      },
+    ],
   },
   // More templates...
 };
 
 export function renderTemplate(
   templateId: string,
-  variables: Record<string, any>
+  variables: Record<string, any>,
 ): NotificationTemplate {
   const template = NOTIFICATION_TEMPLATES[templateId];
-  
+
   if (!template) {
     throw new Error(`Template not found: ${templateId}`);
   }
-  
+
   // Clone the template
   const rendered = { ...template };
-  
+
   // Replace variables in title and message
   rendered.title = replaceVariables(template.title, variables);
   rendered.message = replaceVariables(template.message, variables);
-  
+
   // Replace variables in HTML content if present
   if (template.htmlContent) {
     rendered.htmlContent = replaceVariables(template.htmlContent, variables);
   }
-  
+
   // Replace variables in actions if present
   if (template.actions) {
-    rendered.actions = template.actions.map(action => ({
+    rendered.actions = template.actions.map((action) => ({
       ...action,
       url: action.url ? replaceVariables(action.url, variables) : undefined,
-      apiEndpoint: action.apiEndpoint ? replaceVariables(action.apiEndpoint, variables) : undefined,
-      data: action.data ? replaceVariablesInObject(action.data, variables) : undefined
+      apiEndpoint: action.apiEndpoint
+        ? replaceVariables(action.apiEndpoint, variables)
+        : undefined,
+      data: action.data
+        ? replaceVariablesInObject(action.data, variables)
+        : undefined,
     }));
   }
-  
+
   return rendered;
 }
 
-function replaceVariables(text: string, variables: Record<string, any>): string {
+function replaceVariables(
+  text: string,
+  variables: Record<string, any>,
+): string {
   return text.replace(/\{\{(\w+)\}\}/g, (match, variable) => {
-    return variables[variable] !== undefined ? String(variables[variable]) : match;
+    return variables[variable] !== undefined
+      ? String(variables[variable])
+      : match;
   });
 }
 
-function replaceVariablesInObject(obj: Record<string, any>, variables: Record<string, any>): Record<string, any> {
+function replaceVariablesInObject(
+  obj: Record<string, any>,
+  variables: Record<string, any>,
+): Record<string, any> {
   const result: Record<string, any> = {};
-  
+
   for (const [key, value] of Object.entries(obj)) {
-    if (typeof value === 'string') {
+    if (typeof value === "string") {
       result[key] = replaceVariables(value, variables);
-    } else if (typeof value === 'object' && value !== null) {
+    } else if (typeof value === "object" && value !== null) {
       result[key] = replaceVariablesInObject(value, variables);
     } else {
       result[key] = value;
     }
   }
-  
+
   return result;
 }
 ```
@@ -420,7 +459,7 @@ const BATCH_WINDOW_MS = 60000; // 1 minute
 
 export function addToBatch(userId: string, notification: any): void {
   const key = `${userId}:${notification.type}`;
-  
+
   if (batchedNotifications.has(key)) {
     // Add to existing batch
     batchedNotifications.get(key)!.notifications.push(notification);
@@ -429,7 +468,7 @@ export function addToBatch(userId: string, notification: any): void {
     batchedNotifications.set(key, {
       userId,
       notifications: [notification],
-      createdAt: new Date()
+      createdAt: new Date(),
     });
   }
 }
@@ -437,7 +476,7 @@ export function addToBatch(userId: string, notification: any): void {
 export async function processBatches(): Promise<void> {
   const now = new Date();
   const batchesToProcess: BatchedNotification[] = [];
-  
+
   // Find batches that are ready to process
   for (const [key, batch] of batchedNotifications.entries()) {
     if (now.getTime() - batch.createdAt.getTime() >= BATCH_WINDOW_MS) {
@@ -445,7 +484,7 @@ export async function processBatches(): Promise<void> {
       batchedNotifications.delete(key);
     }
   }
-  
+
   // Process each batch
   for (const batch of batchesToProcess) {
     if (batch.notifications.length === 1) {
@@ -514,12 +553,14 @@ setInterval(processBatches, BATCH_WINDOW_MS / 2);
 ### Key Metrics
 
 1. **Processing Metrics**
+
    - Messages processed per minute
    - Processing time per message
    - Error rate
    - Queue depth
 
 2. **Resource Usage**
+
    - Memory usage
    - CPU usage
    - Network I/O
@@ -532,6 +573,7 @@ setInterval(processBatches, BATCH_WINDOW_MS / 2);
 ### Alerts
 
 1. **Critical Alerts**
+
    - Worker process crash
    - Error rate above threshold
    - Queue depth growing continuously

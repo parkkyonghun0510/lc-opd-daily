@@ -60,11 +60,11 @@ export async function GET(request: NextRequest) {
             },
           },
           orderBy: {
-            createdAt: 'asc',
+            createdAt: "asc",
           },
         },
         planReport: true,
-        actualReports: true
+        actualReports: true,
       },
       orderBy: {
         createdAt: "desc",
@@ -72,27 +72,29 @@ export async function GET(request: NextRequest) {
     });
 
     // Get all unique submitter IDs
-    const submitterIds = [...new Set(reports.map(report => report.submittedBy))];
+    const submitterIds = [
+      ...new Set(reports.map((report) => report.submittedBy)),
+    ];
 
     // Fetch all users in a single query for efficiency
     const users = await prisma.user.findMany({
       where: {
         id: {
-          in: submitterIds
-        }
+          in: submitterIds,
+        },
       },
       select: {
         id: true,
         name: true,
-        username: true
-      }
+        username: true,
+      },
     });
 
     // Create a map for quick user lookup
-    const userMap = new Map(users.map(user => [user.id, user]));
+    const userMap = new Map(users.map((user) => [user.id, user]));
 
     // Transform Decimal fields to numbers for each report and add user data
-    const transformedReports = reports.map(report => {
+    const transformedReports = reports.map((report) => {
       // Get user data from the map
       const userData = userMap.get(report.submittedBy) || null;
 
@@ -101,9 +103,9 @@ export async function GET(request: NextRequest) {
         writeOffs: Number(report.writeOffs),
         ninetyPlus: Number(report.ninetyPlus),
         // Format the date as a string for consistent API response
-        date: report.date.toISOString().split('T')[0],
+        date: report.date.toISOString().split("T")[0],
         // Add user data to the report
-        user: userData
+        user: userData,
       };
     });
 
@@ -112,7 +114,7 @@ export async function GET(request: NextRequest) {
     console.error("Error fetching pending and rejected reports:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

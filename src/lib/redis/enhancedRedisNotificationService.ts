@@ -5,17 +5,23 @@
  * rate limiting, and improved error handling.
  */
 
-import { executeRedisOperation, getRedisLoadBalancer } from './redisLoadBalancer';
-import { prisma } from '@/lib/prisma';
-import { NotificationType, generateNotificationContent } from '@/utils/notificationTemplates';
-import { emitNotification } from '@/lib/realtime/redisEventEmitter';
-import { NotificationEventType } from '@/types/notifications';
-import { rateLimiter } from '@/lib/rate-limit';
+import {
+  executeRedisOperation,
+  getRedisLoadBalancer,
+} from "./redisLoadBalancer";
+import { prisma } from "@/lib/prisma";
+import {
+  NotificationType,
+  generateNotificationContent,
+} from "@/utils/notificationTemplates";
+import { emitNotification } from "@/lib/realtime/redisEventEmitter";
+import { NotificationEventType } from "@/types/notifications";
+import { rateLimiter } from "@/lib/rate-limit";
 
 // Constants
-const NOTIFICATION_QUEUE_KEY = 'notifications:queue';
-const NOTIFICATION_PROCESSING_KEY = 'notifications:processing';
-const NOTIFICATION_HISTORY_KEY = 'notifications:history';
+const NOTIFICATION_QUEUE_KEY = "notifications:queue";
+const NOTIFICATION_PROCESSING_KEY = "notifications:processing";
+const NOTIFICATION_HISTORY_KEY = "notifications:history";
 const MAX_HISTORY_SIZE = 1000;
 
 // Notification interface
@@ -25,7 +31,7 @@ export interface NotificationMessage {
   data: any;
   userIds: string[];
   timestamp: string;
-  priority?: 'high' | 'normal' | 'low';
+  priority?: "high" | "normal" | "low";
   idempotencyKey?: string;
 }
 
@@ -43,10 +49,12 @@ const RATE_LIMITS = {
  * @param notification - The notification to check
  * @returns Whether the notification is rate limited
  */
-async function isRateLimited(notification: Omit<NotificationMessage, 'id' | 'timestamp'>): Promise<boolean> {
+async function isRateLimited(
+  notification: Omit<NotificationMessage, "id" | "timestamp">,
+): Promise<boolean> {
   try {
     // Skip rate limiting for high priority notifications
-    if (notification.priority === 'high') {
+    if (notification.priority === "high") {
       return false;
     }
 
@@ -56,11 +64,13 @@ async function isRateLimited(notification: Omit<NotificationMessage, 'id' | 'tim
 
       // Get current count from Redis
       const result = await executeRedisOperation(async (redis) => {
-        const count = await redis.get(userKey) as number | null;
+        const count = (await redis.get(userKey)) as number | null;
 
         if (count === null) {
           // Set initial count with expiry
-          await redis.set(userKey, 1, { ex: RATE_LIMITS.USER_NOTIFICATIONS.window });
+          await redis.set(userKey, 1, {
+            ex: RATE_LIMITS.USER_NOTIFICATIONS.window,
+          });
           return false;
         }
 
@@ -81,11 +91,13 @@ async function isRateLimited(notification: Omit<NotificationMessage, 'id' | 'tim
     // Check rate limit for notification type
     const typeKey = `rate-limit:notification:type:${notification.type}`;
     const result = await executeRedisOperation(async (redis) => {
-      const count = await redis.get(typeKey) as number | null;
+      const count = (await redis.get(typeKey)) as number | null;
 
       if (count === null) {
         // Set initial count with expiry
-        await redis.set(typeKey, 1, { ex: RATE_LIMITS.TYPE_NOTIFICATIONS.window });
+        await redis.set(typeKey, 1, {
+          ex: RATE_LIMITS.TYPE_NOTIFICATIONS.window,
+        });
         return false;
       }
 
@@ -100,7 +112,7 @@ async function isRateLimited(notification: Omit<NotificationMessage, 'id' | 'tim
 
     return !result.success || result.data === true;
   } catch (error) {
-    console.error('Error checking rate limit:', error);
+    console.error("Error checking rate limit:", error);
     return false; // On error, allow the notification
   }
 }
@@ -117,17 +129,19 @@ async function isRateLimited(notification: Omit<NotificationMessage, 'id' | 'tim
  * @returns The notification ID
  */
 export async function sendNotification(
-  notification: Omit<NotificationMessage, 'id' | 'timestamp'>
+  notification: Omit<NotificationMessage, "id" | "timestamp">,
 ): Promise<string> {
   try {
     // Check for rate limiting
     const isLimited = await isRateLimited(notification);
     if (isLimited) {
-      console.warn(`Rate limit exceeded for notification type: ${notification.type}`);
+      console.warn(
+        `Rate limit exceeded for notification type: ${notification.type}`,
+      );
 
       // For rate-limited notifications, we'll still process high-priority ones
-      if (notification.priority !== 'high') {
-        throw new Error('Rate limit exceeded for notifications');
+      if (notification.priority !== "high") {
+        throw new Error("Rate limit exceeded for notifications");
       }
     }
 
@@ -142,20 +156,23 @@ export async function sendNotification(
       data: notification.data || {},
       userIds: notification.userIds || [],
       timestamp,
-      priority: notification.priority || 'normal',
-      idempotencyKey: notification.idempotencyKey
+      priority: notification.priority || "normal",
+      idempotencyKey: notification.idempotencyKey,
     };
 
     // Store notification in Redis using load balancer
     const queueResult = await executeRedisOperation(async (redis) => {
-      await redis.lpush(NOTIFICATION_QUEUE_KEY, JSON.stringify(fullNotification));
+      await redis.lpush(
+        NOTIFICATION_QUEUE_KEY,
+        JSON.stringify(fullNotification),
+      );
       // Trim the queue to prevent unbounded growth
       await redis.ltrim(NOTIFICATION_QUEUE_KEY, 0, 999);
       return true;
     });
 
     if (!queueResult.success) {
-      throw queueResult.error || new Error('Failed to queue notification');
+      throw queueResult.error || new Error("Failed to queue notification");
     }
 
     // Process the notification immediately
@@ -163,7 +180,7 @@ export async function sendNotification(
 
     return id;
   } catch (error) {
-    console.error('Error sending notification:', error);
+    console.error("Error sending notification:", error);
     throw error;
   }
 }
@@ -174,14 +191,16 @@ export async function sendNotification(
  * @param notification - The notification to process
  * @returns Whether the notification was processed successfully
  */
-export async function processNotification(notification: NotificationMessage): Promise<boolean> {
+export async function processNotification(
+  notification: NotificationMessage,
+): Promise<boolean> {
   try {
     // Mark notification as being processed
     await executeRedisOperation(async (redis) => {
       await redis.set(
         `${NOTIFICATION_PROCESSING_KEY}:${notification.id}`,
         JSON.stringify(notification),
-        { ex: 300 } // Expire after 5 minutes
+        { ex: 300 }, // Expire after 5 minutes
       );
       return true;
     });
@@ -190,13 +209,13 @@ export async function processNotification(notification: NotificationMessage): Pr
     const inAppCount = await createInAppNotifications(
       notification.type as NotificationType,
       notification.data || {},
-      notification.userIds
+      notification.userIds,
     );
 
     // 2. Emit real-time notifications via Redis
     const notificationContent = generateNotificationContent(
       notification.type as NotificationType,
-      notification.data
+      notification.data,
     );
 
     // Send to each user
@@ -208,8 +227,8 @@ export async function processNotification(notification: NotificationMessage): Pr
           userIds: [userId],
           type: notification.type,
           icon: notificationContent.icon,
-          id: notification.id
-        }
+          id: notification.id,
+        },
       );
     }
 
@@ -220,8 +239,8 @@ export async function processNotification(notification: NotificationMessage): Pr
         JSON.stringify({
           ...notification,
           processedAt: new Date().toISOString(),
-          inAppCount
-        })
+          inAppCount,
+        }),
       );
 
       // Trim history to prevent unbounded growth
@@ -237,7 +256,7 @@ export async function processNotification(notification: NotificationMessage): Pr
 
     return true;
   } catch (error) {
-    console.error('Error processing notification:', error);
+    console.error("Error processing notification:", error);
 
     // Store the error in Redis for debugging
     await executeRedisOperation(async (redis) => {
@@ -246,9 +265,9 @@ export async function processNotification(notification: NotificationMessage): Pr
         JSON.stringify({
           notification,
           error: error instanceof Error ? error.message : String(error),
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         }),
-        { ex: 86400 } // Expire after 24 hours
+        { ex: 86400 }, // Expire after 24 hours
       );
       return true;
     });
@@ -268,21 +287,21 @@ export async function processNotification(notification: NotificationMessage): Pr
 async function createInAppNotifications(
   type: NotificationType,
   data: Record<string, any>,
-  userIds: string[]
+  userIds: string[],
 ): Promise<number> {
   try {
     // Generate notification content
     const content = generateNotificationContent(type, data);
 
     // Create notifications for each user
-    const notifications = userIds.map(userId => ({
+    const notifications = userIds.map((userId) => ({
       userId,
       title: data.title || content.title,
       body: data.body || content.body,
       type,
       actionUrl: data.actionUrl || content.url,
       isRead: false,
-      data
+      data,
     }));
 
     // Skip if no notifications to create
@@ -292,7 +311,7 @@ async function createInAppNotifications(
 
     // Insert in-app notifications in bulk
     const result = await prisma.inAppNotification.createMany({
-      data: notifications
+      data: notifications,
     });
 
     // Create notification events for tracking
@@ -302,29 +321,29 @@ async function createInAppNotifications(
         where: {
           userId: { in: userIds },
           type,
-          createdAt: { gte: new Date(Date.now() - 5000) } // Created in the last 5 seconds
+          createdAt: { gte: new Date(Date.now() - 5000) }, // Created in the last 5 seconds
         },
-        select: { id: true }
+        select: { id: true },
       });
 
       // Create events for each notification
       if (createdNotifications.length > 0) {
         await prisma.notificationEvent.createMany({
-          data: createdNotifications.map(notification => ({
+          data: createdNotifications.map((notification) => ({
             notificationId: notification.id,
             event: NotificationEventType.DELIVERED,
             metadata: {
-              method: 'redis-notification-service',
-              timestamp: new Date().toISOString()
-            }
-          }))
+              method: "redis-notification-service",
+              timestamp: new Date().toISOString(),
+            },
+          })),
         });
       }
     }
 
     return result.count;
   } catch (error) {
-    console.error('Error creating in-app notifications:', error);
+    console.error("Error creating in-app notifications:", error);
     return 0;
   }
 }
@@ -342,14 +361,16 @@ export async function getNotificationMetrics(): Promise<any> {
       const queueLength = await redis.llen(NOTIFICATION_QUEUE_KEY);
 
       // Get processing count
-      const processingKeys = await redis.keys(`${NOTIFICATION_PROCESSING_KEY}:*`);
+      const processingKeys = await redis.keys(
+        `${NOTIFICATION_PROCESSING_KEY}:*`,
+      );
       const processingCount = processingKeys.length;
 
       // Get history count
       const historyCount = await redis.llen(NOTIFICATION_HISTORY_KEY);
 
       // Get error count
-      const errorKeys = await redis.keys('notifications:errors:*');
+      const errorKeys = await redis.keys("notifications:errors:*");
       const errorCount = errorKeys.length;
 
       return {
@@ -357,12 +378,12 @@ export async function getNotificationMetrics(): Promise<any> {
         processingCount,
         historyCount,
         errorCount,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
     });
 
     if (!result.success) {
-      throw result.error || new Error('Failed to get notification metrics');
+      throw result.error || new Error("Failed to get notification metrics");
     }
 
     // Get load balancer stats
@@ -370,13 +391,13 @@ export async function getNotificationMetrics(): Promise<any> {
 
     return {
       ...result.data,
-      loadBalancer: loadBalancerStats
+      loadBalancer: loadBalancerStats,
     };
   } catch (error) {
-    console.error('Error getting notification metrics:', error);
+    console.error("Error getting notification metrics:", error);
     return {
       error: error instanceof Error ? error.message : String(error),
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
   }
 }

@@ -1,56 +1,58 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useHybridRealtime } from '@/hooks/useHybridRealtime';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useState, useEffect } from "react";
+import { useHybridRealtime } from "@/hooks/useHybridRealtime";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function HybridRealtimeDemo() {
   // State for events
   const [events, setEvents] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState('auto');
+  const [activeTab, setActiveTab] = useState("auto");
 
   // Use the hybrid realtime hook
-  const {
-    isConnected,
-    activeMethod,
-    lastEvent,
-    error,
-    reconnect
-  } = useHybridRealtime({
-    // preferredMethod is not supported in the simplified version
-    debug: true,
-    eventHandlers: {
-      // Handle all events with the wildcard handler
-      '*': (event) => {
-        console.log('Received event:', event);
-        setEvents(prev => [event, ...prev].slice(0, 10));
+  const { isConnected, activeMethod, lastEvent, error, reconnect } =
+    useHybridRealtime({
+      // preferredMethod is not supported in the simplified version
+      debug: true,
+      eventHandlers: {
+        // Handle all events with the wildcard handler
+        "*": (event) => {
+          console.log("Received event:", event);
+          setEvents((prev) => [event, ...prev].slice(0, 10));
+        },
+        // Specific handlers for different event types
+        notification: (data) => {
+          console.log("Notification:", data);
+        },
+        dashboardUpdate: (data) => {
+          console.log("Dashboard update:", data);
+        },
       },
-      // Specific handlers for different event types
-      notification: (data) => {
-        console.log('Notification:', data);
-      },
-      dashboardUpdate: (data) => {
-        console.log('Dashboard update:', data);
-      }
-    }
-  });
+    });
 
   // Test sending an event
   const sendTestEvent = async () => {
     try {
-      const response = await fetch('/api/realtime/test', {
-        method: 'POST',
+      const response = await fetch("/api/realtime/test", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json'
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          type: 'test',
-          message: 'Test message from client'
-        })
+          type: "test",
+          message: "Test message from client",
+        }),
       });
 
       if (!response.ok) {
@@ -58,9 +60,9 @@ export default function HybridRealtimeDemo() {
       }
 
       const data = await response.json();
-      console.log('Test event sent:', data);
+      console.log("Test event sent:", data);
     } catch (err) {
-      console.error('Error sending test event:', err);
+      console.error("Error sending test event:", err);
     }
   };
 
@@ -88,15 +90,19 @@ export default function HybridRealtimeDemo() {
             <div>
               Status:
               {isConnected ? (
-                <Badge variant="success" className="ml-2">Connected</Badge>
+                <Badge variant="success" className="ml-2">
+                  Connected
+                </Badge>
               ) : (
-                <Badge variant="destructive" className="ml-2">Disconnected</Badge>
+                <Badge variant="destructive" className="ml-2">
+                  Disconnected
+                </Badge>
               )}
             </div>
             <div>
               Method:
               <Badge variant="outline" className="ml-2">
-                {activeMethod || 'None'}
+                {activeMethod || "None"}
               </Badge>
             </div>
           </div>
@@ -116,13 +122,22 @@ export default function HybridRealtimeDemo() {
             </TabsList>
 
             <TabsContent value="auto">
-              <p>Auto mode uses SSE when available and falls back to polling when necessary.</p>
+              <p>
+                Auto mode uses SSE when available and falls back to polling when
+                necessary.
+              </p>
             </TabsContent>
             <TabsContent value="sse">
-              <p>SSE mode uses Server-Sent Events exclusively. May not work in all browsers.</p>
+              <p>
+                SSE mode uses Server-Sent Events exclusively. May not work in
+                all browsers.
+              </p>
             </TabsContent>
             <TabsContent value="polling">
-              <p>Polling mode uses regular HTTP requests at intervals. Works everywhere but less efficient.</p>
+              <p>
+                Polling mode uses regular HTTP requests at intervals. Works
+                everywhere but less efficient.
+              </p>
             </TabsContent>
           </Tabs>
         </CardContent>

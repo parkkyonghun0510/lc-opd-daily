@@ -7,4 +7,4 @@ export const metadata: Metadata = {
     index: false, // Don't index dashboard pages
     follow: true,
   },
-}; 
+};

@@ -2,11 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/options";
 import { SessionUser } from "@/lib/auth/index";
-import {
-  Permission,
-  UserRole,
-  hasPermission,
-} from "@/lib/auth/roles";
+import { Permission, UserRole, hasPermission } from "@/lib/auth/roles";
 import { PrismaClient } from "@prisma/client";
 import { logUserActivity } from "@/lib/auth/log-user-activity";
 
@@ -29,7 +25,10 @@ export async function GET(request: Request) {
     const userId = searchParams.get("userId");
 
     if (!userId) {
-      return NextResponse.json({ error: "User ID is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "User ID is required" },
+        { status: 400 },
+      );
     }
 
     // Get user's roles with branch context
@@ -52,7 +51,7 @@ export async function GET(request: Request) {
     console.error("Error fetching user roles:", error);
     return NextResponse.json(
       { error: "Failed to fetch user roles" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -77,7 +76,7 @@ export async function POST(request: Request) {
     if (!userId || !roleId) {
       return NextResponse.json(
         { error: "User ID and Role ID are required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -108,7 +107,7 @@ export async function POST(request: Request) {
       if (!branch) {
         return NextResponse.json(
           { error: "Branch not found" },
-          { status: 404 }
+          { status: 404 },
         );
       }
     }
@@ -179,23 +178,28 @@ export async function POST(request: Request) {
     }
 
     // Log the role assignment
-    await logUserActivity(user.id, "ROLE_ASSIGNMENT", {
-      targetUserId: userId,
-      roleId: roleId,
-      roleName: role.name,
-      branchId: branchId || null,
-      isDefault: isDefault || false,
-    }, {
-      ipAddress: "unknown",
-      userAgent: "unknown"
-    });
+    await logUserActivity(
+      user.id,
+      "ROLE_ASSIGNMENT",
+      {
+        targetUserId: userId,
+        roleId: roleId,
+        roleName: role.name,
+        branchId: branchId || null,
+        isDefault: isDefault || false,
+      },
+      {
+        ipAddress: "unknown",
+        userAgent: "unknown",
+      },
+    );
 
     return NextResponse.json(userRole);
   } catch (error) {
     console.error("Error assigning role:", error);
     return NextResponse.json(
       { error: "Failed to assign role" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -219,7 +223,7 @@ export async function DELETE(request: Request) {
     if (!userRoleId) {
       return NextResponse.json(
         { error: "User Role ID is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -232,7 +236,7 @@ export async function DELETE(request: Request) {
     if (!userRole) {
       return NextResponse.json(
         { error: "User Role not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -276,23 +280,28 @@ export async function DELETE(request: Request) {
     }
 
     // Log the role removal
-    await logUserActivity(user.id, "ROLE_REMOVAL", {
-      targetUserId: userRole.userId,
-      roleId: userRole.roleId,
-      roleName: userRole.role.name,
-      branchId: userRole.branchId,
-      wasDefault: userRole.isDefault,
-    }, {
-      ipAddress: "unknown",
-      userAgent: "unknown"
-    });
+    await logUserActivity(
+      user.id,
+      "ROLE_REMOVAL",
+      {
+        targetUserId: userRole.userId,
+        roleId: userRole.roleId,
+        roleName: userRole.role.name,
+        branchId: userRole.branchId,
+        wasDefault: userRole.isDefault,
+      },
+      {
+        ipAddress: "unknown",
+        userAgent: "unknown",
+      },
+    );
 
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error removing role:", error);
     return NextResponse.json(
       { error: "Failed to remove role" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

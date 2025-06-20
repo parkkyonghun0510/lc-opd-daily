@@ -24,10 +24,10 @@ export function useFilterState(
     persistInStorage?: boolean;
     enableHistory?: boolean;
   } = {
-      syncWithUrl: true,
-      persistInStorage: true,
-      enableHistory: true,
-    }
+    syncWithUrl: true,
+    persistInStorage: true,
+    enableHistory: true,
+  },
 ) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -66,7 +66,7 @@ export function useFilterState(
     if (options.enableHistory && filterHistory.length > 0) {
       localStorage.setItem(
         `${storageKey}_history`,
-        JSON.stringify(filterHistory)
+        JSON.stringify(filterHistory),
       );
     }
   }, [filterHistory, storageKey, options.enableHistory]);
@@ -123,7 +123,7 @@ export function useFilterState(
             timestamp: new Date().toISOString(),
           },
           ...prev.filter(
-            (h) => JSON.stringify(h.filters) !== JSON.stringify(filters)
+            (h) => JSON.stringify(h.filters) !== JSON.stringify(filters),
           ),
         ].slice(0, MAX_HISTORY_ITEMS);
         return newHistory;

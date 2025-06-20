@@ -13,7 +13,7 @@ export async function logUserActivity(
   userId: string,
   action: string,
   details: ActivityDetails,
-  metadata: ActivityMetadata
+  metadata: ActivityMetadata,
 ) {
   try {
     const prisma = await getPrisma();

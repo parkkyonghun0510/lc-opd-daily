@@ -46,7 +46,7 @@ export function getContrastRatio(color1: string, color2: string): number {
 export function meetsContrastGuidelines(
   foreground: string,
   background: string,
-  level: "AA" | "AAA" = "AA"
+  level: "AA" | "AAA" = "AA",
 ): boolean {
   const ratio = getContrastRatio(foreground, background);
   return level === "AA" ? ratio >= 4.5 : ratio >= 7;
@@ -58,7 +58,7 @@ export function meetsContrastGuidelines(
 export function adjustForContrast(
   foreground: string,
   background: string,
-  level: "AA" | "AAA" = "AA"
+  level: "AA" | "AAA" = "AA",
 ): string {
   const rgb = hexToRgb(foreground);
   if (!rgb) return foreground;
@@ -73,7 +73,7 @@ export function adjustForContrast(
     b = Math.max(0, b - 1);
     ratio = getContrastRatio(
       `#${[r, g, b].map((x) => x.toString(16).padStart(2, "0")).join("")}`,
-      background
+      background,
     );
   }
 

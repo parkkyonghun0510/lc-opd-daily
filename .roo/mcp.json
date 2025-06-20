@@ -11,6 +11,20 @@
         "--key",
         "411e36d4-948a-466c-9ba4-39326940cae7"
       ]
+<<<<<<< Updated upstream
+=======
+    },
+    "sequentialthinking": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
+    },
+    "tavily": {
+      "command": "npx",
+      "args": ["-y", "tavily-mcp@0.2.3"],
+      "env": {
+        "TAVILY_API_KEY": "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"
+      }
+>>>>>>> Stashed changes
     }
   }
 }

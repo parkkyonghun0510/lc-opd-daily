@@ -36,7 +36,11 @@ export function AdvancedPermissionGate({
   requireAll = false,
   branchId,
   showLoading = true,
-  loadingComponent = <div className="flex justify-center p-4"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>,
+  loadingComponent = (
+    <div className="flex justify-center p-4">
+      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+    </div>
+  ),
 }: AdvancedPermissionGateProps) {
   const { isLoading, isAuthenticated, user } = useStore();
 
@@ -58,10 +62,14 @@ export function AdvancedPermissionGate({
     if (permissions.length > 0) {
       if (requireAll) {
         // Must have all permissions
-        accessGranted = permissions.every(permission => hasPermission(permission));
+        accessGranted = permissions.every((permission) =>
+          hasPermission(permission),
+        );
       } else {
         // Must have at least one permission
-        accessGranted = permissions.some(permission => hasPermission(permission));
+        accessGranted = permissions.some((permission) =>
+          hasPermission(permission),
+        );
       }
     }
 

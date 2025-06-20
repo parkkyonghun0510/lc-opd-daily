@@ -12,7 +12,7 @@ type BranchAssignmentRequest = z.infer<typeof assignmentSchema>;
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const token = await getToken({ req: request });
@@ -21,14 +21,14 @@ export async function GET(
     if (!token) {
       return NextResponse.json(
         { error: "Unauthorized - Authentication required" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
     if (token.role !== UserRole.ADMIN && token.id !== id) {
       return NextResponse.json(
         { error: "Forbidden - You can only view your own branch assignments" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -47,50 +47,48 @@ export async function GET(
     });
 
     return NextResponse.json(
-      branchAssignments.map((assignment) => assignment.branch)
+      branchAssignments.map((assignment) => assignment.branch),
     );
   } catch (error) {
     console.error("Error fetching branch assignments:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
-export async function POST(
-  request: NextRequest
-) {
+export async function POST(request: NextRequest) {
   try {
     const token = await getToken({ req: request });
-    
+
     // Extract the ID from the URL path
     const url = new URL(request.url);
-    const pathParts = url.pathname.split('/');
+    const pathParts = url.pathname.split("/");
     const id = pathParts[pathParts.length - 2]; // Get the ID from the URL path
 
     if (!token) {
       return NextResponse.json(
         { error: "Unauthorized - Authentication required" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
     if (token.role !== UserRole.ADMIN) {
       return NextResponse.json(
         { error: "Forbidden - Admin access required" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
     const body: BranchAssignmentRequest = await request.json();
-    
+
     // Validate request body
     const validation = assignmentSchema.safeParse(body);
     if (!validation.success) {
       return NextResponse.json(
         { error: "Invalid request body", details: validation.error.format() },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -102,10 +100,7 @@ export async function POST(
     });
 
     if (!user) {
-      return NextResponse.json(
-        { error: "User not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
     // Delete existing assignments
@@ -138,13 +133,13 @@ export async function POST(
     });
 
     return NextResponse.json(
-      updatedAssignments.map((assignment) => assignment.branch)
+      updatedAssignments.map((assignment) => assignment.branch),
     );
   } catch (error) {
     console.error("Error updating branch assignments:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
-} 
+}

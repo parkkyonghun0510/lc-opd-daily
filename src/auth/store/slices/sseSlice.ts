@@ -1,6 +1,6 @@
-import { StateCreator } from 'zustand';
-import { useSession } from 'next-auth/react';
-import { eventCache } from '@/lib/sse/eventCache';
+import { StateCreator } from "zustand";
+import { useSession } from "next-auth/react";
+import { eventCache } from "@/lib/sse/eventCache";
 
 // Define the types for our SSE state
 export type SSEEventType = string;
@@ -51,27 +51,30 @@ export interface SSESelectors {
 export type SSESlice = SSEState & SSEActions & SSESelectors;
 
 // Create the SSE slice
-export const createSSESlice: StateCreator<SSESlice, [], [], SSESlice> = (set, get) => ({
+export const createSSESlice: StateCreator<SSESlice, [], [], SSESlice> = (
+  set,
+  get,
+) => ({
   // State
   isConnected: false,
   error: null,
   lastEvent: null,
   eventSource: null,
   options: {
-    endpoint: '/api/sse',
+    endpoint: "/api/sse",
     autoReconnect: true,
     maxReconnectAttempts: 5,
     eventHandlers: {},
     clientMetadata: {},
     debug: false,
-    enableCache: true
+    enableCache: true,
   },
   reconnectAttempts: 0,
 
   // Actions
   setOptions: (options) => {
     set((state) => ({
-      options: { ...state.options, ...options }
+      options: { ...state.options, ...options },
     }));
   },
 
@@ -89,15 +92,15 @@ export const createSSESlice: StateCreator<SSESlice, [], [], SSESlice> = (set, ge
 
       // Log if debug is enabled
       if (debug) {
-        console.log('[SSE] Connecting to', endpoint);
+        console.log("[SSE] Connecting to", endpoint);
       }
 
       // Build the SSE URL with authentication and metadata
-      const url = new URL(endpoint || '/api/sse', window.location.origin);
+      const url = new URL(endpoint || "/api/sse", window.location.origin);
 
       // Add client metadata
-      url.searchParams.append('clientType', 'browser');
-      url.searchParams.append('clientInfo', navigator.userAgent);
+      url.searchParams.append("clientType", "browser");
+      url.searchParams.append("clientInfo", navigator.userAgent);
 
       // Add any custom metadata
       Object.entries(clientMetadata || {}).forEach(([key, value]) => {
@@ -113,18 +116,18 @@ export const createSSESlice: StateCreator<SSESlice, [], [], SSESlice> = (set, ge
         get().setIsConnected(true);
         get().setError(null);
         get().setReconnectAttempts(0);
-        
+
         if (debug) {
-          console.log('[SSE] Connected to', endpoint);
+          console.log("[SSE] Connected to", endpoint);
         }
       };
 
       eventSource.onerror = (event) => {
         get().setIsConnected(false);
-        get().setError('Connection error');
-        
+        get().setError("Connection error");
+
         if (debug) {
-          console.error('[SSE] Connection error:', event);
+          console.error("[SSE] Connection error:", event);
         }
 
         // Handle reconnection
@@ -134,9 +137,11 @@ export const createSSESlice: StateCreator<SSESlice, [], [], SSESlice> = (set, ge
         if (autoReconnect && reconnectAttempts < (maxReconnectAttempts || 5)) {
           // Exponential backoff
           const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
-          
+
           if (debug) {
-            console.log(`[SSE] Reconnecting in ${delay}ms (attempt ${reconnectAttempts + 1})`);
+            console.log(
+              `[SSE] Reconnecting in ${delay}ms (attempt ${reconnectAttempts + 1})`,
+            );
           }
 
           setTimeout(() => {
@@ -147,17 +152,26 @@ export const createSSESlice: StateCreator<SSESlice, [], [], SSESlice> = (set, ge
       };
 
       // Set up event listeners for specific event types
-      const standardEvents = ['connected', 'notification', 'update', 'ping', 'message'];
-      
+      const standardEvents = [
+        "connected",
+        "notification",
+        "update",
+        "ping",
+        "message",
+      ];
+
       // Add listeners for standard events
-      standardEvents.forEach(eventType => {
+      standardEvents.forEach((eventType) => {
         eventSource.addEventListener(eventType, (event: any) => {
           try {
             const data = JSON.parse(event.data);
             get().handleEvent(eventType, data);
           } catch (error) {
             if (debug) {
-              console.error(`[SSE] Error parsing ${eventType} event data:`, error);
+              console.error(
+                `[SSE] Error parsing ${eventType} event data:`,
+                error,
+              );
             }
           }
         });
@@ -166,7 +180,7 @@ export const createSSESlice: StateCreator<SSESlice, [], [], SSESlice> = (set, ge
       // Add listeners for custom events
       const { eventHandlers } = get().options;
       if (eventHandlers) {
-        Object.keys(eventHandlers).forEach(eventType => {
+        Object.keys(eventHandlers).forEach((eventType) => {
           if (!standardEvents.includes(eventType)) {
             eventSource.addEventListener(eventType, (event: any) => {
               try {
@@ -174,7 +188,10 @@ export const createSSESlice: StateCreator<SSESlice, [], [], SSESlice> = (set, ge
                 get().handleEvent(eventType, data);
               } catch (error) {
                 if (debug) {
-                  console.error(`[SSE] Error parsing ${eventType} event data:`, error);
+                  console.error(
+                    `[SSE] Error parsing ${eventType} event data:`,
+                    error,
+                  );
                 }
               }
             });
@@ -189,18 +206,21 @@ export const createSSESlice: StateCreator<SSESlice, [], [], SSESlice> = (set, ge
 
         // Load cached events for each event type
         if (eventHandlers) {
-          Object.keys(eventHandlers).forEach(eventType => {
+          Object.keys(eventHandlers).forEach((eventType) => {
             const cachedEvent = eventCache.getLatestEvent(eventType);
             if (cachedEvent) {
               if (debug) {
-                console.log(`[SSE] Loaded cached event for ${eventType}:`, cachedEvent);
+                console.log(
+                  `[SSE] Loaded cached event for ${eventType}:`,
+                  cachedEvent,
+                );
               }
 
               // Set as last event
               get().setLastEvent({
                 type: cachedEvent.type,
                 payload: cachedEvent.data,
-                timestamp: cachedEvent.timestamp
+                timestamp: cachedEvent.timestamp,
               });
 
               // Call the event handler if defined
@@ -212,10 +232,10 @@ export const createSSESlice: StateCreator<SSESlice, [], [], SSESlice> = (set, ge
         }
       }
     } catch (error) {
-      get().setError('Failed to connect');
-      
+      get().setError("Failed to connect");
+
       if (get().options.debug) {
-        console.error('[SSE] Connection setup error:', error);
+        console.error("[SSE] Connection setup error:", error);
       }
     }
   },
@@ -226,9 +246,9 @@ export const createSSESlice: StateCreator<SSESlice, [], [], SSESlice> = (set, ge
       eventSource.close();
       get().setEventSource(null);
       get().setIsConnected(false);
-      
+
       if (get().options.debug) {
-        console.log('[SSE] Disconnected');
+        console.log("[SSE] Disconnected");
       }
     }
   },
@@ -246,7 +266,7 @@ export const createSSESlice: StateCreator<SSESlice, [], [], SSESlice> = (set, ge
     const event: SSEEvent = {
       type: eventType,
       payload: data,
-      timestamp
+      timestamp,
     };
 
     // Set as last event
@@ -263,7 +283,7 @@ export const createSSESlice: StateCreator<SSESlice, [], [], SSESlice> = (set, ge
         id: data.id || crypto.randomUUID(),
         type: eventType,
         data,
-        timestamp
+        timestamp,
       });
     }
 
@@ -299,5 +319,5 @@ export const createSSESlice: StateCreator<SSESlice, [], [], SSESlice> = (set, ge
 
   isConnecting: () => {
     return get().eventSource !== null && !get().isConnected;
-  }
+  },
 });

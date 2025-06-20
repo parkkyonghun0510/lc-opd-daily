@@ -9,11 +9,11 @@ interface ServerErrorBoundaryProps {
   onClearSession?: () => void;
 }
 
-export function ServerErrorBoundary({ 
-  error, 
-  onRetry, 
+export function ServerErrorBoundary({
+  error,
+  onRetry,
   persistentError = false,
-  onClearSession 
+  onClearSession,
 }: ServerErrorBoundaryProps) {
   if (!error) return null;
 
@@ -27,34 +27,26 @@ export function ServerErrorBoundary({
             {error}
             {persistentError && (
               <p className="mt-2 text-sm">
-                This issue appears to be persistent. You may need to clear your session data to resolve it.
+                This issue appears to be persistent. You may need to clear your
+                session data to resolve it.
               </p>
             )}
           </AlertDescription>
         </Alert>
-        
+
         <div className="flex justify-end gap-2">
-          <Button 
-            variant="outline" 
-            onClick={() => window.location.reload()}
-          >
+          <Button variant="outline" onClick={() => window.location.reload()}>
             Refresh Page
           </Button>
-          
+
           {onRetry && (
-            <Button 
-              variant="default" 
-              onClick={onRetry}
-            >
+            <Button variant="default" onClick={onRetry}>
               Retry Connection
             </Button>
           )}
-          
+
           {persistentError && onClearSession && (
-            <Button 
-              variant="destructive" 
-              onClick={onClearSession}
-            >
+            <Button variant="destructive" onClick={onClearSession}>
               Clear Session Data
             </Button>
           )}
@@ -62,4 +54,4 @@ export function ServerErrorBoundary({
       </div>
     </div>
   );
-} 
+}

@@ -1,38 +1,55 @@
-'use client';
+"use client";
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { fetchDashboardSummary, fetchUserDashboardData } from '@/app/_actions/dashboard-actions';
-import { useAuth } from '@/auth/hooks/useAuth';
-import { toast } from '@/components/ui/use-toast';
-import { AuthenticatedSSE } from './AuthenticatedSSE';
-import { MinimalLoadingIndicator } from './GlobalLoadingIndicator';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+} from "react";
+import {
+  fetchDashboardSummary,
+  fetchUserDashboardData,
+} from "@/app/_actions/dashboard-actions";
+import { useAuth } from "@/auth/hooks/useAuth";
+import { toast } from "@/components/ui/use-toast";
+import { AuthenticatedSSE } from "./AuthenticatedSSE";
+import { MinimalLoadingIndicator } from "./GlobalLoadingIndicator";
 
 interface EnhancedDashboardContextType {
   dashboardData: any;
   isLoading: boolean;
   isConnected: boolean;
-  connectionMethod: 'sse' | 'polling' | null;
+  connectionMethod: "sse" | "polling" | null;
   connectionError: string | null;
   refreshDashboardData: () => Promise<void>;
   hasNewUpdates: boolean;
   clearNewUpdates: () => void;
 }
 
-const EnhancedDashboardContext = createContext<EnhancedDashboardContextType | undefined>(undefined);
+const EnhancedDashboardContext = createContext<
+  EnhancedDashboardContextType | undefined
+>(undefined);
 
-export function EnhancedDashboardProvider({ children }: { children: React.ReactNode }) {
+export function EnhancedDashboardProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const [dashboardData, setDashboardData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-  const [connectionMethod, setConnectionMethod] = useState<'sse' | 'polling' | null>(null);
+  const [connectionMethod, setConnectionMethod] = useState<
+    "sse" | "polling" | null
+  >(null);
   const [hasNewUpdates, setHasNewUpdates] = useState(false);
 
   // Use the new auth hook
   const { user, isAuthenticated } = useAuth();
 
   // Get role from the auth store
-  const role = user?.role || 'USER';
+  const role = user?.role || "USER";
 
   // Fetch dashboard data
   const fetchData = useCallback(async () => {
@@ -42,7 +59,7 @@ export function EnhancedDashboardProvider({ children }: { children: React.ReactN
 
       // Fetch dashboard data based on user role
       let response;
-      if (role === 'ADMIN' || role === 'BRANCH_MANAGER') {
+      if (role === "ADMIN" || role === "BRANCH_MANAGER") {
         response = await fetchDashboardSummary();
       } else {
         response = await fetchUserDashboardData();
@@ -51,13 +68,14 @@ export function EnhancedDashboardProvider({ children }: { children: React.ReactN
       // Check if the response is successful and has data
       if (response.status === 200 && response.data) {
         setDashboardData(response.data);
-        console.log('Dashboard data fetched successfully');
+        console.log("Dashboard data fetched successfully");
       } else {
-        throw new Error(response.error || 'Failed to fetch dashboard data');
+        throw new Error(response.error || "Failed to fetch dashboard data");
       }
     } catch (error) {
-      console.error('Error fetching dashboard data:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Connection error';
+      console.error("Error fetching dashboard data:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Connection error";
       setConnectionError(errorMessage);
 
       // Show toast notification
@@ -90,14 +108,14 @@ export function EnhancedDashboardProvider({ children }: { children: React.ReactN
   const eventHandlers = {
     // Handle dashboard updates
     dashboardUpdate: (data: any) => {
-      console.log('Received dashboard update:', data);
+      console.log("Received dashboard update:", data);
 
       // Set the new updates flag
       setHasNewUpdates(true);
 
       // Show a toast notification
       toast({
-        title: 'Dashboard Updated',
+        title: "Dashboard Updated",
         description: `New dashboard data is available.`,
         duration: 5000,
       });
@@ -106,8 +124,8 @@ export function EnhancedDashboardProvider({ children }: { children: React.ReactN
       fetchData();
 
       // Dispatch a custom event that components can listen for
-      if (typeof window !== 'undefined') {
-        const event = new CustomEvent('dashboard-update', { detail: data });
+      if (typeof window !== "undefined") {
+        const event = new CustomEvent("dashboard-update", { detail: data });
         window.dispatchEvent(event);
       }
     },
@@ -123,7 +141,7 @@ export function EnhancedDashboardProvider({ children }: { children: React.ReactN
     connectionStatus: (data: any) => {
       setIsConnected(data.connected);
       setConnectionMethod(data.method);
-    }
+    },
   };
 
   // Clear new updates flag
@@ -147,7 +165,7 @@ export function EnhancedDashboardProvider({ children }: { children: React.ReactN
         connectionError,
         refreshDashboardData,
         hasNewUpdates,
-        clearNewUpdates
+        clearNewUpdates,
       }}
     >
       {/* Include the loading indicator */}
@@ -156,7 +174,7 @@ export function EnhancedDashboardProvider({ children }: { children: React.ReactN
       {/* Include the AuthenticatedSSE component */}
       <AuthenticatedSSE
         eventHandlers={eventHandlers}
-        debug={process.env.NODE_ENV === 'development'}
+        debug={process.env.NODE_ENV === "development"}
       />
 
       {/* Render children */}
@@ -168,7 +186,9 @@ export function EnhancedDashboardProvider({ children }: { children: React.ReactN
 export function useEnhancedDashboard() {
   const context = useContext(EnhancedDashboardContext);
   if (context === undefined) {
-    throw new Error('useEnhancedDashboard must be used within an EnhancedDashboardProvider');
+    throw new Error(
+      "useEnhancedDashboard must be used within an EnhancedDashboardProvider",
+    );
   }
   return context;
 }

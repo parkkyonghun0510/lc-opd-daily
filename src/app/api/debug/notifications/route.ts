@@ -12,20 +12,23 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: "desc" },
       take: 10,
       include: {
-        events: true
-      }
+        events: true,
+      },
     });
 
     return NextResponse.json({
       success: true,
       totalCount,
-      recentNotifications
+      recentNotifications,
     });
   } catch (error) {
     console.error("Error retrieving notifications:", error);
     return NextResponse.json(
-      { error: "Failed to retrieve notifications", details: error instanceof Error ? error.message : String(error) },
-      { status: 500 }
+      {
+        error: "Failed to retrieve notifications",
+        details: error instanceof Error ? error.message : String(error),
+      },
+      { status: 500 },
     );
   }
 }
@@ -36,13 +39,13 @@ export async function POST(req: NextRequest) {
 
     // First, find a sample user to send to
     const sampleUser = await prisma.user.findFirst({
-      select: { id: true }
+      select: { id: true },
     });
 
     if (!sampleUser) {
       return NextResponse.json(
         { error: "No users found in the database" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -58,9 +61,9 @@ export async function POST(req: NextRequest) {
         isRead: false,
         data: {
           source: "debug-api",
-          timestamp: new Date().toISOString()
-        }
-      }
+          timestamp: new Date().toISOString(),
+        },
+      },
     });
 
     //console.log("Successfully created notification:", notification.id);
@@ -72,9 +75,9 @@ export async function POST(req: NextRequest) {
         event: "DELIVERED",
         metadata: {
           method: "debug-api",
-          timestamp: new Date().toISOString()
-        }
-      }
+          timestamp: new Date().toISOString(),
+        },
+      },
     });
 
     // Also test sending via SQS
@@ -84,16 +87,18 @@ export async function POST(req: NextRequest) {
         type: "DEBUG_TEST",
         data: {
           source: "debug-api-sqs",
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         },
         userIds: [sampleUser.id],
-        priority: "high"
+        priority: "high",
       });
 
       //console.log("Successfully sent to SQS:", sqsResult);
     } catch (sqsError) {
       console.error("Failed to send to SQS:", sqsError);
-      sqsResult = { error: sqsError instanceof Error ? sqsError.message : String(sqsError) };
+      sqsResult = {
+        error: sqsError instanceof Error ? sqsError.message : String(sqsError),
+      };
     }
 
     return NextResponse.json({
@@ -101,13 +106,16 @@ export async function POST(req: NextRequest) {
       notification,
       event,
       sqsResult,
-      message: "Test notification created successfully"
+      message: "Test notification created successfully",
     });
   } catch (error) {
     console.error("Error creating test notification:", error);
     return NextResponse.json(
-      { error: "Failed to create test notification", details: error instanceof Error ? error.message : String(error) },
-      { status: 500 }
+      {
+        error: "Failed to create test notification",
+        details: error instanceof Error ? error.message : String(error),
+      },
+      { status: 500 },
     );
   }
-} 
+}

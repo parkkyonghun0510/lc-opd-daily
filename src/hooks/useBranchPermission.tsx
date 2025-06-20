@@ -14,7 +14,7 @@ interface BranchPermissionResult {
  * Hook to check if the current user has access to a specific branch
  */
 export function useBranchPermission(
-  branchId: string | null | undefined
+  branchId: string | null | undefined,
 ): BranchPermissionResult {
   const { data: session, status } = useSession();
   const [result, setResult] = useState<BranchPermissionResult>({
@@ -26,7 +26,7 @@ export function useBranchPermission(
 
   useEffect(() => {
     // If session is loading, wait
-    if (status === 'loading') {
+    if (status === "loading") {
       return;
     }
 
@@ -38,7 +38,7 @@ export function useBranchPermission(
     setResult((prev) => ({ ...prev, loading: true, error: null }));
 
     // Special case for admins - they should always have access
-    if (session?.user?.role === 'ADMIN') {
+    if (session?.user?.role === "ADMIN") {
       //console.log("Admin user detected - granting full access regardless of branch");
       setResult({
         hasAccess: true,
@@ -53,7 +53,7 @@ export function useBranchPermission(
     if (!branchId || !session) {
       const errorMsg = !session ? "Not authenticated" : "No branch ID provided";
       //console.log("Branch permission error:", errorMsg);
-      
+
       setResult({
         hasAccess: false,
         permission: BranchAccessPermission.NONE,
@@ -118,11 +118,11 @@ export function useBranchPermission(
       }
     };
 
-    // For users with assigned branch matching the current branch, 
+    // For users with assigned branch matching the current branch,
     // grant access without API call
     if (session.user?.branchId === branchId) {
       //console.log("User's assigned branch matches requested branch - granting access");
-      
+
       let permission = BranchAccessPermission.NONE;
       switch (session.user?.role) {
         case "ADMIN":
@@ -140,7 +140,7 @@ export function useBranchPermission(
         default:
           permission = BranchAccessPermission.NONE;
       }
-      
+
       setResult({
         hasAccess: true,
         permission,
@@ -168,7 +168,7 @@ interface BranchActionPermissionResult extends BranchPermissionResult {
 }
 
 export function useBranchActionPermission(
-  branchId: string | null | undefined
+  branchId: string | null | undefined,
 ): BranchActionPermissionResult {
   const { hasAccess, permission, loading, error } =
     useBranchPermission(branchId);
@@ -204,7 +204,7 @@ export function useBranchActionPermission(
   const canManage =
     hasAccess &&
     [BranchAccessPermission.MANAGE, BranchAccessPermission.ADMIN].includes(
-      permission
+      permission,
     );
 
   const canAdmin = hasAccess && permission === BranchAccessPermission.ADMIN;

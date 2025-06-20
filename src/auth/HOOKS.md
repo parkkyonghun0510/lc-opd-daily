@@ -8,34 +8,34 @@ The `useAuth` hook provides access to authentication state and actions.
 
 ### Returns
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `user` | User \| null | The current user object |
-| `isAuthenticated` | boolean | Whether the user is authenticated |
-| `isLoading` | boolean | Whether authentication is in progress |
-| `error` | string \| null | Any authentication error |
-| `refreshToken` | string \| null | The refresh token |
-| `refreshInProgress` | boolean | Whether a token refresh is in progress |
-| `login` | (username: string, password: string, callbackUrl?: string) => Promise<boolean> | Function to log in |
-| `logout` | (callbackUrl?: string) => Promise<void> | Function to log out |
-| `clearError` | () => void | Function to clear authentication errors |
-| `setLoading` | (isLoading: boolean) => void | Function to set loading state |
-| `updateLastActivity` | () => void | Function to update last activity timestamp |
-| `refreshAuthToken` | () => Promise<boolean> | Function to refresh the authentication token |
-| `silentRefresh` | () => Promise<boolean> | Function to silently refresh the token if needed |
-| `isAdmin` | () => boolean | Function to check if user is an admin |
-| `isBranchManager` | () => boolean | Function to check if user is a branch manager |
-| `isSessionExpired` | () => boolean | Function to check if session is expired |
-| `isTokenExpired` | () => boolean | Function to check if token is expired |
-| `timeUntilExpiry` | () => number | Function to get time until session expiry in milliseconds |
-| `timeUntilTokenExpiry` | () => number | Function to get time until token expiry in milliseconds |
-| `inactivityTime` | () => number | Function to get inactivity time in milliseconds |
-| `needsTokenRefresh` | () => boolean | Function to check if token needs to be refreshed |
+| Property               | Type                                                                           | Description                                               |
+| ---------------------- | ------------------------------------------------------------------------------ | --------------------------------------------------------- |
+| `user`                 | User \| null                                                                   | The current user object                                   |
+| `isAuthenticated`      | boolean                                                                        | Whether the user is authenticated                         |
+| `isLoading`            | boolean                                                                        | Whether authentication is in progress                     |
+| `error`                | string \| null                                                                 | Any authentication error                                  |
+| `refreshToken`         | string \| null                                                                 | The refresh token                                         |
+| `refreshInProgress`    | boolean                                                                        | Whether a token refresh is in progress                    |
+| `login`                | (username: string, password: string, callbackUrl?: string) => Promise<boolean> | Function to log in                                        |
+| `logout`               | (callbackUrl?: string) => Promise<void>                                        | Function to log out                                       |
+| `clearError`           | () => void                                                                     | Function to clear authentication errors                   |
+| `setLoading`           | (isLoading: boolean) => void                                                   | Function to set loading state                             |
+| `updateLastActivity`   | () => void                                                                     | Function to update last activity timestamp                |
+| `refreshAuthToken`     | () => Promise<boolean>                                                         | Function to refresh the authentication token              |
+| `silentRefresh`        | () => Promise<boolean>                                                         | Function to silently refresh the token if needed          |
+| `isAdmin`              | () => boolean                                                                  | Function to check if user is an admin                     |
+| `isBranchManager`      | () => boolean                                                                  | Function to check if user is a branch manager             |
+| `isSessionExpired`     | () => boolean                                                                  | Function to check if session is expired                   |
+| `isTokenExpired`       | () => boolean                                                                  | Function to check if token is expired                     |
+| `timeUntilExpiry`      | () => number                                                                   | Function to get time until session expiry in milliseconds |
+| `timeUntilTokenExpiry` | () => number                                                                   | Function to get time until token expiry in milliseconds   |
+| `inactivityTime`       | () => number                                                                   | Function to get inactivity time in milliseconds           |
+| `needsTokenRefresh`    | () => boolean                                                                  | Function to check if token needs to be refreshed          |
 
 ### Usage
 
 ```tsx
-import { useAuth } from '@/auth/hooks/useAuth';
+import { useAuth } from "@/auth/hooks/useAuth";
 
 function LoginForm() {
   const { login, isLoading, error } = useAuth();
@@ -54,7 +54,7 @@ function LoginForm() {
       <input name="username" type="text" />
       <input name="password" type="password" />
       <button type="submit" disabled={isLoading}>
-        {isLoading ? 'Logging in...' : 'Login'}
+        {isLoading ? "Logging in..." : "Login"}
       </button>
     </form>
   );
@@ -67,36 +67,31 @@ The `useUserProfile` hook provides access to user profile data and actions.
 
 ### Returns
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `profile` | UserProfile \| null | The current user profile |
-| `isLoading` | boolean | Whether profile data is loading |
-| `error` | string \| null | Any profile error |
-| `fetchProfile` | () => Promise<void> | Function to fetch profile data |
-| `setProfile` | (profile: UserProfile \| null) => void | Function to set profile data |
-| `updateProfile` | (data: Partial<UserProfile>) => Promise<boolean> | Function to update profile data |
-| `updatePreferences` | (type: keyof UserPreferences, preferences: Partial<UserPreferences[typeof type]>) => Promise<boolean> | Function to update user preferences |
-| `clearProfile` | () => void | Function to clear profile data |
-| `needsRefresh` | () => boolean | Function to check if profile needs refresh |
-| `displayName` | () => string | Function to get display name |
-| `formattedRole` | () => string | Function to get formatted role |
-| `initials` | () => string | Function to get user initials |
-| `hasBranch` | () => boolean | Function to check if user has a branch |
-| `branchName` | () => string \| null | Function to get branch name |
+| Property            | Type                                                                                                  | Description                                |
+| ------------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| `profile`           | UserProfile \| null                                                                                   | The current user profile                   |
+| `isLoading`         | boolean                                                                                               | Whether profile data is loading            |
+| `error`             | string \| null                                                                                        | Any profile error                          |
+| `fetchProfile`      | () => Promise<void>                                                                                   | Function to fetch profile data             |
+| `setProfile`        | (profile: UserProfile \| null) => void                                                                | Function to set profile data               |
+| `updateProfile`     | (data: Partial<UserProfile>) => Promise<boolean>                                                      | Function to update profile data            |
+| `updatePreferences` | (type: keyof UserPreferences, preferences: Partial<UserPreferences[typeof type]>) => Promise<boolean> | Function to update user preferences        |
+| `clearProfile`      | () => void                                                                                            | Function to clear profile data             |
+| `needsRefresh`      | () => boolean                                                                                         | Function to check if profile needs refresh |
+| `displayName`       | () => string                                                                                          | Function to get display name               |
+| `formattedRole`     | () => string                                                                                          | Function to get formatted role             |
+| `initials`          | () => string                                                                                          | Function to get user initials              |
+| `hasBranch`         | () => boolean                                                                                         | Function to check if user has a branch     |
+| `branchName`        | () => string \| null                                                                                  | Function to get branch name                |
 
 ### Usage
 
 ```tsx
-import { useUserProfile } from '@/auth/hooks/useAuth';
+import { useUserProfile } from "@/auth/hooks/useAuth";
 
 function ProfilePage() {
-  const {
-    profile,
-    isLoading,
-    updateProfile,
-    displayName,
-    initials
-  } = useUserProfile();
+  const { profile, isLoading, updateProfile, displayName, initials } =
+    useUserProfile();
 
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
@@ -129,33 +124,33 @@ The `usePermissions` hook provides permission checking utilities.
 
 ### Returns
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `hasPermission` | (permission: string) => boolean | Function to check if user has a specific permission |
-| `hasAnyPermission` | (permissions: string[]) => boolean | Function to check if user has any of the specified permissions |
-| `hasAllPermissions` | (permissions: string[]) => boolean | Function to check if user has all of the specified permissions |
-| `hasRole` | (role: string \| string[]) => boolean | Function to check if user has a specific role |
-| `hasBranchAccess` | (branchId: string) => boolean | Function to check if user has access to a specific branch |
-| `can` | (permission: string) => boolean | Shorthand for hasPermission |
-| `canAny` | (permissions: string[]) => boolean | Shorthand for hasAnyPermission |
-| `canAll` | (permissions: string[]) => boolean | Shorthand for hasAllPermissions |
-| `is` | (role: string \| string[]) => boolean | Shorthand for hasRole |
+| Property            | Type                                  | Description                                                    |
+| ------------------- | ------------------------------------- | -------------------------------------------------------------- |
+| `hasPermission`     | (permission: string) => boolean       | Function to check if user has a specific permission            |
+| `hasAnyPermission`  | (permissions: string[]) => boolean    | Function to check if user has any of the specified permissions |
+| `hasAllPermissions` | (permissions: string[]) => boolean    | Function to check if user has all of the specified permissions |
+| `hasRole`           | (role: string \| string[]) => boolean | Function to check if user has a specific role                  |
+| `hasBranchAccess`   | (branchId: string) => boolean         | Function to check if user has access to a specific branch      |
+| `can`               | (permission: string) => boolean       | Shorthand for hasPermission                                    |
+| `canAny`            | (permissions: string[]) => boolean    | Shorthand for hasAnyPermission                                 |
+| `canAll`            | (permissions: string[]) => boolean    | Shorthand for hasAllPermissions                                |
+| `is`                | (role: string \| string[]) => boolean | Shorthand for hasRole                                          |
 
 ### Usage
 
 ```tsx
-import { usePermissions } from '@/auth/hooks/useAuth';
+import { usePermissions } from "@/auth/hooks/useAuth";
 
 function AdminPanel() {
   const { hasPermission, hasRole, can } = usePermissions();
 
   // Using the hook directly
-  if (!hasRole('ADMIN')) {
+  if (!hasRole("ADMIN")) {
     return <p>Admin access required</p>;
   }
 
   // Using the shorthand helper
-  const canManageUsers = can('MANAGE_USERS');
+  const canManageUsers = can("MANAGE_USERS");
 
   return (
     <div>
@@ -168,7 +163,7 @@ function AdminPanel() {
         </div>
       )}
 
-      {hasPermission('VIEW_ANALYTICS') && (
+      {hasPermission("VIEW_ANALYTICS") && (
         <div>
           <h2>Analytics</h2>
           <AnalyticsChart />
@@ -188,7 +183,7 @@ In addition to the hooks, the authentication system provides several action crea
 Refreshes the session without requiring a full login.
 
 ```tsx
-import { refreshSession } from '@/auth/store/actions';
+import { refreshSession } from "@/auth/store/actions";
 
 const handleRefreshSession = async () => {
   const success = await refreshSession();
@@ -203,7 +198,7 @@ const handleRefreshSession = async () => {
 Synchronizes user data with the server.
 
 ```tsx
-import { synchronizeUserData } from '@/auth/store/actions';
+import { synchronizeUserData } from "@/auth/store/actions";
 
 const handleSyncData = async () => {
   const success = await synchronizeUserData();
@@ -218,7 +213,7 @@ const handleSyncData = async () => {
 Handles session timeout by logging the user out if the session has expired.
 
 ```tsx
-import { handleSessionTimeout } from '@/auth/store/actions';
+import { handleSessionTimeout } from "@/auth/store/actions";
 
 const checkSession = () => {
   const sessionExpired = handleSessionTimeout();
@@ -233,11 +228,11 @@ const checkSession = () => {
 Updates user preferences with optimistic updates.
 
 ```tsx
-import { updatePreferencesOptimistic } from '@/auth/store/actions';
+import { updatePreferencesOptimistic } from "@/auth/store/actions";
 
 const handleUpdateTheme = async () => {
-  const success = await updatePreferencesOptimistic('ui', {
-    theme: 'dark'
+  const success = await updatePreferencesOptimistic("ui", {
+    theme: "dark",
   });
 
   // UI is updated immediately, even before the server responds
@@ -250,9 +245,9 @@ const handleUpdateTheme = async () => {
 Checks if the user has a specific permission.
 
 ```tsx
-import { hasPermission } from '@/auth/store/actions';
+import { hasPermission } from "@/auth/store/actions";
 
-const canViewReports = hasPermission('VIEW_REPORTS');
+const canViewReports = hasPermission("VIEW_REPORTS");
 ```
 
 ### hasBranchAccess
@@ -260,7 +255,7 @@ const canViewReports = hasPermission('VIEW_REPORTS');
 Checks if the user has access to a specific branch.
 
 ```tsx
-import { hasBranchAccess } from '@/auth/store/actions';
+import { hasBranchAccess } from "@/auth/store/actions";
 
-const canAccessBranch = hasBranchAccess('branch_123');
+const canAccessBranch = hasBranchAccess("branch_123");
 ```

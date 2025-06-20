@@ -21,12 +21,12 @@ interface UserDisplayNameProps {
   fallback?: string;
 }
 
-export function UserDisplayName({ 
-  userId, 
-  showAvatar = false, 
-  avatarSize = 24, 
+export function UserDisplayName({
+  userId,
+  showAvatar = false,
+  avatarSize = 24,
   className,
-  fallback
+  fallback,
 }: UserDisplayNameProps) {
   const [userData, setUserData] = useState<UserData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -43,11 +43,11 @@ export function UserDisplayName({
       try {
         setIsLoading(true);
         const response = await fetch(`/api/users/${userId}`);
-        
+
         if (!response.ok) {
           throw new Error("Failed to fetch user data");
         }
-        
+
         const data = await response.json();
         setUserData(data);
         setError(null);
@@ -77,7 +77,9 @@ export function UserDisplayName({
     return (
       <span className={cn("text-muted-foreground", className)}>
         {showAvatar && (
-          <Avatar className={`mr-2 inline-flex h-${avatarSize} w-${avatarSize}`}>
+          <Avatar
+            className={`mr-2 inline-flex h-${avatarSize} w-${avatarSize}`}
+          >
             <AvatarFallback>
               <User size={avatarSize - 8} />
             </AvatarFallback>
@@ -89,18 +91,23 @@ export function UserDisplayName({
   }
 
   // Display user's name or username, preferring name if available
-  const displayName = userData.name || userData.username || fallback || formatUserId(userId);
-  
+  const displayName =
+    userData.name || userData.username || fallback || formatUserId(userId);
+
   return (
     <span className={className}>
       {showAvatar && (
         <Avatar className={`mr-2 inline-flex h-${avatarSize} w-${avatarSize}`}>
           <AvatarFallback>
-            {(userData.name?.charAt(0) || userData.username?.charAt(0) || "U").toUpperCase()}
+            {(
+              userData.name?.charAt(0) ||
+              userData.username?.charAt(0) ||
+              "U"
+            ).toUpperCase()}
           </AvatarFallback>
         </Avatar>
       )}
       {displayName}
     </span>
   );
-} 
+}

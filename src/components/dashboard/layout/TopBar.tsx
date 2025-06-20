@@ -25,9 +25,9 @@ import {
 import { CommandPalette } from "../search/CommandPalette";
 import { Greeting } from "../greeting/Greeting";
 import { useTheme } from "next-themes";
-import { NotificationBell } from '@/components/notifications/NotificationBell';
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { BranchSwitcher } from "../navigation/BranchSwitcher";
-import { OfflineStatusIndicator } from '@/components/ui/OfflineStatusIndicator';
+import { OfflineStatusIndicator } from "@/components/ui/OfflineStatusIndicator";
 
 export function TopBar() {
   const router = useRouter();
@@ -42,7 +42,7 @@ export function TopBar() {
       setIsLoading(true);
       await signOut({
         redirect: true,
-        callbackUrl: '/login'
+        callbackUrl: "/login",
       });
       toast.success("Logged out successfully");
     } catch (error) {
@@ -60,7 +60,7 @@ export function TopBar() {
       primaryBranch: userData?.computedFields?.primaryBranch,
       image: userData?.image || "",
     }),
-    [userData?.computedFields, userData?.image]
+    [userData?.computedFields, userData?.image],
   );
 
   // Reset avatar error state if image URL changes
@@ -98,7 +98,9 @@ export function TopBar() {
           variant="ghost"
           size="icon"
           onClick={toggleTheme}
-          title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          title={
+            theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
+          }
         >
           {theme === "dark" ? (
             <Sun size={18} className="text-gray-600 dark:text-gray-400" />
@@ -117,9 +119,7 @@ export function TopBar() {
           </div>
         ) : (
           <>
-            {permissions?.canViewDashboard && (
-              <NotificationBell />
-            )}
+            {permissions?.canViewDashboard && <NotificationBell />}
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -127,7 +127,11 @@ export function TopBar() {
                   <div className="flex items-center space-x-3">
                     <Avatar className="h-8 w-8">
                       <AvatarImage
-                        src={avatarError ? `/api/placeholder/avatar?seed=${encodeURIComponent(profileData.displayName)}` : profileData.image}
+                        src={
+                          avatarError
+                            ? `/api/placeholder/avatar?seed=${encodeURIComponent(profileData.displayName)}`
+                            : profileData.image
+                        }
                         alt={profileData.displayName}
                         referrerPolicy="no-referrer"
                         crossOrigin="anonymous"
@@ -135,13 +139,11 @@ export function TopBar() {
                           // If image fails to load, set error state to true and hide the image
                           setAvatarError(true);
                           const target = e.target as HTMLImageElement;
-                          target.style.display = 'none';
+                          target.style.display = "none";
                           //console.log("Image failed to load:", profileData.image);
                         }}
                       />
-                      <AvatarFallback>
-                        {userInitials}
-                      </AvatarFallback>
+                      <AvatarFallback>{userInitials}</AvatarFallback>
                     </Avatar>
                     <div className="hidden md:block text-left">
                       <p className="text-sm font-medium text-gray-700 dark:text-gray-200">
@@ -149,7 +151,9 @@ export function TopBar() {
                       </p>
                       <div className="flex items-center gap-2">
                         <p className="text-xs text-gray-500 dark:text-gray-400">
-                          {profileData.accessLevel === "BRANCH_MANAGER" ? "BM" : profileData.accessLevel}
+                          {profileData.accessLevel === "BRANCH_MANAGER"
+                            ? "BM"
+                            : profileData.accessLevel}
                         </p>
                         {profileData.primaryBranch && (
                           <Badge variant="outline" className="text-xs">
@@ -197,6 +201,6 @@ export function TopBar() {
           </>
         )}
       </div>
-    </div >
+    </div>
   );
 }

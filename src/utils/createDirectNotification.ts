@@ -11,7 +11,7 @@ export async function createDirectNotifications(
   body: string,
   userIds: string[],
   actionUrl?: string | null,
-  data?: Record<string, any>
+  data?: Record<string, any>,
 ) {
   if (!userIds || userIds.length === 0) {
     //console.log("No users to notify, skipping direct notification creation");
@@ -22,7 +22,7 @@ export async function createDirectNotifications(
 
   try {
     // Create notification objects for each user
-    const notifications = userIds.map(userId => ({
+    const notifications = userIds.map((userId) => ({
       userId,
       title,
       body,
@@ -32,13 +32,13 @@ export async function createDirectNotifications(
       data: {
         ...(data || {}),
         method: "direct-create",
-        timestamp: new Date().toISOString()
-      }
+        timestamp: new Date().toISOString(),
+      },
     }));
 
     // Create all notifications in a single database operation
     const result = await prisma.inAppNotification.createMany({
-      data: notifications
+      data: notifications,
     });
 
     //console.log(`Successfully created ${result.count} direct notifications`);
@@ -62,7 +62,7 @@ export async function createDirectNotification(
   title: string,
   body: string,
   actionUrl?: string | null,
-  data?: Record<string, any>
+  data?: Record<string, any>,
 ) {
   try {
     //console.log(`Creating direct notification for user ${userId}`);
@@ -78,9 +78,9 @@ export async function createDirectNotification(
         data: {
           ...(data || {}),
           method: "direct-create-single",
-          timestamp: new Date().toISOString()
-        }
-      }
+          timestamp: new Date().toISOString(),
+        },
+      },
     });
 
     //console.log(`Successfully created direct notification: ${notification.id}`);
@@ -92,14 +92,17 @@ export async function createDirectNotification(
         event: "DELIVERED",
         metadata: {
           method: "direct-create",
-          timestamp: new Date().toISOString()
-        }
-      }
+          timestamp: new Date().toISOString(),
+        },
+      },
     });
 
     return notification;
   } catch (error) {
-    console.error(`Error creating direct notification for user ${userId}:`, error);
+    console.error(
+      `Error creating direct notification for user ${userId}:`,
+      error,
+    );
     throw error;
   }
-} 
+}

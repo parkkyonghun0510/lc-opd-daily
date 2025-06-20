@@ -96,21 +96,21 @@ export interface BranchHierarchy {
 // Helper functions
 export function hasPermission(
   userRole: UserRole,
-  permission: Permission
+  permission: Permission,
 ): boolean {
   return ROLE_PERMISSIONS[userRole]?.includes(permission) || false;
 }
 
 export function hasAnyPermission(
   userRole: UserRole,
-  permissions: Permission[]
+  permissions: Permission[],
 ): boolean {
   return permissions.some((permission) => hasPermission(userRole, permission));
 }
 
 export function hasAllPermissions(
   userRole: UserRole,
-  permissions: Permission[]
+  permissions: Permission[],
 ): boolean {
   return permissions.every((permission) => hasPermission(userRole, permission));
 }
@@ -126,7 +126,7 @@ export function canAccessBranch(
   userBranchId: string | null,
   targetBranchId: string,
   branchHierarchy?: BranchHierarchy[],
-  assignedBranchIds?: string[]
+  assignedBranchIds?: string[],
 ): boolean {
   if (userRole === UserRole.ADMIN) return true;
   if (!userBranchId && !assignedBranchIds?.length) return false;
@@ -178,7 +178,7 @@ export function getAccessibleBranches(
   userRole: UserRole,
   userBranchId: string | null,
   branchHierarchy: BranchHierarchy[],
-  assignedBranchIds: string[] = []
+  assignedBranchIds: string[] = [],
 ): string[] {
   if (userRole === UserRole.ADMIN) {
     return branchHierarchy.map((b) => b.id);
@@ -218,7 +218,7 @@ export function getAccessibleBranches(
 // Utility for API routes to check permission
 export function checkPermission(
   userRole: string,
-  requiredPermission: Permission
+  requiredPermission: Permission,
 ): boolean {
   if (!userRole || !Object.values(UserRole).includes(userRole as UserRole)) {
     return false;
@@ -229,9 +229,9 @@ export function checkPermission(
 // Helper function to map UI permission strings to internal Permission enum
 export function mapToPermission(permissionString: string): Permission | null {
   // Handle case differences (API and UI might use different casing conventions)
-  const normalizedString = permissionString.toUpperCase().replace(/ /g, '_');
+  const normalizedString = permissionString.toUpperCase().replace(/ /g, "_");
   const found = Object.values(Permission).find(
-    p => p.toUpperCase() === normalizedString
+    (p) => p.toUpperCase() === normalizedString,
   );
   return found || null;
 }
@@ -239,19 +239,37 @@ export function mapToPermission(permissionString: string): Permission | null {
 // Get display name for permission (useful for UI)
 export function getPermissionDisplayName(permission: Permission): string {
   return permission
-    .split('_')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join(' ');
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
 }
 
 // Group permissions by category for better UI organization
 export function getGroupedPermissions(): Record<string, Permission[]> {
   return {
-    'Admin Access': Object.values(Permission).filter(p => p.startsWith('ACCESS_') || p.startsWith('ASSIGN_') || p.startsWith('MANAGE_')),
-    'Report Management': Object.values(Permission).filter(p => p.includes('REPORT')),
-    'Branch Management': Object.values(Permission).filter(p => p.includes('BRANCH')),
-    'User Management': Object.values(Permission).filter(p => p.includes('USER')),
-    'Dashboard & Analytics': Object.values(Permission).filter(p => p.toLowerCase().includes('dashboard') || p.toLowerCase().includes('analytics')),
-    'Audit & Logs': Object.values(Permission).filter(p => p.toLowerCase().includes('audit') || p.toLowerCase().includes('log')),
+    "Admin Access": Object.values(Permission).filter(
+      (p) =>
+        p.startsWith("ACCESS_") ||
+        p.startsWith("ASSIGN_") ||
+        p.startsWith("MANAGE_"),
+    ),
+    "Report Management": Object.values(Permission).filter((p) =>
+      p.includes("REPORT"),
+    ),
+    "Branch Management": Object.values(Permission).filter((p) =>
+      p.includes("BRANCH"),
+    ),
+    "User Management": Object.values(Permission).filter((p) =>
+      p.includes("USER"),
+    ),
+    "Dashboard & Analytics": Object.values(Permission).filter(
+      (p) =>
+        p.toLowerCase().includes("dashboard") ||
+        p.toLowerCase().includes("analytics"),
+    ),
+    "Audit & Logs": Object.values(Permission).filter(
+      (p) =>
+        p.toLowerCase().includes("audit") || p.toLowerCase().includes("log"),
+    ),
   };
 }

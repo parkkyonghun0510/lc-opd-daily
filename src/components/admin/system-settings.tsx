@@ -165,9 +165,7 @@ export function SystemSettings() {
         {saveSuccess && (
           <span className="text-green-600 ml-4">Settings saved!</span>
         )}
-        {saveError && (
-          <span className="text-red-600 ml-4">{saveError}</span>
-        )}
+        {saveError && <span className="text-red-600 ml-4">{saveError}</span>}
       </div>
     </div>
   );

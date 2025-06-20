@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import { useState, useEffect } from "react";
 import { Bell, BellRing, X, Check, Eye } from "lucide-react";
@@ -51,10 +51,10 @@ export function NotificationBell() {
     const intervalId = setInterval(() => {
       if (!isOpen) {
         // Only fetch for new ones if popover is closed
-        fetchNotifications(true); 
+        fetchNotifications(true);
       }
     }, 60000);
-    
+
     return () => clearInterval(intervalId);
   }, [isOpen]);
 
@@ -62,17 +62,15 @@ export function NotificationBell() {
     try {
       setLoading(true);
       const response = await fetch(
-        countOnly 
-          ? "/api/notifications/unread-count" 
-          : "/api/notifications"
+        countOnly ? "/api/notifications/unread-count" : "/api/notifications",
       );
-      
+
       if (!response.ok) {
         throw new Error("Failed to fetch notifications");
       }
-      
+
       const data = await response.json();
-      
+
       if (countOnly) {
         setUnreadCount(data.count);
       } else {
@@ -91,19 +89,18 @@ export function NotificationBell() {
       const response = await fetch(`/api/notifications/${id}/read`, {
         method: "POST",
       });
-      
+
       if (!response.ok) {
         throw new Error("Failed to mark notification as read");
       }
-      
+
       // Update local state
-      setNotifications(notifications.map(n => 
-        n.id === id ? { ...n, isRead: true } : n
-      ));
-      
+      setNotifications(
+        notifications.map((n) => (n.id === id ? { ...n, isRead: true } : n)),
+      );
+
       // Decrement unread count
-      setUnreadCount(prev => Math.max(0, prev - 1));
-      
+      setUnreadCount((prev) => Math.max(0, prev - 1));
     } catch (error) {
       console.error("Error marking notification as read:", error);
     }
@@ -114,15 +111,14 @@ export function NotificationBell() {
       const response = await fetch("/api/notifications/mark-all-read", {
         method: "POST",
       });
-      
+
       if (!response.ok) {
         throw new Error("Failed to mark all notifications as read");
       }
-      
+
       // Update local state
-      setNotifications(notifications.map(n => ({ ...n, isRead: true })));
+      setNotifications(notifications.map((n) => ({ ...n, isRead: true })));
       setUnreadCount(0);
-      
     } catch (error) {
       console.error("Error marking all notifications as read:", error);
     }
@@ -133,19 +129,19 @@ export function NotificationBell() {
     if (!notification.isRead) {
       markAsRead(notification.id);
     }
-    
+
     // Navigate if action URL is available
     if (notification.actionUrl) {
       window.location.href = notification.actionUrl;
     }
-    
+
     // Close the popover
     setIsOpen(false);
   }
 
   function formatNotificationTime(createdAt: string) {
     const date = new Date(createdAt);
-    
+
     if (isToday(date)) {
       return `Today at ${format(date, "h:mm a")}`;
     } else if (isYesterday(date)) {
@@ -158,9 +154,9 @@ export function NotificationBell() {
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
-        <Button 
-          variant="ghost" 
-          size="icon" 
+        <Button
+          variant="ghost"
+          size="icon"
           className="relative"
           aria-label="Notifications"
         >
@@ -170,7 +166,7 @@ export function NotificationBell() {
             <Bell className="h-5 w-5" />
           )}
           {hasUnread && (
-            <Badge 
+            <Badge
               className="absolute -top-1 -right-1 px-1.5 h-5 min-w-5 flex items-center justify-center bg-red-500"
               variant="destructive"
             >
@@ -183,9 +179,9 @@ export function NotificationBell() {
         <div className="p-4 pb-2 flex items-center justify-between">
           <h4 className="font-medium text-sm">Notifications</h4>
           {hasUnread && (
-            <Button 
-              variant="ghost" 
-              size="sm" 
+            <Button
+              variant="ghost"
+              size="sm"
               className="h-auto p-0 px-1 text-xs text-blue-500 font-medium"
               onClick={markAllAsRead}
             >
@@ -210,9 +206,9 @@ export function NotificationBell() {
                   key={notification.id}
                   className={cn(
                     "flex flex-col gap-1 p-4 relative",
-                    notification.isRead 
-                      ? "bg-background" 
-                      : "bg-muted hover:bg-muted/80"
+                    notification.isRead
+                      ? "bg-background"
+                      : "bg-muted hover:bg-muted/80",
                   )}
                   role="button"
                   onClick={() => handleNotificationClick(notification)}
@@ -248,11 +244,11 @@ export function NotificationBell() {
                     <span className="text-xs text-muted-foreground">
                       {formatNotificationTime(notification.createdAt)}
                     </span>
-                    <Badge 
-                      variant="outline" 
+                    <Badge
+                      variant="outline"
                       className="text-xs capitalize px-1.5 h-5"
                     >
-                      {notification.type.toLowerCase().replace(/_/g, ' ')}
+                      {notification.type.toLowerCase().replace(/_/g, " ")}
                     </Badge>
                   </div>
                 </div>
@@ -278,4 +274,4 @@ export function NotificationBell() {
       </PopoverContent>
     </Popover>
   );
-} 
+}

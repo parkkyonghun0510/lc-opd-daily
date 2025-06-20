@@ -77,17 +77,21 @@ export async function fetchUserData() {
       },
       permissions: {
         canAccessAdmin: userData.role === UserRole.ADMIN,
-        canViewAnalytics: [UserRole.ADMIN, UserRole.BRANCH_MANAGER, UserRole.SUPERVISOR].includes(
-          userData.role as UserRole
-        ),
+        canViewAnalytics: [
+          UserRole.ADMIN,
+          UserRole.BRANCH_MANAGER,
+          UserRole.SUPERVISOR,
+        ].includes(userData.role as UserRole),
         canViewAuditLogs: [UserRole.ADMIN, UserRole.BRANCH_MANAGER].includes(
-          userData.role as UserRole
+          userData.role as UserRole,
         ),
-        canCustomizeDashboard: [UserRole.ADMIN, UserRole.BRANCH_MANAGER, UserRole.SUPERVISOR].includes(
-          userData.role as UserRole
-        ),
+        canCustomizeDashboard: [
+          UserRole.ADMIN,
+          UserRole.BRANCH_MANAGER,
+          UserRole.SUPERVISOR,
+        ].includes(userData.role as UserRole),
         canManageSettings: [UserRole.ADMIN, UserRole.BRANCH_MANAGER].includes(
-          userData.role as UserRole
+          userData.role as UserRole,
         ),
       },
     };
@@ -130,7 +134,7 @@ export async function updateUserProfile(data: UserProfileUpdate) {
 
 // Update user preferences
 export async function updateUserPreferences(
-  preferences: Partial<UserPreferences>
+  preferences: Partial<UserPreferences>,
 ) {
   try {
     const session = await getServerSession(authOptions);

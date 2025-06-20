@@ -1,10 +1,10 @@
 /**
  * Real-time Connection Monitor
- * 
+ *
  * This module provides monitoring and logging for real-time connections.
  */
 
-import { Redis } from '@upstash/redis';
+import { Redis } from "@upstash/redis";
 
 // Types
 interface RedisMetricsData {
@@ -42,23 +42,23 @@ class RealtimeMonitor {
     connections: {
       total: 0,
       active: 0,
-      peak: 0
+      peak: 0,
     },
     events: {
       sent: 0,
       received: 0,
-      errors: 0
+      errors: 0,
     },
     performance: {
       avgLatency: 0,
       p95Latency: 0,
-      p99Latency: 0
+      p99Latency: 0,
     },
     errors: {
       connection: 0,
       message: 0,
-      other: 0
-    }
+      other: 0,
+    },
   };
   private instanceId: string;
   private latencies: number[] = [];
@@ -83,7 +83,7 @@ class RealtimeMonitor {
         !process.env.UPSTASH_REDIS_REST_TOKEN
       ) {
         console.warn(
-          "[RealtimeMonitor] Redis credentials not found. Using in-memory monitoring only."
+          "[RealtimeMonitor] Redis credentials not found. Using in-memory monitoring only.",
         );
         return;
       }
@@ -119,7 +119,10 @@ class RealtimeMonitor {
    */
   recordDisconnection() {
     // Update local metrics
-    this.metrics.connections.active = Math.max(0, this.metrics.connections.active - 1);
+    this.metrics.connections.active = Math.max(
+      0,
+      this.metrics.connections.active - 1,
+    );
 
     // Update Redis metrics if available
     this.updateRedisMetrics();
@@ -149,10 +152,10 @@ class RealtimeMonitor {
 
   /**
    * Record an error
-   * 
+   *
    * @param type - Error type
    */
-  recordError(type: 'connection' | 'message' | 'other') {
+  recordError(type: "connection" | "message" | "other") {
     // Update local metrics
     this.metrics.errors[type]++;
     this.metrics.events.errors++;
@@ -163,7 +166,7 @@ class RealtimeMonitor {
 
   /**
    * Record latency
-   * 
+   *
    * @param latency - Latency in milliseconds
    */
   recordLatency(latency: number) {
@@ -201,10 +204,14 @@ class RealtimeMonitor {
 
     try {
       // Store metrics in Redis
-      await this.redis.set(`realtime:metrics:${this.instanceId}`, {
-        metrics: this.metrics,
-        timestamp: Date.now()
-      }, { ex: 3600 }); // Expire after 1 hour
+      await this.redis.set(
+        `realtime:metrics:${this.instanceId}`,
+        {
+          metrics: this.metrics,
+          timestamp: Date.now(),
+        },
+        { ex: 3600 },
+      ); // Expire after 1 hour
     } catch (error) {
       console.error("[RealtimeMonitor] Failed to update Redis metrics:", error);
     }
@@ -212,7 +219,7 @@ class RealtimeMonitor {
 
   /**
    * Get current metrics
-   * 
+   *
    * @returns Current metrics
    */
   getMetrics(): Metrics {
@@ -221,7 +228,7 @@ class RealtimeMonitor {
 
   /**
    * Get metrics from all instances
-   * 
+   *
    * @returns Metrics from all instances
    */
   async getAllInstancesMetrics(): Promise<{ [instanceId: string]: Metrics }> {
@@ -232,25 +239,31 @@ class RealtimeMonitor {
 
     try {
       // Get all instance metrics
-      const instanceKeys = await this.redis.keys('realtime:metrics:*');
+      const instanceKeys = await this.redis.keys("realtime:metrics:*");
       const instanceMetrics = await Promise.all(
-        instanceKeys.map(async key => {
+        instanceKeys.map(async (key) => {
           const data = await this.redis?.get(key);
           return { key, data };
-        })
+        }),
       );
 
       // Convert to object with proper typing
-      return instanceMetrics.reduce((acc, { key, data }) => {
-        const metricsData = data as RedisMetricsData | null;
-        if (metricsData?.metrics) {
-          const instanceId = key.replace('realtime:metrics:', '');
-          acc[instanceId] = metricsData.metrics;
-        }
-        return acc;
-      }, {} as { [instanceId: string]: Metrics });
+      return instanceMetrics.reduce(
+        (acc, { key, data }) => {
+          const metricsData = data as RedisMetricsData | null;
+          if (metricsData?.metrics) {
+            const instanceId = key.replace("realtime:metrics:", "");
+            acc[instanceId] = metricsData.metrics;
+          }
+          return acc;
+        },
+        {} as { [instanceId: string]: Metrics },
+      );
     } catch (error) {
-      console.error("[RealtimeMonitor] Failed to get all instance metrics:", error);
+      console.error(
+        "[RealtimeMonitor] Failed to get all instance metrics:",
+        error,
+      );
 
       // Fall back to local metrics
       return { [this.instanceId]: this.metrics };
@@ -265,23 +278,23 @@ class RealtimeMonitor {
       connections: {
         total: 0,
         active: this.metrics.connections.active, // Keep active connections
-        peak: this.metrics.connections.peak // Keep peak
+        peak: this.metrics.connections.peak, // Keep peak
       },
       events: {
         sent: 0,
         received: 0,
-        errors: 0
+        errors: 0,
       },
       performance: {
         avgLatency: 0,
         p95Latency: 0,
-        p99Latency: 0
+        p99Latency: 0,
       },
       errors: {
         connection: 0,
         message: 0,
-        other: 0
-      }
+        other: 0,
+      },
     };
 
     this.latencies = [];

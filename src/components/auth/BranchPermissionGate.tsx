@@ -23,7 +23,8 @@ export function BranchPermissionGate({
   showLoading = false,
 }: BranchPermissionGateProps) {
   const { canAny, canAll } = usePermissions();
-  const { hasAccess: branchAccess, loading } = useBranchActionPermission(branchId);
+  const { hasAccess: branchAccess, loading } =
+    useBranchActionPermission(branchId);
 
   // Track access state
   const [hasAccess, setHasAccess] = useState(false);

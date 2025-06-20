@@ -103,15 +103,12 @@ export function ApprovalsTable({
       pending: "secondary",
       pending_approval: "secondary",
       approved: "success",
-      rejected: "destructive"
+      rejected: "destructive",
     };
 
     return (
-      <Badge
-        variant={variants[status] as any}
-        className="capitalize"
-      >
-        {status.replace('_', ' ')}
+      <Badge variant={variants[status] as any} className="capitalize">
+        {status.replace("_", " ")}
       </Badge>
     );
   };
@@ -120,7 +117,7 @@ export function ApprovalsTable({
   const hasComments = (report: Report) => {
     return (
       (report.ReportComment && report.ReportComment.length > 0) ||
-      (report.comments && report.comments.trim() !== '')
+      (report.comments && report.comments.trim() !== "")
     );
   };
 
@@ -129,9 +126,9 @@ export function ApprovalsTable({
     if (report.ReportComment && report.ReportComment.length > 0) {
       return report.ReportComment.length;
     }
-    if (report.comments && report.comments.trim() !== '') {
+    if (report.comments && report.comments.trim() !== "") {
       // Rough estimate for legacy comments
-      return report.comments.split('[').length - 1;
+      return report.comments.split("[").length - 1;
     }
     return 0;
   };
@@ -159,7 +156,7 @@ export function ApprovalsTable({
               <TableRow
                 className={cn(
                   "cursor-pointer hover:bg-muted/50",
-                  expandedRows[report.id] && "bg-muted/30"
+                  expandedRows[report.id] && "bg-muted/30",
                 )}
                 onClick={() => toggleRow(report.id)}
               >
@@ -183,7 +180,9 @@ export function ApprovalsTable({
                     <span>{report.branch?.name || "Unknown Branch"}</span>
                   </div>
                 </TableCell>
-                <TableCell className="capitalize">{report.reportType}</TableCell>
+                <TableCell className="capitalize">
+                  {report.reportType}
+                </TableCell>
                 <TableCell className="text-right font-medium">
                   {formatKHRCurrency(report.writeOffs)}
                 </TableCell>
@@ -193,9 +192,11 @@ export function ApprovalsTable({
                 <TableCell>
                   <div className="flex items-center gap-2">
                     <Avatar className="h-6 w-6">
-                      <AvatarImage src={`https://avatar.vercel.sh/${report.submittedBy || report.user?.id}`} />
+                      <AvatarImage
+                        src={`https://avatar.vercel.sh/${report.submittedBy || report.user?.id}`}
+                      />
                       <AvatarFallback>
-                        {report.user?.name?.charAt(0) || 'U'}
+                        {report.user?.name?.charAt(0) || "U"}
                       </AvatarFallback>
                     </Avatar>
                     <span className="text-sm">
@@ -214,7 +215,10 @@ export function ApprovalsTable({
                   )}
                 </TableCell>
                 <TableCell className="text-right">
-                  <div className="flex justify-end" onClick={(e) => e.stopPropagation()}>
+                  <div
+                    className="flex justify-end"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -222,7 +226,10 @@ export function ApprovalsTable({
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8"
-                            disabled={report.status !== "pending" && report.status !== "pending_approval"}
+                            disabled={
+                              report.status !== "pending" &&
+                              report.status !== "pending_approval"
+                            }
                             onClick={(e) => {
                               e.stopPropagation();
                               // This will be handled by the ReportApproval component in the expanded row
@@ -244,7 +251,10 @@ export function ApprovalsTable({
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8"
-                            disabled={report.status !== "pending" && report.status !== "pending_approval"}
+                            disabled={
+                              report.status !== "pending" &&
+                              report.status !== "pending_approval"
+                            }
                             onClick={(e) => {
                               e.stopPropagation();
                               // This will be handled by the ReportApproval component in the expanded row
@@ -277,9 +287,11 @@ export function ApprovalsTable({
                             </h3>
                             <Badge
                               variant={
-                                report.status === "approved" ? "default" :
-                                  report.status === "rejected" ? "destructive" :
-                                    "secondary"
+                                report.status === "approved"
+                                  ? "default"
+                                  : report.status === "rejected"
+                                    ? "destructive"
+                                    : "secondary"
                               }
                               className="capitalize"
                             >
@@ -293,15 +305,26 @@ export function ApprovalsTable({
                               <div className="flex items-center gap-2">
                                 <Calendar className="h-4 w-4 text-muted-foreground" />
                                 <div>
-                                  <p className="text-xs text-muted-foreground">Date</p>
-                                  <p className="text-sm font-medium">{format(new Date(report.date), "MMMM d, yyyy")}</p>
+                                  <p className="text-xs text-muted-foreground">
+                                    Date
+                                  </p>
+                                  <p className="text-sm font-medium">
+                                    {format(
+                                      new Date(report.date),
+                                      "MMMM d, yyyy",
+                                    )}
+                                  </p>
                                 </div>
                               </div>
                               <div className="flex items-center gap-2">
                                 <Building className="h-4 w-4 text-muted-foreground" />
                                 <div>
-                                  <p className="text-xs text-muted-foreground">Branch</p>
-                                  <p className="text-sm font-medium">{report.branch?.name || "Unknown Branch"}</p>
+                                  <p className="text-xs text-muted-foreground">
+                                    Branch
+                                  </p>
+                                  <p className="text-sm font-medium">
+                                    {report.branch?.name || "Unknown Branch"}
+                                  </p>
                                 </div>
                               </div>
                             </div>
@@ -309,32 +332,55 @@ export function ApprovalsTable({
                             {/* Financial Data */}
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                               <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-md">
-                                <p className="text-xs text-muted-foreground">Write-offs</p>
-                                <p className="text-lg font-semibold">{formatKHRCurrency(report.writeOffs)}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  Write-offs
+                                </p>
+                                <p className="text-lg font-semibold">
+                                  {formatKHRCurrency(report.writeOffs)}
+                                </p>
                               </div>
                               <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-md">
-                                <p className="text-xs text-muted-foreground">90+ Days</p>
-                                <p className="text-lg font-semibold">{formatKHRCurrency(report.ninetyPlus)}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  90+ Days
+                                </p>
+                                <p className="text-lg font-semibold">
+                                  {formatKHRCurrency(report.ninetyPlus)}
+                                </p>
                               </div>
                             </div>
 
                             {/* Metadata */}
                             <div className="grid grid-cols-2 gap-4 text-sm">
                               <div>
-                                <p className="text-xs text-muted-foreground">Report Type</p>
-                                <p className="text-sm font-medium capitalize">{report.reportType}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  Report Type
+                                </p>
+                                <p className="text-sm font-medium capitalize">
+                                  {report.reportType}
+                                </p>
                               </div>
                               <div>
-                                <p className="text-xs text-muted-foreground">Submitted At</p>
-                                <p className="text-sm font-medium">{format(new Date(report.createdAt), "MMM d, h:mm a")}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  Submitted At
+                                </p>
+                                <p className="text-sm font-medium">
+                                  {format(
+                                    new Date(report.createdAt),
+                                    "MMM d, h:mm a",
+                                  )}
+                                </p>
                               </div>
                               <div className="col-span-2">
-                                <p className="text-xs text-muted-foreground">Submitted By</p>
+                                <p className="text-xs text-muted-foreground">
+                                  Submitted By
+                                </p>
                                 <div className="flex items-center gap-2 mt-1">
                                   <Avatar className="h-6 w-6">
-                                    <AvatarImage src={`https://avatar.vercel.sh/${report.submittedBy || report.user?.id}`} />
+                                    <AvatarImage
+                                      src={`https://avatar.vercel.sh/${report.submittedBy || report.user?.id}`}
+                                    />
                                     <AvatarFallback>
-                                      {report.user?.name?.charAt(0) || 'U'}
+                                      {report.user?.name?.charAt(0) || "U"}
                                     </AvatarFallback>
                                   </Avatar>
                                   <span className="text-sm font-medium">
@@ -349,7 +395,9 @@ export function ApprovalsTable({
                           <div className="mt-2">
                             <ReportApproval
                               report={report}
-                              branchName={report.branch?.name || "Unknown Branch"}
+                              branchName={
+                                report.branch?.name || "Unknown Branch"
+                              }
                               onApprovalComplete={onApprovalComplete}
                             />
                           </div>
@@ -362,20 +410,24 @@ export function ApprovalsTable({
                             Comments
                           </h3>
                           <div className="bg-card rounded-md p-4 border shadow-sm h-[350px] md:h-[400px] overflow-y-auto">
-                            {report.ReportComment && report.ReportComment.length > 0 ? (
+                            {report.ReportComment &&
+                            report.ReportComment.length > 0 ? (
                               <ReportCommentsList
                                 reportId={report.id}
                                 initialComments={report.ReportComment}
                                 autoFocusCommentForm={false}
                               />
-                            ) : report.comments && report.comments.trim() !== '' ? (
+                            ) : report.comments &&
+                              report.comments.trim() !== "" ? (
                               <div className="whitespace-pre-wrap text-sm">
                                 {report.comments}
                               </div>
                             ) : (
                               <div className="text-center text-muted-foreground py-8">
                                 <p>No comments yet</p>
-                                <p className="text-xs mt-1">Add a comment to start the conversation</p>
+                                <p className="text-xs mt-1">
+                                  Add a comment to start the conversation
+                                </p>
                               </div>
                             )}
                           </div>
@@ -390,7 +442,10 @@ export function ApprovalsTable({
 
           {reports.length === 0 && (
             <TableRow>
-              <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+              <TableCell
+                colSpan={10}
+                className="text-center py-8 text-muted-foreground"
+              >
                 No reports found
               </TableCell>
             </TableRow>

@@ -5,7 +5,7 @@ import { Permission, UserRole, hasPermission } from "@/lib/auth/roles";
 
 // Helper function to convert Decimal to number
 const toNumber = (value: any): number => {
-  if (typeof value === 'number') return value;
+  if (typeof value === "number") return value;
   return Number(value) || 0;
 };
 
@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     if (!token) {
       return NextResponse.json(
         { error: "Unauthorized - Authentication required" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -133,16 +133,17 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(responseData, {
       headers: {
-        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0',
-      }
+        "Cache-Control":
+          "no-store, no-cache, must-revalidate, proxy-revalidate",
+        Pragma: "no-cache",
+        Expires: "0",
+      },
     });
   } catch (error) {
     console.error("Error fetching dashboard data:", error);
     return NextResponse.json(
       { error: "Failed to fetch dashboard data" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

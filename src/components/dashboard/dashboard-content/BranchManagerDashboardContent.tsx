@@ -1,9 +1,9 @@
-import React from 'react';
+import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileText, Clock, TrendingUp, Users, Building } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import Link from 'next/link';
-import { formatKHRCurrency } from '@/lib/utils';
+import { FileText, Clock, TrendingUp, Users, Building } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { formatKHRCurrency } from "@/lib/utils";
 
 interface DashboardCardProps {
   title: string;
@@ -13,10 +13,18 @@ interface DashboardCardProps {
   isLoading: boolean;
 }
 
-const DashboardCard: React.FC<DashboardCardProps> = ({ title, value, description, icon: Icon, isLoading }) => (
+const DashboardCard: React.FC<DashboardCardProps> = ({
+  title,
+  value,
+  description,
+  icon: Icon,
+  isLoading,
+}) => (
   <Card className="shadow-sm hover:shadow-md transition-shadow duration-200">
     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-      <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">{title}</CardTitle>
+      <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
+        {title}
+      </CardTitle>
       <Icon className="h-5 w-5 text-muted-foreground" />
     </CardHeader>
     <CardContent>
@@ -24,7 +32,9 @@ const DashboardCard: React.FC<DashboardCardProps> = ({ title, value, description
         <div className="h-8 w-1/2 mb-1 bg-gray-200 animate-pulse rounded" />
       ) : (
         <>
-          <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{value ?? 'N/A'}</div>
+          <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+            {value ?? "N/A"}
+          </div>
           <p className="text-xs text-muted-foreground">{description}</p>
         </>
       )}
@@ -51,12 +61,11 @@ interface BranchManagerDashboardContentProps {
   isLoading: boolean;
 }
 
-const BranchManagerDashboardContent: React.FC<BranchManagerDashboardContentProps> = ({
-  dashboardData,
-  isLoading
-}) => {
+const BranchManagerDashboardContent: React.FC<
+  BranchManagerDashboardContentProps
+> = ({ dashboardData, isLoading }) => {
   const formatNumber = (value: number | undefined): string => {
-    if (value === undefined || isNaN(value)) return 'N/A';
+    if (value === undefined || isNaN(value)) return "N/A";
     return value.toLocaleString(undefined, { maximumFractionDigits: 2 });
   };
 
@@ -74,7 +83,9 @@ const BranchManagerDashboardContent: React.FC<BranchManagerDashboardContentProps
     <>
       <div className="mb-6">
         <h2 className="text-xl font-semibold mb-2">{branchName} Overview</h2>
-        <p className="text-muted-foreground">Manage your branch operations and reports</p>
+        <p className="text-muted-foreground">
+          Manage your branch operations and reports
+        </p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -108,14 +119,16 @@ const BranchManagerDashboardContent: React.FC<BranchManagerDashboardContentProps
         />
         <DashboardCard
           title="Branch Rank"
-          value={branchRank || 'N/A'}
+          value={branchRank || "N/A"}
           description="Performance ranking among branches"
           icon={Building}
           isLoading={isLoading}
         />
         <DashboardCard
           title="Growth Rate"
-          value={branchGrowth !== undefined ? `${branchGrowth.toFixed(2)}%` : 'N/A'}
+          value={
+            branchGrowth !== undefined ? `${branchGrowth.toFixed(2)}%` : "N/A"
+          }
           description="Month-over-month growth"
           icon={TrendingUp}
           isLoading={isLoading}
@@ -143,7 +156,9 @@ const BranchManagerDashboardContent: React.FC<BranchManagerDashboardContentProps
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold">Recent Reports</h2>
           <Link href="/dashboard/reports" passHref>
-            <Button variant="ghost" size="sm">View All</Button>
+            <Button variant="ghost" size="sm">
+              View All
+            </Button>
           </Link>
         </div>
 
@@ -151,20 +166,35 @@ const BranchManagerDashboardContent: React.FC<BranchManagerDashboardContentProps
           {isLoading ? (
             <div className="space-y-2">
               {[...Array(3)].map((_, i) => (
-                <div key={i} className="h-6 bg-gray-200 animate-pulse rounded w-full" />
+                <div
+                  key={i}
+                  className="h-6 bg-gray-200 animate-pulse rounded w-full"
+                />
               ))}
             </div>
           ) : recentReports && recentReports.length > 0 ? (
             <ul className="divide-y divide-gray-200 dark:divide-gray-700">
               {recentReports.map((report) => (
-                <li key={report.id} className="py-2 flex justify-between items-center">
+                <li
+                  key={report.id}
+                  className="py-2 flex justify-between items-center"
+                >
                   <span className="font-medium">{report.title}</span>
-                  <span className="text-xs text-muted-foreground">{new Date(report.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })} - {report.status}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {new Date(report.createdAt).toLocaleDateString(undefined, {
+                      year: "numeric",
+                      month: "short",
+                      day: "numeric",
+                    })}{" "}
+                    - {report.status}
+                  </span>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="text-muted-foreground">Recent reports will appear here</p>
+            <p className="text-muted-foreground">
+              Recent reports will appear here
+            </p>
           )}
         </div>
       </div>
@@ -172,4 +202,4 @@ const BranchManagerDashboardContent: React.FC<BranchManagerDashboardContentProps
   );
 };
 
-export default BranchManagerDashboardContent; 
+export default BranchManagerDashboardContent;

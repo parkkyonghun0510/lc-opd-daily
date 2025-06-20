@@ -32,7 +32,7 @@ function parsePreferences(jsonData: Prisma.JsonValue | null): UserPreferences {
         reportUpdates: Boolean(parsed?.notifications?.reportUpdates ?? true),
         reportComments: Boolean(parsed?.notifications?.reportComments ?? true),
         reportApprovals: Boolean(
-          parsed?.notifications?.reportApprovals ?? true
+          parsed?.notifications?.reportApprovals ?? true,
         ),
       },
       appearance: {
@@ -46,7 +46,7 @@ function parsePreferences(jsonData: Prisma.JsonValue | null): UserPreferences {
 
 // User data operations
 export async function getUserData(
-  userId: string
+  userId: string,
 ): Promise<UserWithBranch | null> {
   if (!userId) return null;
 
@@ -72,7 +72,7 @@ export async function getUserData(
 
 export async function updateUserProfile(
   userId: string,
-  data: Prisma.UserUpdateInput
+  data: Prisma.UserUpdateInput,
 ) {
   if (!userId) return null;
 
@@ -94,7 +94,7 @@ export async function updateUserProfile(
 export async function updateUserPreferences(
   userId: string,
   type: string,
-  preferences: any
+  preferences: any,
 ) {
   if (!userId) return null;
 

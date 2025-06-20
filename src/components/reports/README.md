@@ -42,9 +42,9 @@ function ReportDetails({ report }: { report: Report }) {
 
 ### Props
 
-| Prop | Type | Description |
-|------|------|-------------|
-| `report` | `Report` | The report object to display and process |
+| Prop                 | Type         | Description                                                     |
+| -------------------- | ------------ | --------------------------------------------------------------- |
+| `report`             | `Report`     | The report object to display and process                        |
 | `onApprovalComplete` | `() => void` | Callback function called after successful approval or rejection |
 
 ### Report Object Requirements

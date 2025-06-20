@@ -203,7 +203,10 @@ export function ExportOptionsDialog({
               <RadioGroup
                 value={settings.statusFilter}
                 onValueChange={(value) =>
-                  setSettings({ ...settings, statusFilter: value as "all" | "reported" | "missing" })
+                  setSettings({
+                    ...settings,
+                    statusFilter: value as "all" | "reported" | "missing",
+                  })
                 }
                 className="flex flex-col space-y-1"
               >
@@ -229,7 +232,9 @@ export function ExportOptionsDialog({
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setSettings({ ...settings, branchFilter: [] })}
+                    onClick={() =>
+                      setSettings({ ...settings, branchFilter: [] })
+                    }
                     className="h-7 text-xs"
                     disabled={settings.branchFilter.length === 0}
                   >
@@ -242,7 +247,11 @@ export function ExportOptionsDialog({
                     : `${settings.branchFilter.length} branch(es) selected`}
                 </p>
                 <Select
-                  value={settings.branchFilter.length ? settings.branchFilter[settings.branchFilter.length - 1] : ""}
+                  value={
+                    settings.branchFilter.length
+                      ? settings.branchFilter[settings.branchFilter.length - 1]
+                      : ""
+                  }
                   onValueChange={(value) => {
                     setSettings((prev) => {
                       // If value is empty, keep the current selection
@@ -254,14 +263,14 @@ export function ExportOptionsDialog({
                       if (newFilter.includes(value)) {
                         return {
                           ...prev,
-                          branchFilter: newFilter.filter(id => id !== value)
+                          branchFilter: newFilter.filter((id) => id !== value),
                         };
                       }
 
                       // If not selected, add it
                       return {
                         ...prev,
-                        branchFilter: [...newFilter, value]
+                        branchFilter: [...newFilter, value],
                       };
                     });
                   }}
@@ -277,7 +286,9 @@ export function ExportOptionsDialog({
                         className="flex items-center"
                       >
                         <div className="flex items-center justify-between w-full">
-                          <span>{branch.branchCode} - {branch.branchName}</span>
+                          <span>
+                            {branch.branchCode} - {branch.branchName}
+                          </span>
                           {settings.branchFilter.includes(branch.branchId) && (
                             <span className="ml-2 text-primary">✓</span>
                           )}

@@ -1,5 +1,5 @@
-import { Redis } from '@upstash/redis';
-import { NextRequest, NextResponse } from 'next/server';
+import { Redis } from "@upstash/redis";
+import { NextRequest, NextResponse } from "next/server";
 
 /**
  * Rate limit configuration
@@ -54,7 +54,10 @@ export class RateLimiter {
 
   constructor() {
     // Initialize Redis client if configured
-    if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+    if (
+      process.env.UPSTASH_REDIS_REST_URL &&
+      process.env.UPSTASH_REDIS_REST_TOKEN
+    ) {
       this.redis = new Redis({
         url: process.env.UPSTASH_REDIS_REST_URL,
         token: process.env.UPSTASH_REDIS_REST_TOKEN,
@@ -67,7 +70,7 @@ export class RateLimiter {
    */
   async limit(
     req: NextRequest,
-    config: RateLimitConfig
+    config: RateLimitConfig,
   ): Promise<RateLimitResult> {
     // If Redis is not configured, allow all requests
     if (!this.redis) {
@@ -75,27 +78,29 @@ export class RateLimiter {
         success: true,
         count: 0,
         limit: config.limit,
-        reset: 0
+        reset: 0,
       };
     }
 
     // Get IP address from request
-    const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
-      req.headers.get('x-real-ip') ||
-      'unknown';
+    const ip =
+      req.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
+      req.headers.get("x-real-ip") ||
+      "unknown";
 
     // Get user ID from query parameter or cookie
-    let userId = new URL(req.url).searchParams.get('userId');
+    let userId = new URL(req.url).searchParams.get("userId");
 
     // Create a key for the rate limit
     // Use both IP and user ID if available, or just IP
     const key = `rate-limit:${config.identifier}:${userId ? `user-${userId}` : `ip-${ip}`}`;
 
     // Get the current count and expiration
-    const [count, reset] = await this.redis.pipeline()
+    const [count, reset] = (await this.redis
+      .pipeline()
       .incr(key)
       .ttl(key)
-      .exec() as [number, number];
+      .exec()) as [number, number];
 
     // If this is the first request, set the expiration
     if (count === 1) {
@@ -112,7 +117,7 @@ export class RateLimiter {
       success,
       count,
       limit: config.limit,
-      reset: resetTime
+      reset: resetTime,
     };
   }
 
@@ -121,7 +126,7 @@ export class RateLimiter {
    */
   async applyRateLimit(
     req: NextRequest,
-    config: RateLimitConfig
+    config: RateLimitConfig,
   ): Promise<NextResponse | null> {
     const result = await this.limit(req, config);
 
@@ -129,20 +134,23 @@ export class RateLimiter {
       // Return a rate limit exceeded response
       return new NextResponse(
         JSON.stringify({
-          error: 'Rate limit exceeded',
+          error: "Rate limit exceeded",
           limit: result.limit,
           count: result.count,
-          reset: result.reset
+          reset: result.reset,
         }),
         {
           status: 429,
           headers: {
-            'Content-Type': 'application/json',
-            'X-RateLimit-Limit': result.limit.toString(),
-            'X-RateLimit-Remaining': Math.max(0, result.limit - result.count).toString(),
-            'X-RateLimit-Reset': result.reset.toString()
-          }
-        }
+            "Content-Type": "application/json",
+            "X-RateLimit-Limit": result.limit.toString(),
+            "X-RateLimit-Remaining": Math.max(
+              0,
+              result.limit - result.count,
+            ).toString(),
+            "X-RateLimit-Reset": result.reset.toString(),
+          },
+        },
       );
     }
 

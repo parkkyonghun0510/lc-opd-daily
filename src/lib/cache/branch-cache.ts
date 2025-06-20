@@ -26,7 +26,7 @@ const getRedisClient = () => {
       !process.env.UPSTASH_REDIS_REST_TOKEN
     ) {
       console.warn(
-        "[Redis Cache] Redis credentials not found. Cache operations will be skipped."
+        "[Redis Cache] Redis credentials not found. Cache operations will be skipped.",
       );
       return null;
     }
@@ -49,7 +49,7 @@ const redis = getRedisClient();
  */
 const safeRedisOperation = async <T>(
   operation: () => Promise<T>,
-  fallback: T
+  fallback: T,
 ): Promise<T> => {
   if (!redis) {
     return fallback;
@@ -67,14 +67,14 @@ const safeRedisOperation = async <T>(
  * Sets branch hierarchy in cache
  */
 export async function setBranchHierarchyCache(
-  hierarchy: BranchHierarchy[]
+  hierarchy: BranchHierarchy[],
 ): Promise<void> {
   await safeRedisOperation(
     () =>
       redis!.set(CACHE_KEYS.BRANCH_HIERARCHY, JSON.stringify(hierarchy), {
         ex: CACHE_TTL.BRANCH_HIERARCHY,
       }),
-    undefined
+    undefined,
   );
 }
 
@@ -95,14 +95,14 @@ export async function getBranchHierarchyCache(): Promise<
  */
 export async function setUserBranchesCache(
   userId: string,
-  branchIds: string[]
+  branchIds: string[],
 ): Promise<void> {
   await safeRedisOperation(
     () =>
       redis!.set(CACHE_KEYS.USER_BRANCHES(userId), JSON.stringify(branchIds), {
         ex: CACHE_TTL.USER_BRANCHES,
       }),
-    undefined
+    undefined,
   );
 }
 
@@ -110,7 +110,7 @@ export async function setUserBranchesCache(
  * Gets user branches from cache
  */
 export async function getUserBranchesCache(
-  userId: string
+  userId: string,
 ): Promise<string[] | null> {
   return safeRedisOperation(async () => {
     const data = await redis!.get<string>(CACHE_KEYS.USER_BRANCHES(userId));
@@ -124,16 +124,16 @@ export async function getUserBranchesCache(
 export async function setBranchAccessCache(
   userId: string,
   branchId: string,
-  hasAccess: boolean
+  hasAccess: boolean,
 ): Promise<void> {
   await safeRedisOperation(
     () =>
       redis!.set(
         CACHE_KEYS.BRANCH_ACCESS(userId, branchId),
         hasAccess ? "1" : "0",
-        { ex: CACHE_TTL.BRANCH_ACCESS }
+        { ex: CACHE_TTL.BRANCH_ACCESS },
       ),
-    undefined
+    undefined,
   );
 }
 
@@ -142,11 +142,11 @@ export async function setBranchAccessCache(
  */
 export async function getBranchAccessCache(
   userId: string,
-  branchId: string
+  branchId: string,
 ): Promise<boolean | null> {
   return safeRedisOperation(async () => {
     const data = await redis!.get<string>(
-      CACHE_KEYS.BRANCH_ACCESS(userId, branchId)
+      CACHE_KEYS.BRANCH_ACCESS(userId, branchId),
     );
     if (data === null) return null;
     return data === "1";
@@ -159,7 +159,7 @@ export async function getBranchAccessCache(
 export async function invalidateBranchHierarchyCache(): Promise<void> {
   await safeRedisOperation(
     () => redis!.del(CACHE_KEYS.BRANCH_HIERARCHY),
-    undefined
+    undefined,
   );
 }
 
@@ -167,11 +167,11 @@ export async function invalidateBranchHierarchyCache(): Promise<void> {
  * Invalidates branch access caches for a specific user
  */
 export async function invalidateUserBranchCaches(
-  userId: string
+  userId: string,
 ): Promise<void> {
   if (!redis) {
     console.log(
-    `[Redis Cache] Skipping cache invalidation for user ${userId} - Redis not configured`
+      `[Redis Cache] Skipping cache invalidation for user ${userId} - Redis not configured`,
     );
     return;
   }
@@ -179,7 +179,7 @@ export async function invalidateUserBranchCaches(
   // Try to delete the user branches cache first
   await safeRedisOperation(
     () => redis!.del(CACHE_KEYS.USER_BRANCHES(userId)),
-    undefined
+    undefined,
   );
 
   // Then try to scan and delete branch access caches

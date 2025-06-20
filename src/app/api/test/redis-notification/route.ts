@@ -1,8 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth/options';
-import { sendNotification, getNotificationMetrics } from '@/lib/redis/enhancedRedisNotificationService';
-import { getRedisLoadBalancer } from '@/lib/redis/redisLoadBalancer';
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth/options";
+import {
+  sendNotification,
+  getNotificationMetrics,
+} from "@/lib/redis/enhancedRedisNotificationService";
+import { getRedisLoadBalancer } from "@/lib/redis/redisLoadBalancer";
 
 /**
  * Test Redis Notification Service
@@ -17,8 +20,8 @@ export async function POST(request: NextRequest) {
 
     if (!session?.user?.id) {
       return NextResponse.json(
-        { error: 'Unauthorized - Authentication required' },
-        { status: 401 }
+        { error: "Unauthorized - Authentication required" },
+        { status: 401 },
       );
     }
 
@@ -27,23 +30,23 @@ export async function POST(request: NextRequest) {
 
     if (!message) {
       return NextResponse.json(
-        { error: 'Message is required' },
-        { status: 400 }
+        { error: "Message is required" },
+        { status: 400 },
       );
     }
 
     // Send a test notification
     const notificationId = await sendNotification({
-      type: 'SYSTEM_NOTIFICATION',
+      type: "SYSTEM_NOTIFICATION",
       data: {
-        title: title || 'Redis Test Notification',
+        title: title || "Redis Test Notification",
         body: message,
-        icon: '/icons/system-notification.png',
-        timestamp: new Date().toISOString()
+        icon: "/icons/system-notification.png",
+        timestamp: new Date().toISOString(),
       },
       userIds: [session.user.id],
-      priority: 'normal',
-      idempotencyKey: `test-${Date.now()}`
+      priority: "normal",
+      idempotencyKey: `test-${Date.now()}`,
     });
 
     // Get metrics
@@ -51,16 +54,19 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: 'Test notification sent successfully',
+      message: "Test notification sent successfully",
       notificationId,
-      metrics
+      metrics,
     });
   } catch (error) {
-    console.error('Error testing Redis notification:', error);
+    console.error("Error testing Redis notification:", error);
 
     return NextResponse.json(
-      { error: 'Failed to test Redis notification', message: error instanceof Error ? error.message : String(error) },
-      { status: 500 }
+      {
+        error: "Failed to test Redis notification",
+        message: error instanceof Error ? error.message : String(error),
+      },
+      { status: 500 },
     );
   }
 }
@@ -78,8 +84,8 @@ export async function GET(request: NextRequest) {
 
     if (!session?.user?.id) {
       return NextResponse.json(
-        { error: 'Unauthorized - Authentication required' },
-        { status: 401 }
+        { error: "Unauthorized - Authentication required" },
+        { status: 401 },
       );
     }
 
@@ -92,14 +98,17 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       metrics,
-      recentNotifications
+      recentNotifications,
     });
   } catch (error) {
-    console.error('Error getting Redis metrics:', error);
+    console.error("Error getting Redis metrics:", error);
 
     return NextResponse.json(
-      { error: 'Failed to get Redis metrics', message: error instanceof Error ? error.message : String(error) },
-      { status: 500 }
+      {
+        error: "Failed to get Redis metrics",
+        message: error instanceof Error ? error.message : String(error),
+      },
+      { status: 500 },
     );
   }
 }
@@ -110,13 +119,13 @@ export async function GET(request: NextRequest) {
 async function getRecentNotifications() {
   try {
     const result = await executeRedisOperation(async (redis: any) => {
-      const notifications = await redis.lrange('notifications:history', 0, 9);
+      const notifications = await redis.lrange("notifications:history", 0, 9);
       return notifications.map((item: string) => JSON.parse(item));
     });
 
     return result.success ? result.data : [];
   } catch (error) {
-    console.error('Error getting recent notifications:', error);
+    console.error("Error getting recent notifications:", error);
     return [];
   }
 }

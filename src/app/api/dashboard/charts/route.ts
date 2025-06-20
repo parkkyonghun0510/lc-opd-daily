@@ -8,12 +8,12 @@ const prisma = new PrismaClient();
 
 // Helper function to convert Decimal to number
 const toNumber = (value: any): number => {
-  if (typeof value === 'number') return value;
+  if (typeof value === "number") return value;
   return Number(value) || 0;
 };
 
 // Configure route to be dynamic
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 export const revalidate = 900; // Revalidate every 15 minutes for Next.js cache
 
@@ -24,7 +24,7 @@ export async function GET() {
   try {
     // Try to get data from Redis cache first
     const cachedChartData = await redis.get(CACHE_KEYS.DASHBOARD_CHARTS);
-    if (cachedChartData && typeof cachedChartData === 'string') {
+    if (cachedChartData && typeof cachedChartData === "string") {
       await recordCacheHit(CACHE_KEYS.DASHBOARD_CHARTS);
       return NextResponse.json(JSON.parse(cachedChartData));
     }
@@ -47,7 +47,7 @@ export async function GET() {
     console.error("Error fetching chart data:", error);
     return NextResponse.json(
       { error: "Failed to fetch chart data" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -70,20 +70,23 @@ async function getRevenueData() {
     },
   });
 
-  const monthlyData = reports.reduce((acc, report) => {
-    const month = new Date(report.date).toLocaleString("default", {
-      month: "short",
-    });
-    const writeOffs = toNumber(report._sum?.writeOffs || 0);
-    const ninetyPlus = toNumber(report._sum?.ninetyPlus || 0);
-    const value = writeOffs + ninetyPlus;
+  const monthlyData = reports.reduce(
+    (acc, report) => {
+      const month = new Date(report.date).toLocaleString("default", {
+        month: "short",
+      });
+      const writeOffs = toNumber(report._sum?.writeOffs || 0);
+      const ninetyPlus = toNumber(report._sum?.ninetyPlus || 0);
+      const value = writeOffs + ninetyPlus;
 
-    if (!acc[month]) {
-      acc[month] = 0;
-    }
-    acc[month] += value;
-    return acc;
-  }, {} as Record<string, number>);
+      if (!acc[month]) {
+        acc[month] = 0;
+      }
+      acc[month] += value;
+      return acc;
+    },
+    {} as Record<string, number>,
+  );
 
   return Object.entries(monthlyData).map(([date, value]) => ({
     date,
@@ -108,15 +111,20 @@ async function getUserGrowthData() {
   });
 
   // Process and format the data
-  const monthlyData = userCounts.reduce((acc, data) => {
-    const month = data.createdAt.toLocaleString("default", { month: "short" });
+  const monthlyData = userCounts.reduce(
+    (acc, data) => {
+      const month = data.createdAt.toLocaleString("default", {
+        month: "short",
+      });
 
-    if (!acc[month]) {
-      acc[month] = 0;
-    }
-    acc[month] += data._count.id;
-    return acc;
-  }, {} as Record<string, number>);
+      if (!acc[month]) {
+        acc[month] = 0;
+      }
+      acc[month] += data._count.id;
+      return acc;
+    },
+    {} as Record<string, number>,
+  );
 
   // Convert to array format and calculate cumulative growth
   let cumulative = 0;

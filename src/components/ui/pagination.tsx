@@ -49,7 +49,10 @@ export function Pagination({
   const pageNumbers = getPageNumbers();
 
   return (
-    <nav aria-label="Pagination" className="inline-flex flex-wrap items-center justify-center gap-1">
+    <nav
+      aria-label="Pagination"
+      className="inline-flex flex-wrap items-center justify-center gap-1"
+    >
       {/* Previous button */}
       <Button
         variant="outline"

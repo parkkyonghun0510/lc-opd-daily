@@ -16,7 +16,7 @@ export async function PATCH(request: NextRequest) {
     if (!token) {
       return NextResponse.json(
         { error: "Unauthorized - Authentication required" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -35,7 +35,7 @@ export async function PATCH(request: NextRequest) {
               message: err.message,
             })),
           },
-          { status: 400 }
+          { status: 400 },
         );
       }
       throw validationError;
@@ -56,7 +56,7 @@ export async function PATCH(request: NextRequest) {
     if (existingUser) {
       return NextResponse.json(
         { error: "Email already in use" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -85,7 +85,7 @@ export async function PATCH(request: NextRequest) {
     console.error("Profile update error:", error);
     return NextResponse.json(
       { error: "Failed to update profile" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

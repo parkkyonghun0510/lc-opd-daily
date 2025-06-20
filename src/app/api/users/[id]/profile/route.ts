@@ -12,21 +12,19 @@ const profileUpdateSchema = z.object({
   branchId: z.string().optional().nullable(),
 });
 
-export async function PATCH(
-  request: NextRequest
-) {
+export async function PATCH(request: NextRequest) {
   try {
     const token = await getToken({ req: request });
-    
+
     // Extract the ID from the URL path
     const url = new URL(request.url);
-    const pathParts = url.pathname.split('/');
+    const pathParts = url.pathname.split("/");
     const userId = pathParts[pathParts.length - 2]; // Get the ID from the URL path
 
     if (!token) {
       return NextResponse.json(
         { error: "Unauthorized - Authentication required" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -34,14 +32,14 @@ export async function PATCH(
     if (token.role !== UserRole.ADMIN && token.id !== userId) {
       return NextResponse.json(
         { error: "Forbidden - You can only update your own profile" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
     // Validate the request body
     const body = await request.json();
     let validatedData;
-    
+
     try {
       validatedData = profileUpdateSchema.parse(body);
     } catch (validationError) {
@@ -54,7 +52,7 @@ export async function PATCH(
               message: err.message,
             })),
           },
-          { status: 400 }
+          { status: 400 },
         );
       }
       throw validationError;
@@ -66,10 +64,7 @@ export async function PATCH(
     });
 
     if (!existingUser) {
-      return NextResponse.json(
-        { error: "User not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
     // Check if username and email are unique (excluding the current user)
@@ -77,14 +72,14 @@ export async function PATCH(
       const usernameExists = await prisma.user.findFirst({
         where: {
           username: validatedData.username,
-          NOT: { id: userId }
+          NOT: { id: userId },
         },
       });
 
       if (usernameExists) {
         return NextResponse.json(
           { error: "Username is already taken" },
-          { status: 409 }
+          { status: 409 },
         );
       }
     }
@@ -93,14 +88,14 @@ export async function PATCH(
       const emailExists = await prisma.user.findFirst({
         where: {
           email: validatedData.email,
-          NOT: { id: userId }
+          NOT: { id: userId },
         },
       });
 
       if (emailExists) {
         return NextResponse.json(
           { error: "Email is already registered" },
-          { status: 409 }
+          { status: 409 },
         );
       }
     }
@@ -140,7 +135,7 @@ export async function PATCH(
     console.error("Error updating user profile:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
-} 
+}

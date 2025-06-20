@@ -14,17 +14,30 @@ import { useAuth } from "@/auth/hooks/useAuth";
 import { StoreSynchronizer } from "@/auth/components/StoreSynchronizer";
 
 function DevModeWarning() {
-  if (process.env.NODE_ENV !== 'development') return null;
+  if (process.env.NODE_ENV !== "development") return null;
 
   return (
     <div className="mb-6 p-4 border border-amber-200 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-800 rounded-lg">
-      <h3 className="text-amber-800 dark:text-amber-400 font-semibold mb-2">Development Mode Notice</h3>
+      <h3 className="text-amber-800 dark:text-amber-400 font-semibold mb-2">
+        Development Mode Notice
+      </h3>
       <p className="text-amber-700 dark:text-amber-300 text-sm">
         You're in development mode. If the server isn't responding, ensure:
       </p>
       <ul className="list-disc list-inside text-sm text-amber-700 dark:text-amber-300 mt-2">
-        <li>Next.js server is running (<code className="bg-amber-100 dark:bg-amber-800/30 px-1 rounded">npm run dev</code>)</li>
-        <li>Database connection is configured correctly in <code className="bg-amber-100 dark:bg-amber-800/30 px-1 rounded">.env</code></li>
+        <li>
+          Next.js server is running (
+          <code className="bg-amber-100 dark:bg-amber-800/30 px-1 rounded">
+            npm run dev
+          </code>
+          )
+        </li>
+        <li>
+          Database connection is configured correctly in{" "}
+          <code className="bg-amber-100 dark:bg-amber-800/30 px-1 rounded">
+            .env
+          </code>
+        </li>
         <li>Required services (Redis, PostgreSQL) are running</li>
       </ul>
       <p className="text-amber-700 dark:text-amber-300 text-sm mt-2">
@@ -53,9 +66,11 @@ function LoginForm() {
 
       // Handle specific error messages
       if (urlError.includes("No branch assigned")) {
-        errorMessage = "Your account has no branch assigned. Please contact your administrator.";
+        errorMessage =
+          "Your account has no branch assigned. Please contact your administrator.";
       } else if (urlError.includes("Account is inactive")) {
-        errorMessage = "Your account is inactive. Please contact your administrator.";
+        errorMessage =
+          "Your account is inactive. Please contact your administrator.";
       } else if (urlError.includes("Invalid credentials")) {
         errorMessage = "Invalid email or password";
       }
@@ -110,7 +125,6 @@ function LoginForm() {
             alt="LC Report Logo"
             className="h-16"
           />
-
         </div>
         <h2 className="text-center text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
           Welcome back
@@ -124,7 +138,10 @@ function LoginForm() {
         <form onSubmit={onSubmit} className="p-6 space-y-6">
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="username" className="text-sm font-medium dark:text-gray-200">
+              <Label
+                htmlFor="username"
+                className="text-sm font-medium dark:text-gray-200"
+              >
                 Username
               </Label>
               <Input
@@ -141,7 +158,10 @@ function LoginForm() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-sm font-medium dark:text-gray-200">
+              <Label
+                htmlFor="password"
+                className="text-sm font-medium dark:text-gray-200"
+              >
                 Password
               </Label>
               <Input
@@ -179,7 +199,10 @@ function LoginForm() {
       <div className="mt-4 flex flex-col items-center gap-2">
         <p className="text-center text-sm text-gray-600 dark:text-gray-400">
           Having trouble signing in?{" "}
-          <a href="#" className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300">
+          <a
+            href="#"
+            className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
+          >
             Contact support
           </a>
         </p>

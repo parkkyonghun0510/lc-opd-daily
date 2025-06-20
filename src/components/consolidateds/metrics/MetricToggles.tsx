@@ -28,7 +28,7 @@ export function MetricToggles({
         onClick={() => onToggleMetric("writeOffs")}
         className={cn(
           "h-9 text-sm flex-1 sm:flex-initial",
-          visibleMetrics.writeOffs ? "bg-blue-600 hover:bg-blue-700" : ""
+          visibleMetrics.writeOffs ? "bg-blue-600 hover:bg-blue-700" : "",
         )}
       >
         {visibleMetrics.writeOffs ? (
@@ -44,7 +44,7 @@ export function MetricToggles({
         onClick={() => onToggleMetric("ninetyPlus")}
         className={cn(
           "h-9 text-sm flex-1 sm:flex-initial",
-          visibleMetrics.ninetyPlus ? "bg-green-600 hover:bg-green-700" : ""
+          visibleMetrics.ninetyPlus ? "bg-green-600 hover:bg-green-700" : "",
         )}
       >
         {visibleMetrics.ninetyPlus ? (
@@ -60,7 +60,7 @@ export function MetricToggles({
         onClick={onToggleYearOverYear}
         className={cn(
           "h-9 text-sm flex-1 sm:flex-initial",
-          showYearOverYear ? "bg-purple-600 hover:bg-purple-700" : ""
+          showYearOverYear ? "bg-purple-600 hover:bg-purple-700" : "",
         )}
       >
         <BarChart2 className="h-4 w-4 mr-1" />

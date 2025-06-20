@@ -24,7 +24,7 @@ interface PermissionOptions {
 export async function withPermission(
   request: NextRequest,
   options: PermissionOptions,
-  handler: (req: NextRequest, user: AuthUser) => Promise<NextResponse>
+  handler: (req: NextRequest, user: AuthUser) => Promise<NextResponse>,
 ): Promise<NextResponse> {
   try {
     // Get user from NextAuth token instead of custom JWT
@@ -48,7 +48,7 @@ export async function withPermission(
     if (options.requiredRole && user.role !== options.requiredRole) {
       return NextResponse.json(
         { error: "Insufficient role permissions" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -59,7 +59,7 @@ export async function withPermission(
     ) {
       return NextResponse.json(
         { error: "Insufficient permissions" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -76,7 +76,7 @@ export async function withPermission(
       ) {
         return NextResponse.json(
           { error: "You can only access your own data" },
-          { status: 403 }
+          { status: 403 },
         );
       }
     }
@@ -87,7 +87,7 @@ export async function withPermission(
     console.error("Permission middleware error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

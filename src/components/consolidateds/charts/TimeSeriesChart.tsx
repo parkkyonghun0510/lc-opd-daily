@@ -16,7 +16,11 @@ import { cn } from "@/lib/utils";
 import { format, parseISO } from "date-fns";
 import { MetricToggles } from "../metrics/MetricToggles";
 import { CustomTimeTooltip } from "../tooltips/CustomTimeTooltip";
-import { ConsolidatedData, HistoricalDataPoint, TimeSeriesDataPoint } from "../types/consolidated-types";
+import {
+  ConsolidatedData,
+  HistoricalDataPoint,
+  TimeSeriesDataPoint,
+} from "../types/consolidated-types";
 
 interface TimeSeriesChartProps {
   data: ConsolidatedData;
@@ -74,11 +78,17 @@ export function TimeSeriesChart({
       const prevItem = index > 0 ? sortedData[index - 1] : null;
       const writeOffsChange =
         prevItem && prevItem.writeOffs
-          ? (((item.writeOffs - prevItem.writeOffs) / prevItem.writeOffs) * 100).toFixed(1)
+          ? (
+              ((item.writeOffs - prevItem.writeOffs) / prevItem.writeOffs) *
+              100
+            ).toFixed(1)
           : null;
       const ninetyPlusChange =
         prevItem && prevItem.ninetyPlus
-          ? (((item.ninetyPlus - prevItem.ninetyPlus) / prevItem.ninetyPlus) * 100).toFixed(1)
+          ? (
+              ((item.ninetyPlus - prevItem.ninetyPlus) / prevItem.ninetyPlus) *
+              100
+            ).toFixed(1)
           : null;
 
       // Add average for the last 3 periods if available
@@ -118,7 +128,8 @@ export function TimeSeriesChart({
 
       if (showYearOverYear) {
         result.writeOffsLastYear = item.writeOffs * (0.8 + Math.random() * 0.4);
-        result.ninetyPlusLastYear = item.ninetyPlus * (0.8 + Math.random() * 0.4);
+        result.ninetyPlusLastYear =
+          item.ninetyPlus * (0.8 + Math.random() * 0.4);
       }
 
       return result;
@@ -157,7 +168,9 @@ export function TimeSeriesChart({
       <div
         className={cn(
           "transition-all duration-300 ease-in-out",
-          collapsed ? "max-h-0 opacity-0 overflow-hidden" : "max-h-[500px] opacity-100"
+          collapsed
+            ? "max-h-0 opacity-0 overflow-hidden"
+            : "max-h-[500px] opacity-100",
         )}
       >
         <div className="px-4 pt-4">

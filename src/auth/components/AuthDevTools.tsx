@@ -1,19 +1,30 @@
 "use client";
 
-import { useState } from 'react';
-import { useStore } from '@/auth/store';
-import { refreshSession, synchronizeUserData, handleSessionTimeout } from '@/auth/store/actions';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { Slider } from '@/components/ui/slider';
-import { AuthAnalyticsDashboard } from './AuthAnalyticsDashboard';
-import { toast } from 'sonner';
-import { format } from 'date-fns';
+import { useState } from "react";
+import { useStore } from "@/auth/store";
+import {
+  refreshSession,
+  synchronizeUserData,
+  handleSessionTimeout,
+} from "@/auth/store/actions";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Slider } from "@/components/ui/slider";
+import { AuthAnalyticsDashboard } from "./AuthAnalyticsDashboard";
+import { toast } from "sonner";
+import { format } from "date-fns";
 
 /**
  * AuthDevTools component
@@ -28,7 +39,7 @@ export function AuthDevTools() {
   // Format time until expiry
   const formatTimeUntilExpiry = () => {
     const timeLeft = store.timeUntilExpiry();
-    if (timeLeft <= 0) return 'Expired';
+    if (timeLeft <= 0) return "Expired";
 
     const minutes = Math.floor(timeLeft / 60000);
     const seconds = Math.floor((timeLeft % 60000) / 1000);
@@ -38,8 +49,8 @@ export function AuthDevTools() {
 
   // Format date
   const formatDate = (timestamp: number | null) => {
-    if (!timestamp) return 'N/A';
-    return format(new Date(timestamp), 'PPpp');
+    if (!timestamp) return "N/A";
+    return format(new Date(timestamp), "PPpp");
   };
 
   // Handle session expiry change
@@ -58,7 +69,7 @@ export function AuthDevTools() {
   const handleForceTimeout = async () => {
     store.setSessionExpiry(Date.now() - 1000);
     await handleSessionTimeout();
-    toast.success('Session timeout forced');
+    toast.success("Session timeout forced");
   };
 
   // Toggle dev tools
@@ -75,7 +86,7 @@ export function AuthDevTools() {
           onClick={toggleDevTools}
           className="bg-white dark:bg-gray-800"
         >
-          {showDevTools ? 'Hide' : 'Show'} Auth Dev Tools
+          {showDevTools ? "Hide" : "Show"} Auth Dev Tools
         </Button>
       </div>
 
@@ -83,7 +94,9 @@ export function AuthDevTools() {
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 overflow-auto">
           <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg w-full max-w-4xl max-h-[90vh] overflow-auto">
             <div className="p-4 border-b flex justify-between items-center">
-              <h2 className="text-xl font-bold">Authentication Developer Tools</h2>
+              <h2 className="text-xl font-bold">
+                Authentication Developer Tools
+              </h2>
               <Button variant="ghost" size="sm" onClick={toggleDevTools}>
                 Close
               </Button>
@@ -115,24 +128,40 @@ export function AuthDevTools() {
                             <div>
                               <Label>Authenticated</Label>
                               <div className="mt-1">
-                                <Badge variant={store.isAuthenticated ? "default" : "secondary"}>
-                                  {store.isAuthenticated ? 'Yes' : 'No'}
+                                <Badge
+                                  variant={
+                                    store.isAuthenticated
+                                      ? "default"
+                                      : "secondary"
+                                  }
+                                >
+                                  {store.isAuthenticated ? "Yes" : "No"}
                                 </Badge>
                               </div>
                             </div>
                             <div>
                               <Label>Loading</Label>
                               <div className="mt-1">
-                                <Badge variant={store.isLoading ? "default" : "secondary"}>
-                                  {store.isLoading ? 'Yes' : 'No'}
+                                <Badge
+                                  variant={
+                                    store.isLoading ? "default" : "secondary"
+                                  }
+                                >
+                                  {store.isLoading ? "Yes" : "No"}
                                 </Badge>
                               </div>
                             </div>
                             <div>
                               <Label>Session Expired</Label>
                               <div className="mt-1">
-                                <Badge variant={store.isSessionExpired() ? "destructive" : "secondary"}>
-                                  {store.isSessionExpired() ? 'Yes' : 'No'}
+                                <Badge
+                                  variant={
+                                    store.isSessionExpired()
+                                      ? "destructive"
+                                      : "secondary"
+                                  }
+                                >
+                                  {store.isSessionExpired() ? "Yes" : "No"}
                                 </Badge>
                               </div>
                             </div>
@@ -181,7 +210,9 @@ export function AuthDevTools() {
                             {JSON.stringify(store.user, null, 2)}
                           </pre>
                         ) : (
-                          <div className="text-muted-foreground">No user data available</div>
+                          <div className="text-muted-foreground">
+                            No user data available
+                          </div>
                         )}
                       </CardContent>
                     </Card>
@@ -199,7 +230,9 @@ export function AuthDevTools() {
                             {JSON.stringify(store.profile, null, 2)}
                           </pre>
                         ) : (
-                          <div className="text-muted-foreground">No profile data available</div>
+                          <div className="text-muted-foreground">
+                            No profile data available
+                          </div>
                         )}
                       </CardContent>
                     </Card>
@@ -280,9 +313,13 @@ export function AuthDevTools() {
                             <Switch
                               id="loading-switch"
                               checked={store.isLoading}
-                              onCheckedChange={(checked) => store.setLoading(checked)}
+                              onCheckedChange={(checked) =>
+                                store.setLoading(checked)
+                              }
                             />
-                            <Label htmlFor="loading-switch">Set Loading State</Label>
+                            <Label htmlFor="loading-switch">
+                              Set Loading State
+                            </Label>
                           </div>
 
                           <div className="flex items-center space-x-2">
@@ -291,23 +328,31 @@ export function AuthDevTools() {
                               checked={store.isAuthenticated}
                               onCheckedChange={(checked) => {
                                 if (checked && !store.user) {
-                                  toast.error('Cannot set authenticated without a user');
+                                  toast.error(
+                                    "Cannot set authenticated without a user",
+                                  );
                                   return;
                                 }
                                 store.setUser(checked ? store.user : null);
                               }}
                               disabled={!store.user && !store.isAuthenticated}
                             />
-                            <Label htmlFor="auth-switch">Set Authenticated State</Label>
+                            <Label htmlFor="auth-switch">
+                              Set Authenticated State
+                            </Label>
                           </div>
 
                           <div>
-                            <Label htmlFor="error-input">Set Error Message</Label>
+                            <Label htmlFor="error-input">
+                              Set Error Message
+                            </Label>
                             <div className="flex mt-1 space-x-2">
                               <Input
                                 id="error-input"
-                                value={store.error || ''}
-                                onChange={(e) => store.setError(e.target.value || null)}
+                                value={store.error || ""}
+                                onChange={(e) =>
+                                  store.setError(e.target.value || null)
+                                }
                                 placeholder="Error message"
                               />
                               <Button
@@ -347,7 +392,9 @@ export function AuthDevTools() {
                                 onValueChange={handleSessionExpiryChange}
                                 className="flex-1"
                               />
-                              <span className="w-12 text-center">{sessionExpiry}m</span>
+                              <span className="w-12 text-center">
+                                {sessionExpiry}m
+                              </span>
                             </div>
                             <div className="mt-4 flex space-x-2">
                               <Button onClick={handleSetSessionExpiry}>
@@ -356,9 +403,12 @@ export function AuthDevTools() {
                               <Button
                                 variant="outline"
                                 onClick={() => {
-                                  handleForceTimeout().catch(error => {
-                                    console.error('Error forcing timeout:', error);
-                                    toast.error('Error forcing timeout');
+                                  handleForceTimeout().catch((error) => {
+                                    console.error(
+                                      "Error forcing timeout:",
+                                      error,
+                                    );
+                                    toast.error("Error forcing timeout");
                                   });
                                 }}
                               >
@@ -368,7 +418,9 @@ export function AuthDevTools() {
                           </div>
 
                           <div className="pt-4 border-t">
-                            <h3 className="font-medium mb-2">Current Session Status</h3>
+                            <h3 className="font-medium mb-2">
+                              Current Session Status
+                            </h3>
                             <div className="grid grid-cols-2 gap-4">
                               <div>
                                 <Label>Session Expires At</Label>
@@ -412,10 +464,16 @@ export function AuthDevTools() {
                           <div>
                             <Label>Auth Storage</Label>
                             <pre className="mt-1 p-2 bg-gray-100 dark:bg-gray-800 rounded overflow-auto text-xs h-40">
-                              {typeof window !== 'undefined'
-                                ? JSON.stringify(JSON.parse(localStorage.getItem('auth-storage') || '{}'), null, 2)
-                                : 'Not available on server'
-                              }
+                              {typeof window !== "undefined"
+                                ? JSON.stringify(
+                                    JSON.parse(
+                                      localStorage.getItem("auth-storage") ||
+                                        "{}",
+                                    ),
+                                    null,
+                                    2,
+                                  )
+                                : "Not available on server"}
                             </pre>
                           </div>
 
@@ -423,8 +481,8 @@ export function AuthDevTools() {
                             <Button
                               variant="outline"
                               onClick={() => {
-                                localStorage.removeItem('auth-storage');
-                                toast.success('Auth storage cleared');
+                                localStorage.removeItem("auth-storage");
+                                toast.success("Auth storage cleared");
                               }}
                             >
                               Clear Auth Storage
@@ -434,7 +492,7 @@ export function AuthDevTools() {
                               variant="outline"
                               onClick={() => {
                                 localStorage.clear();
-                                toast.success('All local storage cleared');
+                                toast.success("All local storage cleared");
                               }}
                             >
                               Clear All Storage

@@ -21,36 +21,38 @@ export async function GET(req: NextRequest) {
 
     // Get delivery success rate
     const deliveryStats = await prisma.notificationEvent.groupBy({
-      by: ['event'],
+      by: ["event"],
       _count: {
-        id: true
-      }
+        id: true,
+      },
     });
 
     // Calculate delivery rates
-    const stats = deliveryStats.reduce((acc, curr) => {
-      acc[curr.event.toLowerCase()] = curr._count.id;
-      return acc;
-    }, {} as Record<string, number>);
+    const stats = deliveryStats.reduce(
+      (acc, curr) => {
+        acc[curr.event.toLowerCase()] = curr._count.id;
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
 
-    const totalDeliveryAttempts = 
-      (stats.sent || 0) + 
-      (stats.delivered || 0) + 
-      (stats.failed || 0);
-    
-    const deliveryRate = totalDeliveryAttempts > 0 
-      ? (stats.delivered || 0) / totalDeliveryAttempts 
-      : 0;
+    const totalDeliveryAttempts =
+      (stats.sent || 0) + (stats.delivered || 0) + (stats.failed || 0);
+
+    const deliveryRate =
+      totalDeliveryAttempts > 0
+        ? (stats.delivered || 0) / totalDeliveryAttempts
+        : 0;
 
     // Get notification types breakdown
     const typeBreakdown = await prisma.inAppNotification.groupBy({
-      by: ['type'],
+      by: ["type"],
       _count: {
-        id: true
+        id: true,
       },
       where: {
-        userId: session.user.id
-      }
+        userId: session.user.id,
+      },
     });
 
     return NextResponse.json({
@@ -58,18 +60,18 @@ export async function GET(req: NextRequest) {
       deliveryStats: {
         ...stats,
         deliveryRate: parseFloat(deliveryRate.toFixed(2)),
-        totalAttempts: totalDeliveryAttempts
+        totalAttempts: totalDeliveryAttempts,
       },
-      typeBreakdown: typeBreakdown.map(item => ({
+      typeBreakdown: typeBreakdown.map((item) => ({
         type: item.type,
-        count: item._count.id
-      }))
+        count: item._count.id,
+      })),
     });
   } catch (error) {
     console.error("Error fetching notification metrics:", error);
     return NextResponse.json(
       { error: "Failed to fetch notification metrics" },
-      { status: 500 }
+      { status: 500 },
     );
   }
-} 
+}

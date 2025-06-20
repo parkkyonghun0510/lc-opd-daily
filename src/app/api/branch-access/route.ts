@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     if (!token) {
       return NextResponse.json(
         { error: "Unauthorized - Authentication required" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     if (!branchId) {
       return NextResponse.json(
         { error: "Branch ID is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -48,14 +48,15 @@ export async function GET(request: NextRequest) {
       select: { branchId: true },
     });
 
-    const hasAccess = !!branchAssignment || userDefaultBranch?.branchId === branchId;
+    const hasAccess =
+      !!branchAssignment || userDefaultBranch?.branchId === branchId;
 
     return NextResponse.json({ hasAccess });
   } catch (error) {
     console.error("Error checking branch access:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

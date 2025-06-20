@@ -35,6 +35,7 @@ Run the following command to apply the migration:
 ```
 
 This script will:
+
 1. Apply the Prisma migration
 2. Generate an updated Prisma client
 3. Restart the development server to apply the changes

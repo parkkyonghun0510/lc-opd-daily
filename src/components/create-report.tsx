@@ -53,24 +53,28 @@ export default function CreateReport() {
 
   // Set up hybrid realtime connection for updates (uses polling only)
   const { lastEvent } = useHybridRealtime({
-    pollingEndpoint: '/api/dashboard/polling',
+    pollingEndpoint: "/api/dashboard/polling",
     eventHandlers: {
       dashboardUpdate: (data: any) => {
         // Handle report status update events (approval/rejection)
-        if (data && (data.type === 'reportApproved' || data.type === 'reportRejected') &&
-          data.reportId === lastSubmittedReportId.current) {
-          console.log('Report status updated:', data);
+        if (
+          data &&
+          (data.type === "reportApproved" || data.type === "reportRejected") &&
+          data.reportId === lastSubmittedReportId.current
+        ) {
+          console.log("Report status updated:", data);
 
           // Show a toast notification about the status change
-          const statusText = data.status === 'approved' ? 'approved' : 'rejected';
+          const statusText =
+            data.status === "approved" ? "approved" : "rejected";
           toast({
             title: `Report ${statusText.charAt(0).toUpperCase() + statusText.slice(1)}`,
-            description: `Your report has been ${statusText}${data.comments ? `: ${data.comments}` : '.'}`,
+            description: `Your report has been ${statusText}${data.comments ? `: ${data.comments}` : "."}`,
             duration: 8000,
           });
         }
-      }
-    }
+      },
+    },
   });
 
   // Fetch branches on component mount
@@ -131,7 +135,7 @@ export default function CreateReport() {
         writeOffs: parseFloat(writeOffs),
         ninetyPlus: parseFloat(ninetyPlus),
         // Use initialComment field instead of comments for the ReportComment model
-        initialComment: sanitizeString(comments) || '',
+        initialComment: sanitizeString(comments) || "",
         // The API will get the submittedBy from the JWT token
       });
 
@@ -201,7 +205,7 @@ export default function CreateReport() {
                   variant={"outline"}
                   className={cn(
                     "w-full justify-start text-left font-normal",
-                    !date && "text-muted-foreground"
+                    !date && "text-muted-foreground",
                   )}
                 >
                   <CalendarIcon className="mr-2 h-4 w-4" />
@@ -269,7 +273,9 @@ export default function CreateReport() {
               id="comments"
               placeholder="Add any additional comments or notes"
               value={comments}
-              onChange={(e) => setComments(sanitizeString(e.target.value) || '')}
+              onChange={(e) =>
+                setComments(sanitizeString(e.target.value) || "")
+              }
             />
           </div>
 

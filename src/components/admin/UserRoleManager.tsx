@@ -59,13 +59,17 @@ interface UserRoleManagerProps {
   userId?: string;
 }
 
-export function UserRoleManager({ userId: initialUserId }: UserRoleManagerProps) {
+export function UserRoleManager({
+  userId: initialUserId,
+}: UserRoleManagerProps) {
   const [users, setUsers] = useState<User[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [userRoles, setUserRoles] = useState<UserRoleAssignment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedUser, setSelectedUser] = useState<string | null>(initialUserId || null);
+  const [selectedUser, setSelectedUser] = useState<string | null>(
+    initialUserId || null,
+  );
   const [selectedRole, setSelectedRole] = useState<string>("");
   const [selectedBranch, setSelectedBranch] = useState<string | null>(null);
   const [isDefault, setIsDefault] = useState(false);
@@ -88,27 +92,29 @@ export function UserRoleManager({ userId: initialUserId }: UserRoleManagerProps)
     try {
       const response = await fetch("/api/users", {
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
-        credentials: 'include', // Include cookies for authentication
+        credentials: "include", // Include cookies for authentication
       });
-      
+
       if (response.redirected) {
         // User was redirected, likely to login page
         toast.error("Authentication required. Please log in.");
         window.location.href = response.url; // Redirect to login page
         return;
       }
-      
+
       if (!response.ok) {
-        throw new Error(`Failed to fetch users: ${response.status} ${response.statusText}`);
+        throw new Error(
+          `Failed to fetch users: ${response.status} ${response.statusText}`,
+        );
       }
-      
+
       const contentType = response.headers.get("content-type");
       if (!contentType || !contentType.includes("application/json")) {
         throw new Error("Invalid response format. Expected JSON.");
       }
-      
+
       const data = await response.json();
       if (!data.users || !Array.isArray(data.users)) {
         throw new Error("Invalid users data format");
@@ -196,7 +202,7 @@ export function UserRoleManager({ userId: initialUserId }: UserRoleManagerProps)
     } catch (error) {
       console.error("Error assigning role:", error);
       toast.error(
-        error instanceof Error ? error.message : "Failed to assign role"
+        error instanceof Error ? error.message : "Failed to assign role",
       );
     }
   }
@@ -219,7 +225,7 @@ export function UserRoleManager({ userId: initialUserId }: UserRoleManagerProps)
     } catch (error) {
       console.error("Error removing role:", error);
       toast.error(
-        error instanceof Error ? error.message : "Failed to remove role"
+        error instanceof Error ? error.message : "Failed to remove role",
       );
     }
   }
@@ -323,7 +329,9 @@ export function UserRoleManager({ userId: initialUserId }: UserRoleManagerProps)
                       <select
                         className="w-full p-2 border rounded dark:bg-gray-800 dark:border-gray-700"
                         value={selectedBranch || ""}
-                        onChange={(e) => setSelectedBranch(e.target.value || null)}
+                        onChange={(e) =>
+                          setSelectedBranch(e.target.value || null)
+                        }
                       >
                         <option value="">Global (All Branches)</option>
                         {branches.map((branch) => (
@@ -347,7 +355,8 @@ export function UserRoleManager({ userId: initialUserId }: UserRoleManagerProps)
                       <span className="text-sm">Set as default role</span>
                     </label>
                     <p className="text-xs text-gray-500 mt-1">
-                      The default role will be used for backward compatibility with existing features.
+                      The default role will be used for backward compatibility
+                      with existing features.
                     </p>
                   </div>
 

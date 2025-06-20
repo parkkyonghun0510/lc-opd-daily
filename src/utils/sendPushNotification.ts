@@ -6,21 +6,21 @@ interface PushNotificationPayload {
 
 export async function sendPushNotification(payload: PushNotificationPayload) {
   try {
-    const response = await fetch('/api/push/send', {
-      method: 'POST',
+    const response = await fetch("/api/push/send", {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify(payload),
     });
 
     if (!response.ok) {
-      throw new Error('Failed to send push notification');
+      throw new Error("Failed to send push notification");
     }
 
     return await response.json();
   } catch (error) {
-    console.error('Error sending push notification:', error);
+    console.error("Error sending push notification:", error);
     throw error;
   }
-} 
+}

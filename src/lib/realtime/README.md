@@ -34,22 +34,24 @@ This approach provides the best balance of real-time performance and reliability
 
 ```typescript
 // Import the event emitter
-import { eventEmitter, emitNotification, emitDashboardUpdate } from '@/lib/realtime/eventEmitter';
+import {
+  eventEmitter,
+  emitNotification,
+  emitDashboardUpdate,
+} from "@/lib/realtime/eventEmitter";
 
 // Emit a general event
-eventEmitter.emit('customEvent', { message: 'Hello, world!' });
+eventEmitter.emit("customEvent", { message: "Hello, world!" });
 
 // Emit a notification to specific users
-emitNotification(
-  'New Message',
-  'You have a new message',
-  { userIds: ['user-123', 'user-456'] }
-);
+emitNotification("New Message", "You have a new message", {
+  userIds: ["user-123", "user-456"],
+});
 
 // Emit a dashboard update to all users
-emitDashboardUpdate('STATS_UPDATED', {
+emitDashboardUpdate("STATS_UPDATED", {
   totalUsers: 100,
-  totalReports: 250
+  totalReports: 250,
 });
 ```
 
@@ -57,30 +59,25 @@ emitDashboardUpdate('STATS_UPDATED', {
 
 ```tsx
 // Basic usage with the hybrid hook
-import { useHybridRealtime } from '@/hooks/useHybridRealtime';
+import { useHybridRealtime } from "@/hooks/useHybridRealtime";
 
 function MyComponent() {
-  const {
-    isConnected,
-    activeMethod,
-    lastEvent,
-    error,
-    reconnect
-  } = useHybridRealtime({
-    eventHandlers: {
-      notification: (data) => {
-        console.log('Received notification:', data);
+  const { isConnected, activeMethod, lastEvent, error, reconnect } =
+    useHybridRealtime({
+      eventHandlers: {
+        notification: (data) => {
+          console.log("Received notification:", data);
+        },
+        customEvent: (data) => {
+          console.log("Received custom event:", data);
+        },
       },
-      customEvent: (data) => {
-        console.log('Received custom event:', data);
-      }
-    }
-  });
+    });
 
   return (
     <div>
-      <p>Connection status: {isConnected ? 'Connected' : 'Disconnected'}</p>
-      <p>Method: {activeMethod || 'None'}</p>
+      <p>Connection status: {isConnected ? "Connected" : "Disconnected"}</p>
+      <p>Method: {activeMethod || "None"}</p>
       <button onClick={reconnect}>Reconnect</button>
     </div>
   );
@@ -89,7 +86,7 @@ function MyComponent() {
 
 ```tsx
 // Dashboard-specific usage
-import { useHybridDashboard } from '@/contexts/HybridDashboardContext';
+import { useHybridDashboard } from "@/contexts/HybridDashboardContext";
 
 function DashboardComponent() {
   const {
@@ -97,12 +94,15 @@ function DashboardComponent() {
     isLoading,
     isConnected,
     connectionMethod,
-    refreshDashboardData
+    refreshDashboardData,
   } = useHybridDashboard();
 
   return (
     <div>
-      <p>Connection: {isConnected ? 'Connected' : 'Disconnected'} ({connectionMethod})</p>
+      <p>
+        Connection: {isConnected ? "Connected" : "Disconnected"} (
+        {connectionMethod})
+      </p>
       <button onClick={refreshDashboardData}>Refresh</button>
       {isLoading ? (
         <p>Loading...</p>

@@ -18,43 +18,50 @@ export async function POST(req: NextRequest) {
     if (!session?.user) {
       return NextResponse.json(
         { error: "You must be logged in to test notifications" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
     // Only admins can test notifications
     const userRoles = await prisma.userRole.findMany({
       where: { userId: session.user.id },
-      include: { role: true }
+      include: { role: true },
     });
-    
-    const isAdmin = userRoles.some(ur => 
-      ur.role.name.toLowerCase() === 'admin' || 
-      session.user.role === UserRole.ADMIN
+
+    const isAdmin = userRoles.some(
+      (ur) =>
+        ur.role.name.toLowerCase() === "admin" ||
+        session.user.role === UserRole.ADMIN,
     );
-    
+
     if (!isAdmin) {
       return NextResponse.json(
         { error: "Only administrators can test notifications" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
     // Parse request data
     const data = await req.json();
-    const { branchId, notificationType, includeSubBranches, includeParentBranches, message } = data;
+    const {
+      branchId,
+      notificationType,
+      includeSubBranches,
+      includeParentBranches,
+      message,
+    } = data;
 
     if (!branchId) {
       return NextResponse.json(
         { error: "Branch ID is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (!notificationType) {
       return NextResponse.json(
         { error: "Notification type is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -66,27 +73,28 @@ export async function POST(req: NextRequest) {
       title: `Test Notification: ${notificationType}`,
       body: message || `This is a test notification for branch hierarchy.`,
       userId: session.user.id, // The user who initiated the test
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
 
     // Get target users based on branch hierarchy
-    const targetUserIds = await getUsersForNotification(
-      notificationType,
-      { branchId, includeSubBranches, includeParentBranches }
-    );
+    const targetUserIds = await getUsersForNotification(notificationType, {
+      branchId,
+      includeSubBranches,
+      includeParentBranches,
+    });
 
     // Send notifications
     const result = await sendToNotificationQueue({
       type: notificationType,
       data: notificationData,
       userIds: targetUserIds,
-      priority: 'high'
+      priority: "high",
     });
 
     // Get branch details
     const branch = await prisma.branch.findUnique({
       where: { id: branchId },
-      select: { name: true, code: true }
+      select: { name: true, code: true },
     });
 
     // Return statistics
@@ -94,22 +102,22 @@ export async function POST(req: NextRequest) {
       success: true,
       stats: {
         targetUsers: targetUserIds.length,
-        branchName: branch?.name || 'Unknown Branch',
-        branchCode: branch?.code || 'Unknown',
+        branchName: branch?.name || "Unknown Branch",
+        branchCode: branch?.code || "Unknown",
         messageQueued: !!result.MessageId,
         notificationType,
         hierarchySettings: {
           includeSubBranches: includeSubBranches === true,
-          includeParentBranches: includeParentBranches === true
-        }
+          includeParentBranches: includeParentBranches === true,
+        },
       },
-      message: `Test notification sent to ${targetUserIds.length} users`
+      message: `Test notification sent to ${targetUserIds.length} users`,
     });
   } catch (error) {
     console.error("Error sending test notification:", error);
     return NextResponse.json(
       { error: "Failed to send test notification" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

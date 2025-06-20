@@ -1,11 +1,11 @@
 // Load environment variables first (before any other imports)
-import { config } from 'dotenv';
-import path from 'path';
-import fs from 'fs';
+import { config } from "dotenv";
+import path from "path";
+import fs from "fs";
 
 // Try to load from .env.local first, then fall back to .env
-const envLocalPath = path.resolve(process.cwd(), '.env.local');
-const envPath = path.resolve(process.cwd(), '.env');
+const envLocalPath = path.resolve(process.cwd(), ".env.local");
+const envPath = path.resolve(process.cwd(), ".env");
 
 if (fs.existsSync(envLocalPath)) {
   //console.log(`Loading environment from ${envLocalPath}`);
@@ -14,7 +14,7 @@ if (fs.existsSync(envLocalPath)) {
   //console.log(`Loading environment from ${envPath}`);
   config({ path: envPath });
 } else {
-  console.warn('No .env.local or .env file found!');
+  console.warn("No .env.local or .env file found!");
 }
 
 // Debug environment variables
@@ -25,29 +25,32 @@ if (fs.existsSync(envLocalPath)) {
 //console.log('- AWS_SQS_NOTIFICATION_QUEUE_URL exists:', !!process.env.AWS_SQS_NOTIFICATION_QUEUE_URL);
 //console.log('- Working directory:', process.cwd());
 
-import webpush from 'web-push';
-import TelegramBot from 'node-telegram-bot-api';
-import { prisma } from '@/lib/prisma';
-import { NotificationType, generateNotificationContent } from '@/utils/notificationTemplates';
+import webpush from "web-push";
+import TelegramBot from "node-telegram-bot-api";
+import { prisma } from "@/lib/prisma";
+import {
+  NotificationType,
+  generateNotificationContent,
+} from "@/utils/notificationTemplates";
 import {
   receiveFromNotificationQueue,
   deleteMessageFromQueue,
-  deleteBatchFromQueue
-} from '@/lib/queue/sqs';
-import { escapeTelegramMarkdown } from '@/lib/telegram';
-import sseHandler from '@/lib/sse/sseHandler';
+  deleteBatchFromQueue,
+} from "@/lib/queue/sqs";
+import { escapeTelegramMarkdown } from "@/lib/telegram";
+import sseHandler from "@/lib/sse/sseHandler";
 
 // Initialize web-push with VAPID keys
-const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '';
-const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY || '';
+const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || "";
+const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY || "";
 
 if (!vapidPublicKey || !vapidPrivateKey) {
-  console.error('VAPID keys not set');
+  console.error("VAPID keys not set");
 } else {
   webpush.setVapidDetails(
-    'mailto:admin@example.com',
+    "mailto:admin@example.com",
     vapidPublicKey,
-    vapidPrivateKey
+    vapidPrivateKey,
   );
 }
 
@@ -55,11 +58,19 @@ if (!vapidPublicKey || !vapidPrivateKey) {
 const telegramToken = process.env.TELEGRAM_BOT_TOKEN;
 let bot: TelegramBot | null = null;
 if (!telegramToken) {
-  console.error('TELEGRAM_BOT_TOKEN not set. Telegram notifications disabled.');
-  console.error('Please make sure TELEGRAM_BOT_TOKEN is set in your .env.local file.');
-  console.error('Current environment variables:', Object.keys(process.env).filter(key =>
-    key.includes('TELEGRAM') || key.includes('AWS') || key.includes('VAPID')
-  ));
+  console.error("TELEGRAM_BOT_TOKEN not set. Telegram notifications disabled.");
+  console.error(
+    "Please make sure TELEGRAM_BOT_TOKEN is set in your .env.local file.",
+  );
+  console.error(
+    "Current environment variables:",
+    Object.keys(process.env).filter(
+      (key) =>
+        key.includes("TELEGRAM") ||
+        key.includes("AWS") ||
+        key.includes("VAPID"),
+    ),
+  );
 } else {
   try {
     //console.log(`Initializing Telegram bot with token: ${telegramToken.substring(0, 5)}...`);
@@ -67,7 +78,7 @@ if (!telegramToken) {
     // No polling needed here if only sending messages and handling /start via SQS/worker
     //console.log('Telegram Bot initialized successfully.');
   } catch (error) {
-    console.error('Error initializing Telegram bot:', error);
+    console.error("Error initializing Telegram bot:", error);
   }
 }
 
@@ -91,7 +102,7 @@ const metrics = {
   lastError: null as Error | null,
   startTime: Date.now(),
   isPaused: false,
-  consecutiveErrors: 0
+  consecutiveErrors: 0,
 };
 
 interface NotificationQueueMessage {
@@ -99,7 +110,7 @@ interface NotificationQueueMessage {
   data: any;
   userIds: string[];
   timestamp: string;
-  priority?: 'high' | 'normal' | 'low';
+  priority?: "high" | "normal" | "low";
   idempotencyKey?: string;
 }
 
@@ -109,66 +120,78 @@ interface NotificationQueueMessage {
 async function createInAppNotifications(
   type: NotificationType,
   data: Record<string, any>,
-  userIds: string[]
+  userIds: string[],
 ) {
   //console.log(`[createInAppNotifications] Creating notifications for ${userIds.length} users of type ${type}`);
   //console.log(`[createInAppNotifications] Notification data:`, JSON.stringify(data, null, 2));
 
   // Generate title and body based on notification type
-  let title = 'Notification';
-  let body = 'You have a new notification';
+  let title = "Notification";
+  let body = "You have a new notification";
   let actionUrl = null;
 
   switch (type) {
     case NotificationType.REPORT_SUBMITTED:
-      title = 'New Report Submitted';
-      body = `A new report has been submitted by ${data.submitterName || 'a user'} and requires review.`;
-      actionUrl = data.reportId ? `/dashboard?viewReport=${data.reportId}` : '/dashboard';
+      title = "New Report Submitted";
+      body = `A new report has been submitted by ${data.submitterName || "a user"} and requires review.`;
+      actionUrl = data.reportId
+        ? `/dashboard?viewReport=${data.reportId}`
+        : "/dashboard";
       break;
     case NotificationType.REPORT_APPROVED:
-      title = 'Report Approved';
-      body = `Your report has been approved by ${data.approverName || 'a manager'}.`;
-      actionUrl = data.reportId ? `/dashboard?viewReport=${data.reportId}` : '/dashboard';
+      title = "Report Approved";
+      body = `Your report has been approved by ${data.approverName || "a manager"}.`;
+      actionUrl = data.reportId
+        ? `/dashboard?viewReport=${data.reportId}`
+        : "/dashboard";
       break;
     case NotificationType.REPORT_REJECTED:
-      title = 'Report Rejected';
-      body = `Your report has been rejected${data.reason ? ` for the following reason: ${data.reason}` : ''}.`;
-      actionUrl = data.reportId ? `/dashboard?viewReport=${data.reportId}` : '/dashboard';
+      title = "Report Rejected";
+      body = `Your report has been rejected${data.reason ? ` for the following reason: ${data.reason}` : ""}.`;
+      actionUrl = data.reportId
+        ? `/dashboard?viewReport=${data.reportId}`
+        : "/dashboard";
       break;
     case NotificationType.REPORT_REMINDER:
-      title = 'Report Reminder';
-      body = `You have a report due for ${data.date || 'today'}.`;
-      actionUrl = '/dashboard?tab=create';
+      title = "Report Reminder";
+      body = `You have a report due for ${data.date || "today"}.`;
+      actionUrl = "/dashboard?tab=create";
       break;
     case NotificationType.REPORT_OVERDUE:
-      title = 'Report Overdue';
-      body = `Your report for ${data.date || 'a recent date'} is now overdue.`;
-      actionUrl = '/dashboard?tab=create';
+      title = "Report Overdue";
+      body = `Your report for ${data.date || "a recent date"} is now overdue.`;
+      actionUrl = "/dashboard?tab=create";
       break;
     case NotificationType.REPORT_NEEDS_REVISION:
-      title = 'Report Needs Revision';
-      body = `Your report requires revision${data.reason ? `: ${data.reason}` : ''}.`;
-      actionUrl = data.reportId ? `/dashboard?viewReport=${data.reportId}&action=edit` : '/dashboard';
+      title = "Report Needs Revision";
+      body = `Your report requires revision${data.reason ? `: ${data.reason}` : ""}.`;
+      actionUrl = data.reportId
+        ? `/dashboard?viewReport=${data.reportId}&action=edit`
+        : "/dashboard";
       break;
     case NotificationType.APPROVAL_PENDING:
-      title = 'Reports Pending Approval';
-      body = `There are ${data.count || 'several'} reports waiting for your approval.`;
-      actionUrl = '/dashboard?tab=approvals';
+      title = "Reports Pending Approval";
+      body = `There are ${data.count || "several"} reports waiting for your approval.`;
+      actionUrl = "/dashboard?tab=approvals";
       break;
     case NotificationType.COMMENT_ADDED:
-      title = 'New Comment';
-      body = `${data.commenter || 'Someone'} commented on a report.`;
-      actionUrl = data.reportId ? `/dashboard?viewReport=${data.reportId}&action=reply` : '/dashboard';
+      title = "New Comment";
+      body = `${data.commenter || "Someone"} commented on a report.`;
+      actionUrl = data.reportId
+        ? `/dashboard?viewReport=${data.reportId}&action=reply`
+        : "/dashboard";
       break;
     case NotificationType.COMMENT_REPLY:
-      title = 'New Reply to Your Comment';
-      body = `${data.commenterName || 'Someone'} replied to your comment.`;
-      actionUrl = data.reportId ? `/dashboard?viewReport=${data.reportId}&action=reply` : '/dashboard';
+      title = "New Reply to Your Comment";
+      body = `${data.commenterName || "Someone"} replied to your comment.`;
+      actionUrl = data.reportId
+        ? `/dashboard?viewReport=${data.reportId}&action=reply`
+        : "/dashboard";
       break;
     case NotificationType.SYSTEM_NOTIFICATION:
-      title = data.title || 'System Notification';
-      body = data.body || 'A new system message has been posted.';
-      actionUrl = data.actionUrl || '/dashboard';
+      title = data.title || "System Notification";
+      body = data.body || "A new system message has been posted.";
+      actionUrl = data.actionUrl || "/dashboard";
       break;
   }
 
@@ -179,14 +202,14 @@ async function createInAppNotifications(
 
   try {
     // Create notifications for each user
-    const notifications = userIds.map(userId => ({
+    const notifications = userIds.map((userId) => ({
       userId,
       title,
       body,
       type,
       actionUrl,
       isRead: false,
-      data: data
+      data: data,
     }));
 
     //console.log(`[createInAppNotifications] Prepared ${notifications.length} notification objects`);
@@ -201,7 +224,7 @@ async function createInAppNotifications(
       //console.log(`[createInAppNotifications] Attempting to insert ${notifications.length} notifications into database...`);
       try {
         const result = await prisma.inAppNotification.createMany({
-          data: notifications
+          data: notifications,
         });
         //console.log(`[createInAppNotifications] Successfully created ${result.count} notifications in database`);
         metrics.inAppCreated += result.count;
@@ -213,12 +236,16 @@ async function createInAppNotifications(
     }
     return 0;
   } catch (error) {
-    console.error(`[createInAppNotifications] Error creating in-app notifications:`, error);
+    console.error(
+      `[createInAppNotifications] Error creating in-app notifications:`,
+      error,
+    );
     if (error instanceof Error) {
       console.error(`[createInAppNotifications] Error stack:`, error.stack);
     }
     metrics.errors++;
-    metrics.lastError = error instanceof Error ? error : new Error(String(error));
+    metrics.lastError =
+      error instanceof Error ? error : new Error(String(error));
     // Continue with push notifications even if in-app notifications fail
     return 0;
   }
@@ -228,29 +255,30 @@ async function createInAppNotifications(
  * Processes a batch of notification messages from the queue
  */
 async function processBatchNotifications(messages: any[]): Promise<{
-  successful: string[],
-  failed: string[]
+  successful: string[];
+  failed: string[];
 }> {
   const successful: string[] = [];
   const failed: string[] = [];
 
   // Process messages in parallel with a concurrency limit
   const results = await Promise.allSettled(
-    messages.map(message => processNotificationMessage(message))
+    messages.map((message) => processNotificationMessage(message)),
   );
 
   // Collect results
   results.forEach((result, index) => {
-    if (result.status === 'fulfilled' && result.value) {
+    if (result.status === "fulfilled" && result.value) {
       successful.push(messages[index].ReceiptHandle);
     } else {
       failed.push(messages[index].ReceiptHandle);
-      if (result.status === 'rejected') {
-        console.error('Error processing message:', result.reason);
+      if (result.status === "rejected") {
+        console.error("Error processing message:", result.reason);
         metrics.errors++;
-        metrics.lastError = result.reason instanceof Error
-          ? result.reason
-          : new Error(String(result.reason));
+        metrics.lastError =
+          result.reason instanceof Error
+            ? result.reason
+            : new Error(String(result.reason));
       }
     }
   });
@@ -264,7 +292,7 @@ async function processBatchNotifications(messages: any[]): Promise<{
 async function processNotificationMessage(message: any): Promise<boolean> {
   try {
     if (!message.Body) {
-      console.error('Invalid message format, missing Body');
+      console.error("Invalid message format, missing Body");
       return false;
     }
 
@@ -276,14 +304,14 @@ async function processNotificationMessage(message: any): Promise<boolean> {
       return true;
     }
 
-    const priority = notification.priority || 'normal';
+    const priority = notification.priority || "normal";
     //console.log(`Processing ${priority} priority notification of type ${notification.type} for ${notification.userIds.length} users`);
 
     // 1. Create in-app notifications
     const inAppCount = await createInAppNotifications(
       notification.type as NotificationType,
       notification.data || {},
-      notification.userIds
+      notification.userIds,
     );
 
     // 2. Send Web Push Notifications
@@ -291,21 +319,32 @@ async function processNotificationMessage(message: any): Promise<boolean> {
     let pushFailCount = 0;
     const subscriptions = await prisma.pushSubscription.findMany({
       where: { userId: { in: notification.userIds } },
-      select: { id: true, endpoint: true, p256dh: true, auth: true, userId: true }
+      select: {
+        id: true,
+        endpoint: true,
+        p256dh: true,
+        auth: true,
+        userId: true,
+      },
     });
 
     if (subscriptions.length > 0) {
       //console.log(`Found ${subscriptions.length} push subscriptions`);
       const notificationContent = generateNotificationContent(
         notification.type as NotificationType,
-        notification.data
+        notification.data,
       );
       const pushResults = await Promise.allSettled(
-        subscriptions.map(sub => sendNotificationWithRetry(sub, notificationContent))
+        subscriptions.map((sub) =>
+          sendNotificationWithRetry(sub, notificationContent),
+        ),
       );
-      pushResults.forEach(result => {
-        if (result.status === 'fulfilled') pushSuccessCount++;
-        else { pushFailCount++; console.error('Push notification failed:', result.reason); }
+      pushResults.forEach((result) => {
+        if (result.status === "fulfilled") pushSuccessCount++;
+        else {
+          pushFailCount++;
+          console.error("Push notification failed:", result.reason);
+        }
       });
       metrics.pushSuccesses += pushSuccessCount;
       metrics.pushFailures += pushFailCount;
@@ -315,10 +354,11 @@ async function processNotificationMessage(message: any): Promise<boolean> {
     let telegramSuccessCount = 0;
     let telegramFailCount = 0;
     let telegramSubsCount = 0; // Initialize count here
-    if (bot) { // Only proceed if bot is initialized
+    if (bot) {
+      // Only proceed if bot is initialized
       const telegramSubs = await prisma.telegramSubscription.findMany({
         where: { userId: { in: notification.userIds } },
-        select: { chatId: true, userId: true }
+        select: { chatId: true, userId: true },
       });
       telegramSubsCount = telegramSubs.length; // Assign count here
 
@@ -327,16 +367,21 @@ async function processNotificationMessage(message: any): Promise<boolean> {
         // Generate content specifically for Telegram (maybe simpler)
         const telegramContent = generateTelegramMessage(
           notification.type as NotificationType,
-          notification.data
+          notification.data,
         );
 
         const telegramResults = await Promise.allSettled(
-          telegramSubs.map(sub => sendTelegramMessageWithRetry(bot!, sub.chatId, telegramContent))
+          telegramSubs.map((sub) =>
+            sendTelegramMessageWithRetry(bot!, sub.chatId, telegramContent),
+          ),
         );
 
-        telegramResults.forEach(result => {
-          if (result.status === 'fulfilled') telegramSuccessCount++;
-          else { telegramFailCount++; console.error('Telegram message failed:', result.reason); }
+        telegramResults.forEach((result) => {
+          if (result.status === "fulfilled") telegramSuccessCount++;
+          else {
+            telegramFailCount++;
+            console.error("Telegram message failed:", result.reason);
+          }
         });
         metrics.telegramSuccesses += telegramSuccessCount;
         metrics.telegramFailures += telegramFailCount;
@@ -348,11 +393,11 @@ async function processNotificationMessage(message: any): Promise<boolean> {
 
     // Broadcast SSE event to all relevant users using standardized format
     try {
-      notification.userIds.forEach(userId => {
+      notification.userIds.forEach((userId) => {
         // Send a properly formatted SSE event using the enhanced handler
         sseHandler.sendEventToUser(
           userId,
-          'notification', // Use a standardized event type
+          "notification", // Use a standardized event type
           {
             id: crypto.randomUUID(), // Generate a unique ID for the notification
             type: notification.type,
@@ -360,28 +405,32 @@ async function processNotificationMessage(message: any): Promise<boolean> {
             body: notification.data?.body,
             data: notification.data,
             timestamp: Date.now(),
-            priority: notification.priority || 'normal'
-          }
+            priority: notification.priority || "normal",
+          },
         );
       });
 
       // Log successful SSE broadcast
-      console.log(`[SSE] Broadcast notification of type ${notification.type} to ${notification.userIds.length} users`);
+      console.log(
+        `[SSE] Broadcast notification of type ${notification.type} to ${notification.userIds.length} users`,
+      );
     } catch (sseError) {
       console.error("[SSE] Error broadcasting notification:", sseError);
     }
 
     return true;
-
   } catch (error) {
-    console.error('Error processing notification message:', error);
+    console.error("Error processing notification message:", error);
     metrics.errors++;
     metrics.consecutiveErrors++;
-    metrics.lastError = error instanceof Error ? error : new Error(String(error));
+    metrics.lastError =
+      error instanceof Error ? error : new Error(String(error));
 
     // If we hit the error threshold, pause processing
     if (metrics.consecutiveErrors >= ERROR_THRESHOLD) {
-      console.error(`Error threshold reached (${metrics.consecutiveErrors}/${ERROR_THRESHOLD}), pausing worker`);
+      console.error(
+        `Error threshold reached (${metrics.consecutiveErrors}/${ERROR_THRESHOLD}), pausing worker`,
+      );
       metrics.isPaused = true;
 
       // Auto-resume after 5 minutes
@@ -400,38 +449,47 @@ async function processNotificationMessage(message: any): Promise<boolean> {
  * Generate a formatted message suitable for Telegram (MarkdownV2)
  */
 function generateTelegramMessage(type: NotificationType, data: any): string {
-  let title = '';
-  let body = '';
+  let title = "";
+  let body = "";
   let details: string[] = [];
 
   // Simple switch for basic formatting
   switch (type) {
     case NotificationType.REPORT_SUBMITTED:
-      title = '📝 Report Submitted';
-      body = `A new report from *${escapeTelegramMarkdown(data.branchName || 'Unknown Branch')}* requires approval\.`;
-      details.push(`_Submitter:_ ${escapeTelegramMarkdown(data.submitterName || 'Unknown')}`);
-      details.push(`_Date:_ ${escapeTelegramMarkdown(data.date || 'N/A')}`);
+      title = "📝 Report Submitted";
+      body = `A new report from *${escapeTelegramMarkdown(data.branchName || "Unknown Branch")}* requires approval\.`;
+      details.push(
+        `_Submitter:_ ${escapeTelegramMarkdown(data.submitterName || "Unknown")}`,
+      );
+      details.push(`_Date:_ ${escapeTelegramMarkdown(data.date || "N/A")}`);
       break;
     case NotificationType.REPORT_APPROVED:
-      title = '✅ Report Approved';
-      body = `Your report for *${escapeTelegramMarkdown(data.branchName || 'Unknown Branch')}* \(${escapeTelegramMarkdown(data.date || 'N/A')}\) has been approved\.`;
-      details.push(`_Approved by:_ ${escapeTelegramMarkdown(data.approverName || 'A manager')}`);
+      title = "✅ Report Approved";
+      body = `Your report for *${escapeTelegramMarkdown(data.branchName || "Unknown Branch")}* \(${escapeTelegramMarkdown(data.date || "N/A")}\) has been approved\.`;
+      details.push(
+        `_Approved by:_ ${escapeTelegramMarkdown(data.approverName || "A manager")}`,
+      );
       break;
     case NotificationType.REPORT_REJECTED:
-      title = '❌ Report Rejected';
-      body = `Your report for *${escapeTelegramMarkdown(data.branchName || 'Unknown Branch')}* \(${escapeTelegramMarkdown(data.date || 'N/A')}\) was rejected\.`;
-      if (data.reason) details.push(`_Reason:_ ${escapeTelegramMarkdown(data.reason)}`);
-      details.push(`_Rejected by:_ ${escapeTelegramMarkdown(data.approverName || 'A manager')}`);
+      title = "❌ Report Rejected";
+      body = `Your report for *${escapeTelegramMarkdown(data.branchName || "Unknown Branch")}* \(${escapeTelegramMarkdown(data.date || "N/A")}\) was rejected\.`;
+      if (data.reason)
+        details.push(`_Reason:_ ${escapeTelegramMarkdown(data.reason)}`);
+      details.push(
+        `_Rejected by:_ ${escapeTelegramMarkdown(data.approverName || "A manager")}`,
+      );
       break;
     case NotificationType.SYSTEM_NOTIFICATION:
-      title = `📢 ${escapeTelegramMarkdown(data.title || 'System Update')}`; // Use provided title
-      body = escapeTelegramMarkdown(data.body || 'Important system update.'); // Use provided body
-      if (data.senderName) details.push(`_From:_ ${escapeTelegramMarkdown(data.senderName)}`);
+      title = `📢 ${escapeTelegramMarkdown(data.title || "System Update")}`; // Use provided title
+      body = escapeTelegramMarkdown(data.body || "Important system update."); // Use provided body
+      if (data.senderName)
+        details.push(`_From:_ ${escapeTelegramMarkdown(data.senderName)}`);
       break;
     // Add other cases as needed
     default:
-      title = '🔔 Notification';
-      body = 'You have a new update\. Check the app for details\. \(Fallback Message\)';
+      title = "🔔 Notification";
+      body =
+        "You have a new update\. Check the app for details\. \(Fallback Message\)";
       details.push(`_Type:_ ${escapeTelegramMarkdown(type)}`);
   }
 
@@ -441,7 +499,7 @@ ${body}`;
   if (details.length > 0) {
     message += `
 
-${details.join('\n')}`;
+${details.join("\n")}`;
   }
 
   return message;
@@ -454,27 +512,38 @@ async function sendTelegramMessageWithRetry(
   botInstance: TelegramBot,
   chatId: string,
   messageText: string,
-  retryCount = 0
+  retryCount = 0,
 ): Promise<void> {
   try {
-    await botInstance.sendMessage(chatId, messageText, { parse_mode: 'MarkdownV2' });
+    await botInstance.sendMessage(chatId, messageText, {
+      parse_mode: "MarkdownV2",
+    });
   } catch (error: any) {
     // Log the error details
     console.error(
       `Telegram Send Error (Chat ID: ${chatId}, Retry: ${retryCount}): `,
-      error.response?.body || error.message || error
+      error.response?.body || error.message || error,
     );
 
     // Simple retry based only on count, not error content
     if (retryCount < MAX_RETRIES) {
       //console.log(`Retrying Telegram message (${retryCount + 1}/${MAX_RETRIES}) for chat ${chatId}`);
-      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY * (retryCount + 1)));
+      await new Promise((resolve) =>
+        setTimeout(resolve, RETRY_DELAY * (retryCount + 1)),
+      );
       // Recursively call, passing the incremented retry count
-      return sendTelegramMessageWithRetry(botInstance, chatId, messageText, retryCount + 1);
+      return sendTelegramMessageWithRetry(
+        botInstance,
+        chatId,
+        messageText,
+        retryCount + 1,
+      );
     }
 
     // If retries exhausted, throw the last error
-    console.error(`Telegram message failed after ${MAX_RETRIES} retries for chat ${chatId}.`);
+    console.error(
+      `Telegram message failed after ${MAX_RETRIES} retries for chat ${chatId}.`,
+    );
     throw error;
   }
 }
@@ -485,24 +554,24 @@ async function sendTelegramMessageWithRetry(
 async function sendNotificationWithRetry(
   subscription: any,
   notificationContent: any,
-  retryCount = 0
+  retryCount = 0,
 ): Promise<void> {
   try {
     // Prepare notification payload
     const payload = {
       title: notificationContent.title,
       body: notificationContent.body,
-      icon: notificationContent.icon || '/icons/default.png',
-      badge: '/icons/badge.png',
+      icon: notificationContent.icon || "/icons/default.png",
+      badge: "/icons/badge.png",
       tag: notificationContent.tag || `notification-${Date.now()}`, // Group similar notifications
       data: {
         url: notificationContent.url,
         timestamp: Date.now(),
-        ...notificationContent.data
+        ...notificationContent.data,
       },
       vibrate: [100, 50, 100],
       requireInteraction: notificationContent.requireInteraction !== false, // Show notification until user interacts with it
-      actions: notificationContent.actions || []
+      actions: notificationContent.actions || [],
     };
 
     // Send push notification
@@ -514,7 +583,7 @@ async function sendNotificationWithRetry(
           auth: subscription.auth,
         },
       },
-      JSON.stringify(payload)
+      JSON.stringify(payload),
     );
   } catch (error: any) {
     // If subscription is invalid or expired, remove it
@@ -533,8 +602,14 @@ async function sendNotificationWithRetry(
     // Retry the notification if we haven't exceeded max retries
     if (retryCount < MAX_RETRIES) {
       //console.log(`Retrying notification (${retryCount + 1}/${MAX_RETRIES}) for subscription ${subscription.id}`);
-      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY * (retryCount + 1))); // Exponential backoff
-      return sendNotificationWithRetry(subscription, notificationContent, retryCount + 1);
+      await new Promise((resolve) =>
+        setTimeout(resolve, RETRY_DELAY * (retryCount + 1)),
+      ); // Exponential backoff
+      return sendNotificationWithRetry(
+        subscription,
+        notificationContent,
+        retryCount + 1,
+      );
     }
 
     // If we've exhausted retries, rethrow the error
@@ -569,11 +644,14 @@ function startMetricsReporting() {
 async function handleTelegramStartCommand(msg: TelegramBot.Message) {
   if (!bot) return;
   const chatId = msg.chat.id;
-  const text = msg.text || '';
+  const text = msg.text || "";
   const match = text.match(/^\/start\s+([A-Za-z0-9]+)$/); // Match /start CODE
 
   if (!match) {
-    await bot.sendMessage(chatId, "Hi\! To link your account, please go to your user settings in the web app and click 'Link Telegram Account'\.");
+    await bot.sendMessage(
+      chatId,
+      "Hi\! To link your account, please go to your user settings in the web app and click 'Link Telegram Account'\.",
+    );
     return;
   }
 
@@ -584,40 +662,64 @@ async function handleTelegramStartCommand(msg: TelegramBot.Message) {
     // 1. Find the linking code
     const linkingCode = await prisma.telegramLinkingCode.findUnique({
       where: { code },
-      include: { user: true } // Include user data
+      include: { user: true }, // Include user data
     });
 
     if (!linkingCode) {
       //console.log(`Linking code ${code} not found.`);
-      await bot.sendMessage(chatId, "Invalid or expired linking code\. Please try generating a new one from your settings\.");
+      await bot.sendMessage(
+        chatId,
+        "Invalid or expired linking code\. Please try generating a new one from your settings\.",
+      );
       return;
     }
 
     // 2. Check if expired
     if (new Date() > linkingCode.expiresAt) {
       //console.log(`Linking code ${code} has expired.`);
-      await prisma.telegramLinkingCode.delete({ where: { id: linkingCode.id } }); // Clean up expired code
-      await bot.sendMessage(chatId, "This linking code has expired\. Please try generating a new one from your settings\.");
+      await prisma.telegramLinkingCode.delete({
+        where: { id: linkingCode.id },
+      }); // Clean up expired code
+      await bot.sendMessage(
+        chatId,
+        "This linking code has expired\. Please try generating a new one from your settings\.",
+      );
       return;
     }
 
     // 3. Check if user already has a subscription
     const existingSub = await prisma.telegramSubscription.findFirst({
-      where: { OR: [{ userId: linkingCode.userId }, { chatId: String(chatId) }] }
+      where: {
+        OR: [{ userId: linkingCode.userId }, { chatId: String(chatId) }],
+      },
     });
 
     if (existingSub) {
-      if (existingSub.userId === linkingCode.userId && existingSub.chatId === String(chatId)) {
+      if (
+        existingSub.userId === linkingCode.userId &&
+        existingSub.chatId === String(chatId)
+      ) {
         //console.log(`User ${linkingCode.userId} is already linked to chat ${chatId}.`);
-        await bot.sendMessage(chatId, "Your account is already linked to this Telegram chat\.");
+        await bot.sendMessage(
+          chatId,
+          "Your account is already linked to this Telegram chat\.",
+        );
       } else if (existingSub.userId === linkingCode.userId) {
         //console.log(`User ${linkingCode.userId} is already linked to another chat (${existingSub.chatId}).`);
-        await bot.sendMessage(chatId, "Your app account is already linked to a different Telegram chat\. Please unlink it first if you want to use this one\.");
+        await bot.sendMessage(
+          chatId,
+          "Your app account is already linked to a different Telegram chat\. Please unlink it first if you want to use this one\.",
+        );
       } else {
         //console.log(`Chat ${chatId} is already linked to another user (${existingSub.userId}).`);
-        await bot.sendMessage(chatId, "This Telegram chat is already linked to a different app account\. Please use a different Telegram account or unlink the other app account first\.");
+        await bot.sendMessage(
+          chatId,
+          "This Telegram chat is already linked to a different app account\. Please use a different Telegram account or unlink the other app account first\.",
+        );
       }
-      await prisma.telegramLinkingCode.delete({ where: { id: linkingCode.id } }); // Clean up used/conflicting code
+      await prisma.telegramLinkingCode.delete({
+        where: { id: linkingCode.id },
+      }); // Clean up used/conflicting code
       return;
     }
 
@@ -634,11 +736,17 @@ async function handleTelegramStartCommand(msg: TelegramBot.Message) {
     await prisma.telegramLinkingCode.delete({ where: { id: linkingCode.id } });
 
     //console.log(`Successfully linked user ${linkingCode.userId} to chat ID ${chatId}`);
-    await bot.sendMessage(chatId, `✅ Success\! Your account \(${escapeTelegramMarkdown(linkingCode.user.email)}\) is now linked to receive Telegram notifications\.`, { parse_mode: 'MarkdownV2' });
-
+    await bot.sendMessage(
+      chatId,
+      `✅ Success\! Your account \(${escapeTelegramMarkdown(linkingCode.user.email)}\) is now linked to receive Telegram notifications\.`,
+      { parse_mode: "MarkdownV2" },
+    );
   } catch (error) {
-    console.error('Error handling /start command:', error);
-    await bot.sendMessage(chatId, "An error occurred while linking your account\. Please try again later or contact support\.");
+    console.error("Error handling /start command:", error);
+    await bot.sendMessage(
+      chatId,
+      "An error occurred while linking your account\. Please try again later or contact support\.",
+    );
   }
 }
 
@@ -657,12 +765,12 @@ export async function startNotificationWorker() {
   if (bot) {
     bot.onText(/^\/start(?:\s+(.*))?$/, (msg) => {
       // Offload processing to avoid blocking the listener
-      handleTelegramStartCommand(msg).catch(err => {
+      handleTelegramStartCommand(msg).catch((err) => {
         console.error("Error in handleTelegramStartCommand:", err);
       });
     });
-    bot.on('polling_error', (error) => {
-      console.error('Telegram Polling Error:', error.name, error.message);
+    bot.on("polling_error", (error) => {
+      console.error("Telegram Polling Error:", error.name, error.message);
       // Potentially add logic to restart bot or handle specific errors
     });
     // Start polling explicitly if needed for /start commands
@@ -678,7 +786,7 @@ export async function startNotificationWorker() {
       // Skip processing if worker is paused due to errors
       if (metrics.isPaused) {
         //console.log('Worker is paused due to errors, waiting before retrying...');
-        await new Promise(resolve => setTimeout(resolve, 30000)); // Wait 30 seconds
+        await new Promise((resolve) => setTimeout(resolve, 30000)); // Wait 30 seconds
         continue;
       }
 
@@ -690,7 +798,7 @@ export async function startNotificationWorker() {
       if (!messages || messages.length === 0) {
         // If no messages, wait a bit before polling again
         //console.log('[WORKER] No messages received, waiting before next poll');
-        await new Promise(resolve => setTimeout(resolve, 5000));
+        await new Promise((resolve) => setTimeout(resolve, 5000));
         continue;
       }
 
@@ -702,7 +810,7 @@ export async function startNotificationWorker() {
           const firstMessage = JSON.parse(messages[0].Body);
           //console.log(`[WORKER] First message sample: type=${firstMessage.type}, userIds=${firstMessage.userIds?.length || 0}`);
         } catch (parseError) {
-          console.error('[WORKER] Could not parse first message:', parseError);
+          console.error("[WORKER] Could not parse first message:", parseError);
         }
       }
 
@@ -721,16 +829,18 @@ export async function startNotificationWorker() {
       if (successful.length > 0) {
         metrics.consecutiveErrors = 0;
       }
-
     } catch (error) {
-      console.error('[WORKER] Error in notification worker loop:', error);
+      console.error("[WORKER] Error in notification worker loop:", error);
       metrics.errors++;
-      metrics.lastError = error instanceof Error ? error : new Error(String(error));
+      metrics.lastError =
+        error instanceof Error ? error : new Error(String(error));
       metrics.consecutiveErrors++;
 
       // If too many consecutive errors, pause the worker temporarily
       if (metrics.consecutiveErrors >= ERROR_THRESHOLD) {
-        console.error(`Error threshold reached (${metrics.consecutiveErrors}/${ERROR_THRESHOLD}), pausing worker for 5 minutes`);
+        console.error(
+          `Error threshold reached (${metrics.consecutiveErrors}/${ERROR_THRESHOLD}), pausing worker for 5 minutes`,
+        );
         metrics.isPaused = true;
 
         // Auto-resume after 5 minutes
@@ -741,10 +851,10 @@ export async function startNotificationWorker() {
         }, 300000); // 5 minutes
 
         // Wait before next iteration
-        await new Promise(resolve => setTimeout(resolve, 30000));
+        await new Promise((resolve) => setTimeout(resolve, 30000));
       } else {
         // Just wait a bit before retrying
-        await new Promise(resolve => setTimeout(resolve, 5000));
+        await new Promise((resolve) => setTimeout(resolve, 5000));
       }
     }
   }
@@ -752,8 +862,8 @@ export async function startNotificationWorker() {
 
 // If this file is executed directly, start the worker
 if (require.main === module) {
-  startNotificationWorker().catch(error => {
-    console.error('Fatal error in notification worker:', error);
+  startNotificationWorker().catch((error) => {
+    console.error("Fatal error in notification worker:", error);
     process.exit(1);
   });
 }

@@ -45,7 +45,8 @@ export function BranchSwitcher() {
       console.error("Error switching branch:", error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to switch branch",
+        description:
+          error instanceof Error ? error.message : "Failed to switch branch",
         variant: "destructive",
       });
     } finally {
@@ -68,4 +69,4 @@ export function BranchSwitcher() {
       />
     </div>
   );
-} 
+}

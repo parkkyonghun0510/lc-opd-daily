@@ -8,8 +8,8 @@ export function useEffectEvent(callback) {
 }
 
 // Export the shim to be used by the patched modules
-if (typeof window !== 'undefined') {
+if (typeof window !== "undefined") {
   window.ReactShims = {
-    useEffectEvent
+    useEffectEvent,
   };
 }

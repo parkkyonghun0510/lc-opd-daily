@@ -34,12 +34,12 @@ export async function GET(request: NextRequest) {
 
     // Get accessible branches for the user
     const accessibleBranches = await getAccessibleBranches(token.sub as string);
-    const accessibleBranchIds = accessibleBranches.map(branch => branch.id);
+    const accessibleBranchIds = accessibleBranches.map((branch) => branch.id);
 
     // Add branch filter for non-admin users
     if (token.role !== UserRole.ADMIN) {
       whereCondition.branchId = {
-        in: accessibleBranchIds
+        in: accessibleBranchIds,
       };
     }
 
@@ -75,9 +75,9 @@ export async function GET(request: NextRequest) {
       const pendingReports = pendingReportsResults.filter(
         (report): report is any => {
           if (!report) return false;
-          if ('error' in report) return false;
+          if ("error" in report) return false;
           return report.branch !== null;
-        }
+        },
       );
 
       // Manually fetch user data for submitted reports
@@ -100,7 +100,7 @@ export async function GET(request: NextRequest) {
             ...report,
             user: userData,
           };
-        })
+        }),
       );
 
       // Return simplified array of reports
@@ -109,14 +109,14 @@ export async function GET(request: NextRequest) {
       console.error("Error processing pending reports:", innerError);
       return NextResponse.json(
         { error: "Failed to process pending reports" },
-        { status: 500 }
+        { status: 500 },
       );
     }
   } catch (error) {
     console.error("Error fetching pending reports:", error);
     return NextResponse.json(
       { error: "Failed to fetch pending reports" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

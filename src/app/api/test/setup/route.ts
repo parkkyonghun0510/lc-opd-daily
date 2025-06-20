@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
     if (process.env.NODE_ENV !== "development") {
       return NextResponse.json(
         { error: "This endpoint is only available in development" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
     if (!token || token.role !== "admin") {
       return NextResponse.json(
         { error: "Admin access required" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
     console.error("Error creating test users:", error);
     return NextResponse.json(
       { error: "Failed to create test users" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -229,7 +229,7 @@ export function Sidebar() {
           "hover:bg-gray-100 dark:hover:bg-gray-700",
           "border border-gray-200 dark:border-gray-700",
           "focus:outline-none focus:ring-2 focus:ring-blue-500",
-          "transition-colors duration-200"
+          "transition-colors duration-200",
         )}
         aria-label={mobileOpen ? "Close menu" : "Open menu"}
         aria-expanded={mobileOpen}
@@ -248,7 +248,11 @@ export function Sidebar() {
         <div
           className={cn(
             "relative flex-shrink-0 transition-[width,opacity] duration-200",
-            collapsed && !isMobile ? "w-8 h-8" : isCompactMode ? "w-8 h-8" : "w-10 h-10"
+            collapsed && !isMobile
+              ? "w-8 h-8"
+              : isCompactMode
+                ? "w-8 h-8"
+                : "w-10 h-10",
           )}
         >
           {/* <Image
@@ -270,7 +274,7 @@ export function Sidebar() {
             alt="LC Logo"
             className={cn(
               "rounded-full",
-              collapsed && !isMobile ? "opacity-0" : "opacity-100"
+              collapsed && !isMobile ? "opacity-0" : "opacity-100",
             )}
             width={isCompactMode ? 32 : 40}
             height={isCompactMode ? 32 : 40}
@@ -280,7 +284,7 @@ export function Sidebar() {
         <div
           className={cn(
             "flex flex-col pl-0.5 transition-[width,opacity] duration-200 ease-out",
-            collapsed && !isMobile ? "w-0 opacity-0" : "w-auto opacity-100"
+            collapsed && !isMobile ? "w-0 opacity-0" : "w-auto opacity-100",
           )}
         >
           <span className="text-sm font-semibold text-gray-900 dark:text-white whitespace-nowrap">
@@ -298,7 +302,7 @@ export function Sidebar() {
             className={cn(
               "p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200",
               "text-gray-500 dark:text-gray-400",
-              "focus:outline-none focus:ring-2 focus:ring-blue-500"
+              "focus:outline-none focus:ring-2 focus:ring-blue-500",
             )}
             title={collapsed ? "Show full sidebar" : "Collapse sidebar"}
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
@@ -332,18 +336,27 @@ export function Sidebar() {
     }
 
     return (
-      <div className={cn("flex flex-col h-full", isCompactMode ? "text-sm" : "text-base")}>
+      <div
+        className={cn(
+          "flex flex-col h-full",
+          isCompactMode ? "text-sm" : "text-base",
+        )}
+      >
         <CompanyLogo />
         <nav className="flex-1 gap-2">
           <RoleBasedNavigation>
             {({ hasPermission, hasRole }) => (
-              <ul className={cn(
-                "space-y-1",
-                isCompactMode ? "space-y-0.5" : "space-y-1",
-                collapsed ? "px-1 py-2" : "p-2"
-              )}>
+              <ul
+                className={cn(
+                  "space-y-1",
+                  isCompactMode ? "space-y-0.5" : "space-y-1",
+                  collapsed ? "px-1 py-2" : "p-2",
+                )}
+              >
                 {navigationItems.map((item) => {
-                  const hasAccess = item.permissions.some((p) => hasPermission(p));
+                  const hasAccess = item.permissions.some((p) =>
+                    hasPermission(p),
+                  );
                   const hasRoleAccess = item.roles
                     ? item.roles.some((role) => hasRole(role))
                     : true;
@@ -351,11 +364,12 @@ export function Sidebar() {
                     ? branchPermission.hasAccess
                     : true;
 
-                  if (!hasAccess || !hasRoleAccess || !hasBranchAccessForItem) return null;
+                  if (!hasAccess || !hasRoleAccess || !hasBranchAccessForItem)
+                    return null;
 
                   const isActive = pathname === item.href;
                   const hasActiveChild = item.children?.some(
-                    (child) => pathname === child.href
+                    (child) => pathname === child.href,
                   );
 
                   return (
@@ -365,24 +379,42 @@ export function Sidebar() {
                         className={cn(
                           "group relative flex items-center gap-2 rounded-md text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800",
                           isCompactMode ? "px-2 py-1.5" : "px-3 py-2",
-                          (isActive || hasActiveChild) && "bg-gray-100 dark:bg-gray-800",
-                          collapsed && "justify-center px-0 py-2"
+                          (isActive || hasActiveChild) &&
+                            "bg-gray-100 dark:bg-gray-800",
+                          collapsed && "justify-center px-0 py-2",
                         )}
-                        style={collapsed ? { justifyContent: 'center', paddingLeft: 0, paddingRight: 0 } : {}}
+                        style={
+                          collapsed
+                            ? {
+                                justifyContent: "center",
+                                paddingLeft: 0,
+                                paddingRight: 0,
+                              }
+                            : {}
+                        }
                       >
-                        <div className={cn(
-                          "relative flex items-center",
-                          collapsed ? "justify-center w-full" : ""
-                        )}>
-                          <item.icon className={cn(isCompactMode ? "h-4 w-4" : "h-5 w-5", collapsed && "mx-auto")} />
+                        <div
+                          className={cn(
+                            "relative flex items-center",
+                            collapsed ? "justify-center w-full" : "",
+                          )}
+                        >
+                          <item.icon
+                            className={cn(
+                              isCompactMode ? "h-4 w-4" : "h-5 w-5",
+                              collapsed && "mx-auto",
+                            )}
+                          />
                           {collapsed && (
-                            <div className={cn(
-                              "absolute left-full ml-2 px-2 py-1.5 rounded-md bg-gray-900/90 dark:bg-gray-800/90 text-white text-xs whitespace-nowrap",
-                              "opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto",
-                              "transition-all duration-200 z-50 translate-x-2",
-                              "backdrop-blur-sm",
-                              "border border-gray-700/50"
-                            )}>
+                            <div
+                              className={cn(
+                                "absolute left-full ml-2 px-2 py-1.5 rounded-md bg-gray-900/90 dark:bg-gray-800/90 text-white text-xs whitespace-nowrap",
+                                "opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto",
+                                "transition-all duration-200 z-50 translate-x-2",
+                                "backdrop-blur-sm",
+                                "border border-gray-700/50",
+                              )}
+                            >
                               {item.name}
                             </div>
                           )}
@@ -391,7 +423,7 @@ export function Sidebar() {
                           <span
                             className={cn(
                               "font-medium transition-all duration-200",
-                              isCompactMode ? "text-sm" : "text-base"
+                              isCompactMode ? "text-sm" : "text-base",
                             )}
                           >
                             {item.name}
@@ -399,21 +431,29 @@ export function Sidebar() {
                         )}
                       </Link>
                       {item.children && (
-                        <ul className={cn(
-                          "mt-1 space-y-1",
-                          isCompactMode ? "space-y-0.5" : "space-y-1",
-                          collapsed ? "ml-0" : "ml-4"
-                        )}>
+                        <ul
+                          className={cn(
+                            "mt-1 space-y-1",
+                            isCompactMode ? "space-y-0.5" : "space-y-1",
+                            collapsed ? "ml-0" : "ml-4",
+                          )}
+                        >
                           {item.children.map((child) => {
-                            const hasChildAccess = child.permissions.some(p => hasPermission(p));
+                            const hasChildAccess = child.permissions.some((p) =>
+                              hasPermission(p),
+                            );
                             const hasChildRoleAccess = child.roles
-                              ? child.roles.some(role => hasRole(role))
+                              ? child.roles.some((role) => hasRole(role))
                               : true;
                             const hasChildBranchAccess = item.branchSpecific
                               ? branchPermission.hasAccess
                               : true;
 
-                            if (!hasChildAccess || !hasChildRoleAccess || !hasChildBranchAccess)
+                            if (
+                              !hasChildAccess ||
+                              !hasChildRoleAccess ||
+                              !hasChildBranchAccess
+                            )
                               return null;
 
                             const isChildActive = pathname === child.href;
@@ -425,29 +465,54 @@ export function Sidebar() {
                                   className={cn(
                                     "group relative flex items-center gap-2 rounded-md text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800",
                                     isCompactMode ? "px-2 py-1.5" : "px-3 py-2",
-                                    isChildActive && "bg-gray-100 dark:bg-gray-800",
-                                    collapsed && "justify-center px-0 py-2"
+                                    isChildActive &&
+                                      "bg-gray-100 dark:bg-gray-800",
+                                    collapsed && "justify-center px-0 py-2",
                                   )}
-                                  style={collapsed ? { justifyContent: 'center', paddingLeft: 0, paddingRight: 0 } : {}}
+                                  style={
+                                    collapsed
+                                      ? {
+                                          justifyContent: "center",
+                                          paddingLeft: 0,
+                                          paddingRight: 0,
+                                        }
+                                      : {}
+                                  }
                                 >
-                                  <div className={cn(
-                                    "relative flex items-center",
-                                    collapsed ? "justify-center w-full" : ""
-                                  )}>
-                                    <CircleDot className={cn(isCompactMode ? "h-3 w-3" : "h-4 w-4", collapsed && "mx-auto")} />
+                                  <div
+                                    className={cn(
+                                      "relative flex items-center",
+                                      collapsed ? "justify-center w-full" : "",
+                                    )}
+                                  >
+                                    <CircleDot
+                                      className={cn(
+                                        isCompactMode ? "h-3 w-3" : "h-4 w-4",
+                                        collapsed && "mx-auto",
+                                      )}
+                                    />
                                     {collapsed && (
-                                      <div className={cn(
-                                        "absolute left-full ml-2 px-2 py-1 rounded bg-gray-900 dark:bg-gray-800 text-white text-xs whitespace-nowrap",
-                                        "opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto",
-                                        "transition-all duration-200 z-50 translate-x-1",
-                                        "border border-gray-700 shadow-lg"
-                                      )}>
+                                      <div
+                                        className={cn(
+                                          "absolute left-full ml-2 px-2 py-1 rounded bg-gray-900 dark:bg-gray-800 text-white text-xs whitespace-nowrap",
+                                          "opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto",
+                                          "transition-all duration-200 z-50 translate-x-1",
+                                          "border border-gray-700 shadow-lg",
+                                        )}
+                                      >
                                         {child.name}
                                       </div>
                                     )}
                                   </div>
                                   {!collapsed && (
-                                    <span className={cn("font-medium", isCompactMode ? "text-sm" : "text-base")}>{child.name}</span>
+                                    <span
+                                      className={cn(
+                                        "font-medium",
+                                        isCompactMode ? "text-sm" : "text-base",
+                                      )}
+                                    >
+                                      {child.name}
+                                    </span>
                                   )}
                                 </Link>
                               </li>
@@ -459,30 +524,41 @@ export function Sidebar() {
                   );
                 })}
 
-                {navigationItems.length > 0 && navigationItems.every(item => {
-                  const hasAccess = item.permissions.some(p => hasPermission(p));
-                  const hasRoleAccess = item.roles
-                    ? item.roles.some(role => hasRole(role))
-                    : true;
-                  const hasBranchAccessForItem = item.branchSpecific
-                    ? branchPermission.hasAccess
-                    : true;
-                  return !hasAccess || !hasRoleAccess || !hasBranchAccessForItem;
-                }) && (
+                {navigationItems.length > 0 &&
+                  navigationItems.every((item) => {
+                    const hasAccess = item.permissions.some((p) =>
+                      hasPermission(p),
+                    );
+                    const hasRoleAccess = item.roles
+                      ? item.roles.some((role) => hasRole(role))
+                      : true;
+                    const hasBranchAccessForItem = item.branchSpecific
+                      ? branchPermission.hasAccess
+                      : true;
+                    return (
+                      !hasAccess || !hasRoleAccess || !hasBranchAccessForItem
+                    );
+                  }) && (
                     <li className="p-3 text-center text-gray-500 dark:text-gray-400">
                       <p>No menu items available for your role.</p>
-                      <p className="text-xs mt-1">Please contact an administrator.</p>
+                      <p className="text-xs mt-1">
+                        Please contact an administrator.
+                      </p>
                     </li>
                   )}
               </ul>
             )}
           </RoleBasedNavigation>
         </nav>
-        <div className={cn(
-          "border-t border-gray-200 dark:border-gray-700 space-y-2",
-          isCompactMode ? "p-2" : "p-4"
-        )}>
-          {!collapsed && <p className="text-sm">Authorize by LC Cash Express</p>}
+        <div
+          className={cn(
+            "border-t border-gray-200 dark:border-gray-700 space-y-2",
+            isCompactMode ? "p-2" : "p-4",
+          )}
+        >
+          {!collapsed && (
+            <p className="text-sm">Authorize by LC Cash Express</p>
+          )}
           {/* <RecentlyVisited /> */}
           {/* <ThemeToggle /> */}
         </div>
@@ -500,7 +576,7 @@ export function Sidebar() {
           "transition-all duration-200 ease-spring",
           collapsed ? "md:w-16" : isCompactMode ? "md:w-56" : "md:w-64",
           isMobile ? "hidden" : "flex",
-          collapsed && "items-center"
+          collapsed && "items-center",
         )}
       >
         <SidebarContent />
@@ -508,22 +584,28 @@ export function Sidebar() {
 
       {/* Mobile overlay */}
       {isMobile && (
-        <div className={cn(
-          "fixed inset-0 z-40",
-          "transition-all duration-200 ease-spring",
-          mobileOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
-        )}>
+        <div
+          className={cn(
+            "fixed inset-0 z-40",
+            "transition-all duration-200 ease-spring",
+            mobileOpen
+              ? "opacity-100 pointer-events-auto"
+              : "opacity-0 pointer-events-none",
+          )}
+        >
           <div
             className="absolute inset-0 bg-gray-600/75 dark:bg-gray-900/75 backdrop-blur-sm transition-opacity duration-200"
             onClick={() => setMobileOpen(false)}
             aria-hidden="true"
           />
 
-          <div className={cn(
-            "absolute inset-y-0 left-0 z-40 flex flex-col w-64 bg-white dark:bg-gray-800 text-gray-900 dark:text-white border-r border-gray-200 dark:border-gray-700",
-            "transform transition-transform duration-200 ease-spring",
-            mobileOpen ? "translate-x-0" : "-translate-x-full"
-          )}>
+          <div
+            className={cn(
+              "absolute inset-y-0 left-0 z-40 flex flex-col w-64 bg-white dark:bg-gray-800 text-gray-900 dark:text-white border-r border-gray-200 dark:border-gray-700",
+              "transform transition-transform duration-200 ease-spring",
+              mobileOpen ? "translate-x-0" : "-translate-x-full",
+            )}
+          >
             <div className="h-full">
               <SidebarContent />
             </div>

@@ -98,7 +98,7 @@ export function useReportForm({
       try {
         const formattedDate = format(formData.date, "yyyy-MM-dd");
         const response = await fetch(
-          `/api/reports/check-duplicate?date=${formattedDate}&branchId=${formData.branchId}&reportType=${formData.reportType}`
+          `/api/reports/check-duplicate?date=${formattedDate}&branchId=${formData.branchId}&reportType=${formData.reportType}`,
         );
 
         if (!response.ok) {
@@ -181,14 +181,18 @@ export function useReportForm({
         // These will be handled during the approval workflow
 
         // Check initialComment requirements - these are required regardless of approval
-        if (validationRules.comments.required && !dataToValidate.initialComment?.trim()) {
+        if (
+          validationRules.comments.required &&
+          !dataToValidate.initialComment?.trim()
+        ) {
           errors.initialComment = "Comments are required";
         }
 
         // Check if the comment meets the minimum length requirement
         if (
           dataToValidate.initialComment &&
-          dataToValidate.initialComment.length < validationRules.comments.minLength
+          dataToValidate.initialComment.length <
+            validationRules.comments.minLength
         ) {
           errors.initialComment = `Comments must be at least ${validationRules.comments.minLength} characters`;
         }
@@ -219,7 +223,11 @@ export function useReportForm({
     }
 
     // Additional validation for date field
-    if (!formData.date || !(formData.date instanceof Date) || isNaN(formData.date.getTime())) {
+    if (
+      !formData.date ||
+      !(formData.date instanceof Date) ||
+      isNaN(formData.date.getTime())
+    ) {
       setErrors({
         ...validationErrors,
         date: "Please select a valid date",
@@ -239,9 +247,10 @@ export function useReportForm({
       const validFormData = {
         ...formData,
         // Ensure date is a proper Date object
-        date: formData.date instanceof Date && !isNaN(formData.date.getTime())
-          ? formData.date
-          : new Date(),
+        date:
+          formData.date instanceof Date && !isNaN(formData.date.getTime())
+            ? formData.date
+            : new Date(),
         reportType: reportType, // Explicitly set from props
       };
 
@@ -253,16 +262,17 @@ export function useReportForm({
 
       // Sanitize the initialComment
       if (dataToSubmit.initialComment) {
-        dataToSubmit.initialComment = sanitizeString(dataToSubmit.initialComment) || '';
+        dataToSubmit.initialComment =
+          sanitizeString(dataToSubmit.initialComment) || "";
       } else {
-        dataToSubmit.initialComment = '';
+        dataToSubmit.initialComment = "";
       }
 
       // For backward compatibility with the API, generate a comments string from initialComment
       // Add comments field to the dataToSubmit object
       const dataWithComments = {
         ...dataToSubmit,
-        comments: dataToSubmit.initialComment || ''
+        comments: dataToSubmit.initialComment || "",
       };
 
       const response = await fetch("/api/reports", {
@@ -278,12 +288,15 @@ export function useReportForm({
       if (!response.ok) {
         // Handle API validation errors
         if (response.status === 400) {
-          const errorMessage = data.details || data.error || "Failed to create report";
+          const errorMessage =
+            data.details || data.error || "Failed to create report";
           const fieldErrors: Record<string, string> = {};
 
           // Parse field-specific errors from the details
           if (data.details) {
-            const fields = data.details.match(/The following fields are required: (.*)/);
+            const fields = data.details.match(
+              /The following fields are required: (.*)/,
+            );
             if (fields) {
               fields[1].split(", ").forEach((field: string) => {
                 fieldErrors[field] = `${field} is required`;
@@ -308,7 +321,8 @@ export function useReportForm({
         if (response.status === 403) {
           toast({
             title: "Permission Error",
-            description: data.error || "You don't have permission to create this report",
+            description:
+              data.error || "You don't have permission to create this report",
             variant: "destructive",
           });
           return;
@@ -333,7 +347,8 @@ export function useReportForm({
       console.error("Error creating report:", error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to create report",
+        description:
+          error instanceof Error ? error.message : "Failed to create report",
         variant: "destructive",
       });
     } finally {
@@ -344,7 +359,7 @@ export function useReportForm({
   // Update a specific field in the form data
   const updateField = <K extends keyof ReportFormData>(
     field: K,
-    value: ReportFormData[K]
+    value: ReportFormData[K],
   ) => {
     // Convert string values to numbers for numeric fields
     if (field === "writeOffs" || field === "ninetyPlus") {
@@ -357,13 +372,13 @@ export function useReportForm({
       if (value instanceof Date && !isNaN(value.getTime())) {
         // Valid Date object
         validDate = value as Date;
-      } else if (typeof value === 'string' && value) {
+      } else if (typeof value === "string" && value) {
         // Try to parse string to Date
         const parsedDate = new Date(value);
         validDate = !isNaN(parsedDate.getTime()) ? parsedDate : new Date();
       } else {
         // Default to current date for any invalid value
-        console.warn('Invalid date value, using current date');
+        console.warn("Invalid date value, using current date");
         validDate = new Date();
       }
 
@@ -377,7 +392,7 @@ export function useReportForm({
       // Handle initialComment updates directly
       setFormData((prev) => ({
         ...prev,
-        initialComment: value as string
+        initialComment: value as string,
       }));
     } else {
       setFormData((prev) => ({ ...prev, [field]: value }));
@@ -394,12 +409,12 @@ export function useReportForm({
 
   const resetForm = () => {
     setFormData({
-      title: '',
+      title: "",
       date: new Date(),
-      branchId: '',
+      branchId: "",
       writeOffs: 0,
       ninetyPlus: 0,
-      initialComment: '',
+      initialComment: "",
       reportType: reportType,
       planReportId: null,
     });

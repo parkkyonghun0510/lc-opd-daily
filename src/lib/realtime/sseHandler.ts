@@ -5,9 +5,9 @@
  * and sends events to connected clients.
  */
 
-import { NextRequest } from 'next/server';
-import { eventEmitter } from './eventEmitter';
-import { realtimeMonitor } from './monitor';
+import { NextRequest } from "next/server";
+import { eventEmitter } from "./eventEmitter";
+import { realtimeMonitor } from "./monitor";
 
 // Client connection interface
 interface Client {
@@ -26,14 +26,22 @@ class SSEHandler {
 
   constructor() {
     // Start the cleanup interval
-    this.cleanupInterval = setInterval(() => this.cleanupInactiveConnections(), 60000);
-    console.log('[SSE] Simple SSE handler initialized');
+    this.cleanupInterval = setInterval(
+      () => this.cleanupInactiveConnections(),
+      60000,
+    );
+    console.log("[SSE] Simple SSE handler initialized");
   }
 
   /**
    * Handle a new SSE connection
    */
-  async handleConnection(request: NextRequest, userId: string, response: any, metadata?: Record<string, any>) {
+  async handleConnection(
+    request: NextRequest,
+    userId: string,
+    response: any,
+    metadata?: Record<string, any>,
+  ) {
     // Generate a unique client ID
     const clientId = crypto.randomUUID();
     const now = Date.now();
@@ -45,27 +53,29 @@ class SSEHandler {
       response,
       connectedAt: now,
       lastActivity: now,
-      metadata
+      metadata,
     });
 
     // Record the connection in monitoring
     realtimeMonitor.recordConnection();
 
-    console.log(`[SSE] Client connected: ${clientId} (User: ${userId}). Total: ${this.clients.size}`);
+    console.log(
+      `[SSE] Client connected: ${clientId} (User: ${userId}). Total: ${this.clients.size}`,
+    );
 
     // Send initial connection event
     this.sendEvent(response, {
-      type: 'connected',
+      type: "connected",
       data: {
         clientId,
         userId,
         connectedAt: now,
-        message: 'Connected to SSE stream'
-      }
+        message: "Connected to SSE stream",
+      },
     });
 
     // Set up connection close handler
-    request.signal.addEventListener('abort', () => {
+    request.signal.addEventListener("abort", () => {
       this.removeClient(clientId);
     });
 
@@ -85,7 +95,9 @@ class SSEHandler {
     // Record the disconnection in monitoring
     realtimeMonitor.recordDisconnection();
 
-    console.log(`[SSE] Client disconnected: ${clientId} (User: ${client.userId}). Total: ${this.clients.size}`);
+    console.log(
+      `[SSE] Client disconnected: ${clientId} (User: ${client.userId}). Total: ${this.clients.size}`,
+    );
 
     return true;
   }
@@ -105,17 +117,19 @@ class SSEHandler {
     }
 
     if (removedCount > 0) {
-      console.log(`[SSE] Cleaned up ${removedCount} inactive connections. Remaining: ${this.clients.size}`);
+      console.log(
+        `[SSE] Cleaned up ${removedCount} inactive connections. Remaining: ${this.clients.size}`,
+      );
     }
   }
 
   /**
    * Send an event to a specific client
    */
-  sendEvent(response: any, event: { type: string, data: any }) {
+  sendEvent(response: any, event: { type: string; data: any }) {
     try {
       // Format the event according to SSE specification
-      let message = '';
+      let message = "";
 
       // Add event type
       message += `event: ${event.type}\n`;
@@ -134,7 +148,7 @@ class SSEHandler {
       console.error(`[SSE] Error sending event:`, error);
 
       // Record the error in monitoring
-      realtimeMonitor.recordError('message');
+      realtimeMonitor.recordError("message");
 
       return false;
     }
@@ -155,7 +169,9 @@ class SSEHandler {
     }
 
     if (sentCount > 0) {
-      console.log(`[SSE] Sent '${eventType}' event to user ${userId} (${sentCount} connections)`);
+      console.log(
+        `[SSE] Sent '${eventType}' event to user ${userId} (${sentCount} connections)`,
+      );
     }
 
     return sentCount;
@@ -174,7 +190,9 @@ class SSEHandler {
     }
 
     if (sentCount > 0) {
-      console.log(`[SSE] Broadcast '${eventType}' event to all clients (${sentCount} connections)`);
+      console.log(
+        `[SSE] Broadcast '${eventType}' event to all clients (${sentCount} connections)`,
+      );
     }
 
     return sentCount;
@@ -194,7 +212,7 @@ class SSEHandler {
       totalConnections: this.clients.size,
       uniqueUsers: Object.keys(userCounts).length,
       userCounts,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
   }
 }

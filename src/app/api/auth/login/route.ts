@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
     if (!username) {
       return NextResponse.json(
         { error: "Username is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
           lockoutRemaining: remainingMinutes,
           message: `Too many failed login attempts. Please try again in ${remainingMinutes} minutes.`,
         },
-        { status: 429 } // Too Many Requests
+        { status: 429 }, // Too Many Requests
       );
     }
 
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     console.error("Error during login pre-check:", error);
     return NextResponse.json(
       { error: "Authentication pre-check failed" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -10,12 +10,14 @@ import { Report } from "@/types/reports";
 import { format } from "date-fns";
 
 // Helper function to safely format dates
-const safeFormatDate = (dateValue: string | Date | null | undefined): string => {
+const safeFormatDate = (
+  dateValue: string | Date | null | undefined,
+): string => {
   if (!dateValue) return "N/A";
 
   try {
     // If it's already a string, return it
-    if (typeof dateValue === 'string') return dateValue;
+    if (typeof dateValue === "string") return dateValue;
 
     // If it's a Date object, format it
     if (dateValue instanceof Date && !isNaN(dateValue.getTime())) {
@@ -58,7 +60,9 @@ export default function TestApprovalPage() {
       setReport(result.report as unknown as Report);
     } catch (err) {
       console.error("Error fetching report:", err);
-      setError(err instanceof Error ? err.message : "An unknown error occurred");
+      setError(
+        err instanceof Error ? err.message : "An unknown error occurred",
+      );
       setReport(null);
     } finally {
       setIsLoading(false);
@@ -75,7 +79,7 @@ export default function TestApprovalPage() {
   const sampleReportIds = [
     { id: "clsqnvnxs0001ufwxgxvx9yjl", status: "pending" },
     { id: "clsqnvnxs0002ufwxgxvx9yjl", status: "approved" },
-    { id: "clsqnvnxs0003ufwxgxvx9yjl", status: "rejected" }
+    { id: "clsqnvnxs0003ufwxgxvx9yjl", status: "rejected" },
   ];
 
   return (
@@ -141,24 +145,46 @@ export default function TestApprovalPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                 <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-md">
                   <h4 className="font-medium mb-2">Report Info</h4>
-                  <p><strong>ID:</strong> {report.id}</p>
-                  <p><strong>Date:</strong> {safeFormatDate(report.date)}</p>
-                  <p><strong>Branch:</strong> {report.branch?.name}</p>
-                  <p><strong>Status:</strong> {report.status}</p>
-                  <p><strong>Type:</strong> {report.reportType}</p>
+                  <p>
+                    <strong>ID:</strong> {report.id}
+                  </p>
+                  <p>
+                    <strong>Date:</strong> {safeFormatDate(report.date)}
+                  </p>
+                  <p>
+                    <strong>Branch:</strong> {report.branch?.name}
+                  </p>
+                  <p>
+                    <strong>Status:</strong> {report.status}
+                  </p>
+                  <p>
+                    <strong>Type:</strong> {report.reportType}
+                  </p>
                 </div>
 
                 <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-md">
                   <h4 className="font-medium mb-2">Financial Data</h4>
-                  <p><strong>Write-offs:</strong> {report.writeOffs}</p>
-                  <p><strong>90+ Days:</strong> {report.ninetyPlus}</p>
-                  <p><strong>Submitted By:</strong> {report.user?.name || report.submittedBy}</p>
-                  <p><strong>Submitted At:</strong> {safeFormatDate(report.submittedAt)}</p>
+                  <p>
+                    <strong>Write-offs:</strong> {report.writeOffs}
+                  </p>
+                  <p>
+                    <strong>90+ Days:</strong> {report.ninetyPlus}
+                  </p>
+                  <p>
+                    <strong>Submitted By:</strong>{" "}
+                    {report.user?.name || report.submittedBy}
+                  </p>
+                  <p>
+                    <strong>Submitted At:</strong>{" "}
+                    {safeFormatDate(report.submittedAt)}
+                  </p>
                 </div>
               </div>
 
               <div className="mt-6 border-t pt-6">
-                <h3 className="text-lg font-medium mb-4">Enhanced Report Approval Component</h3>
+                <h3 className="text-lg font-medium mb-4">
+                  Enhanced Report Approval Component
+                </h3>
                 <div className="p-4 border rounded-md">
                   <EnhancedReportApproval
                     report={report}

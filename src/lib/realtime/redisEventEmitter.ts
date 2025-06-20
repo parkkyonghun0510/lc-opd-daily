@@ -5,8 +5,8 @@
  * to clients through various channels (SSE, WebSocket, Polling) across multiple server instances.
  */
 
-import { Redis } from '@upstash/redis';
-import { eventEmitter } from './eventEmitter';
+import { Redis } from "@upstash/redis";
+import { eventEmitter } from "./eventEmitter";
 
 // Event record interface
 interface EventRecord {
@@ -22,9 +22,9 @@ interface EventRecord {
 
 // Redis channel names
 const CHANNELS = {
-  EVENTS: 'realtime:events',
-  CLIENTS: 'realtime:clients',
-  STATS: 'realtime:stats'
+  EVENTS: "realtime:events",
+  CLIENTS: "realtime:clients",
+  STATS: "realtime:stats",
 };
 
 class RedisEventEmitter {
@@ -53,7 +53,7 @@ class RedisEventEmitter {
         !process.env.UPSTASH_REDIS_REST_TOKEN
       ) {
         console.warn(
-          "[RedisEventEmitter] Redis credentials not found. Using in-memory event emitter instead."
+          "[RedisEventEmitter] Redis credentials not found. Using in-memory event emitter instead.",
         );
         return;
       }
@@ -81,10 +81,14 @@ class RedisEventEmitter {
 
     try {
       // Register this instance
-      await this.redis?.set(`${CHANNELS.CLIENTS}:${this.instanceId}`, {
-        instanceId: this.instanceId,
-        startedAt: Date.now()
-      }, { ex: 3600 }); // Expire after 1 hour
+      await this.redis?.set(
+        `${CHANNELS.CLIENTS}:${this.instanceId}`,
+        {
+          instanceId: this.instanceId,
+          startedAt: Date.now(),
+        },
+        { ex: 3600 },
+      ); // Expire after 1 hour
 
       // Set up subscription
       // Note: For Upstash Redis, we would typically use their REST API for pub/sub
@@ -93,7 +97,10 @@ class RedisEventEmitter {
       this.isSubscribed = true;
       console.log("[RedisEventEmitter] Subscribed to Redis channels");
     } catch (error) {
-      console.error("[RedisEventEmitter] Failed to subscribe to Redis channels:", error);
+      console.error(
+        "[RedisEventEmitter] Failed to subscribe to Redis channels:",
+        error,
+      );
     }
   }
 
@@ -105,10 +112,14 @@ class RedisEventEmitter {
    * @param options - Additional options
    * @returns The event ID
    */
-  async emit(type: string, data: any, options: {
-    userIds?: string[];
-    roles?: string[];
-  } = {}): Promise<string> {
+  async emit(
+    type: string,
+    data: any,
+    options: {
+      userIds?: string[];
+      roles?: string[];
+    } = {},
+  ): Promise<string> {
     // Generate event ID
     const id = crypto.randomUUID();
     const timestamp = Date.now();
@@ -121,8 +132,8 @@ class RedisEventEmitter {
       timestamp,
       targets: {
         userIds: options.userIds,
-        roles: options.roles
-      }
+        roles: options.roles,
+      },
     };
 
     // First, emit the event using the in-memory emitter for local clients
@@ -141,19 +152,26 @@ class RedisEventEmitter {
       await this.redis.ltrim(CHANNELS.EVENTS, 0, this.maxEvents - 1);
 
       // Publish the event to other instances
-      await this.redis.publish(CHANNELS.EVENTS, JSON.stringify({
-        event,
-        source: this.instanceId
-      }));
+      await this.redis.publish(
+        CHANNELS.EVENTS,
+        JSON.stringify({
+          event,
+          source: this.instanceId,
+        }),
+      );
 
       console.log(`[RedisEventEmitter] Emitted event: ${type}`, {
         id,
-        targets: options.userIds?.length || options.roles?.length
-          ? `${options.userIds?.length || 0} users, ${options.roles?.length || 0} roles`
-          : 'broadcast'
+        targets:
+          options.userIds?.length || options.roles?.length
+            ? `${options.userIds?.length || 0} users, ${options.roles?.length || 0} roles`
+            : "broadcast",
       });
     } catch (error) {
-      console.error("[RedisEventEmitter] Failed to emit event to Redis:", error);
+      console.error(
+        "[RedisEventEmitter] Failed to emit event to Redis:",
+        error,
+      );
     }
 
     return id;
@@ -166,7 +184,10 @@ class RedisEventEmitter {
    * @param since - Timestamp to get events since
    * @returns Array of events
    */
-  async getEventsForUser(userId: string, since?: number): Promise<EventRecord[]> {
+  async getEventsForUser(
+    userId: string,
+    since?: number,
+  ): Promise<EventRecord[]> {
     // If Redis is not available, fall back to in-memory events
     if (!this.redis) {
       return eventEmitter.getEventsForUser(userId, since);
@@ -178,7 +199,7 @@ class RedisEventEmitter {
 
       // Parse events
       const events: EventRecord[] = eventsJson
-        .map(json => {
+        .map((json) => {
           try {
             return JSON.parse(json);
           } catch (e) {
@@ -188,7 +209,7 @@ class RedisEventEmitter {
         .filter(Boolean);
 
       // Filter events for this user
-      return events.filter(event => {
+      return events.filter((event) => {
         // Include events after the 'since' timestamp
         if (since && event.timestamp <= since) {
           return false;
@@ -213,7 +234,10 @@ class RedisEventEmitter {
         return false;
       });
     } catch (error) {
-      console.error("[RedisEventEmitter] Failed to get events from Redis:", error);
+      console.error(
+        "[RedisEventEmitter] Failed to get events from Redis:",
+        error,
+      );
 
       // Fall back to in-memory events
       return eventEmitter.getEventsForUser(userId, since);
@@ -238,7 +262,7 @@ class RedisEventEmitter {
 
       // Parse events
       const events: EventRecord[] = eventsJson
-        .map(json => {
+        .map((json) => {
           try {
             return JSON.parse(json);
           } catch (e) {
@@ -249,12 +273,15 @@ class RedisEventEmitter {
 
       // Filter events by timestamp if needed
       if (since) {
-        return events.filter(event => event.timestamp > since);
+        return events.filter((event) => event.timestamp > since);
       }
 
       return events;
     } catch (error) {
-      console.error("[RedisEventEmitter] Failed to get events from Redis:", error);
+      console.error(
+        "[RedisEventEmitter] Failed to get events from Redis:",
+        error,
+      );
 
       // Fall back to in-memory events
       return eventEmitter.getAllEvents(since);
@@ -277,7 +304,10 @@ class RedisEventEmitter {
       // Clear events from Redis
       await this.redis.del(CHANNELS.EVENTS);
     } catch (error) {
-      console.error("[RedisEventEmitter] Failed to clear events from Redis:", error);
+      console.error(
+        "[RedisEventEmitter] Failed to clear events from Redis:",
+        error,
+      );
     }
   }
 
@@ -290,7 +320,7 @@ class RedisEventEmitter {
       return {
         ...eventEmitter.getStats(),
         redisAvailable: false,
-        instances: [this.instanceId]
+        instances: [this.instanceId],
       };
     }
 
@@ -298,10 +328,10 @@ class RedisEventEmitter {
       // Get all instances
       const instanceKeys = await this.redis.keys(`${CHANNELS.CLIENTS}:*`);
       const instances = await Promise.all(
-        instanceKeys.map(async key => {
+        instanceKeys.map(async (key) => {
           const instance = await this.redis?.get(key);
           return instance;
-        })
+        }),
       );
 
       // Get local stats
@@ -311,16 +341,19 @@ class RedisEventEmitter {
         ...localStats,
         redisAvailable: true,
         instances: instances.filter(Boolean),
-        totalInstances: instances.length
+        totalInstances: instances.length,
       };
     } catch (error) {
-      console.error("[RedisEventEmitter] Failed to get stats from Redis:", error);
+      console.error(
+        "[RedisEventEmitter] Failed to get stats from Redis:",
+        error,
+      );
 
       // Fall back to in-memory stats
       return {
         ...eventEmitter.getStats(),
         redisAvailable: false,
-        instances: [this.instanceId]
+        instances: [this.instanceId],
       };
     }
   }
@@ -348,23 +381,27 @@ export async function emitNotification(
     type?: string;
     icon?: string;
     id?: string;
-  } = {}
+  } = {},
 ): Promise<string> {
   const eventId = options.id || crypto.randomUUID();
   const timestamp = Date.now();
 
-  return await redisEventEmitter.emit('notification', {
-    id: eventId,
-    title,
-    message,
-    body: message, // For compatibility with different client implementations
-    type: options.type || 'info',
-    icon: options.icon,
-    timestamp
-  }, {
-    userIds: options.userIds,
-    roles: options.roles
-  });
+  return await redisEventEmitter.emit(
+    "notification",
+    {
+      id: eventId,
+      title,
+      message,
+      body: message, // For compatibility with different client implementations
+      type: options.type || "info",
+      icon: options.icon,
+      timestamp,
+    },
+    {
+      userIds: options.userIds,
+      roles: options.roles,
+    },
+  );
 }
 
 /**
@@ -384,20 +421,24 @@ export async function emitDashboardUpdate(
     id?: string;
     title?: string;
     message?: string;
-  } = {}
+  } = {},
 ): Promise<string> {
   const eventId = options.id || crypto.randomUUID();
   const timestamp = Date.now();
 
-  return await redisEventEmitter.emit('dashboardUpdate', {
-    id: eventId,
-    type: updateType,
-    data,
-    title: options.title || `Dashboard Update: ${updateType}`,
-    message: options.message || 'Dashboard data has been updated',
-    timestamp
-  }, {
-    userIds: options.userIds,
-    roles: options.roles
-  });
+  return await redisEventEmitter.emit(
+    "dashboardUpdate",
+    {
+      id: eventId,
+      type: updateType,
+      data,
+      title: options.title || `Dashboard Update: ${updateType}`,
+      message: options.message || "Dashboard data has been updated",
+      timestamp,
+    },
+    {
+      userIds: options.userIds,
+      roles: options.roles,
+    },
+  );
 }

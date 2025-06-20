@@ -38,7 +38,7 @@ export function PlanVsActualChart({
   const getComparisonData = (): ComparisonData[] => {
     const comparisonData = consolidatedData.branchData.map((actualBranch) => {
       const planBranch = planData.branchData.find(
-        (plan) => plan.branchId === actualBranch.branchId
+        (plan) => plan.branchId === actualBranch.branchId,
       );
 
       return {
@@ -57,7 +57,7 @@ export function PlanVsActualChart({
     });
 
     return comparisonData.filter(
-      (item) => item.planWriteOffs > 0 || item.planNinetyPlus > 0
+      (item) => item.planWriteOffs > 0 || item.planNinetyPlus > 0,
     );
   };
 
@@ -65,13 +65,15 @@ export function PlanVsActualChart({
 
   const overallWriteOffsAchievement =
     planData.metrics.totalWriteOffs > 0
-      ? (consolidatedData.metrics.totalWriteOffs / planData.metrics.totalWriteOffs) *
+      ? (consolidatedData.metrics.totalWriteOffs /
+          planData.metrics.totalWriteOffs) *
         100
       : 0;
 
   const overallNinetyPlusAchievement =
     planData.metrics.totalNinetyPlus > 0
-      ? (consolidatedData.metrics.totalNinetyPlus / planData.metrics.totalNinetyPlus) *
+      ? (consolidatedData.metrics.totalNinetyPlus /
+          planData.metrics.totalNinetyPlus) *
         100
       : 0;
 
@@ -95,8 +97,8 @@ export function PlanVsActualChart({
                       : "N/A"}
                   </span>
                   <span className="ml-2 text-sm text-gray-500">
-                    {formatKHRCurrency(consolidatedData.metrics.totalWriteOffs)} /{" "}
-                    {formatKHRCurrency(planData.metrics.totalWriteOffs)}
+                    {formatKHRCurrency(consolidatedData.metrics.totalWriteOffs)}{" "}
+                    / {formatKHRCurrency(planData.metrics.totalWriteOffs)}
                   </span>
                 </div>
               </div>
@@ -107,7 +109,7 @@ export function PlanVsActualChart({
                     consolidatedData.metrics.totalWriteOffs >=
                       planData.metrics.totalWriteOffs
                     ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                    : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                    : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
                 )}
               >
                 {planData.metrics.totalWriteOffs > 0
@@ -132,8 +134,10 @@ export function PlanVsActualChart({
                       : "N/A"}
                   </span>
                   <span className="ml-2 text-sm text-gray-500">
-                    {formatKHRCurrency(consolidatedData.metrics.totalNinetyPlus)} /{" "}
-                    {formatKHRCurrency(planData.metrics.totalNinetyPlus)}
+                    {formatKHRCurrency(
+                      consolidatedData.metrics.totalNinetyPlus,
+                    )}{" "}
+                    / {formatKHRCurrency(planData.metrics.totalNinetyPlus)}
                   </span>
                 </div>
               </div>
@@ -144,7 +148,7 @@ export function PlanVsActualChart({
                     consolidatedData.metrics.totalNinetyPlus >=
                       planData.metrics.totalNinetyPlus
                     ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                    : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                    : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
                 )}
               >
                 {planData.metrics.totalNinetyPlus > 0

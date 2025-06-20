@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
@@ -14,19 +14,19 @@ export async function GET() {
     // Fetch all roles
     const roles = await prisma.role.findMany({
       orderBy: {
-        name: 'asc'
-      }
+        name: "asc",
+      },
     });
 
     return NextResponse.json({
-      roles: roles.map(role => ({
+      roles: roles.map((role) => ({
         id: role.id,
         name: role.name,
-        description: role.description
-      }))
+        description: role.description,
+      })),
     });
   } catch (error) {
     console.error("Error fetching roles:", error);
     return new NextResponse("Internal Server Error", { status: 500 });
   }
-} 
+}

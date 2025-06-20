@@ -62,10 +62,14 @@ export function AdvancedProtectedRoute({
       if (permissions.length > 0) {
         if (requireAll) {
           // Must have all permissions
-          hasAccess = permissions.every(permission => hasPermission(permission));
+          hasAccess = permissions.every((permission) =>
+            hasPermission(permission),
+          );
         } else {
           // Must have at least one permission
-          hasAccess = permissions.some(permission => hasPermission(permission));
+          hasAccess = permissions.some((permission) =>
+            hasPermission(permission),
+          );
         }
       }
 
@@ -88,7 +92,7 @@ export function AdvancedProtectedRoute({
     requireAll,
     redirectTo,
     router,
-    isSessionExpired
+    isSessionExpired,
   ]);
 
   // Show loading state while checking authentication
@@ -108,10 +112,10 @@ export function AdvancedProtectedRoute({
   if (permissions.length > 0) {
     if (requireAll) {
       // Must have all permissions
-      hasAccess = permissions.every(permission => hasPermission(permission));
+      hasAccess = permissions.every((permission) => hasPermission(permission));
     } else {
       // Must have at least one permission
-      hasAccess = permissions.some(permission => hasPermission(permission));
+      hasAccess = permissions.some((permission) => hasPermission(permission));
     }
   }
 

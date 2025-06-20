@@ -9,14 +9,11 @@ export async function PUT(request: Request) {
     // Get the current user from the session
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const userId = session.user.id;
-    
+
     // Mark all unread notifications as read
     const updateResult = await prisma.inAppNotification.updateMany({
       where: {
@@ -28,7 +25,7 @@ export async function PUT(request: Request) {
         readAt: new Date(),
       },
     });
-    
+
     return NextResponse.json({
       success: true,
       count: updateResult.count,
@@ -37,7 +34,7 @@ export async function PUT(request: Request) {
     console.error("Error marking all notifications as read:", error);
     return NextResponse.json(
       { error: "Failed to mark notifications as read" },
-      { status: 500 }
+      { status: 500 },
     );
   }
-} 
+}

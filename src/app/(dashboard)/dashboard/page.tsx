@@ -10,7 +10,7 @@ import { ReportViewHandler } from "@/components/dashboard/ReportViewHandler";
 
 export default function DashboardPage() {
   return (
-    <ZustandDashboardProvider debug={process.env.NODE_ENV === 'development'}>
+    <ZustandDashboardProvider debug={process.env.NODE_ENV === "development"}>
       <RoleBasedLoadingGuard>
         <RoleBasedDashboard />
         {/* Handle report view from push notifications */}

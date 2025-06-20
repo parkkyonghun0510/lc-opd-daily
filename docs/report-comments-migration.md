@@ -5,12 +5,14 @@ This document outlines the migration process from the legacy comments system to 
 ## Background
 
 Previously, comments for reports were stored as a string in the `comments` field of the Report model. This approach had several limitations:
+
 - UTF-8 encoding issues when storing special characters or emojis
 - Limited ability to query or filter comments
 - No proper relational structure for comments
 - No support for threaded comments or replies
 
 The new approach uses a dedicated `ReportComment` model with a relation to the Report model, which provides:
+
 - Better handling of UTF-8 characters including emojis
 - Proper relational structure
 - Ability to query and filter comments
@@ -87,6 +89,7 @@ The following endpoints are deprecated and will be removed in a future update:
 ## Backward Compatibility
 
 For backward compatibility:
+
 - The legacy `comments` field is still present in the Report model
 - The deprecated endpoints still work but will create a ReportComment record in addition to updating the legacy comments field
 - New code should exclusively use the ReportComment model and related endpoints
@@ -94,6 +97,7 @@ For backward compatibility:
 ### Database Compatibility
 
 The migration tool is designed to be safe and efficient:
+
 - The migration processes the `comments` field from the Report model
 - The migration is safe to run multiple times and will skip reports that already have ReportComment records
 - The migration preserves the relationship between comments and their parent comments for threaded discussions
@@ -115,6 +119,7 @@ To create a reply to an existing comment:
 3. The comment will be linked to the parent comment and appear as a reply
 
 Example request:
+
 ```json
 POST /api/reports/[reportId]/report-comments
 {
@@ -139,6 +144,7 @@ When fetching comments, you can organize them into a hierarchical structure:
 #### Unknown argument `parentId`
 
 If you encounter an error like:
+
 ```
 Unknown argument `parentId`. Available options are marked with ?.
 ```
@@ -146,11 +152,13 @@ Unknown argument `parentId`. Available options are marked with ?.
 This indicates that the `parentId` field is missing from your ReportComment model in the database. To fix this:
 
 1. Make sure you've applied all migrations:
+
    ```bash
    npx prisma migrate deploy
    ```
 
 2. If the error persists, you may need to manually add the column:
+
    ```sql
    ALTER TABLE "ReportComment" ADD COLUMN "parentId" TEXT;
    CREATE INDEX "ReportComment_parentId_idx" ON "ReportComment"("parentId");
@@ -169,6 +177,7 @@ This indicates that the `parentId` field is missing from your ReportComment mode
 If you encounter schema drift errors when applying migrations, you may need to:
 
 1. Mark problematic migrations as resolved:
+
    ```bash
    npx prisma migrate resolve --applied [migration_name]
    ```
@@ -178,6 +187,7 @@ If you encounter schema drift errors when applying migrations, you may need to:
 ## Future Work
 
 In the future, we plan to:
+
 1. Standardize the database schema across all environments
 2. Eventually remove the legacy `comments` field from the Report model
 3. Remove the deprecated endpoints

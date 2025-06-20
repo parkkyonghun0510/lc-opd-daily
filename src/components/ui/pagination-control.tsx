@@ -7,11 +7,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { 
-  ChevronLeft, 
+import {
+  ChevronLeft,
   ChevronRight,
   ChevronsLeft,
-  ChevronsRight
+  ChevronsRight,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -83,7 +83,9 @@ export function PaginationControl({
   const endItem = Math.min(totalItems, currentPage * pageSize);
 
   return (
-    <div className={`flex flex-col sm:flex-row items-center justify-between gap-4 ${className}`}>
+    <div
+      className={`flex flex-col sm:flex-row items-center justify-between gap-4 ${className}`}
+    >
       <div className="flex items-center text-sm text-muted-foreground">
         <span>
           Showing {startItem} to {endItem} of {totalItems} items
@@ -163,4 +165,4 @@ export function PaginationControl({
       </div>
     </div>
   );
-} 
+}

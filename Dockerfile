@@ -3,11 +3,21 @@ FROM node:18-alpine AS base
 
 # Install dependencies only when needed
 FROM base AS deps
+<<<<<<< Updated upstream
 RUN apk add --no-cache libc6-compat
+=======
+RUN apk add --no-cache libc6-compat build-base python3 vips-dev
+>>>>>>> Stashed changes
 WORKDIR /app
 
 # Copy package files
 COPY package.json package-lock.json ./
+<<<<<<< Updated upstream
+=======
+# Skip husky install during npm ci
+ENV HUSKY=0
+ENV SHARP_IGNORE_GLOBAL_LIBVIPS=1
+>>>>>>> Stashed changes
 RUN npm ci --legacy-peer-deps
 
 # Rebuild the source code only when needed
@@ -20,6 +30,14 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED 1
 ENV NODE_ENV production
 
+<<<<<<< Updated upstream
+=======
+# Make scripts executable before running them
+RUN chmod +x ./scripts/build/*.sh
+RUN chmod +x ./scripts/deploy/*.sh
+RUN chmod +x ./scripts/db/*.sh
+
+>>>>>>> Stashed changes
 # Generate Prisma client
 RUN npx prisma generate
 
@@ -32,6 +50,10 @@ WORKDIR /app
 
 ENV NODE_ENV production
 ENV NEXT_TELEMETRY_DISABLED 1
+ENV SHARP_IGNORE_GLOBAL_LIBVIPS=1
+
+# Install required libraries for image processing
+RUN apk add --no-cache vips-dev
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
@@ -61,7 +83,9 @@ RUN npm ci --only=production
 RUN npx prisma generate
 
 # Make scripts executable
-RUN chmod +x ./scripts/*.sh
+RUN chmod +x ./scripts/build/*.sh
+RUN chmod +x ./scripts/deploy/*.sh
+RUN chmod +x ./scripts/db/*.sh
 
 # Install PM2 globally
 RUN npm install -g pm2

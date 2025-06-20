@@ -9,12 +9,12 @@ async function checkDatabaseHealth() {
   try {
     await prisma.$queryRaw`SELECT 1`;
     return {
-      status: 'up',
+      status: "up",
       responseTime: 0, // You could measure this more precisely
     };
   } catch (error) {
     return {
-      status: 'down',
+      status: "down",
       responseTime: 0,
     };
   }
@@ -26,16 +26,16 @@ async function checkStorageHealth() {
     // This is a placeholder. In a real app, you'd check actual storage metrics
     const totalStorage = 100 * 1024 * 1024 * 1024; // 100GB example
     const usedStorage = 30 * 1024 * 1024 * 1024; // 30GB example
-    
+
     const usagePercentage = (usedStorage / totalStorage) * 100;
-    
+
     return {
-      status: usagePercentage > 90 ? 'degraded' : 'up',
+      status: usagePercentage > 90 ? "degraded" : "up",
       responseTime: 0,
     };
   } catch (error) {
     return {
-      status: 'down',
+      status: "down",
       responseTime: 0,
     };
   }
@@ -46,12 +46,12 @@ async function checkCacheHealth() {
   try {
     // This is a placeholder. In a real app, you'd check your cache service
     return {
-      status: 'up',
+      status: "up",
       responseTime: 0,
     };
   } catch (error) {
     return {
-      status: 'down',
+      status: "down",
       responseTime: 0,
     };
   }
@@ -62,12 +62,12 @@ async function checkJobQueueHealth() {
   try {
     // This is a placeholder. In a real app, you'd check your job queue service
     return {
-      status: 'up',
+      status: "up",
       responseTime: 0,
     };
   } catch (error) {
     return {
-      status: 'down',
+      status: "down",
       responseTime: 0,
     };
   }
@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
     if (!token || token.role !== UserRole.ADMIN) {
       return NextResponse.json(
         { error: "Unauthorized - Admin access required" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -94,22 +94,22 @@ export async function GET(request: NextRequest) {
 
     // Determine overall system status
     const services = [
-      { name: 'Database', ...database },
-      { name: 'Storage', ...storage },
-      { name: 'Cache', ...cache },
-      { name: 'Job Queue', ...jobQueue },
+      { name: "Database", ...database },
+      { name: "Storage", ...storage },
+      { name: "Cache", ...cache },
+      { name: "Job Queue", ...jobQueue },
     ];
 
-    const downServices = services.filter(s => s.status === 'down');
-    const degradedServices = services.filter(s => s.status === 'degraded');
+    const downServices = services.filter((s) => s.status === "down");
+    const degradedServices = services.filter((s) => s.status === "degraded");
 
-    let status: 'healthy' | 'warning' | 'critical';
+    let status: "healthy" | "warning" | "critical";
     if (downServices.length > 0) {
-      status = 'critical';
+      status = "critical";
     } else if (degradedServices.length > 0) {
-      status = 'warning';
+      status = "warning";
     } else {
-      status = 'healthy';
+      status = "healthy";
     }
 
     return NextResponse.json({
@@ -118,10 +118,10 @@ export async function GET(request: NextRequest) {
       services,
     });
   } catch (error) {
-    console.error('Error checking system health:', error);
+    console.error("Error checking system health:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
-} 
+}

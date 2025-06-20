@@ -123,7 +123,7 @@ export default function SetupPage() {
       }, 3000);
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "An unknown error occurred"
+        err instanceof Error ? err.message : "An unknown error occurred",
       );
     } finally {
       setSetupLoading(false);

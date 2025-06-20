@@ -36,7 +36,7 @@ export async function getPrisma() {
 
 // Export a convenience function for querying
 export async function prismaQuery<T>(
-  queryFn: (prisma: PrismaClient) => Promise<T>
+  queryFn: (prisma: PrismaClient) => Promise<T>,
 ): Promise<T> {
   return queryFn(prismaInstance);
 }

@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { ReportDetailModal } from "@/components/reports/ReportDetailModal";
 import { Report } from "@/types/reports";
 
-interface ReportWithUser extends Omit<Report, 'user'> {
+interface ReportWithUser extends Omit<Report, "user"> {
   user: {
     id: string;
     name: string;
@@ -56,8 +56,8 @@ export function ReportViewHandler() {
           ReportComment: data.report.ReportComment?.map((comment: any) => ({
             ...comment,
             createdAt: comment.createdAt.toString(),
-            updatedAt: comment.updatedAt.toString()
-          }))
+            updatedAt: comment.updatedAt.toString(),
+          })),
         };
 
         setReport(reportWithStringDates);

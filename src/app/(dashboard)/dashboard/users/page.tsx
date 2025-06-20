@@ -19,17 +19,17 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
-import { 
-  Loader2, 
-  UserPlus, 
-  Search, 
-  Edit, 
-  Trash, 
-  Plus, 
-  Check, 
+import {
+  Loader2,
+  UserPlus,
+  Search,
+  Edit,
+  Trash,
+  Plus,
+  Check,
   X,
   SlidersHorizontal,
-  RefreshCw
+  RefreshCw,
 } from "lucide-react";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
@@ -103,36 +103,36 @@ export default function UsersPage() {
   const router = useRouter();
   const { toast } = useToast();
   const permissions = useUserPermissions();
-  
+
   // Advanced view state (for admins only)
   const [advancedView, setAdvancedView] = useState(false);
-  
+
   // User list and pagination
   const [users, setUsers] = useState<User[]>([]);
   const [meta, setMeta] = useState<Meta>({
     total: 0,
     page: 1,
     limit: 10,
-    pages: 1
+    pages: 1,
   });
-  
+
   // Loading and error states
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Filters
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [branchFilter, setBranchFilter] = useState("all");
   const [activeFilter, setActiveFilter] = useState("all");
-  
+
   // Dialog states
   const [branches, setBranches] = useState<Branch[]>([]);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  
+
   // Form data
   const [formData, setFormData] = useState({
     username: "",
@@ -143,11 +143,11 @@ export default function UsersPage() {
     branchId: "none",
     isActive: true,
   });
-  
+
   // Form submission state
   const [formSubmitting, setFormSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  
+
   // Check if user is admin
   const isAdmin = useMemo(() => {
     return permissions?.canManageUsers || false;
@@ -172,38 +172,38 @@ export default function UsersPage() {
   const fetchUsers = async (page = 1) => {
     setLoading(true);
     setError(null);
-    
+
     try {
       const queryParams = new URLSearchParams();
-      
+
       // Add pagination params
       queryParams.append("page", page.toString());
       queryParams.append("limit", meta.limit.toString());
-      
+
       // Add filters regardless of view mode
       if (search) queryParams.append("search", search);
       if (roleFilter !== "all") queryParams.append("role", roleFilter);
-      
+
       // Add advanced filters only in advanced view
       if (advancedView) {
         if (branchFilter !== "all") queryParams.append("branch", branchFilter);
         if (activeFilter !== "all") queryParams.append("status", activeFilter);
       }
-      
+
       const response = await fetch(`/api/users?${queryParams.toString()}`);
-      
+
       if (!response.ok) {
         throw new Error("Failed to fetch users");
       }
-      
+
       const data = await response.json();
-      
+
       setUsers(data.users || []);
       setMeta({
         total: data.total || 0,
         page: data.page || 1,
         limit: data.limit || 10,
-        pages: data.pages || 1
+        pages: data.pages || 1,
       });
     } catch (error) {
       console.error("Error fetching users:", error);
@@ -222,11 +222,11 @@ export default function UsersPage() {
   const fetchBranches = async () => {
     try {
       const response = await fetch("/api/branches");
-      
+
       if (!response.ok) {
         throw new Error("Failed to fetch branches");
       }
-      
+
       const data = await response.json();
       setBranches(data || []);
     } catch (error) {
@@ -237,12 +237,12 @@ export default function UsersPage() {
   // Filter users based on search term (for simple view)
   const filteredUsers = useMemo(() => {
     if (advancedView) return users; // In advanced view, filtering is done server-side
-    
+
     return users.filter(
       (user) =>
         user.name.toLowerCase().includes(search.toLowerCase()) ||
         user.email.toLowerCase().includes(search.toLowerCase()) ||
-        user.username.toLowerCase().includes(search.toLowerCase())
+        user.username.toLowerCase().includes(search.toLowerCase()),
     );
   }, [users, search, advancedView]);
 
@@ -324,7 +324,9 @@ export default function UsersPage() {
       });
     } catch (error) {
       console.error("Error creating user:", error);
-      setFormError(error instanceof Error ? error.message : "Failed to create user");
+      setFormError(
+        error instanceof Error ? error.message : "Failed to create user",
+      );
     } finally {
       setFormSubmitting(false);
     }
@@ -361,7 +363,9 @@ export default function UsersPage() {
       });
     } catch (error) {
       console.error("Error updating user:", error);
-      setFormError(error instanceof Error ? error.message : "Failed to update user");
+      setFormError(
+        error instanceof Error ? error.message : "Failed to update user",
+      );
     } finally {
       setFormSubmitting(false);
     }
@@ -390,7 +394,8 @@ export default function UsersPage() {
       console.error("Error deleting user:", error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to delete user",
+        description:
+          error instanceof Error ? error.message : "Failed to delete user",
         variant: "destructive",
       });
     }
@@ -409,7 +414,9 @@ export default function UsersPage() {
           <div className="flex items-center gap-2">
             {isAdmin && (
               <div className="flex items-center gap-2 mr-2">
-                <Label htmlFor="advanced-view" className="text-sm">Advanced</Label>
+                <Label htmlFor="advanced-view" className="text-sm">
+                  Advanced
+                </Label>
                 <Switch
                   id="advanced-view"
                   checked={advancedView}
@@ -417,7 +424,11 @@ export default function UsersPage() {
                 />
               </div>
             )}
-            <Button onClick={() => fetchUsers()} variant="outline" title="Refresh">
+            <Button
+              onClick={() => fetchUsers()}
+              variant="outline"
+              title="Refresh"
+            >
               <RefreshCw className="h-4 w-4" />
             </Button>
             {/* {permissions?.canManageUsers ? (
@@ -461,7 +472,8 @@ export default function UsersPage() {
                   <SelectItem value="all">All Roles</SelectItem>
                   {ROLES.map((role) => (
                     <SelectItem key={role} value={role}>
-                      {role.charAt(0).toUpperCase() + role.slice(1).toLowerCase()}
+                      {role.charAt(0).toUpperCase() +
+                        role.slice(1).toLowerCase()}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -523,7 +535,8 @@ export default function UsersPage() {
                     <SelectItem value="all">All Roles</SelectItem>
                     {ROLES.map((role) => (
                       <SelectItem key={role} value={role}>
-                        {role.charAt(0).toUpperCase() + role.slice(1).toLowerCase()}
+                        {role.charAt(0).toUpperCase() +
+                          role.slice(1).toLowerCase()}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -570,7 +583,9 @@ export default function UsersPage() {
                       <TableCell>{user.email}</TableCell>
                       <TableCell>
                         <Badge
-                          variant={user.role === "ADMIN" ? "destructive" : "outline"}
+                          variant={
+                            user.role === "ADMIN" ? "destructive" : "outline"
+                          }
                           className="capitalize bg-slate-100"
                         >
                           {user.role}
@@ -578,7 +593,9 @@ export default function UsersPage() {
                       </TableCell>
                       {advancedView && (
                         <TableCell>
-                          {user.branch ? `${user.branch.code} - ${user.branch.name}` : "-"}
+                          {user.branch
+                            ? `${user.branch.code} - ${user.branch.name}`
+                            : "-"}
                         </TableCell>
                       )}
                       <TableCell>
@@ -651,7 +668,7 @@ export default function UsersPage() {
                 >
                   Previous
                 </Button>
-                
+
                 <div className="flex items-center gap-1 mx-2">
                   {Array.from({ length: Math.min(5, meta.pages) }, (_, i) => {
                     let pageNum;
@@ -664,7 +681,7 @@ export default function UsersPage() {
                     } else {
                       pageNum = meta.page - 2 + i;
                     }
-                    
+
                     return (
                       <Button
                         key={pageNum}
@@ -678,12 +695,12 @@ export default function UsersPage() {
                       </Button>
                     );
                   })}
-                  
+
                   {meta.pages > 5 && meta.page < meta.pages - 2 && (
                     <span className="mx-1">...</span>
                   )}
                 </div>
-                
+
                 <Button
                   variant="outline"
                   size="sm"
@@ -703,11 +720,13 @@ export default function UsersPage() {
               </div>
             </div>
           )}
-          
+
           {/* Display pagination info */}
           {users.length > 0 && meta.pages > 1 && (
             <div className="text-sm text-center text-gray-500 mt-2">
-              Showing {(meta.page - 1) * meta.limit + 1} to {Math.min(meta.page * meta.limit, meta.total)} of {meta.total} users
+              Showing {(meta.page - 1) * meta.limit + 1} to{" "}
+              {Math.min(meta.page * meta.limit, meta.total)} of {meta.total}{" "}
+              users
             </div>
           )}
         </CardContent>
@@ -731,7 +750,9 @@ export default function UsersPage() {
                 <Input
                   id="name"
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
                   className="col-span-3"
                 />
               </div>
@@ -742,7 +763,9 @@ export default function UsersPage() {
                 <Input
                   id="username"
                   value={formData.username}
-                  onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, username: e.target.value })
+                  }
                   className="col-span-3"
                 />
               </div>
@@ -754,7 +777,9 @@ export default function UsersPage() {
                   id="email"
                   type="email"
                   value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, email: e.target.value })
+                  }
                   className="col-span-3"
                 />
               </div>
@@ -766,7 +791,9 @@ export default function UsersPage() {
                   id="password"
                   type="password"
                   value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, password: e.target.value })
+                  }
                   className="col-span-3"
                 />
               </div>
@@ -776,7 +803,9 @@ export default function UsersPage() {
                 </Label>
                 <Select
                   value={formData.role}
-                  onValueChange={(value) => setFormData({ ...formData, role: value })}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, role: value })
+                  }
                 >
                   <SelectTrigger className="col-span-3">
                     <SelectValue placeholder="Select a role" />
@@ -784,7 +813,8 @@ export default function UsersPage() {
                   <SelectContent>
                     {ROLES.map((role) => (
                       <SelectItem key={role} value={role}>
-                        {role.charAt(0).toUpperCase() + role.slice(1).toLowerCase()}
+                        {role.charAt(0).toUpperCase() +
+                          role.slice(1).toLowerCase()}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -796,7 +826,9 @@ export default function UsersPage() {
                 </Label>
                 <Select
                   value={formData.branchId}
-                  onValueChange={(value) => setFormData({ ...formData, branchId: value })}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, branchId: value })
+                  }
                 >
                   <SelectTrigger className="col-span-3">
                     <SelectValue placeholder="Select a branch" />
@@ -836,7 +868,10 @@ export default function UsersPage() {
               <div className="text-sm text-red-500 mb-4">{formError}</div>
             )}
             <DialogFooter>
-              <Button onClick={() => setCreateDialogOpen(false)} variant="outline">
+              <Button
+                onClick={() => setCreateDialogOpen(false)}
+                variant="outline"
+              >
                 Cancel
               </Button>
               <Button onClick={handleCreateUser} disabled={formSubmitting}>
@@ -860,9 +895,7 @@ export default function UsersPage() {
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
               <DialogTitle>Edit User</DialogTitle>
-              <DialogDescription>
-                Modify user information.
-              </DialogDescription>
+              <DialogDescription>Modify user information.</DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
@@ -872,7 +905,9 @@ export default function UsersPage() {
                 <Input
                   id="edit-name"
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
                   className="col-span-3"
                 />
               </div>
@@ -883,7 +918,9 @@ export default function UsersPage() {
                 <Input
                   id="edit-username"
                   value={formData.username}
-                  onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, username: e.target.value })
+                  }
                   className="col-span-3"
                 />
               </div>
@@ -895,7 +932,9 @@ export default function UsersPage() {
                   id="edit-email"
                   type="email"
                   value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, email: e.target.value })
+                  }
                   className="col-span-3"
                 />
               </div>
@@ -907,7 +946,9 @@ export default function UsersPage() {
                   id="edit-password"
                   type="password"
                   value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, password: e.target.value })
+                  }
                   placeholder="Leave blank to keep current"
                   className="col-span-3"
                 />
@@ -918,7 +959,9 @@ export default function UsersPage() {
                 </Label>
                 <Select
                   value={formData.role}
-                  onValueChange={(value) => setFormData({ ...formData, role: value })}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, role: value })
+                  }
                 >
                   <SelectTrigger className="col-span-3">
                     <SelectValue placeholder="Select a role" />
@@ -926,7 +969,8 @@ export default function UsersPage() {
                   <SelectContent>
                     {ROLES.map((role) => (
                       <SelectItem key={role} value={role}>
-                        {role.charAt(0).toUpperCase() + role.slice(1).toLowerCase()}
+                        {role.charAt(0).toUpperCase() +
+                          role.slice(1).toLowerCase()}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -938,7 +982,9 @@ export default function UsersPage() {
                 </Label>
                 <Select
                   value={formData.branchId}
-                  onValueChange={(value) => setFormData({ ...formData, branchId: value })}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, branchId: value })
+                  }
                 >
                   <SelectTrigger className="col-span-3">
                     <SelectValue placeholder="Select a branch" />
@@ -978,7 +1024,10 @@ export default function UsersPage() {
               <div className="text-sm text-red-500 mb-4">{formError}</div>
             )}
             <DialogFooter>
-              <Button onClick={() => setEditDialogOpen(false)} variant="outline">
+              <Button
+                onClick={() => setEditDialogOpen(false)}
+                variant="outline"
+              >
                 Cancel
               </Button>
               <Button onClick={handleUpdateUser} disabled={formSubmitting}>
@@ -1003,8 +1052,8 @@ export default function UsersPage() {
             <AlertDialogHeader>
               <AlertDialogTitle>Are you sure?</AlertDialogTitle>
               <AlertDialogDescription>
-                This action cannot be undone. This will permanently delete the user
-                account for {selectedUser?.name}.
+                This action cannot be undone. This will permanently delete the
+                user account for {selectedUser?.name}.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

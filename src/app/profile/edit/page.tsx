@@ -206,22 +206,25 @@ export default function EditProfilePage() {
       }
 
       const data = await response.json();
-      
+
       // Update user data
-      setUser(prev => prev ? { ...prev, image: data.avatarUrl } : null);
-      
+      setUser((prev) => (prev ? { ...prev, image: data.avatarUrl } : null));
+
       toast({
         title: "Success",
         description: "Profile picture updated successfully",
       });
-      
+
       // Clear file input
       setImageFile(null);
     } catch (error) {
       console.error("Error uploading profile picture:", error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to upload profile picture",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to upload profile picture",
         variant: "destructive",
       });
     } finally {
@@ -362,14 +365,14 @@ export default function EditProfilePage() {
                           <Loader2 className="h-6 w-6 text-white animate-spin" />
                         </div>
                       )}
-                      <AvatarImage 
-                        src={imagePreview || user?.image} 
+                      <AvatarImage
+                        src={imagePreview || user?.image}
                         referrerPolicy="no-referrer"
                         crossOrigin="anonymous"
                         onError={(e) => {
                           // If image fails to load, hide it and let the fallback show
                           const target = e.target as HTMLImageElement;
-                          target.style.display = 'none';
+                          target.style.display = "none";
                           console.error("Image failed to load:", user?.image);
                         }}
                       />
@@ -403,8 +406,8 @@ export default function EditProfilePage() {
                     </p>
                     {imageFile && (
                       <div className="flex space-x-2">
-                        <Button 
-                          size="sm" 
+                        <Button
+                          size="sm"
                           onClick={handleImageUpload}
                           disabled={uploadingImage}
                         >
@@ -413,7 +416,9 @@ export default function EditProfilePage() {
                               <Loader2 className="mr-2 h-3 w-3 animate-spin" />
                               Uploading...
                             </>
-                          ) : "Upload Now"}
+                          ) : (
+                            "Upload Now"
+                          )}
                         </Button>
                         <Button
                           size="sm"

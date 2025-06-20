@@ -1,7 +1,11 @@
 "use client";
 
-import { useAuth as useStoreAuth, useProfile } from '@/auth/store';
-import { hasPermission, hasBranchAccess, debugPermissions } from '@/auth/store/actions';
+import { useAuth as useStoreAuth, useProfile } from "@/auth/store";
+import {
+  hasPermission,
+  hasBranchAccess,
+  debugPermissions,
+} from "@/auth/store/actions";
 
 /**
  * Custom hook for authentication state and actions
@@ -33,13 +37,13 @@ export function usePermissions() {
     // Check if user has any of the specified permissions
     hasAnyPermission: (permissions: string[]) => {
       if (!isAuthenticated || !user) return false;
-      return permissions.some(permission => hasPermission(permission));
+      return permissions.some((permission) => hasPermission(permission));
     },
 
     // Check if user has all of the specified permissions
     hasAllPermissions: (permissions: string[]) => {
       if (!isAuthenticated || !user) return false;
-      return permissions.every(permission => hasPermission(permission));
+      return permissions.every((permission) => hasPermission(permission));
     },
 
     // Check if user has a specific role
@@ -61,8 +65,10 @@ export function usePermissions() {
 
     // Shorthand aliases for better readability
     can: (permission: string) => hasPermission(permission),
-    canAny: (permissions: string[]) => permissions.some(permission => hasPermission(permission)),
-    canAll: (permissions: string[]) => permissions.every(permission => hasPermission(permission)),
+    canAny: (permissions: string[]) =>
+      permissions.some((permission) => hasPermission(permission)),
+    canAll: (permissions: string[]) =>
+      permissions.every((permission) => hasPermission(permission)),
     is: (role: string | string[]) => {
       if (!isAuthenticated || !user) return false;
 

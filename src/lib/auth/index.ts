@@ -10,4 +10,4 @@ export interface SessionUser {
   assignedBranchIds?: string[];
 }
 
-export { authOptions }; 
+export { authOptions };

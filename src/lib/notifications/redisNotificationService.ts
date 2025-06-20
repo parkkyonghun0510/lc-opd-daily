@@ -5,17 +5,20 @@
  * It handles creating in-app notifications and sending real-time notifications via Redis.
  */
 
-import { prisma } from '@/lib/prisma';
-import { NotificationType, generateNotificationContent } from '@/utils/notificationTemplates';
-import { emitNotification } from '@/lib/realtime/redisEventEmitter';
-import { redis } from '@/lib/redis';
-import { trackNotificationEvent } from '@/utils/notificationTracking';
-import { NotificationEventType } from '@/types/notifications';
+import { prisma } from "@/lib/prisma";
+import {
+  NotificationType,
+  generateNotificationContent,
+} from "@/utils/notificationTemplates";
+import { emitNotification } from "@/lib/realtime/redisEventEmitter";
+import { redis } from "@/lib/redis";
+import { trackNotificationEvent } from "@/utils/notificationTracking";
+import { NotificationEventType } from "@/types/notifications";
 
 // Constants
-const NOTIFICATION_QUEUE_KEY = 'notifications:queue';
-const NOTIFICATION_PROCESSING_KEY = 'notifications:processing';
-const NOTIFICATION_HISTORY_KEY = 'notifications:history';
+const NOTIFICATION_QUEUE_KEY = "notifications:queue";
+const NOTIFICATION_PROCESSING_KEY = "notifications:processing";
+const NOTIFICATION_HISTORY_KEY = "notifications:history";
 const MAX_HISTORY_SIZE = 1000;
 
 // Notification interface
@@ -25,7 +28,7 @@ export interface NotificationMessage {
   data: any;
   userIds: string[];
   timestamp: string;
-  priority?: 'high' | 'normal' | 'low';
+  priority?: "high" | "normal" | "low";
   idempotencyKey?: string;
 }
 
@@ -40,7 +43,9 @@ export interface NotificationMessage {
  * @param notification - The notification message
  * @returns The notification ID
  */
-export async function sendNotification(notification: Omit<NotificationMessage, 'id' | 'timestamp'>): Promise<string> {
+export async function sendNotification(
+  notification: Omit<NotificationMessage, "id" | "timestamp">,
+): Promise<string> {
   try {
     // Generate a unique ID for the notification
     const id = crypto.randomUUID();
@@ -53,8 +58,8 @@ export async function sendNotification(notification: Omit<NotificationMessage, '
       data: notification.data || {},
       userIds: notification.userIds || [],
       timestamp,
-      priority: notification.priority || 'normal',
-      idempotencyKey: notification.idempotencyKey
+      priority: notification.priority || "normal",
+      idempotencyKey: notification.idempotencyKey,
     };
 
     // Store notification in Redis
@@ -68,7 +73,7 @@ export async function sendNotification(notification: Omit<NotificationMessage, '
 
     return id;
   } catch (error) {
-    console.error('Error sending notification:', error);
+    console.error("Error sending notification:", error);
     throw error;
   }
 }
@@ -79,26 +84,28 @@ export async function sendNotification(notification: Omit<NotificationMessage, '
  * @param notification - The notification to process
  * @returns Whether the notification was processed successfully
  */
-export async function processNotification(notification: NotificationMessage): Promise<boolean> {
+export async function processNotification(
+  notification: NotificationMessage,
+): Promise<boolean> {
   try {
     // Mark notification as being processed
     await redis.set(
       `${NOTIFICATION_PROCESSING_KEY}:${notification.id}`,
       JSON.stringify(notification),
-      { ex: 300 } // Expire after 5 minutes
+      { ex: 300 }, // Expire after 5 minutes
     );
 
     // 1. Create in-app notifications
     const inAppCount = await createInAppNotifications(
       notification.type as NotificationType,
       notification.data || {},
-      notification.userIds
+      notification.userIds,
     );
 
     // 2. Emit real-time notifications via Redis
     const notificationContent = generateNotificationContent(
       notification.type as NotificationType,
-      notification.data
+      notification.data,
     );
 
     // Send to each user
@@ -110,8 +117,8 @@ export async function processNotification(notification: NotificationMessage): Pr
           userIds: [userId],
           type: notification.type,
           icon: notificationContent.icon,
-          id: notification.id
-        }
+          id: notification.id,
+        },
       );
     }
 
@@ -121,8 +128,8 @@ export async function processNotification(notification: NotificationMessage): Pr
       JSON.stringify({
         ...notification,
         processedAt: new Date().toISOString(),
-        inAppCount
-      })
+        inAppCount,
+      }),
     );
 
     // Trim history to prevent unbounded growth
@@ -133,7 +140,7 @@ export async function processNotification(notification: NotificationMessage): Pr
 
     return true;
   } catch (error) {
-    console.error('Error processing notification:', error);
+    console.error("Error processing notification:", error);
 
     // Store the error in Redis for debugging
     await redis.set(
@@ -141,9 +148,9 @@ export async function processNotification(notification: NotificationMessage): Pr
       JSON.stringify({
         notification,
         error: error instanceof Error ? error.message : String(error),
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       }),
-      { ex: 86400 } // Expire after 24 hours
+      { ex: 86400 }, // Expire after 24 hours
     );
 
     return false;
@@ -161,14 +168,14 @@ export async function processNotification(notification: NotificationMessage): Pr
 async function createInAppNotifications(
   type: NotificationType,
   data: Record<string, any>,
-  userIds: string[]
+  userIds: string[],
 ): Promise<number> {
   try {
     // Generate notification content
     const content = generateNotificationContent(type, data);
 
     // Create notifications for each user
-    const notifications = userIds.map(userId => ({
+    const notifications = userIds.map((userId) => ({
       userId,
       title: content.title,
       body: content.body,
@@ -177,13 +184,13 @@ async function createInAppNotifications(
       isRead: false,
       data: {
         ...data,
-        icon: content.icon
-      }
+        icon: content.icon,
+      },
     }));
 
     // Create all notifications in a single database operation
     const result = await prisma.inAppNotification.createMany({
-      data: notifications
+      data: notifications,
     });
 
     // Create notification events for tracking
@@ -193,29 +200,29 @@ async function createInAppNotifications(
         where: {
           userId: { in: userIds },
           type,
-          createdAt: { gte: new Date(Date.now() - 5000) } // Created in the last 5 seconds
+          createdAt: { gte: new Date(Date.now() - 5000) }, // Created in the last 5 seconds
         },
-        select: { id: true }
+        select: { id: true },
       });
 
       // Create events for each notification
       if (createdNotifications.length > 0) {
         await prisma.notificationEvent.createMany({
-          data: createdNotifications.map(notification => ({
+          data: createdNotifications.map((notification) => ({
             notificationId: notification.id,
             event: NotificationEventType.DELIVERED,
             metadata: {
-              method: 'redis-notification-service',
-              timestamp: new Date().toISOString()
-            }
-          }))
+              method: "redis-notification-service",
+              timestamp: new Date().toISOString(),
+            },
+          })),
         });
       }
     }
 
     return result.count;
   } catch (error) {
-    console.error('Error creating in-app notifications:', error);
+    console.error("Error creating in-app notifications:", error);
     throw error;
   }
 }
@@ -226,12 +233,18 @@ async function createInAppNotifications(
  * @param limit - Maximum number of notifications to return
  * @returns Array of recent notifications
  */
-export async function getRecentNotifications(limit: number = 100): Promise<any[]> {
+export async function getRecentNotifications(
+  limit: number = 100,
+): Promise<any[]> {
   try {
-    const notifications = await redis.lrange(NOTIFICATION_HISTORY_KEY, 0, limit - 1);
-    return notifications.map(n => JSON.parse(n));
+    const notifications = await redis.lrange(
+      NOTIFICATION_HISTORY_KEY,
+      0,
+      limit - 1,
+    );
+    return notifications.map((n) => JSON.parse(n));
   } catch (error) {
-    console.error('Error getting recent notifications:', error);
+    console.error("Error getting recent notifications:", error);
     return [];
   }
 }
@@ -254,7 +267,7 @@ export async function getNotificationMetrics(): Promise<any> {
     const historyCount = await redis.llen(NOTIFICATION_HISTORY_KEY);
 
     // Get error count
-    const errorKeys = await redis.keys('notifications:errors:*');
+    const errorKeys = await redis.keys("notifications:errors:*");
     const errorCount = errorKeys.length;
 
     return {
@@ -262,13 +275,13 @@ export async function getNotificationMetrics(): Promise<any> {
       processingCount,
       historyCount,
       errorCount,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
   } catch (error) {
-    console.error('Error getting notification metrics:', error);
+    console.error("Error getting notification metrics:", error);
     return {
-      error: 'Failed to get metrics',
-      timestamp: new Date().toISOString()
+      error: "Failed to get metrics",
+      timestamp: new Date().toISOString(),
     };
   }
 }
@@ -280,19 +293,22 @@ export async function getNotificationMetrics(): Promise<any> {
  * @param userId - The ID of the user who owns the notification
  * @returns Whether the operation was successful
  */
-export async function markNotificationAsRead(notificationId: string, userId: string): Promise<boolean> {
+export async function markNotificationAsRead(
+  notificationId: string,
+  userId: string,
+): Promise<boolean> {
   try {
     // Update the notification in the database
     const notification = await prisma.inAppNotification.updateMany({
       where: {
         id: notificationId,
         userId: userId,
-        isRead: false
+        isRead: false,
       },
       data: {
         isRead: true,
-        readAt: new Date()
-      }
+        readAt: new Date(),
+      },
     });
 
     // Create a notification event for tracking
@@ -302,16 +318,16 @@ export async function markNotificationAsRead(notificationId: string, userId: str
           notificationId: notificationId,
           event: NotificationEventType.CLICKED,
           metadata: {
-            method: 'redis-notification-service',
-            timestamp: new Date().toISOString()
-          }
-        }
+            method: "redis-notification-service",
+            timestamp: new Date().toISOString(),
+          },
+        },
       });
     }
 
     return notification.count > 0;
   } catch (error) {
-    console.error('Error marking notification as read:', error);
+    console.error("Error marking notification as read:", error);
     return false;
   }
 }
@@ -322,48 +338,50 @@ export async function markNotificationAsRead(notificationId: string, userId: str
  * @param userId - The ID of the user
  * @returns The number of notifications marked as read
  */
-export async function markAllNotificationsAsRead(userId: string): Promise<number> {
+export async function markAllNotificationsAsRead(
+  userId: string,
+): Promise<number> {
   try {
     // Get all unread notifications for the user
     const unreadNotifications = await prisma.inAppNotification.findMany({
       where: {
         userId: userId,
-        isRead: false
+        isRead: false,
       },
       select: {
-        id: true
-      }
+        id: true,
+      },
     });
 
     // Update all notifications
     const result = await prisma.inAppNotification.updateMany({
       where: {
         userId: userId,
-        isRead: false
+        isRead: false,
       },
       data: {
         isRead: true,
-        readAt: new Date()
-      }
+        readAt: new Date(),
+      },
     });
 
     // Create notification events for tracking
     if (unreadNotifications.length > 0) {
       await prisma.notificationEvent.createMany({
-        data: unreadNotifications.map(notification => ({
+        data: unreadNotifications.map((notification) => ({
           notificationId: notification.id,
           event: NotificationEventType.CLICKED,
           metadata: {
-            method: 'redis-notification-service-bulk',
-            timestamp: new Date().toISOString()
-          }
-        }))
+            method: "redis-notification-service-bulk",
+            timestamp: new Date().toISOString(),
+          },
+        })),
       });
     }
 
     return result.count;
   } catch (error) {
-    console.error('Error marking all notifications as read:', error);
+    console.error("Error marking all notifications as read:", error);
     return 0;
   }
 }

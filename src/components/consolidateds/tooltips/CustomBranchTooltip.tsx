@@ -10,7 +10,10 @@ interface CustomBranchTooltipProps {
   payload?: Array<TooltipPayloadItem>;
 }
 
-export function CustomBranchTooltip({ active, payload }: CustomBranchTooltipProps) {
+export function CustomBranchTooltip({
+  active,
+  payload,
+}: CustomBranchTooltipProps) {
   if (!active || !payload || !payload.length) return null;
 
   const data = payload[0].payload;

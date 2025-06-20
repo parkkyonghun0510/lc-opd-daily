@@ -71,16 +71,16 @@ Once connected, you'll see events in the event log as they are received.
 
 ```tsx
 // Connect to a specific endpoint with a user ID
-<SSEDebugger 
-  endpoint="/api/sse" 
-  userId="user-123" 
+<SSEDebugger
+  endpoint="/api/sse"
+  userId="user-123"
 />
 
 // Connect to a specific endpoint with a user ID and token
-<SSEDebugger 
-  endpoint="/api/sse" 
-  userId="user-123" 
-  token="jwt-token" 
+<SSEDebugger
+  endpoint="/api/sse"
+  userId="user-123"
+  token="jwt-token"
 />
 ```
 

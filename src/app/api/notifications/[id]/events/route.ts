@@ -9,7 +9,7 @@ import { prisma } from "@/lib/prisma";
  */
 export async function GET(
   req: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     // Check user session
@@ -19,30 +19,30 @@ export async function GET(
     }
 
     const { id } = await context.params;
-    
+
     // Verify notification belongs to user
     const notification = await prisma.inAppNotification.findFirst({
       where: {
         id,
-        userId: session.user.id
-      }
+        userId: session.user.id,
+      },
     });
 
     if (!notification) {
       return NextResponse.json(
         { error: "Notification not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     // Fetch notification events
     const events = await prisma.notificationEvent.findMany({
       where: {
-        notificationId: id
+        notificationId: id,
       },
       orderBy: {
-        timestamp: 'asc'
-      }
+        timestamp: "asc",
+      },
     });
 
     return NextResponse.json({ events });
@@ -50,7 +50,7 @@ export async function GET(
     console.error("Error fetching notification events:", error);
     return NextResponse.json(
       { error: "Failed to fetch notification events" },
-      { status: 500 }
+      { status: 500 },
     );
   }
-} 
+}

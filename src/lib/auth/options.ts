@@ -23,8 +23,8 @@ export const authOptions: NextAuthOptions = {
           where: {
             OR: [
               { email: credentials.username },
-              { username: credentials.username }
-            ]
+              { username: credentials.username },
+            ],
           },
           select: {
             id: true,
@@ -44,15 +44,22 @@ export const authOptions: NextAuthOptions = {
         }
 
         if (!user.isActive) {
-          throw new Error("Account is inactive. Please contact an administrator.");
+          throw new Error(
+            "Account is inactive. Please contact an administrator.",
+          );
         }
 
         // Check if user needs branch assignment
         if (!user.branchId && user.role !== "ADMIN") {
-          throw new Error("No branch assigned. Please contact your administrator to assign a branch.");
+          throw new Error(
+            "No branch assigned. Please contact your administrator to assign a branch.",
+          );
         }
 
-        const isPasswordValid = await compare(credentials.password, user.password);
+        const isPasswordValid = await compare(
+          credentials.password,
+          user.password,
+        );
 
         if (!isPasswordValid) {
           throw new Error("Invalid credentials");

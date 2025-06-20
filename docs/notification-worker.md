@@ -32,6 +32,7 @@ npm run worker:start
 ```
 
 This will:
+
 1. Load environment variables from `.env.local`
 2. Start the worker process using PM2 with the `ecosystem.worker.config.cjs` configuration
 3. Configure automatic restarts if the worker crashes
@@ -39,16 +40,19 @@ This will:
 ## Managing the Worker
 
 - **Stop the worker**:
+
   ```bash
   npm run worker:stop
   ```
 
 - **View worker logs**:
+
   ```bash
   npm run worker:logs
   ```
 
 - **Check worker status**:
+
   ```bash
   npm run worker:status
   ```
@@ -61,7 +65,8 @@ This will:
 ## PM2 Configuration
 
 The worker uses its own PM2 configuration file:
-- **Main file**: `ecosystem.worker.config.cjs` 
+
+- **Main file**: `ecosystem.worker.config.cjs`
 - This is separate from the main app configuration in `ecosystem.config.cjs`
 
 ## Testing the Worker
@@ -69,6 +74,7 @@ The worker uses its own PM2 configuration file:
 You can test the notification system with these commands:
 
 1. **Test SQS connection**:
+
    ```bash
    npm run test:sqs
    ```

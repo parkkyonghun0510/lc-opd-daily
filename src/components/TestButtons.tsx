@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
-import { Button } from '@/components/ui/button';
+import { Button } from "@/components/ui/button";
 
 export function TestSSEButton() {
   const handleClick = () => {
     // Create script element
-    const script = document.createElement('script');
+    const script = document.createElement("script");
     script.innerHTML = `
       // Simple SSE client
       const eventSource = new EventSource('/api/realtime/sse?clientType=test&role=user&_t=' + Date.now());
@@ -38,31 +38,27 @@ export function TestSSEButton() {
     document.body.appendChild(script);
   };
 
-  return (
-    <Button onClick={handleClick}>
-      Test SSE Connection
-    </Button>
-  );
+  return <Button onClick={handleClick}>Test SSE Connection</Button>;
 }
 
 export function TestEventButton() {
   const handleClick = async () => {
     try {
-      const response = await fetch('/api/realtime/test', {
-        method: 'POST',
+      const response = await fetch("/api/realtime/test", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json'
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          type: 'notification',
-          message: 'Test notification from client'
-        })
+          type: "notification",
+          message: "Test notification from client",
+        }),
       });
-      
+
       const data = await response.json();
-      console.log('Test event sent:', data);
+      console.log("Test event sent:", data);
     } catch (err) {
-      console.error('Error sending test event:', err);
+      console.error("Error sending test event:", err);
     }
   };
 
@@ -76,7 +72,7 @@ export function TestEventButton() {
 export function TestPollingButton() {
   const handleClick = () => {
     // Create script element
-    const script = document.createElement('script');
+    const script = document.createElement("script");
     script.innerHTML = `
       // Simple polling client
       async function pollForUpdates() {
@@ -107,9 +103,5 @@ export function TestPollingButton() {
     document.body.appendChild(script);
   };
 
-  return (
-    <Button onClick={handleClick}>
-      Test Polling
-    </Button>
-  );
+  return <Button onClick={handleClick}>Test Polling</Button>;
 }

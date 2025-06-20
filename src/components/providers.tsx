@@ -18,7 +18,8 @@ import { HybridRealtimeProvider } from "@/components/providers/HybridRealtimePro
 
 // Separate component to use the useUserData hook
 function AppContent({ children }: { children: React.ReactNode }) {
-  const { serverError, refreshUserData, persistentError, handleClearAuth } = useUserData();
+  const { serverError, refreshUserData, persistentError, handleClearAuth } =
+    useUserData();
 
   // Warm up the cache on mount
   useEffect(() => {
@@ -73,7 +74,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
               <HybridRealtimeProvider
                 options={{
                   pollingInterval: 15000, // 15 seconds
-                  debug: process.env.NODE_ENV === 'development'
+                  debug: process.env.NODE_ENV === "development",
                 }}
               >
                 <AppContent>{children}</AppContent>

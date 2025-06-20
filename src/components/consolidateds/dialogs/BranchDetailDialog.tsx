@@ -1,11 +1,30 @@
 "use client";
 
 import { formatKHRCurrency } from "@/lib/utils";
-import { FileSpreadsheetIcon, TrendingUp, TrendingDown, Minus } from "lucide-react";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  FileSpreadsheetIcon,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+} from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { BranchDetailDialogProps } from "../types/consolidated-types";
@@ -59,7 +78,7 @@ export function BranchDetailDialog({
                         ? "text-red-500"
                         : (selectedBranchData?.writeOffsTrend || 0) < 0
                           ? "text-green-500"
-                          : "text-yellow-500"
+                          : "text-yellow-500",
                     )}
                   >
                     {(selectedBranchData?.writeOffsTrend || 0) !== 0
@@ -98,7 +117,7 @@ export function BranchDetailDialog({
                         ? "text-red-500"
                         : (selectedBranchData?.ninetyPlusTrend || 0) < 0
                           ? "text-green-500"
-                          : "text-yellow-500"
+                          : "text-yellow-500",
                     )}
                   >
                     {(selectedBranchData?.ninetyPlusTrend || 0) !== 0

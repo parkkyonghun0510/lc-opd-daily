@@ -20,7 +20,7 @@ class KeyboardShortcutManager {
    */
   register(
     options: KeyboardShortcutOptions,
-    handler: KeyboardShortcutHandler
+    handler: KeyboardShortcutHandler,
   ): void {
     const key = this.getShortcutKey(options);
     this.shortcuts.set(key, handler);
@@ -98,14 +98,14 @@ export const keyboardShortcuts = new KeyboardShortcutManager();
 // Register global keyboard event listener
 if (typeof window !== "undefined") {
   window.addEventListener("keydown", (event) =>
-    keyboardShortcuts.handleKeyDown(event)
+    keyboardShortcuts.handleKeyDown(event),
   );
 }
 
 // Export a hook for using keyboard shortcuts in React components
 export function useKeyboardShortcut(
   options: KeyboardShortcutOptions,
-  handler: KeyboardShortcutHandler
+  handler: KeyboardShortcutHandler,
 ) {
   React.useEffect(() => {
     keyboardShortcuts.register(options, handler);
