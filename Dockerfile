@@ -26,6 +26,9 @@ RUN chmod +x ./scripts/*.sh
 # Generate Prisma client
 RUN npx prisma generate
 
+# Install bash for scripts
+RUN apk add --no-cache bash
+
 # Build the application with force option to bypass dependency errors
 RUN npm run build:production:force
 
@@ -55,6 +58,9 @@ COPY --from=builder /app/prisma ./prisma
 # Copy worker and scripts
 COPY --from=builder /app/scripts ./scripts
 COPY --from=builder /app/ecosystem.production.config.cjs ./
+
+# Install bash for scripts
+RUN apk add --no-cache bash
 
 # Install only production dependencies
 COPY package.json package-lock.json ./
