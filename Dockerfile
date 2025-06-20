@@ -8,6 +8,8 @@ WORKDIR /app
 
 # Copy package files
 COPY package.json package-lock.json ./
+# Skip husky install during npm ci
+ENV HUSKY=0
 RUN npm ci --legacy-peer-deps
 
 # Rebuild the source code only when needed
@@ -64,6 +66,8 @@ RUN apk add --no-cache bash
 
 # Install only production dependencies
 COPY package.json package-lock.json ./
+# Skip husky install during npm ci
+ENV HUSKY=0
 RUN npm ci --legacy-peer-deps --only=production
 
 # Generate Prisma client in production
