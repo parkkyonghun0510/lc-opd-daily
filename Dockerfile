@@ -20,6 +20,9 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED 1
 ENV NODE_ENV production
 
+# Make scripts executable before running them
+RUN chmod +x ./scripts/*.sh
+
 # Generate Prisma client
 RUN npx prisma generate
 
