@@ -1,0 +1,1 @@
+web: npm install -g pm2 && pm2-runtime ecosystem.production.config.cjs

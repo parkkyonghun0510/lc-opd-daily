@@ -1,0 +1,11 @@
+[phases.setup]
+aptPkgs = ['libc6-compat', 'build-essential', 'python3']
+
+[phases.install]
+cmds = ['npm ci --legacy-peer-deps']
+
+[phases.build]
+cmds = ['npm run build:railway']
+
+[start]
+cmd = 'npm install -g pm2 && pm2-runtime ecosystem.production.config.cjs'
