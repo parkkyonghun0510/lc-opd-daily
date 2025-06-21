@@ -183,7 +183,7 @@ if [[ "$BACKUP_FILE" == *.gz ]]; then
   
   # First attempt: Try direct restore with errors ignored
   echo "Attempt 1: Direct restore with errors ignored"
-  gunzip -c "$BACKUP_PATH" | pg_restore -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" --clean --no-owner --no-comments || true
+  gunzip -c "$BACKUP_PATH" | psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" || true
   
   # Check if restore was successful by querying a table
   if psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c "SELECT COUNT(*) FROM \"Report\";" > /dev/null 2>&1; then
