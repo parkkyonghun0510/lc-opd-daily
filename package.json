@@ -10,16 +10,10 @@
     "dev": "next dev",
     "build": "next build",
     "build:production": "NODE_ENV=production next build --no-lint",
-<<<<<<< Updated upstream
-    "build:production:force": "./scripts/production-build.sh",
-    "patch-deps": "node scripts/patch-dependencies.js",
-    "deploy": "bash scripts/deploy-lightsail.sh",
-=======
     "build:production:force": "bash $(pwd)/scripts/build/production-build.sh",
     "build:railway": "bash $(pwd)/scripts/build/railway-build.sh",
     "patch-deps": "node scripts/utils/patch-dependencies.js",
     "deploy": "bash scripts/deploy/deploy-lightsail.sh",
->>>>>>> Stashed changes
     "build:deploy": "npm run build:production && npm run deploy",
     "build:deploy:no-lint": "NODE_ENV=production next build --no-lint && npm run deploy",
     "start": "next start",

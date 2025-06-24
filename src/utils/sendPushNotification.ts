@@ -1,7 +1,7 @@
 interface PushNotificationPayload {
   title: string;
   body: string;
-  data?: Record<string, any>;
+  data?: Record<string, unknown>;
 }
 
 export async function sendPushNotification(payload: PushNotificationPayload) {
