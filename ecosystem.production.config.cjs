@@ -7,6 +7,8 @@ module.exports = {
       exec_mode: "cluster",
       watch: false,
       max_memory_restart: "1G",
+      shutdown_with_message: true,
+      kill_timeout: 3000,
       env: {
         NODE_ENV: "production",
         PORT: 3000
@@ -21,6 +23,8 @@ module.exports = {
       autorestart: true,
       watch: false,
       max_memory_restart: "500M",
+      shutdown_with_message: true,
+      kill_timeout: 3000,
       env: {
         NODE_ENV: "production"
       },
