@@ -165,8 +165,8 @@ export async function getUsersForNotification(
   // If a submitter is provided, always include them in target users
   if (data.userId || data.submittedBy) {
     const submitterId = data.userId || data.submittedBy;
-    if (submitterId && !userIds.includes(submitterId)) {
-      userIds.push(submitterId);
+    if (submitterId && !userIds.includes(submitterId as string)) {
+      userIds.push(submitterId as string);
     }
   }
 
@@ -205,7 +205,7 @@ export async function getUsersForNotification(
         // ONLY notify the report submitter
         if (data.reportId) {
           const report = await prisma.report.findUnique({
-            where: { id: data.reportId },
+            where: { id: data.reportId as string },
             select: { submittedBy: true },
           });
           if (report?.submittedBy) {
@@ -223,7 +223,7 @@ export async function getUsersForNotification(
         // ONLY notify the report submitter
         if (data.reportId) {
           const report = await prisma.report.findUnique({
-            where: { id: data.reportId },
+            where: { id: data.reportId as string },
             select: { submittedBy: true },
           });
           if (report?.submittedBy) {
@@ -241,7 +241,7 @@ export async function getUsersForNotification(
         // Similar to rejection but focus on submitter and their immediate supervisors
         if (data.reportId) {
           const report = await prisma.report.findUnique({
-            where: { id: data.reportId },
+            where: { id: data.reportId as string },
             select: { submittedBy: true, branchId: true },
           });
 
@@ -400,7 +400,7 @@ export async function getUsersForNotification(
         // For comments, notify users involved with the report
         if (data.reportId) {
           const report = await prisma.report.findUnique({
-            where: { id: data.reportId },
+            where: { id: data.reportId as string },
             select: { submittedBy: true, branchId: true },
           });
 
@@ -469,8 +469,8 @@ export async function getUsersForNotification(
           // If branch hierarchy targeting is specified
           if (data.includeSubBranches) {
             // Include users from sub-branches
-            const subBranches = await getSubBranches(data.branchId);
-            const allBranchIds = [data.branchId, ...subBranches];
+            const subBranches = await getSubBranches(data.branchId as string);
+            const allBranchIds = [data.branchId as string, ...subBranches];
 
             const branchUsers = await prisma.user.findMany({
               where: {
@@ -498,7 +498,7 @@ export async function getUsersForNotification(
             userIds.push(...branchUsers.map((user) => user.id));
           } else if (data.includeParentBranches) {
             // Include users from parent branches
-            const parentBranches = await getBranchHierarchy(data.branchId);
+            const parentBranches = await getBranchHierarchy(data.branchId as string);
 
             const branchUsers = await prisma.user.findMany({
               where: {

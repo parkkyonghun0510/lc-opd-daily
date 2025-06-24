@@ -1,5 +1,5 @@
 import { Redis } from "@upstash/redis";
-import { ServerResponse } from "http";
+import { ResponseLike } from "./sseHandler";
 
 /**
  * Client connection information
@@ -7,7 +7,7 @@ import { ServerResponse } from "http";
 type Client = {
   id: string;
   userId: string;
-  response: ServerResponse;
+  response: ResponseLike;
   connectedAt: number;
   lastActivity: number;
   metadata?: Record<string, unknown>;
@@ -187,7 +187,7 @@ class RedisSSEHandler {
   async addClient(
     id: string,
     userId: string,
-    response: ServerResponse,
+    response: ResponseLike,
     metadata?: Record<string, unknown>,
   ) {
     const now = Date.now();
@@ -363,7 +363,7 @@ class RedisSSEHandler {
   /**
    * Send a properly formatted SSE event
    */
-  private sendEvent(response: ServerResponse, event: SSEEvent) {
+  private sendEvent(response: ResponseLike, event: SSEEvent) {
     try {
       // Format the event according to SSE specification
       let message = "";

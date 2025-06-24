@@ -1,6 +1,6 @@
 {
   "name": "project",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "private": true,
   "type": "module",
   "engines": {
@@ -168,7 +168,7 @@
     "postcss": "^8.4.31",
     "prettier": "^3.1.0",
     "prisma": "^6.6.0",
-    "sharp": "^0.33.7",
+    "sharp": "^0.32.6",
     "tailwindcss": "^4",
     "ts-jest": "^29.1.1",
     "ts-node": "^10.9.2",

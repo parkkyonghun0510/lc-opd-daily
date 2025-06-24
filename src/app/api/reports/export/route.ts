@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
     const accessibleBranchIds = accessibleBranches.map((branch) => branch.id);
 
     // Build where clause
-    const where: Record<string, unknown> = {
+    const where: Record<string, any> = {
       branchId: {
         in: accessibleBranchIds,
       },
@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
     if (date) {
       where.date = new Date(date);
     } else if (startDate || endDate) {
-      where.date = {};
+      where.date = {} as { gte?: Date; lte?: Date };
       if (startDate) {
         where.date.gte = new Date(startDate);
       }
@@ -204,7 +204,7 @@ export async function GET(request: NextRequest) {
 
 async function transformReportsBatch(batch: Record<string, unknown>[]) {
   // Get all unique user IDs from the batch
-  const userIds = [...new Set(batch.map((report) => report.submittedBy))];
+  const userIds = [...new Set(batch.map((report) => report.submittedBy))] as string[];
 
   // Fetch user data in a single query
   const users = await prisma.user.findMany({
@@ -225,7 +225,7 @@ async function transformReportsBatch(batch: Record<string, unknown>[]) {
 
   // Transform each report
   return batch.map((report) => {
-    const user = userMap.get(report.submittedBy);
+    const user = userMap.get(report.submittedBy as string);
 
     return {
       id: report.id,

@@ -2,12 +2,19 @@ import { ServerResponse } from "http";
 import { sseMetrics } from "./sseMetrics";
 
 /**
+ * Response-like interface that only requires a write method
+ */
+export interface ResponseLike {
+  write: (chunk: string) => void;
+}
+
+/**
  * Client connection information
  */
 type Client = {
   id: string;
   userId: string;
-  response: ServerResponse;
+  response: ResponseLike;
   connectedAt: number;
   lastActivity: number;
   metadata?: Record<string, unknown>;
@@ -51,7 +58,7 @@ class SSEHandler {
   addClient(
     id: string,
     userId: string,
-    response: ServerResponse,
+    response: ResponseLike,
     metadata?: Record<string, unknown>,
   ) {
     const now = Date.now();
@@ -189,7 +196,7 @@ class SSEHandler {
   /**
    * Send a properly formatted SSE event
    */
-  private sendEvent(response: ServerResponse, event: SSEEvent) {
+  private sendEvent(response: ResponseLike, event: SSEEvent) {
     try {
       // Format the event according to SSE specification
       let message = "";
