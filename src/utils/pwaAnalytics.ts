@@ -28,6 +28,7 @@ export const trackPWAEvent = async (event: PWAEvent) => {
         ...event,
         timestamp: Date.now(),
       });
+      console.error("Failed to send analytics, stored for retry:", error);
     }
   }
 };

@@ -9,15 +9,17 @@
  * Run this script via a scheduled task (e.g., cron job)
  */
 import { PrismaClient } from "@prisma/client";
-import { exec } from "child_process";
-import { promisify } from "util";
+// import { exec } from "child_process";
+// import { promisify } from "util";
 
-const execAsync = promisify(exec);
+// const execAsync = promisify(exec);
+// Note: exec and promisify are commented out as they're not currently used
 const prisma = new PrismaClient();
 
 async function runMaintenance() {
   //console.log('Starting database maintenance...');
-  const startTime = Date.now();
+  // Track start time for potential logging
+  // const startTime = Date.now();
 
   try {
     // Get database connection info from Prisma
@@ -107,10 +109,10 @@ async function runMaintenance() {
       //console.log('\nUnused indexes detected:');
       //console.log('====================================');
       //console.log('The following indexes have low usage and could be candidates for removal:');
-
-      for (const index of unusedIndexes) {
-        //console.log(`- ${index.index_name} on ${index.table_name} (${index.index_size}, ${index.index_scans} scans)`);
-      }
+      // Uncomment this loop when index reporting is needed
+      // for (const index of unusedIndexes) {
+      //   console.log(`- ${index.index_name} on ${index.table_name} (${index.index_size}, ${index.index_scans} scans)`);
+      // }
       //console.log('\nReview these indexes before removing them.');
     } else {
       //console.log('No unused indexes found');
@@ -135,13 +137,13 @@ async function runMaintenance() {
     const tableSizes = await prisma.$queryRawUnsafe(tableSizesQuery);
 
     if (Array.isArray(tableSizes)) {
-      for (const table of tableSizes) {
-        //console.log(`- ${table.table_name}: ${table.total_size} (${table.row_count} rows)`);
-      }
+      // Uncomment this loop when table size reporting is needed
+      // for (const table of tableSizes) {
+      //   console.log(`- ${table.table_name}: ${table.total_size} (${table.row_count} rows)`);
+      // }
     }
 
-    const elapsedTime = (Date.now() - startTime) / 1000;
-    //console.log(`\nDatabase maintenance completed in ${elapsedTime.toFixed(2)} seconds`);
+    //console.log('\nDatabase maintenance completed successfully');
   } catch (error) {
     console.error("Error during database maintenance:", error);
   } finally {

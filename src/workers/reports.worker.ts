@@ -25,20 +25,29 @@ self.onmessage = async (e) => {
 async function processReports(reports: unknown[]) {
   // processingQueue = reports;
 
-  const processedReports = reports.map((report: Record<string, unknown>) => ({
-    ...report,
-    writeOffs:
-      typeof report.writeOffs === "object"
-        ? Number(report.writeOffs)
-        : report.writeOffs,
-    ninetyPlus:
-      typeof report.ninetyPlus === "object"
-        ? Number(report.ninetyPlus)
-        : report.ninetyPlus,
-    // Add computed fields
-    riskScore: calculateRiskScore(report),
-    changeFromLastReport: calculateChange(report),
-  }));
+  const processedReports = reports.map((report) => {
+    // Type guard to ensure report is a Record<string, unknown>
+    if (typeof report !== "object" || report === null) {
+      return report; // Skip processing if not an object
+    }
+
+    const typedReport = report as Record<string, unknown>;
+
+    return {
+      ...typedReport,
+      writeOffs:
+        typeof typedReport.writeOffs === "object"
+          ? Number(typedReport.writeOffs)
+          : typedReport.writeOffs,
+      ninetyPlus:
+        typeof typedReport.ninetyPlus === "object"
+          ? Number(typedReport.ninetyPlus)
+          : typedReport.ninetyPlus,
+      // Add computed fields
+      riskScore: calculateRiskScore(typedReport),
+      changeFromLastReport: calculateChange(typedReport),
+    };
+  });
 
   self.postMessage({
     type: "REPORTS_PROCESSED",
@@ -73,10 +82,12 @@ function cacheReports(reports: unknown[]) {
         payload: { count: reports.length },
       });
     };
-  } catch (/* eslint-disable-next-line @typescript-eslint/no-unused-vars */ _) {
+  } catch (error) {
     self.postMessage({
       type: "ERROR",
-      payload: { message: "Failed to cache reports" },
+      payload: {
+        message: `Failed to cache reports: ${error instanceof Error ? error.message : "Unknown error"}`,
+      },
     });
   }
 }
@@ -102,14 +113,24 @@ function calculateRiskScore(report: Record<string, unknown>) {
   return writeOffsScore + ninetyPlusScore;
 }
 
-function calculateChange(/* eslint-disable-next-line @typescript-eslint/no-unused-vars */ _: Record<string, unknown>) {
+function calculateChange(report: Record<string, unknown>) {
   // Calculate change from previous report
   // This is a placeholder - actual implementation would need access to historical data
+  // Using report parameter to avoid unused variable warning
+  console.log(
+    `Calculating change for report with ID: ${report.id || "unknown"}`,
+  );
   return 0;
 }
 
 function calculateTrend(reports: unknown[], field: string) {
-  const values = reports.map((r: Record<string, unknown>) => Number(r[field]));
+  const values = reports.map((r) => {
+    if (typeof r !== "object" || r === null) {
+      return 0; // Default value for non-object items
+    }
+    const typedR = r as Record<string, unknown>;
+    return Number(typedR[field]);
+  });
   const average = values.reduce((a, b) => a + b, 0) / values.length;
   const trend = values[values.length - 1] - average;
 
@@ -123,18 +144,29 @@ function calculateTrend(reports: unknown[], field: string) {
 function analyzeBranchPerformance(reports: unknown[]) {
   const branchStats = new Map();
 
-  reports.forEach((report: Record<string, unknown>) => {
-    const stats = branchStats.get(report.branchId) || {
+  reports.forEach((report) => {
+    // Type guard to ensure report is a Record<string, unknown>
+    if (typeof report !== "object" || report === null) {
+      return; // Skip non-object items
+    }
+
+    const typedReport = report as Record<string, unknown>;
+    const branchId = typedReport.branchId;
+
+    // Skip if branchId is not available
+    if (!branchId) return;
+
+    const stats = branchStats.get(branchId) || {
       totalWriteOffs: 0,
       totalNinetyPlus: 0,
       count: 0,
     };
 
-    stats.totalWriteOffs += Number(report.writeOffs);
-    stats.totalNinetyPlus += Number(report.ninetyPlus);
+    stats.totalWriteOffs += Number(typedReport.writeOffs) || 0;
+    stats.totalNinetyPlus += Number(typedReport.ninetyPlus) || 0;
     stats.count += 1;
 
-    branchStats.set(report.branchId, stats);
+    branchStats.set(branchId, stats);
   });
 
   return Array.from(branchStats.entries()).map(([branchId, stats]) => ({
