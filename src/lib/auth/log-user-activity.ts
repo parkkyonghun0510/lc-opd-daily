@@ -21,7 +21,8 @@ export async function logUserActivity(
       data: {
         userId,
         action,
-        details: typeof details === 'string' ? details : JSON.stringify(details),
+        details:
+          typeof details === "string" ? details : JSON.stringify(details),
         ipAddress: metadata.ipAddress,
         userAgent: metadata.userAgent,
       },

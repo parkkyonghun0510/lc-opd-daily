@@ -382,11 +382,9 @@ class RedisSSEHandler {
    * Creates a structured event data object with a unique ID and timestamp.
    */
   private createEventData(data: unknown): Record<string, any> {
-    const dataObj =
-      (typeof data === "object" && data !== null ? data : {}) as Record<
-        string,
-        any
-      >;
+    const dataObj = (
+      typeof data === "object" && data !== null ? data : {}
+    ) as Record<string, any>;
     return {
       ...dataObj,
       id: dataObj.id || crypto.randomUUID(),

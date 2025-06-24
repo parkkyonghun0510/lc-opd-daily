@@ -11,30 +11,30 @@ import { formatKHRCurrency, formatKHRCurrencyForPDF } from "@/lib/utils";
 // Define Report interface with required properties
 interface ExportReportWithBranch {
   id: string;
-  branch: { 
-    id: string; 
-    name: string; 
-    isActive: boolean; 
-    createdAt: Date; 
-    updatedAt: Date; 
-    parentId: string | null; 
-    code: string 
+  branch: {
+    id: string;
+    name: string;
+    isActive: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+    parentId: string | null;
+    code: string;
   };
   submittedBy?: string;
-  planReport: { 
-    status: string; 
-    id: string; 
-    branchId: string; 
-    createdAt: Date; 
-    updatedAt: Date; 
-    writeOffs: number; 
-    ninetyPlus: number; 
-    reportType: string; 
-    submittedBy: string; 
-    comments: string | null; 
-    planReportId: string | null; 
-    submittedAt: string; 
-    date: Date 
+  planReport: {
+    status: string;
+    id: string;
+    branchId: string;
+    createdAt: Date;
+    updatedAt: Date;
+    writeOffs: number;
+    ninetyPlus: number;
+    reportType: string;
+    submittedBy: string;
+    comments: string | null;
+    planReportId: string | null;
+    submittedAt: string;
+    date: Date;
   } | null;
   actualReports: any[];
   [key: string]: unknown;
@@ -263,7 +263,10 @@ async function transformReportsBatch(batch: Record<string, unknown>[]) {
 
     return {
       id: report.id,
-      date: format(new Date(report.date as string | number | Date), "dd/MMM/yyyy"),
+      date: format(
+        new Date(report.date as string | number | Date),
+        "dd/MMM/yyyy",
+      ),
       branch: (report.branch as any)?.name || "Unknown",
       branchCode: (report.branch as any)?.code || "Unknown",
       reportType: report.reportType,
@@ -273,10 +276,16 @@ async function transformReportsBatch(batch: Record<string, unknown>[]) {
       submittedBy: user?.name || "Unknown",
       submittedByUsername: user?.username || "Unknown",
       submittedAt: report.submittedAt
-        ? format(new Date(report.submittedAt as string | number | Date), "dd/MMM/yyyy HH:mm")
+        ? format(
+            new Date(report.submittedAt as string | number | Date),
+            "dd/MMM/yyyy HH:mm",
+          )
         : null,
       comments: report.comments || "",
-      createdAt: format(new Date(report.createdAt as string | number | Date), "dd/MMM/yyyy HH:mm"),
+      createdAt: format(
+        new Date(report.createdAt as string | number | Date),
+        "dd/MMM/yyyy HH:mm",
+      ),
       writeOffsPlan: report.planReport
         ? Number((report.planReport as any).writeOffs)
         : null,

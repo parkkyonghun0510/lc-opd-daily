@@ -115,8 +115,8 @@ export const createOfflineSlice: StateCreator<OfflineState> = (set, get) => ({
         {
           id: crypto.randomUUID(),
           timestamp: Date.now(),
-          endpoint: '', // Provide a default value
-          method: 'POST', // Provide a default value
+          endpoint: "", // Provide a default value
+          method: "POST", // Provide a default value
           ...data,
         },
       ];

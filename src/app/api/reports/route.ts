@@ -328,7 +328,10 @@ export async function POST(request: NextRequest) {
         message?: string;
       }
 
-      const validationRules = rules.validationRules as unknown as Record<string, any>;
+      const validationRules = rules.validationRules as unknown as Record<
+        string,
+        any
+      >;
 
       // Check if write-offs or 90+ days require approval
       if (
