@@ -8,7 +8,7 @@ WORKDIR /app
 
 # Copy package files
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm ci --legacy-peer-deps
 
 # Rebuild the source code only when needed
 FROM base AS builder
@@ -24,7 +24,7 @@ ENV NODE_ENV production
 RUN npx prisma generate
 
 # Build the application with force option to bypass dependency errors
-RUN npm run build:production:force
+RUN npm run build:production
 
 # Production image, copy all the files and run next
 FROM base AS runner
