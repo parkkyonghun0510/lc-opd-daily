@@ -57,9 +57,7 @@ COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/scripts ./scripts
 COPY --from=builder /app/ecosystem.production.config.cjs ./
 
-# Install only production dependencies
-COPY package.json package-lock.json ./
-RUN npm ci --only=production
+
 
 # Generate Prisma client in production
 RUN npx prisma generate
