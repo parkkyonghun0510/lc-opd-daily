@@ -1,6 +1,15 @@
 import { prisma } from "@/lib/prisma";
 import { NotificationType } from "./notificationTemplates";
 
+interface NotificationTargetData {
+  userIds?: string[];
+  userId?: string;
+  submittedBy?: string;
+  branchId?: string;
+  branch?: { id: string };
+  [key: string]: unknown;
+}
+
 /**
  * Get all branches in the hierarchy, including the branch and all its ancestors
  * @param branchId The branch ID to get hierarchy for
@@ -152,7 +161,7 @@ async function getGlobalAdmins(): Promise<string[]> {
  */
 export async function getUsersForNotification(
   type: NotificationType,
-  data: Record<string, unknown>,
+  data: NotificationTargetData,
 ): Promise<string[]> {
   // Default to empty array
   let userIds: string[] = [];

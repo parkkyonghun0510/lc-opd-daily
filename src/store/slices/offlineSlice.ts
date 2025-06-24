@@ -1,18 +1,27 @@
 import { StateCreator } from "zustand";
 
+export interface OfflineDataItem {
+  id: string;
+  timestamp: number;
+  endpoint: string;
+  method: string;
+  headers?: Record<string, string>;
+  data?: any;
+}
+
 export interface OfflineState {
   syncStatus: "idle" | "syncing" | "synced" | "error";
   lastSyncTime: number | null;
   pendingSync: boolean;
-  offlineData: unknown[];
+  offlineData: OfflineDataItem[];
 
   // Actions
-  getOfflineData: () => Promise<unknown[]>;
+  getOfflineData: () => Promise<OfflineDataItem[]>;
   syncOfflineData: (
-    data: unknown[],
+    data: OfflineDataItem[],
   ) => Promise<{ success: boolean; error?: string }>;
   updateSyncStatus: (status: "idle" | "syncing" | "synced" | "error") => void;
-  addOfflineData: (data: unknown) => Promise<void>;
+  addOfflineData: (data: Partial<OfflineDataItem>) => Promise<void>;
   clearOfflineData: () => Promise<void>;
 }
 
@@ -98,7 +107,7 @@ export const createOfflineSlice: StateCreator<OfflineState> = (set, get) => ({
     set({ syncStatus: status });
   },
 
-  addOfflineData: async (data) => {
+  addOfflineData: async (data: Partial<OfflineDataItem>) => {
     try {
       const currentData = get().offlineData;
       const newData = [
@@ -106,6 +115,8 @@ export const createOfflineSlice: StateCreator<OfflineState> = (set, get) => ({
         {
           id: crypto.randomUUID(),
           timestamp: Date.now(),
+          endpoint: '', // Provide a default value
+          method: 'POST', // Provide a default value
           ...data,
         },
       ];

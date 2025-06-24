@@ -128,12 +128,7 @@ class RedisSSEHandler {
     try {
       const { userId, eventType, data } = event;
 
-      // Ensure the event data has a proper structure
-      const eventData = {
-        ...data,
-        id: data.id || crypto.randomUUID(),
-        timestamp: data.timestamp || Date.now(),
-      };
+      const eventData = this.createEventData(data);
 
       // If the event is for a specific user, send it only to that user
       if (userId) {
@@ -300,12 +295,7 @@ class RedisSSEHandler {
   async sendEventToUser(userId: string, eventType: string, data: unknown) {
     let localSentCount = 0;
 
-    // Ensure the event has a unique ID and timestamp
-    const eventData = {
-      ...data,
-      id: data.id || crypto.randomUUID(),
-      timestamp: data.timestamp || Date.now(),
-    };
+    const eventData = this.createEventData(data);
 
     // Send to local clients
     for (const client of this.clients.values()) {
@@ -335,12 +325,7 @@ class RedisSSEHandler {
    * Broadcast an event to all connected clients
    */
   async broadcastEvent(eventType: string, data: unknown) {
-    // Ensure the event has a unique ID and timestamp
-    const eventData = {
-      ...data,
-      id: data.id || crypto.randomUUID(),
-      timestamp: data.timestamp || Date.now(),
-    };
+    const eventData = this.createEventData(data);
 
     // Send to all local clients
     for (const client of this.clients.values()) {
@@ -391,6 +376,22 @@ class RedisSSEHandler {
     } catch (error) {
       console.error(`[SSE] Error sending event:`, error);
     }
+  }
+
+  /**
+   * Creates a structured event data object with a unique ID and timestamp.
+   */
+  private createEventData(data: unknown): Record<string, any> {
+    const dataObj =
+      (typeof data === "object" && data !== null ? data : {}) as Record<
+        string,
+        any
+      >;
+    return {
+      ...dataObj,
+      id: dataObj.id || crypto.randomUUID(),
+      timestamp: dataObj.timestamp || Date.now(),
+    };
   }
 
   /**

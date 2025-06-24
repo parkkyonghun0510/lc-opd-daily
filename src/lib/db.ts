@@ -26,7 +26,7 @@ function parsePreferences(jsonData: Prisma.JsonValue | null): UserPreferences {
   if (!jsonData) return defaultPreferences;
 
   try {
-    const parsed = jsonData as Record<string, unknown>;
+    const parsed = jsonData as Record<string, any>;
     return {
       notifications: {
         reportUpdates: Boolean(parsed?.notifications?.reportUpdates ?? true),

@@ -172,7 +172,7 @@ export default function TestApprovalPage() {
                   </p>
                   <p>
                     <strong>Submitted By:</strong>{" "}
-                    {report.user?.name || report.submittedBy}
+                    {(report.user as any)?.name || report.submittedBy}
                   </p>
                   <p>
                     <strong>Submitted At:</strong>{" "}

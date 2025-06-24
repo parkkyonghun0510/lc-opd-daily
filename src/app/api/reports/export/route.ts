@@ -8,6 +8,38 @@ import { Parser } from "@json2csv/plainjs";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import { formatKHRCurrency, formatKHRCurrencyForPDF } from "@/lib/utils";
 
+// Define Report interface with required properties
+interface ExportReportWithBranch {
+  id: string;
+  branch: { 
+    id: string; 
+    name: string; 
+    isActive: boolean; 
+    createdAt: Date; 
+    updatedAt: Date; 
+    parentId: string | null; 
+    code: string 
+  };
+  submittedBy?: string;
+  planReport: { 
+    status: string; 
+    id: string; 
+    branchId: string; 
+    createdAt: Date; 
+    updatedAt: Date; 
+    writeOffs: number; 
+    ninetyPlus: number; 
+    reportType: string; 
+    submittedBy: string; 
+    comments: string | null; 
+    planReportId: string | null; 
+    submittedAt: string; 
+    date: Date 
+  } | null;
+  actualReports: any[];
+  [key: string]: unknown;
+}
+
 const BATCH_SIZE = 500; // Process reports in batches for memory efficiency
 
 export async function GET(request: NextRequest) {
@@ -32,7 +64,7 @@ export async function GET(request: NextRequest) {
 
     // Get query parameters
     const searchParams = request.nextUrl.searchParams;
-    const format = searchParams.get("format") || "csv"; // Default to CSV
+    const exportFormat = searchParams.get("format") || "csv"; // Default to CSV
     const limit = parseInt(searchParams.get("limit") || "1000");
     const branchId = searchParams.get("branchId");
     const status = searchParams.get("status");
@@ -183,9 +215,9 @@ export async function GET(request: NextRequest) {
     }
 
     // Format the data based on the requested format
-    if (format === "csv") {
+    if (exportFormat === "csv") {
       return generateCSV(uniqueReports, uniqueTotals);
-    } else if (format === "pdf") {
+    } else if (exportFormat === "pdf") {
       return generatePDF(uniqueReports, uniqueTotals);
     } else {
       return NextResponse.json(
@@ -231,9 +263,9 @@ async function transformReportsBatch(batch: Record<string, unknown>[]) {
 
     return {
       id: report.id,
-      date: format(report.date, "dd/MMM/yyyy"),
-      branch: report.branch?.name || "Unknown",
-      branchCode: report.branch?.code || "Unknown",
+      date: format(new Date(report.date as string | number | Date), "dd/MMM/yyyy"),
+      branch: (report.branch as any)?.name || "Unknown",
+      branchCode: (report.branch as any)?.code || "Unknown",
       reportType: report.reportType,
       writeOffs: Number(report.writeOffs),
       ninetyPlus: Number(report.ninetyPlus),
@@ -241,15 +273,15 @@ async function transformReportsBatch(batch: Record<string, unknown>[]) {
       submittedBy: user?.name || "Unknown",
       submittedByUsername: user?.username || "Unknown",
       submittedAt: report.submittedAt
-        ? format(report.submittedAt, "dd/MMM/yyyy HH:mm")
+        ? format(new Date(report.submittedAt as string | number | Date), "dd/MMM/yyyy HH:mm")
         : null,
       comments: report.comments || "",
-      createdAt: format(report.createdAt, "dd/MMM/yyyy HH:mm"),
+      createdAt: format(new Date(report.createdAt as string | number | Date), "dd/MMM/yyyy HH:mm"),
       writeOffsPlan: report.planReport
-        ? Number(report.planReport.writeOffs)
+        ? Number((report.planReport as any).writeOffs)
         : null,
       ninetyPlusPlan: report.planReport
-        ? Number(report.planReport.ninetyPlus)
+        ? Number((report.planReport as any).ninetyPlus)
         : null,
       // Store original date for sorting
       originalDate: report.date,
@@ -440,12 +472,12 @@ async function generatePDF(
           }
 
           // Capitalize report type
-          if (column.field === "reportType") {
+          if (column.field === "reportType" && typeof value === "string") {
             value = value.charAt(0).toUpperCase() + value.slice(1);
           }
 
           // Format status
-          if (column.field === "status") {
+          if (column.field === "status" && typeof value === "string") {
             value =
               value.replace("_", " ").charAt(0).toUpperCase() +
               value.replace("_", " ").slice(1);
@@ -453,7 +485,7 @@ async function generatePDF(
 
           // Truncate long text to fit in column
           const maxChars = Math.floor(column.width / 5);
-          if (value && value.length > maxChars) {
+          if (value && typeof value === "string" && value.length > maxChars) {
             value = value.substring(0, maxChars - 3) + "...";
           }
 

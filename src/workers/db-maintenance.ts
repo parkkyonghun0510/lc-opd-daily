@@ -143,6 +143,66 @@ interface MaintenanceResult {
 }
 
 /**
+ * Database query result types
+ */
+
+/**
+ * Information about a potentially bloated database index
+ * @interface BloatedIndexInfo
+ */
+interface BloatedIndexInfo {
+  /** Fully qualified table name (schema.table) */
+  table_name: string;
+  /** Name of the index */
+  index_name: string;
+  /** Formatted size of the index (e.g., "150 MB") */
+  index_size: string; // Using string as pg_size_pretty returns formatted string
+  /** Formatted size of the table (e.g., "1 GB") */
+  table_size: string;
+}
+
+/** Array of bloated index information returned from the query */
+type BloatedIndexQueryResult = BloatedIndexInfo[];
+
+/**
+ * Information about a potentially unused database index
+ * @interface UnusedIndexInfo
+ */
+interface UnusedIndexInfo {
+  /** Fully qualified table name (schema.table) */
+  table_name: string;
+  /** Name of the index */
+  index_name: string;
+  /** Formatted size of the index (e.g., "150 MB") */
+  index_size: string; // Using string as pg_size_pretty returns formatted string
+  /** Number of times the index has been scanned */
+  index_scans: number;
+}
+
+/** Array of unused index information returned from the query */
+type UnusedIndexQueryResult = UnusedIndexInfo[];
+
+/**
+ * Information about table sizes in the database
+ * @interface TableSizeInfo
+ */
+interface TableSizeInfo {
+  /** Name of the table */
+  table_name: string;
+  /** Formatted total size including indexes (e.g., "1.5 GB") */
+  total_size: string; // Using string as pg_size_pretty returns formatted string
+  /** Formatted size of the table data only (e.g., "1 GB") */
+  table_size: string;
+  /** Formatted size of all indexes on the table (e.g., "500 MB") */
+  index_size: string;
+  /** Estimated number of rows in the table */
+  row_count: number;
+}
+
+/** Array of table size information returned from the query */
+type TableSizeQueryResult = TableSizeInfo[];
+
+/**
  * Runs database maintenance operations including VACUUM, ANALYZE, and index maintenance
  * @returns {Promise<void>}
  */
@@ -197,27 +257,6 @@ async function runMaintenance() {
 
     // 3. Identify and rebuild bloated indexes
     //console.log('Checking for bloated indexes...');
-    /**
-     * Database query result types
-     */
-
-    /**
-     * Information about a potentially bloated database index
-     * @interface BloatedIndexInfo
-     */
-    interface BloatedIndexInfo {
-      /** Fully qualified table name (schema.table) */
-      table_name: string;
-      /** Name of the index */
-      index_name: string;
-      /** Formatted size of the index (e.g., "150 MB") */
-      index_size: string; // Using string as pg_size_pretty returns formatted string
-      /** Formatted size of the table (e.g., "1 GB") */
-      table_size: string;
-    }
-
-    /** Array of bloated index information returned from the query */
-    type BloatedIndexQueryResult = BloatedIndexInfo[];
 
     const bloatedIndexesQuery = `
       SELECT 
@@ -261,23 +300,6 @@ async function runMaintenance() {
 
     // 4. Check for unused indexes
     //console.log('Checking for unused indexes...');
-    /**
-     * Information about a potentially unused database index
-     * @interface UnusedIndexInfo
-     */
-    interface UnusedIndexInfo {
-      /** Fully qualified table name (schema.table) */
-      table_name: string;
-      /** Name of the index */
-      index_name: string;
-      /** Formatted size of the index (e.g., "150 MB") */
-      index_size: string; // Using string as pg_size_pretty returns formatted string
-      /** Number of times the index has been scanned */
-      index_scans: number;
-    }
-
-    /** Array of unused index information returned from the query */
-    type UnusedIndexQueryResult = UnusedIndexInfo[];
 
     const unusedIndexesQuery = `
       SELECT
@@ -315,26 +337,6 @@ async function runMaintenance() {
 
     // 5. Log table sizes for monitoring
     //console.log('\nTable sizes:');
-
-    /**
-     * Information about table sizes in the database
-     * @interface TableSizeInfo
-     */
-    interface TableSizeInfo {
-      /** Name of the table */
-      table_name: string;
-      /** Formatted total size including indexes (e.g., "1.5 GB") */
-      total_size: string; // Using string as pg_size_pretty returns formatted string
-      /** Formatted size of the table data only (e.g., "1 GB") */
-      table_size: string;
-      /** Formatted size of all indexes on the table (e.g., "500 MB") */
-      index_size: string;
-      /** Estimated number of rows in the table */
-      row_count: number;
-    }
-
-    /** Array of table size information returned from the query */
-    type TableSizeQueryResult = TableSizeInfo[];
 
     const tableSizesQuery = `
       SELECT
@@ -475,19 +477,13 @@ if (require.main === module) {
 }
 
 // Export types and functions for reuse in other modules
-export {
-  runMaintenance,
-  // Error types and type guards
+export { runMaintenance, isPostgreSQLError, isConnectionError, isPrismaError };
+export type {
   PostgreSQLError,
   ConnectionError,
   PrismaError,
-  isPostgreSQLError,
-  isConnectionError,
-  isPrismaError,
-  // Maintenance types
   MaintenanceOperation,
   MaintenanceResult,
-  // Query result types
   BloatedIndexInfo,
   BloatedIndexQueryResult,
   UnusedIndexInfo,

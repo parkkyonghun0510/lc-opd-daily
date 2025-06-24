@@ -87,7 +87,7 @@ export async function createServerAuditLog({
         data: {
           userId,
           action,
-          details,
+          details: typeof details === 'string' ? details : JSON.stringify(details),
           ipAddress: requestInfo.ipAddress || "unknown",
           userAgent: requestInfo.userAgent || "unknown",
         },

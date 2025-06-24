@@ -7,7 +7,10 @@ import { sseMetrics } from "./sseMetrics";
 export type Client = {
   id: string;
   userId: string;
-  response: NextResponse;
+  response: {
+    write: (chunk: string) => void;
+    close: () => void;
+  };
   connectedAt: number;
   lastActivity: number;
   metadata?: Record<string, unknown>;
@@ -47,7 +50,10 @@ export class SSEHandler {
   addClient(
     id: string,
     userId: string,
-    response: NextResponse,
+    response: {
+      write: (chunk: string) => void;
+      close: () => void;
+    },
     metadata: Record<string, unknown> = {},
   ) {
     const now = Date.now();
@@ -209,7 +215,13 @@ export class SSEHandler {
   /**
    * Send a properly formatted SSE event
    */
-  private sendEvent(response: NextResponse, event: SSEEvent) {
+  private sendEvent(
+    response: {
+      write: (chunk: string) => void;
+      close: () => void;
+    },
+    event: SSEEvent,
+  ) {
     try {
       // Format the event according to SSE specification
       let message = "";
@@ -300,15 +312,15 @@ export class SSEHandler {
     // Count connections per client type
     const clientTypes: Record<string, number> = {};
     for (const client of this.clients.values()) {
-      const clientType = client.metadata?.clientType || "unknown";
+      const clientType = (client.metadata?.clientType as string) || "unknown";
       clientTypes[clientType] = (clientTypes[clientType] || 0) + 1;
     }
 
     // Count connections per role
-    const roleCounts: Record<string, number> = {};
+    const roles: Record<string, number> = {};
     for (const client of this.clients.values()) {
-      const role = client.metadata?.role || "unknown";
-      roleCounts[role] = (roleCounts[role] || 0) + 1;
+      const role = (client.metadata?.role as string) || "unknown";
+      roles[role] = (roles[role] || 0) + 1;
     }
 
     return {
@@ -316,7 +328,7 @@ export class SSEHandler {
       uniqueUsers: Object.keys(userCounts).length,
       userCounts,
       clientTypes,
-      roleCounts,
+      roles,
       timestamp: new Date().toISOString(),
     };
   }
@@ -367,6 +379,7 @@ export function createSSEHandler(options: {
         // Create response object that the SSE handler will use
         const response = {
           write: (chunk: string) => controller.enqueue(encoder.encode(chunk)),
+          close: () => controller.close(),
         };
 
         // Register client with the SSE handler

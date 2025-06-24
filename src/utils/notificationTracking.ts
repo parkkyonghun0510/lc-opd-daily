@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { NotificationEventType } from "@/types/notifications";
+import { Prisma } from "@prisma/client";
 
 /**
  * Track a notification event
@@ -7,7 +8,7 @@ import { NotificationEventType } from "@/types/notifications";
 export async function trackNotificationEvent(
   notificationId: string,
   event: NotificationEventType,
-  metadata?: Record<string, unknown>,
+  metadata?: Prisma.JsonObject,
 ) {
   try {
     await prisma.notificationEvent.create({
@@ -121,7 +122,7 @@ export async function getNotificationEventHistory(notificationId: string) {
  */
 export async function markNotificationDelivered(
   notificationId: string,
-  metadata?: Record<string, unknown>,
+  metadata?: Prisma.JsonObject,
 ) {
   return trackNotificationEvent(
     notificationId,
@@ -135,7 +136,7 @@ export async function markNotificationDelivered(
  */
 export async function trackNotificationClick(
   notificationId: string,
-  metadata?: Record<string, unknown>,
+  metadata?: Prisma.JsonObject,
 ) {
   try {
     // Record the click event

@@ -296,12 +296,12 @@ async function createInAppNotifications(
     // Create notifications for each user
     const notifications = userIds.map((userId) => ({
       userId,
-      title: data.title || content.title,
-      body: data.body || content.body,
+      title: (data.title as string) || content.title,
+      body: (data.body as string) || content.body,
       type,
-      actionUrl: data.actionUrl || content.url,
+      actionUrl: (data.actionUrl as string) || content.url,
       isRead: false,
-      data,
+      data: JSON.stringify(data) as any,
     }));
 
     // Skip if no notifications to create

@@ -80,14 +80,38 @@ export async function GET(request: NextRequest) {
       // Define Report interface with required properties
       interface ReportWithBranch {
         id: string;
-        branch: { id: string; name?: string; code?: string };
+        branch: { 
+          id: string; 
+          name: string; 
+          isActive: boolean; 
+          createdAt: Date; 
+          updatedAt: Date; 
+          parentId: string | null; 
+          code: string 
+        };
         submittedBy?: string;
+        planReport: { 
+          status: string; 
+          id: string; 
+          branchId: string; 
+          createdAt: Date; 
+          updatedAt: Date; 
+          writeOffs: number; 
+          ninetyPlus: number; 
+          reportType: string; 
+          submittedBy: string; 
+          comments: string | null; 
+          planReportId: string | null; 
+          submittedAt: string; 
+          date: Date 
+        } | null;
+        actualReports: any[];
         [key: string]: unknown;
       }
 
       // Filter out null results and reports with missing branches
       const pendingReports = pendingReportsResults.filter(
-        (report): report is ReportWithBranch => {
+        (report): report is any => {
           if (!report) return false;
           if ("error" in report) return false;
           return report.branch !== null;

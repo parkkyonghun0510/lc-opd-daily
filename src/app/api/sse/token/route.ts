@@ -7,6 +7,6 @@ import { generateSSETokenHandler } from "@/lib/sse/sseAuth";
  * This endpoint generates a token for authenticating SSE connections.
  * It requires the user to be authenticated via session.
  */
-export async function GET(req: NextRequest) {
-  return generateSSETokenHandler(req);
+export async function GET() {
+  return generateSSETokenHandler();
 }

@@ -127,6 +127,8 @@ class SSEHandler {
    * Send an event to a specific client
    */
   sendEvent(response: unknown, event: { type: string; data: unknown }) {
+    // Type assertion for response
+    const typedResponse = response as { write: (data: string) => void };
     try {
       // Format the event according to SSE specification
       let message = "";
@@ -138,7 +140,7 @@ class SSEHandler {
       message += `data: ${JSON.stringify(event.data)}\n\n`;
 
       // Send the formatted message
-      response.write(message);
+      typedResponse.write(message);
 
       // Record the sent event in monitoring
       realtimeMonitor.recordSentEvent();

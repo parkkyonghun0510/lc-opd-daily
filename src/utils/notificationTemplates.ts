@@ -19,12 +19,21 @@ interface NotificationContent {
   data?: Record<string, unknown>;
 }
 
+interface NotificationData {
+  title?: string;
+  body?: string;
+  icon?: string;
+  url?: string;
+  submitterName?: string;
+  [key: string]: unknown;
+}
+
 /**
  * Generate notification content based on type and data
  */
 export function generateNotificationContent(
   type: NotificationType,
-  data: Record<string, unknown> = {},
+  data: NotificationData = {},
 ): NotificationContent {
   // Default notification content
   const defaultContent: NotificationContent = {

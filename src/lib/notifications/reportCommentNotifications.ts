@@ -129,13 +129,13 @@ async function getTargetUsersForComment(
 
   // Always notify the report creator (unless they made the comment)
   if (report.userId && report.userId !== comment.userId) {
-    targetUserIds.add(report.userId);
+    targetUserIds.add(report.userId as string);
   }
 
   // Get all users who have commented on this report
   const commenters = await prisma.reportComment.findMany({
     where: {
-      reportId: report.id,
+      reportId: report.id as string,
       userId: {
         not: comment.userId, // Don't notify the commenter
       },
@@ -159,7 +159,7 @@ async function getTargetUsersForComment(
     // Get branch managers for this branch
     const branchManagers = await prisma.userBranchAssignment.findMany({
       where: {
-        branchId: report.branchId,
+        branchId: report.branchId as string,
         user: {
           userRoles: {
             some: {
