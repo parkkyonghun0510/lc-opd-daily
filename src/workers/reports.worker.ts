@@ -1,5 +1,5 @@
 // Web Worker for handling report processing tasks
-import { openDB } from 'idb';
+import { openDB } from "idb";
 
 // Define types for worker messages
 type WorkerMessageType = "PROCESS_REPORTS" | "CACHE_REPORTS" | "ANALYZE_TRENDS";
@@ -32,14 +32,14 @@ interface Report {
 // Handle messages from the main thread
 self.onmessage = async (e: MessageEvent<WorkerMessage>) => {
   try {
-    if (!e.data || typeof e.data !== 'object') {
-      throw new Error('Invalid message format');
+    if (!e.data || typeof e.data !== "object") {
+      throw new Error("Invalid message format");
     }
-    
+
     const { type, payload } = e.data;
 
     if (!type) {
-      throw new Error('Message type is required');
+      throw new Error("Message type is required");
     }
 
     switch (type) {
@@ -52,18 +52,18 @@ self.onmessage = async (e: MessageEvent<WorkerMessage>) => {
         break;
 
       case "ANALYZE_TRENDS":
-        analyzeTrends(payload as Report[]); 
+        analyzeTrends(payload as Report[]);
         break;
-        
+
       default:
         throw new Error(`Unknown message type: ${type}`);
     }
   } catch (error) {
-    console.error('Worker message handler error:', error);
+    console.error("Worker message handler error:", error);
     self.postMessage({
       type: "ERROR",
       payload: {
-        message: `Worker error: ${error instanceof Error ? error.message : "Unknown error"}`
+        message: `Worker error: ${error instanceof Error ? error.message : "Unknown error"}`,
       },
     } as WorkerResponse);
   }
@@ -76,7 +76,7 @@ async function processReports(reports: Report[]): Promise<void> {
     if (!Array.isArray(reports)) {
       throw new Error("Invalid input: reports must be an array");
     }
-    
+
     const processedReports = reports.map((report) => {
       // Skip processing if not an object
       if (typeof report !== "object" || report === null) {
@@ -115,7 +115,7 @@ async function processReports(reports: Report[]): Promise<void> {
     self.postMessage({
       type: "ERROR",
       payload: {
-        message: `Failed to process reports: ${error instanceof Error ? error.message : "Unknown error"}`
+        message: `Failed to process reports: ${error instanceof Error ? error.message : "Unknown error"}`,
       },
     } as WorkerResponse);
   }
@@ -128,7 +128,7 @@ async function cacheReports(reports: Report[]): Promise<void> {
     if (!Array.isArray(reports)) {
       throw new Error("Invalid input: reports must be an array");
     }
-    
+
     // Open IndexedDB
     const db = await openDB("reports-cache", 1, {
       upgrade(db) {
@@ -150,11 +150,11 @@ async function cacheReports(reports: Report[]): Promise<void> {
     let addedCount = 0;
     for (const report of reports) {
       // Skip invalid reports
-      if (typeof report !== 'object' || report === null || !report.id) {
+      if (typeof report !== "object" || report === null || !report.id) {
         console.warn("Skipping invalid report during cache operation");
         continue;
       }
-      
+
       try {
         await store.add(report);
         addedCount++;
@@ -176,7 +176,7 @@ async function cacheReports(reports: Report[]): Promise<void> {
     self.postMessage({
       type: "ERROR",
       payload: {
-        message: `Failed to cache reports: ${error instanceof Error ? error.message : "Unknown error"}`
+        message: `Failed to cache reports: ${error instanceof Error ? error.message : "Unknown error"}`,
       },
     } as WorkerResponse);
   }
@@ -189,7 +189,7 @@ function analyzeTrends(reports: Report[]): void {
     if (!Array.isArray(reports)) {
       throw new Error("Invalid input: reports must be an array");
     }
-    
+
     const trends = {
       writeOffs: calculateTrend(reports, "writeOffs"),
       ninetyPlus: calculateTrend(reports, "ninetyPlus"),
@@ -205,7 +205,7 @@ function analyzeTrends(reports: Report[]): void {
     self.postMessage({
       type: "ERROR",
       payload: {
-        message: `Failed to analyze trends: ${error instanceof Error ? error.message : "Unknown error"}`
+        message: `Failed to analyze trends: ${error instanceof Error ? error.message : "Unknown error"}`,
       },
     } as WorkerResponse);
   }
@@ -244,23 +244,23 @@ function calculateTrend(reports: Report[], field: keyof Report): TrendResult {
         direction: "stable",
       };
     }
-    
+
     // Extract values with better error handling
     const values = reports.map((r) => {
       if (typeof r !== "object" || r === null) {
         return 0; // Default value for non-object items
       }
-      
+
       // Ensure the field exists and can be converted to a number
       const value = r[field];
       if (value === undefined || value === null) {
         return 0;
       }
-      
+
       const numValue = Number(value);
       return isNaN(numValue) ? 0 : numValue;
     });
-    
+
     // Calculate average and trend
     const average = values.reduce((a, b) => a + b, 0) / values.length || 0;
     const trend = values.length > 0 ? values[values.length - 1] - average : 0;
@@ -301,15 +301,15 @@ function analyzeBranchPerformance(reports: Report[]): BranchPerformance[] {
       console.error("Invalid input: reports must be an array");
       return [];
     }
-    
+
     const branchStats = new Map<string, BranchStats>();
 
     reports.forEach((report) => {
       // Skip invalid reports
-      if (typeof report !== 'object' || report === null) {
+      if (typeof report !== "object" || report === null) {
         return;
       }
-      
+
       const branchId = report.branchId;
 
       // Skip if branchId is not available
@@ -324,7 +324,7 @@ function analyzeBranchPerformance(reports: Report[]): BranchPerformance[] {
       // Safely convert values to numbers
       const writeOffsValue = Number(report.writeOffs) || 0;
       const ninetyPlusValue = Number(report.ninetyPlus) || 0;
-      
+
       // Only add valid numbers
       stats.totalWriteOffs += !isNaN(writeOffsValue) ? writeOffsValue : 0;
       stats.totalNinetyPlus += !isNaN(ninetyPlusValue) ? ninetyPlusValue : 0;
@@ -335,8 +335,10 @@ function analyzeBranchPerformance(reports: Report[]): BranchPerformance[] {
 
     return Array.from(branchStats.entries()).map(([branchId, stats]) => ({
       branchId,
-      averageWriteOffs: stats.count > 0 ? stats.totalWriteOffs / stats.count : 0,
-      averageNinetyPlus: stats.count > 0 ? stats.totalNinetyPlus / stats.count : 0,
+      averageWriteOffs:
+        stats.count > 0 ? stats.totalWriteOffs / stats.count : 0,
+      averageNinetyPlus:
+        stats.count > 0 ? stats.totalNinetyPlus / stats.count : 0,
       reportCount: stats.count,
     }));
   } catch (error) {

@@ -60,12 +60,12 @@ export function BranchSelector({
       try {
         setLoading(true);
         const response = await fetch(`/api/users/${userId}/branches`);
-        
+
         if (!response.ok) {
           // Get error message from response
           const errorText = await response.text();
           let errorMessage = "Failed to fetch user branches";
-          
+
           try {
             // Try to parse the error message as JSON
             const errorData = JSON.parse(errorText);
@@ -76,10 +76,10 @@ export function BranchSelector({
             // If parsing fails, use the default error message
             console.error("Error parsing error response:", e);
           }
-          
+
           throw new Error(errorMessage);
         }
-        
+
         const data = await response.json();
         setBranches(data.branches || []);
       } catch (error) {
@@ -87,7 +87,8 @@ export function BranchSelector({
         setBranches([]);
         toast({
           title: "Error",
-          description: error instanceof Error ? error.message : "Failed to load branches",
+          description:
+            error instanceof Error ? error.message : "Failed to load branches",
           variant: "destructive",
         });
       } finally {

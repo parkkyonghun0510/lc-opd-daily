@@ -498,7 +498,9 @@ export async function getUsersForNotification(
             userIds.push(...branchUsers.map((user) => user.id));
           } else if (data.includeParentBranches) {
             // Include users from parent branches
-            const parentBranches = await getBranchHierarchy(data.branchId as string);
+            const parentBranches = await getBranchHierarchy(
+              data.branchId as string,
+            );
 
             const branchUsers = await prisma.user.findMany({
               where: {

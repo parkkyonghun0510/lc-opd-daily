@@ -204,7 +204,9 @@ export async function GET(request: NextRequest) {
 
 async function transformReportsBatch(batch: Record<string, unknown>[]) {
   // Get all unique user IDs from the batch
-  const userIds = [...new Set(batch.map((report) => report.submittedBy))] as string[];
+  const userIds = [
+    ...new Set(batch.map((report) => report.submittedBy)),
+  ] as string[];
 
   // Fetch user data in a single query
   const users = await prisma.user.findMany({
