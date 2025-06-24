@@ -22,7 +22,7 @@ const CACHE_KEY_PREFIX = "sse-event-cache:";
 export interface CachedEvent {
   id: string;
   type: string;
-  data: any;
+  data: unknown;
   timestamp: number;
 }
 

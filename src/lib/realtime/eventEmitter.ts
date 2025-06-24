@@ -9,7 +9,7 @@
 interface EventRecord {
   id: string;
   type: string;
-  data: any;
+  data: unknown;
   timestamp: number;
   targets?: {
     userIds?: string[];
@@ -31,7 +31,7 @@ class RealtimeEventEmitter {
    */
   emit(
     type: string,
-    data: any,
+    data: unknown,
     options: {
       userIds?: string[];
       roles?: string[];
@@ -130,7 +130,7 @@ class RealtimeEventEmitter {
   /**
    * Get statistics about the event emitter
    */
-  getStats(): any {
+  getStats(): Record<string, unknown> {
     return {
       eventsInMemory: this.events.length,
       maxEvents: this.maxEvents,
@@ -193,7 +193,7 @@ export function emitNotification(
  */
 export function emitDashboardUpdate(
   updateType: string,
-  data: any,
+  data: Record<string, unknown>,
   options: {
     userIds?: string[];
     roles?: string[];
@@ -224,7 +224,7 @@ export function emitSystemAlert(
   options: {
     userIds?: string[];
     roles?: string[];
-    data?: any;
+    data?: Record<string, unknown>;
   } = {},
 ): string {
   return eventEmitter.emit(

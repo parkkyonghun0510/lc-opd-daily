@@ -8,22 +8,32 @@ interface CacheMetrics {
   lastReset: string;
 }
 
-export async function recordCacheHit(key: string) {
+export async function recordCacheHit(_key: string) {
   const metrics = await getMetrics();
   metrics.hits += 1;
   await saveMetrics(metrics);
 
-  // Log for monitoring
-  //console.log(`Cache HIT for key: ${key}`);
+  // For debugging purposes, we can uncomment this line
+  if (process.env.NODE_ENV === "development") {
+    // We're intentionally not using _key directly to avoid linting errors
+    // when we uncomment the console.log line below
+    void _key; // This effectively uses the variable to avoid the unused var error
+    // console.log(`Cache HIT for key: ${_key}`);
+  }
 }
 
-export async function recordCacheMiss(key: string) {
+export async function recordCacheMiss(_key: string) {
   const metrics = await getMetrics();
   metrics.misses += 1;
   await saveMetrics(metrics);
 
-  // Log for monitoring
-  //console.log(`Cache MISS for key: ${key}`);
+  // For debugging purposes, we can uncomment this line
+  if (process.env.NODE_ENV === "development") {
+    // We're intentionally not using _key directly to avoid linting errors
+    // when we uncomment the console.log line below
+    void _key; // This effectively uses the variable to avoid the unused var error
+    // console.log(`Cache MISS for key: ${_key}`);
+  }
 }
 
 async function getMetrics(): Promise<CacheMetrics> {

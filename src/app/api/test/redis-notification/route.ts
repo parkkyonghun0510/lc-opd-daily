@@ -6,6 +6,7 @@ import {
   getNotificationMetrics,
 } from "@/lib/redis/enhancedRedisNotificationService";
 import { getRedisLoadBalancer } from "@/lib/redis/redisLoadBalancer";
+import { Redis } from "@upstash/redis";
 
 /**
  * Test Redis Notification Service
@@ -118,7 +119,7 @@ export async function GET(request: NextRequest) {
  */
 async function getRecentNotifications() {
   try {
-    const result = await executeRedisOperation(async (redis: any) => {
+    const result = await executeRedisOperation(async (redis: Redis) => {
       const notifications = await redis.lrange("notifications:history", 0, 9);
       return notifications.map((item: string) => JSON.parse(item));
     });
@@ -133,7 +134,9 @@ async function getRecentNotifications() {
 /**
  * Execute a Redis operation with load balancing
  */
-async function executeRedisOperation(operation: (redis: any) => Promise<any>) {
+async function executeRedisOperation<T>(
+  operation: (redis: Redis) => Promise<T>,
+) {
   const loadBalancer = getRedisLoadBalancer();
   return loadBalancer.execute(operation);
 }

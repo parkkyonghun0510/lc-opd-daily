@@ -89,7 +89,7 @@ export class RateLimiter {
       "unknown";
 
     // Get user ID from query parameter or cookie
-    let userId = new URL(req.url).searchParams.get("userId");
+    const userId = new URL(req.url).searchParams.get("userId");
 
     // Create a key for the rate limit
     // Use both IP and user ID if available, or just IP

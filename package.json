@@ -21,7 +21,7 @@
     "start:pm2": "bash scripts/deploy/pm2-start.sh",
     "stop:pm2": "bash scripts/deploy/pm2-stop.sh",
     "restart:pm2": "bash scripts/deploy/pm2-restart.sh",
-    "lint": "next lint",
+    "lint": "next lint --max-warnings=100",
     "format": "prettier --write \"**/*.{js,jsx,ts,tsx,json,md}\"",
     "setup": "node scripts/utils/setup.cjs",
     "db:push": "prisma db push",

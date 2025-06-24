@@ -63,7 +63,7 @@ export async function createServerAuditLog({
 }: {
   userId: string;
   action: string;
-  details: any;
+  details: Record<string, unknown> | string;
   requestInfo?: { ipAddress?: string | null; userAgent?: string | null };
   type?: "activity" | "userActivity";
 }): Promise<void> {
@@ -111,7 +111,7 @@ export async function createServerAuditLog({
  */
 export async function createAuditLog(
   action: string,
-  details: string | Record<string, any>,
+  details: string | Record<string, unknown>,
   type: "activity" | "userActivity" = "activity",
 ): Promise<boolean> {
   try {

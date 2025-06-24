@@ -45,7 +45,7 @@ export interface UserDashboard {
   recentActivities: Array<{
     description: string;
     timestamp: string;
-    details: Record<string, any>;
+    details: Record<string, unknown>;
   }>;
   recentReports: Array<{
     id: string;

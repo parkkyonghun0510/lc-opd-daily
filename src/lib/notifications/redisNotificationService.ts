@@ -12,7 +12,6 @@ import {
 } from "@/utils/notificationTemplates";
 import { emitNotification } from "@/lib/realtime/redisEventEmitter";
 import { redis } from "@/lib/redis";
-import { trackNotificationEvent } from "@/utils/notificationTracking";
 import { NotificationEventType } from "@/types/notifications";
 
 // Constants
@@ -25,7 +24,7 @@ const MAX_HISTORY_SIZE = 1000;
 export interface NotificationMessage {
   id: string;
   type: string;
-  data: any;
+  data: Record<string, unknown>;
   userIds: string[];
   timestamp: string;
   priority?: "high" | "normal" | "low";
@@ -167,7 +166,7 @@ export async function processNotification(
  */
 async function createInAppNotifications(
   type: NotificationType,
-  data: Record<string, any>,
+  data: Record<string, unknown>,
   userIds: string[],
 ): Promise<number> {
   try {
@@ -235,7 +234,7 @@ async function createInAppNotifications(
  */
 export async function getRecentNotifications(
   limit: number = 100,
-): Promise<any[]> {
+): Promise<Record<string, unknown>[]> {
   try {
     const notifications = await redis.lrange(
       NOTIFICATION_HISTORY_KEY,
@@ -254,7 +253,9 @@ export async function getRecentNotifications(
  *
  * @returns Notification metrics
  */
-export async function getNotificationMetrics(): Promise<any> {
+export async function getNotificationMetrics(): Promise<
+  Record<string, unknown>
+> {
   try {
     // Get queue length
     const queueLength = await redis.llen(NOTIFICATION_QUEUE_KEY);

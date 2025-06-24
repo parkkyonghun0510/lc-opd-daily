@@ -1,4 +1,4 @@
-import { PrismaClient, Prisma } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 
 // Check if this code is running on the client side (browser)
 // and throw an appropriate error if it is

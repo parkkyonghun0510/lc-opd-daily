@@ -11,7 +11,7 @@ export async function createDirectNotifications(
   body: string,
   userIds: string[],
   actionUrl?: string | null,
-  data?: Record<string, any>,
+  data?: Record<string, unknown>,
 ) {
   if (!userIds || userIds.length === 0) {
     //console.log("No users to notify, skipping direct notification creation");
@@ -62,7 +62,7 @@ export async function createDirectNotification(
   title: string,
   body: string,
   actionUrl?: string | null,
-  data?: Record<string, any>,
+  data?: Record<string, unknown>,
 ) {
   try {
     //console.log(`Creating direct notification for user ${userId}`);

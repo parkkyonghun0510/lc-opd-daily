@@ -169,8 +169,8 @@ function formatCurrency(value: number): string {
 }
 
 async function generateCSV(
-  reportsData: any[],
-  analyticsData: any[],
+  reportsData: Record<string, string | number>[],
+  analyticsData: (string | number)[][],
 ): Promise<string> {
   const csvRows = [
     Object.keys(reportsData[0]).join(","),
@@ -185,9 +185,7 @@ async function generateCSV(
     csvRows.push("", "", "Analytics Summary");
     csvRows.push(
       ...analyticsData.map((row) =>
-        row
-          .map((value: any) => `"${String(value).replace(/"/g, '""')}"`)
-          .join(","),
+        row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(","),
       ),
     );
   }
@@ -196,8 +194,8 @@ async function generateCSV(
 }
 
 async function generateExcel(
-  reportsData: any[],
-  analyticsData: any[],
+  reportsData: Record<string, string | number>[],
+  analyticsData: (string | number)[][],
   fileName: string,
 ): Promise<void> {
   const wb = XLSX.utils.book_new();

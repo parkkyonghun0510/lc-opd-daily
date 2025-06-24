@@ -85,7 +85,7 @@ export async function GET(
         typeof report.ninetyPlus === "object"
           ? Number(report.ninetyPlus)
           : report.ninetyPlus,
-    } as any;
+    } as Record<string, unknown>;
 
     if (report.reportType === "actual") {
       if (report.planReport) {
@@ -335,7 +335,7 @@ export async function DELETE(
   } catch (error) {
     console.error(`Error deleting report:`, error);
     // Handle potential Prisma errors (e.g., record not found if deleted concurrently)
-    if ((error as any).code === "P2025") {
+    if ((error as { code?: string }).code === "P2025") {
       return NextResponse.json(
         { error: "Report not found or already deleted" },
         { status: 404 },

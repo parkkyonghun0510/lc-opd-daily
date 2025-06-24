@@ -2,7 +2,7 @@ import { getPrisma } from "@/lib/prisma-server";
 import { redis, CACHE_TTL, CACHE_KEYS } from "./redis";
 
 // Helper function to convert Decimal to number
-const toNumber = (value: any): number => {
+const toNumber = (value: unknown): number => {
   if (typeof value === "number") return value;
   return Number(value) || 0;
 };
@@ -33,7 +33,7 @@ async function warmChartsCache() {
   try {
     //console.log("🔄 Warming charts cache...");
 
-    const prisma = await getPrisma();
+    // No need to initialize prisma here as it's used in the helper functions
     const chartData = {
       revenueData: await getRevenueData(),
       userGrowthData: await getUserGrowthData(),
@@ -212,7 +212,7 @@ async function getUserGrowthData() {
 
 export async function warmCache() {
   //console.log("🚀 Starting cache warming...");
-  const prisma = await getPrisma();
+  // No need to initialize prisma here as it's initialized in the individual functions
   await Promise.all([warmStatsCache(), warmChartsCache()]);
   //console.log("✨ Cache warming completed");
 }

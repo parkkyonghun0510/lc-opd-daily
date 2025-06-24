@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Create base query condition
-    let whereCondition: any = {
+    const whereCondition: any = {
       status: { in: statuses },
     };
 

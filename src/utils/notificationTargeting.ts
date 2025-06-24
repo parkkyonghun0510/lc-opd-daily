@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/prisma";
 import { NotificationType } from "./notificationTemplates";
-import { getAccessibleBranches } from "@/lib/auth/branch-access";
 
 /**
  * Get all branches in the hierarchy, including the branch and all its ancestors
@@ -153,7 +152,7 @@ async function getGlobalAdmins(): Promise<string[]> {
  */
 export async function getUsersForNotification(
   type: NotificationType,
-  data: Record<string, any>,
+  data: Record<string, unknown>,
 ): Promise<string[]> {
   // Default to empty array
   let userIds: string[] = [];

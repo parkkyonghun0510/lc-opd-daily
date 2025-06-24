@@ -1,9 +1,10 @@
 import webpush from "web-push";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, PushSubscription } from "@prisma/client";
 import {
   SQSClient,
   ReceiveMessageCommand,
   DeleteMessageCommand,
+  Message,
 } from "@aws-sdk/client-sqs";
 
 // Initialize Prisma client with connection pooling for production
@@ -57,10 +58,49 @@ const MAX_MESSAGES_PER_BATCH = process.env.NODE_ENV === "production" ? 10 : 5;
 // Track worker state
 let isShuttingDown = false;
 
+// Define interfaces for notification data
+interface NotificationData {
+  title?: string;
+  body?: string;
+  icon?: string;
+  url?: string;
+  submitterName?: string;
+  approverName?: string;
+}
+
+interface NotificationMessage {
+  type: string;
+  userIds: string[];
+  data?: NotificationData;
+  Body?: string; // For SQS message format
+}
+
+interface NotificationPayload {
+  title: string;
+  body: string;
+  icon: string;
+  badge: string;
+  data: {
+    url: string;
+  };
+  vibrate: number[];
+  requireInteraction: boolean;
+}
+
+interface WebPushSubscription {
+  endpoint: string;
+  keys: {
+    p256dh: string;
+    auth: string;
+  };
+}
+
 /**
  * Receive messages from the notification queue
  */
-async function receiveMessages(maxMessages = MAX_MESSAGES_PER_BATCH) {
+async function receiveMessages(
+  maxMessages = MAX_MESSAGES_PER_BATCH,
+): Promise<Message[]> {
   try {
     const command = new ReceiveMessageCommand({
       QueueUrl: queueUrl,
@@ -82,7 +122,7 @@ async function receiveMessages(maxMessages = MAX_MESSAGES_PER_BATCH) {
 /**
  * Delete a message from the queue after processing
  */
-async function deleteMessage(receiptHandle) {
+async function deleteMessage(receiptHandle: string): Promise<void> {
   try {
     const command = new DeleteMessageCommand({
       QueueUrl: queueUrl,
@@ -101,14 +141,14 @@ async function deleteMessage(receiptHandle) {
 /**
  * Processes a single notification message from the queue
  */
-async function processNotificationMessage(message) {
+async function processNotificationMessage(message: Message): Promise<boolean> {
   try {
     if (!message.Body) {
       console.error("Invalid message format, missing Body");
       return false;
     }
 
-    const notification = JSON.parse(message.Body);
+    const notification = JSON.parse(message.Body) as NotificationMessage;
 
     // Skip if no user IDs are provided
     if (!notification.userIds || notification.userIds.length === 0) {
@@ -138,7 +178,7 @@ async function processNotificationMessage(message) {
     }
 
     // Generate notification content
-    const notificationContent = {
+    const notificationContent: NotificationData = {
       title: "Notification",
       body: "You have a new notification",
       icon: "/icons/default.png",
@@ -197,7 +237,7 @@ async function processNotificationMessage(message) {
         // failCount++;
         console.error(
           `Failed to send push notification to subscription ${subscription.id}:`,
-          error.message || error,
+          (error as Error).message || error,
         );
       }
     }
@@ -219,19 +259,19 @@ async function processNotificationMessage(message) {
  * Send a push notification with retry logic
  */
 async function sendNotificationWithRetry(
-  subscription,
-  notificationContent,
+  subscription: PushSubscription,
+  notificationContent: NotificationData,
   retryCount = 0,
-) {
+): Promise<void> {
   try {
     // Prepare notification payload
-    const payload = {
-      title: notificationContent.title,
-      body: notificationContent.body,
+    const payload: NotificationPayload = {
+      title: notificationContent.title || "Notification",
+      body: notificationContent.body || "You have a new notification",
       icon: notificationContent.icon || "/icons/default.png",
       badge: "/icons/badge.png",
       data: {
-        url: notificationContent.url,
+        url: notificationContent.url || "/",
       },
       vibrate: [100, 50, 100],
       requireInteraction: true,
@@ -245,12 +285,20 @@ async function sendNotificationWithRetry(
           p256dh: subscription.p256dh,
           auth: subscription.auth,
         },
-      },
+      } as WebPushSubscription,
       JSON.stringify(payload),
     );
   } catch (error) {
+    // Define WebPushError interface for better type safety
+    interface WebPushError extends Error {
+      statusCode?: number;
+      headers?: Record<string, string>;
+      endpoint?: string;
+    }
+
     // If subscription is invalid or expired, remove it
-    if (error.statusCode === 410 || error.statusCode === 404) {
+    const webPushError = error as WebPushError;
+    if (webPushError.statusCode === 410 || webPushError.statusCode === 404) {
       if (process.env.NODE_ENV !== "production") {
         //console.log(`Subscription expired or invalid, deleting: ${subscription.id}`);
       }
@@ -283,7 +331,7 @@ async function sendNotificationWithRetry(
 /**
  * Gracefully shutdown the worker
  */
-async function shutdown() {
+async function shutdown(): Promise<void> {
   if (isShuttingDown) return;
   isShuttingDown = true;
 
@@ -302,7 +350,7 @@ async function shutdown() {
 /**
  * Main worker function that continuously polls the notification queue
  */
-export async function startNotificationWorker() {
+export async function startNotificationWorker(): Promise<void> {
   //console.log(`Starting notification worker in ${process.env.NODE_ENV || 'development'} mode`);
 
   // Set up signal handlers for graceful shutdown

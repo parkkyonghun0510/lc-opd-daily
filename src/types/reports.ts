@@ -23,7 +23,7 @@ export interface CommentItem {
 }
 
 export interface Report {
-  user: any;
+  user: unknown;
   id: string;
   date: string;
   branch: {

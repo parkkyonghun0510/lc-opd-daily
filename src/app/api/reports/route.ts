@@ -57,8 +57,17 @@ export async function GET(request: NextRequest) {
     const accessibleBranches = await getAccessibleBranches(token.sub as string);
     const accessibleBranchIds = accessibleBranches.map((branch) => branch.id);
 
+    // Define WhereClause interface
+    interface WhereClause {
+      branchId?: string | { in: string[] };
+      status?: string;
+      submittedBy?: string;
+      date?: string | { gte?: string; lte?: string };
+      reportType?: string;
+    }
+
     // Build where clause
-    const where: any = {};
+    const where: WhereClause = {};
 
     // Handle branch filtering
     if (branchId && branchId.trim() !== "") {
@@ -159,13 +168,36 @@ export async function GET(request: NextRequest) {
 
     // Transform reports data to ensure we have plan data for actual reports
     const transformedReports = reports.map((report) => {
+      // Define TransformedReport interface
+      interface TransformedReport {
+        id: string;
+        branchId: string;
+        writeOffs: number;
+        ninetyPlus: number;
+        reportType: string;
+        status: string;
+        submittedBy: string;
+        comments?: string | null;
+        createdAt: Date;
+        updatedAt: Date;
+        planReportId?: string | null;
+        submittedAt: string;
+        date: Date;
+        branch: unknown;
+        planReport?: unknown;
+        actualReports?: unknown[];
+        writeOffsPlan?: number;
+        ninetyPlusPlan?: number;
+        [key: string]: unknown;
+      }
+
       // Create a new object with the original report properties
-      const transformed = {
+      const transformed: TransformedReport = {
         ...report,
         // Convert Decimal to number for JSON serialization
         writeOffs: Number(report.writeOffs),
         ninetyPlus: Number(report.ninetyPlus),
-      } as any;
+      };
 
       // If this is an actual report and has planReport data
       if (report.reportType === "actual" && report.planReport) {
@@ -286,7 +318,17 @@ export async function POST(request: NextRequest) {
 
     let reportStatus = "pending";
     if (rules?.validationRules) {
-      const validationRules = rules.validationRules as any;
+      // Define ValidationRule interface
+      interface ValidationRule {
+        field: string;
+        type: string;
+        min?: number;
+        max?: number;
+        required?: boolean;
+        message?: string;
+      }
+
+      const validationRules = rules.validationRules as ValidationRule[];
 
       // Check if write-offs or 90+ days require approval
       if (
@@ -325,8 +367,22 @@ export async function POST(request: NextRequest) {
     // Set comments to null in the report data
     const sanitizedComments = null;
 
+    // Define BaseReportData interface
+    interface BaseReportData {
+      date: string;
+      branchId: string;
+      writeOffs: number;
+      ninetyPlus: number;
+      reportType: string;
+      status: string;
+      submittedBy: string;
+      submittedAt: string;
+      comments: string | null;
+      planReportId?: string;
+    }
+
     // Validate that all data is in the correct format before proceeding
-    const baseReportData: any = {
+    const baseReportData: BaseReportData = {
       date: reportDateISO, // Pass as string to match Prisma query expectations
       branchId: reportData.branchId,
       writeOffs: reportData.writeOffs || 0,
@@ -569,8 +625,29 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Define SerializedReport interface
+    interface SerializedReport {
+      id: string;
+      branchId: string;
+      writeOffs: number;
+      ninetyPlus: number;
+      reportType: string;
+      status: string;
+      submittedBy: string;
+      comments?: string | null;
+      createdAt: Date;
+      updatedAt: Date;
+      planReportId?: string | null;
+      submittedAt: string;
+      date: Date;
+      branch?: unknown;
+      planReport?: unknown;
+      actualReports?: unknown[];
+      [key: string]: unknown;
+    }
+
     // Convert Decimal to number for JSON serialization
-    const serializedReport: any = {
+    const serializedReport: SerializedReport = {
       ...report,
       writeOffs: Number(report.writeOffs),
       ninetyPlus: Number(report.ninetyPlus),
@@ -819,7 +896,16 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Prepare data for update (handle potential Decimal conversion if needed)
-    const prismaUpdateData: any = { ...updateData };
+    // Define PrismaUpdateData interface
+    interface PrismaUpdateData {
+      writeOffs?: number;
+      ninetyPlus?: number;
+      status?: string;
+      comments?: string | null;
+      [key: string]: string | number | null | undefined;
+    }
+
+    const prismaUpdateData: PrismaUpdateData = { ...updateData };
     if (prismaUpdateData.writeOffs !== undefined) {
       prismaUpdateData.writeOffs = Number(prismaUpdateData.writeOffs);
     }

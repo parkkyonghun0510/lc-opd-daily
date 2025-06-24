@@ -37,7 +37,7 @@ if (!queueUrl && typeof window === "undefined") {
 
 export interface NotificationMessage {
   type: string | NotificationType;
-  data: any;
+  data: Record<string, unknown>;
   userIds?: string[];
   timestamp?: string;
   priority?: "high" | "normal" | "low";
@@ -74,7 +74,10 @@ export async function sendToNotificationQueue(
     }
 
     // Set up message attributes based on priority
-    const messageAttributes: Record<string, any> = {};
+    const messageAttributes: Record<
+      string,
+      { DataType: string; StringValue: string }
+    > = {};
     if (message.priority) {
       messageAttributes["Priority"] = {
         DataType: "String",
@@ -129,7 +132,10 @@ export async function sendBatchToNotificationQueue(
         }
 
         // Set up message attributes based on priority
-        const messageAttributes: Record<string, any> = {};
+        const messageAttributes: Record<
+          string,
+          { DataType: string; StringValue: string }
+        > = {};
         if (message.priority) {
           messageAttributes["Priority"] = {
             DataType: "String",

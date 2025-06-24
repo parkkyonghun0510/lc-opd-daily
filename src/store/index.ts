@@ -3,7 +3,7 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import { createOfflineSlice, OfflineState } from "./slices/offlineSlice";
 
 // Define the store type
-export interface StoreState extends OfflineState {}
+export type StoreState = OfflineState;
 
 // Create the store
 export const useStore = create<StoreState>()(

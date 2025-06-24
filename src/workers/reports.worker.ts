@@ -1,9 +1,35 @@
 // Web Worker for handling report processing tasks
-// Commented out unused variable
-// let processingQueue: any[] = [];
+
+// Define types for worker messages
+type WorkerMessageType = "PROCESS_REPORTS" | "CACHE_REPORTS" | "ANALYZE_TRENDS";
+type WorkerResponseType =
+  | "REPORTS_PROCESSED"
+  | "REPORTS_CACHED"
+  | "TRENDS_ANALYZED"
+  | "ERROR";
+
+interface WorkerMessage {
+  type: WorkerMessageType;
+  payload: Report[] | unknown;
+}
+
+interface WorkerResponse {
+  type: WorkerResponseType;
+  payload: unknown;
+}
+
+// Define report interface
+interface Report {
+  id?: string;
+  branchId?: string;
+  writeOffs: number | string | object;
+  ninetyPlus: number | string | object;
+  riskScore?: number;
+  changeFromLastReport?: number;
+}
 
 // Handle messages from the main thread
-self.onmessage = async (e) => {
+self.onmessage = async (e: MessageEvent<WorkerMessage>) => {
   const { type, payload } = e.data;
 
   switch (type) {
@@ -22,30 +48,26 @@ self.onmessage = async (e) => {
 };
 
 // Process reports in background
-async function processReports(reports: unknown[]) {
-  // processingQueue = reports;
-
+async function processReports(reports: Report[]): Promise<void> {
   const processedReports = reports.map((report) => {
-    // Type guard to ensure report is a Record<string, unknown>
+    // Skip processing if not an object
     if (typeof report !== "object" || report === null) {
-      return report; // Skip processing if not an object
+      return report;
     }
 
-    const typedReport = report as Record<string, unknown>;
-
     return {
-      ...typedReport,
+      ...report,
       writeOffs:
-        typeof typedReport.writeOffs === "object"
-          ? Number(typedReport.writeOffs)
-          : typedReport.writeOffs,
+        typeof report.writeOffs === "object"
+          ? Number(report.writeOffs)
+          : report.writeOffs,
       ninetyPlus:
-        typeof typedReport.ninetyPlus === "object"
-          ? Number(typedReport.ninetyPlus)
-          : typedReport.ninetyPlus,
+        typeof report.ninetyPlus === "object"
+          ? Number(report.ninetyPlus)
+          : report.ninetyPlus,
       // Add computed fields
-      riskScore: calculateRiskScore(typedReport),
-      changeFromLastReport: calculateChange(typedReport),
+      riskScore: calculateRiskScore(report),
+      changeFromLastReport: calculateChange(report),
     };
   });
 
@@ -56,7 +78,7 @@ async function processReports(reports: unknown[]) {
 }
 
 // Cache reports for offline access
-function cacheReports(reports: unknown[]) {
+function cacheReports(reports: Report[]): void {
   try {
     // Store in IndexedDB for offline access
     const request = indexedDB.open("ReportsCache", 1);
@@ -80,7 +102,7 @@ function cacheReports(reports: unknown[]) {
       self.postMessage({
         type: "REPORTS_CACHED",
         payload: { count: reports.length },
-      });
+      } as WorkerResponse);
     };
   } catch (error) {
     self.postMessage({
@@ -88,12 +110,12 @@ function cacheReports(reports: unknown[]) {
       payload: {
         message: `Failed to cache reports: ${error instanceof Error ? error.message : "Unknown error"}`,
       },
-    });
+    } as WorkerResponse);
   }
 }
 
 // Analyze trends in report data
-function analyzeTrends(reports: unknown[]) {
+function analyzeTrends(reports: Report[]): void {
   const trends = {
     writeOffs: calculateTrend(reports, "writeOffs"),
     ninetyPlus: calculateTrend(reports, "ninetyPlus"),
@@ -103,17 +125,17 @@ function analyzeTrends(reports: unknown[]) {
   self.postMessage({
     type: "TRENDS_ANALYZED",
     payload: trends,
-  });
+  } as WorkerResponse);
 }
 
 // Helper functions
-function calculateRiskScore(report: Record<string, unknown>) {
+function calculateRiskScore(report: Report): number {
   const writeOffsScore = (Number(report.writeOffs) / 1000000) * 0.6;
   const ninetyPlusScore = (Number(report.ninetyPlus) / 1000000) * 0.4;
   return writeOffsScore + ninetyPlusScore;
 }
 
-function calculateChange(report: Record<string, unknown>) {
+function calculateChange(report: Report): number {
   // Calculate change from previous report
   // This is a placeholder - actual implementation would need access to historical data
   // Using report parameter to avoid unused variable warning
@@ -123,15 +145,20 @@ function calculateChange(report: Record<string, unknown>) {
   return 0;
 }
 
-function calculateTrend(reports: unknown[], field: string) {
+interface TrendResult {
+  average: number;
+  trend: number;
+  direction: "up" | "down" | "stable";
+}
+
+function calculateTrend(reports: Report[], field: keyof Report): TrendResult {
   const values = reports.map((r) => {
     if (typeof r !== "object" || r === null) {
       return 0; // Default value for non-object items
     }
-    const typedR = r as Record<string, unknown>;
-    return Number(typedR[field]);
+    return Number(r[field]);
   });
-  const average = values.reduce((a, b) => a + b, 0) / values.length;
+  const average = values.reduce((a, b) => a + b, 0) / values.length || 0;
   const trend = values[values.length - 1] - average;
 
   return {
@@ -141,17 +168,24 @@ function calculateTrend(reports: unknown[], field: string) {
   };
 }
 
-function analyzeBranchPerformance(reports: unknown[]) {
-  const branchStats = new Map();
+interface BranchStats {
+  totalWriteOffs: number;
+  totalNinetyPlus: number;
+  count: number;
+}
+
+interface BranchPerformance {
+  branchId: string;
+  averageWriteOffs: number;
+  averageNinetyPlus: number;
+  reportCount: number;
+}
+
+function analyzeBranchPerformance(reports: Report[]): BranchPerformance[] {
+  const branchStats = new Map<string, BranchStats>();
 
   reports.forEach((report) => {
-    // Type guard to ensure report is a Record<string, unknown>
-    if (typeof report !== "object" || report === null) {
-      return; // Skip non-object items
-    }
-
-    const typedReport = report as Record<string, unknown>;
-    const branchId = typedReport.branchId;
+    const branchId = report.branchId;
 
     // Skip if branchId is not available
     if (!branchId) return;
@@ -162,8 +196,8 @@ function analyzeBranchPerformance(reports: unknown[]) {
       count: 0,
     };
 
-    stats.totalWriteOffs += Number(typedReport.writeOffs) || 0;
-    stats.totalNinetyPlus += Number(typedReport.ninetyPlus) || 0;
+    stats.totalWriteOffs += Number(report.writeOffs) || 0;
+    stats.totalNinetyPlus += Number(report.ninetyPlus) || 0;
     stats.count += 1;
 
     branchStats.set(branchId, stats);

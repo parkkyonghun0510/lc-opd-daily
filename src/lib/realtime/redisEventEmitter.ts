@@ -12,7 +12,7 @@ import { eventEmitter } from "./eventEmitter";
 interface EventRecord {
   id: string;
   type: string;
-  data: any;
+  data: unknown;
   timestamp: number;
   targets?: {
     userIds?: string[];
@@ -114,7 +114,7 @@ class RedisEventEmitter {
    */
   async emit(
     type: string,
-    data: any,
+    data: unknown,
     options: {
       userIds?: string[];
       roles?: string[];
@@ -202,7 +202,7 @@ class RedisEventEmitter {
         .map((json) => {
           try {
             return JSON.parse(json);
-          } catch (e) {
+          } catch {
             return null;
           }
         })
@@ -265,7 +265,7 @@ class RedisEventEmitter {
         .map((json) => {
           try {
             return JSON.parse(json);
-          } catch (e) {
+          } catch {
             return null;
           }
         })
@@ -314,7 +314,7 @@ class RedisEventEmitter {
   /**
    * Get statistics about connected clients across all instances
    */
-  async getStats(): Promise<any> {
+  async getStats(): Promise<Record<string, unknown>> {
     // If Redis is not available, fall back to in-memory stats
     if (!this.redis) {
       return {
@@ -414,7 +414,7 @@ export async function emitNotification(
  */
 export async function emitDashboardUpdate(
   updateType: string,
-  data: any,
+  data: Record<string, unknown>,
   options: {
     userIds?: string[];
     roles?: string[];

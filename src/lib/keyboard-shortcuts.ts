@@ -107,15 +107,17 @@ export function useKeyboardShortcut(
   options: KeyboardShortcutOptions,
   handler: KeyboardShortcutHandler,
 ) {
+  // Using a ref to store the options object to avoid dependency issues
+  const optionsRef = React.useRef(options);
+
+  // Update the ref when options change
   React.useEffect(() => {
-    keyboardShortcuts.register(options, handler);
-    return () => keyboardShortcuts.unregister(options);
-  }, [
-    options.key,
-    options.ctrlKey,
-    options.shiftKey,
-    options.altKey,
-    options.metaKey,
-    handler,
-  ]);
+    optionsRef.current = options;
+  }, [options]);
+
+  React.useEffect(() => {
+    const currentOptions = optionsRef.current;
+    keyboardShortcuts.register(currentOptions, handler);
+    return () => keyboardShortcuts.unregister(currentOptions);
+  }, [handler]);
 }

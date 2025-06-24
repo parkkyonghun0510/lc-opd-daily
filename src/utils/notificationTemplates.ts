@@ -16,7 +16,7 @@ interface NotificationContent {
   body: string;
   icon?: string;
   url?: string;
-  data?: Record<string, any>;
+  data?: Record<string, unknown>;
 }
 
 /**
@@ -24,7 +24,7 @@ interface NotificationContent {
  */
 export function generateNotificationContent(
   type: NotificationType,
-  data: Record<string, any> = {},
+  data: Record<string, unknown> = {},
 ): NotificationContent {
   // Default notification content
   const defaultContent: NotificationContent = {

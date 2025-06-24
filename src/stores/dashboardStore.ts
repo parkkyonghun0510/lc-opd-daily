@@ -11,7 +11,7 @@ import { toast } from "sonner";
 // Define types for dashboard state
 export interface DashboardState {
   // Data
-  dashboardData: any;
+  dashboardData: unknown;
 
   // Status
   isLoading: boolean;
@@ -23,7 +23,7 @@ export interface DashboardState {
   lastUpdated: number | null;
 
   // Actions
-  setDashboardData: (data: any) => void;
+  setDashboardData: (data: unknown) => void;
   setLoading: (isLoading: boolean) => void;
   setConnectionStatus: (
     isConnected: boolean,

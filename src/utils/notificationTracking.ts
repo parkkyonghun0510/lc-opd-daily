@@ -7,7 +7,7 @@ import { NotificationEventType } from "@/types/notifications";
 export async function trackNotificationEvent(
   notificationId: string,
   event: NotificationEventType,
-  metadata?: Record<string, any>,
+  metadata?: Record<string, unknown>,
 ) {
   try {
     await prisma.notificationEvent.create({
@@ -33,12 +33,12 @@ export async function getNotificationStats(
   endDate?: Date,
   type?: string,
 ) {
-  const where: any = {};
+  const where: Record<string, unknown> = {};
 
   if (startDate || endDate) {
-    where.createdAt = {};
-    if (startDate) where.createdAt.gte = startDate;
-    if (endDate) where.createdAt.lte = endDate;
+    where.createdAt = {} as Record<string, Date>;
+    if (startDate) (where.createdAt as Record<string, Date>).gte = startDate;
+    if (endDate) (where.createdAt as Record<string, Date>).lte = endDate;
   }
 
   if (type) {
@@ -121,7 +121,7 @@ export async function getNotificationEventHistory(notificationId: string) {
  */
 export async function markNotificationDelivered(
   notificationId: string,
-  metadata?: Record<string, any>,
+  metadata?: Record<string, unknown>,
 ) {
   return trackNotificationEvent(
     notificationId,
@@ -135,7 +135,7 @@ export async function markNotificationDelivered(
  */
 export async function trackNotificationClick(
   notificationId: string,
-  metadata?: Record<string, any>,
+  metadata?: Record<string, unknown>,
 ) {
   try {
     // Record the click event

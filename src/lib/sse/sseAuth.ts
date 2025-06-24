@@ -25,7 +25,7 @@ const TOKEN_EXPIRATION = "1h";
  */
 export async function generateSSEToken(
   userId: string,
-  metadata: Record<string, any> = {},
+  metadata: Record<string, unknown> = {},
 ) {
   try {
     const token = await new SignJWT({
@@ -131,7 +131,7 @@ export async function authenticateSSERequest(req: NextRequest) {
  *
  * This endpoint generates an SSE token for the authenticated user.
  */
-export async function generateSSETokenHandler(req: NextRequest) {
+export async function generateSSETokenHandler() {
   try {
     // Authenticate the user
     const session = await getServerSession(authOptions);

@@ -4,15 +4,15 @@ export interface OfflineState {
   syncStatus: "idle" | "syncing" | "synced" | "error";
   lastSyncTime: number | null;
   pendingSync: boolean;
-  offlineData: any[];
+  offlineData: unknown[];
 
   // Actions
-  getOfflineData: () => Promise<any[]>;
+  getOfflineData: () => Promise<unknown[]>;
   syncOfflineData: (
-    data: any[],
+    data: unknown[],
   ) => Promise<{ success: boolean; error?: string }>;
   updateSyncStatus: (status: "idle" | "syncing" | "synced" | "error") => void;
-  addOfflineData: (data: any) => Promise<void>;
+  addOfflineData: (data: unknown) => Promise<void>;
   clearOfflineData: () => Promise<void>;
 }
 

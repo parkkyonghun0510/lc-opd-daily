@@ -62,13 +62,13 @@ export function sanitizeString(str: string | null | undefined): string | null {
  * @param formData The form data object to sanitize
  * @returns A new object with sanitized string values
  */
-export function sanitizeFormData<T extends Record<string, any>>(
+export function sanitizeFormData<T extends Record<string, unknown>>(
   formData: T,
 ): T {
   const sanitized = { ...formData } as T;
 
   // Deep sanitization function to handle nested objects
-  const deepSanitize = (obj: any): any => {
+  const deepSanitize = (obj: unknown): unknown => {
     if (obj === null || obj === undefined) {
       return obj;
     }
@@ -86,10 +86,10 @@ export function sanitizeFormData<T extends Record<string, any>>(
       return obj.map((item) => deepSanitize(item));
     }
 
-    if (typeof obj === "object") {
-      const sanitizedObj: Record<string, any> = {};
-      for (const k in obj) {
-        sanitizedObj[k] = deepSanitize(obj[k]);
+    if (typeof obj === "object" && obj !== null) {
+      const sanitizedObj: Record<string, unknown> = {};
+      for (const k in obj as Record<string, unknown>) {
+        sanitizedObj[k] = deepSanitize((obj as Record<string, unknown>)[k]);
       }
       return sanitizedObj;
     }
@@ -138,9 +138,11 @@ export function sanitizeFormData<T extends Record<string, any>>(
         isoString = new Date().toISOString();
       }
 
-      (sanitized as any)[key] = isoString;
+      (sanitized as Record<string, unknown>)[key] = isoString;
     } else {
-      (sanitized as any)[key] = deepSanitize(sanitized[key]);
+      (sanitized as Record<string, unknown>)[key] = deepSanitize(
+        sanitized[key],
+      );
     }
   }
 

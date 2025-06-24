@@ -8,7 +8,6 @@
 import { ReportCommentType } from "@/types/reports";
 import { sendNotification } from "@/lib/redis/enhancedRedisNotificationService";
 import { prisma } from "@/lib/prisma";
-import { rateLimiter } from "@/lib/rate-limit";
 
 // Comment notification types
 export enum CommentNotificationType {
@@ -124,7 +123,7 @@ export async function processCommentNotification(
  */
 async function getTargetUsersForComment(
   comment: ReportCommentType,
-  report: any,
+  report: Record<string, unknown>,
 ): Promise<string[]> {
   const targetUserIds = new Set<string>();
 
@@ -194,8 +193,8 @@ async function getTargetUsersForComment(
  * @returns Whether the user is rate limited
  */
 async function checkNotificationRateLimit(userId: string): Promise<boolean> {
-  // Create a key for the rate limit
-  const key = `comment-notifications:${userId}`;
+  // We don't need to create a key for rate limiting since we're using SQL query
+  // const key = `comment-notifications:${userId}`;
 
   // Use Redis to check/set rate limit
   try {
@@ -207,7 +206,7 @@ async function checkNotificationRateLimit(userId: string): Promise<boolean> {
     `;
 
     // Rate limit: 5 comment notifications per minute per user
-    return (count as any)[0].count >= 5;
+    return (count as { count: number }[])[0].count >= 5;
   } catch (error) {
     console.error("Error checking notification rate limit:", error);
     return false; // On error, allow the notification

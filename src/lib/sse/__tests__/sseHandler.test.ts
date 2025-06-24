@@ -16,7 +16,7 @@ describe("SSE Handler", () => {
     };
 
     // Clear all clients before each test
-    // @ts-ignore - Accessing private property for testing
+    // @ts-expect-error - Accessing private property for testing
     sseHandler.clients.clear();
   });
 
@@ -30,11 +30,11 @@ describe("SSE Handler", () => {
     sseHandler.addClient(clientId, userId, mockResponse);
 
     // Check that the client was added
-    // @ts-ignore - Accessing private property for testing
+    // @ts-expect-error - Accessing private property for testing
     expect(sseHandler.clients.size).toBe(1);
-    // @ts-ignore - Accessing private property for testing
+    // @ts-expect-error - Accessing private property for testing
     expect(sseHandler.clients.get(clientId)).toBeDefined();
-    // @ts-ignore - Accessing private property for testing
+    // @ts-expect-error - Accessing private property for testing
     expect(sseHandler.clients.get(clientId).userId).toBe(userId);
   });
 
@@ -46,9 +46,9 @@ describe("SSE Handler", () => {
     sseHandler.removeClient(clientId);
 
     // Check that the client was removed
-    // @ts-ignore - Accessing private property for testing
+    // @ts-expect-error - Accessing private property for testing
     expect(sseHandler.clients.size).toBe(0);
-    // @ts-ignore - Accessing private property for testing
+    // @ts-expect-error - Accessing private property for testing
     expect(sseHandler.clients.get(clientId)).toBeUndefined();
   });
 
@@ -98,7 +98,7 @@ describe("SSE Handler", () => {
     sseHandler.addClient(clientId, userId, mockResponse);
 
     // Get the initial last activity timestamp
-    // @ts-ignore - Accessing private property for testing
+    // @ts-expect-error - Accessing private property for testing
     const initialLastActivity = sseHandler.clients.get(clientId).lastActivity;
 
     // Wait a short time
@@ -108,7 +108,7 @@ describe("SSE Handler", () => {
     sseHandler.updateClientActivity(clientId);
 
     // Check that the last activity timestamp was updated
-    // @ts-ignore - Accessing private property for testing
+    // @ts-expect-error - Accessing private property for testing
     const updatedLastActivity = sseHandler.clients.get(clientId).lastActivity;
     expect(updatedLastActivity).toBeGreaterThan(initialLastActivity);
   });
@@ -118,15 +118,15 @@ describe("SSE Handler", () => {
     sseHandler.addClient(clientId, userId, mockResponse);
 
     // Set the last activity to a long time ago
-    // @ts-ignore - Accessing private property for testing
+    // @ts-expect-error - Accessing private property for testing
     sseHandler.clients.get(clientId).lastActivity = Date.now() - 6 * 60 * 1000; // 6 minutes ago
 
     // Trigger cleanup
-    // @ts-ignore - Accessing private method for testing
+    // @ts-expect-error - Accessing private method for testing
     sseHandler.cleanupInactiveConnections();
 
     // Check that the client was removed
-    // @ts-ignore - Accessing private property for testing
+    // @ts-expect-error - Accessing private property for testing
     expect(sseHandler.clients.size).toBe(0);
   });
 

@@ -1,5 +1,5 @@
 import { Redis } from "@upstash/redis";
-import { NextResponse } from "next/server";
+import { ServerResponse } from "http";
 
 /**
  * Client connection information
@@ -7,17 +7,17 @@ import { NextResponse } from "next/server";
 type Client = {
   id: string;
   userId: string;
-  response: any;
+  response: ServerResponse;
   connectedAt: number;
   lastActivity: number;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   instanceId: string;
 };
 
 /**
  * Event data structure for SSE events
  */
-interface SSEEvent<T = any> {
+interface SSEEvent<T = unknown> {
   type: string;
   data: T;
   id?: string;
@@ -120,7 +120,11 @@ class RedisSSEHandler {
   /**
    * Process an event received from another instance
    */
-  private processCrossInstanceEvent(event: any) {
+  private processCrossInstanceEvent(event: {
+    userId?: string;
+    eventType: string;
+    data: unknown;
+  }) {
     try {
       const { userId, eventType, data } = event;
 
@@ -158,7 +162,11 @@ class RedisSSEHandler {
   /**
    * Publish an event to Redis for cross-instance communication
    */
-  private async publishEvent(event: any) {
+  private async publishEvent(event: {
+    userId?: string;
+    eventType: string;
+    data: unknown;
+  }) {
     try {
       await this.redis.publish(
         this.pubSubChannel,
@@ -179,8 +187,8 @@ class RedisSSEHandler {
   async addClient(
     id: string,
     userId: string,
-    response: any,
-    metadata?: Record<string, any>,
+    response: ServerResponse,
+    metadata?: Record<string, unknown>,
   ) {
     const now = Date.now();
     const client: Client = {
@@ -289,7 +297,7 @@ class RedisSSEHandler {
   /**
    * Send an event to a specific user
    */
-  async sendEventToUser(userId: string, eventType: string, data: any) {
+  async sendEventToUser(userId: string, eventType: string, data: unknown) {
     let localSentCount = 0;
 
     // Ensure the event has a unique ID and timestamp
@@ -326,7 +334,7 @@ class RedisSSEHandler {
   /**
    * Broadcast an event to all connected clients
    */
-  async broadcastEvent(eventType: string, data: any) {
+  async broadcastEvent(eventType: string, data: unknown) {
     // Ensure the event has a unique ID and timestamp
     const eventData = {
       ...data,
@@ -355,7 +363,7 @@ class RedisSSEHandler {
   /**
    * Send a properly formatted SSE event
    */
-  private sendEvent(response: any, event: SSEEvent) {
+  private sendEvent(response: ServerResponse, event: SSEEvent) {
     try {
       // Format the event according to SSE specification
       let message = "";

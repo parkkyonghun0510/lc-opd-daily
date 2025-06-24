@@ -19,7 +19,14 @@ const handler = redisSSEHandler || sseHandler;
  */
 export async function emitNotificationEvent(
   userId: string,
-  notification: any,
+  notification: {
+    id: string;
+    type: string;
+    title: string;
+    message?: string;
+    body?: string;
+    createdAt?: string;
+  },
 ): Promise<number> {
   return handler.sendEventToUser(userId, "notification", {
     id: notification.id,
@@ -39,7 +46,7 @@ export async function emitNotificationEvent(
  */
 export async function emitDashboardUpdateEvent(
   userId: string,
-  data: any,
+  data: Record<string, unknown>,
 ): Promise<number> {
   return handler.sendEventToUser(userId, "dashboardUpdate", {
     ...data,
@@ -57,7 +64,7 @@ export async function emitDashboardUpdateEvent(
 export async function emitSystemEvent(
   userId: string,
   eventType: string,
-  data: any,
+  data: Record<string, unknown>,
 ): Promise<number> {
   return handler.sendEventToUser(userId, eventType, {
     ...data,
@@ -75,7 +82,7 @@ export async function emitSystemEvent(
 export async function broadcastSystemAlert(
   alertType: "info" | "warning" | "error",
   message: string,
-  data: any = {},
+  data: Record<string, unknown> = {},
 ): Promise<number> {
   return handler.broadcastEvent("systemAlert", {
     type: alertType,
@@ -94,7 +101,7 @@ export async function broadcastSystemAlert(
  */
 export async function broadcastDashboardUpdate(
   updateType: string,
-  data: any,
+  data: Record<string, unknown>,
 ): Promise<number> {
   return handler.broadcastEvent("dashboardUpdate", {
     type: updateType,
@@ -111,7 +118,7 @@ export async function broadcastDashboardUpdate(
  */
 export async function broadcastEvent(
   eventType: string,
-  data: any,
+  data: Record<string, unknown>,
 ): Promise<number> {
   return handler.broadcastEvent(eventType, {
     ...data,

@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
     const accessibleBranchIds = accessibleBranches.map((branch) => branch.id);
 
     // Build where clause
-    const where: any = {
+    const where: Record<string, unknown> = {
       branchId: {
         in: accessibleBranchIds,
       },
@@ -89,7 +89,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Implement keyset pagination for memory-efficient processing of large datasets
-    const reports: any[] = [];
+    const reports: Record<string, unknown>[] = [];
     let lastId: string | null = null;
     let hasMore = true;
 
@@ -151,15 +151,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Calculate total amounts
-    const totals = reports.reduce(
-      (acc, report) => {
-        acc.totalWriteOffs += report.writeOffs || 0;
-        acc.totalNinetyPlus += report.ninetyPlus || 0;
-        return acc;
-      },
-      { totalWriteOffs: 0, totalNinetyPlus: 0 },
-    );
+    // We'll calculate totals after removing duplicates
 
     // Ensure we have a unique set of reports by ID
     const uniqueReportsMap = new Map();
@@ -210,7 +202,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-async function transformReportsBatch(batch: any[]) {
+async function transformReportsBatch(batch: Record<string, unknown>[]) {
   // Get all unique user IDs from the batch
   const userIds = [...new Set(batch.map((report) => report.submittedBy))];
 
@@ -264,7 +256,7 @@ async function transformReportsBatch(batch: any[]) {
 }
 
 function generateCSV(
-  reports: any[],
+  reports: Record<string, unknown>[],
   totals: { totalWriteOffs: number; totalNinetyPlus: number },
 ) {
   try {
@@ -311,7 +303,7 @@ function generateCSV(
 }
 
 async function generatePDF(
-  reports: any[],
+  reports: Record<string, unknown>[],
   totals: { totalWriteOffs: number; totalNinetyPlus: number },
 ) {
   try {

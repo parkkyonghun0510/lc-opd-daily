@@ -32,7 +32,7 @@ export interface SSEClientConfig {
   /**
    * Event handlers for specific event types
    */
-  eventHandlers?: Partial<Record<SSEEventType, (data: any) => void>>;
+  eventHandlers?: Partial<Record<SSEEventType, (data: unknown) => void>>;
 
   /**
    * Whether to automatically reconnect on connection loss
@@ -344,7 +344,7 @@ export class SSEClient {
   /**
    * Log a message if debug is enabled
    */
-  private log(...args: any[]): void {
+  private log(...args: unknown[]): void {
     if (this.config.debug) {
       console.log("[SSE Client]", ...args);
     }

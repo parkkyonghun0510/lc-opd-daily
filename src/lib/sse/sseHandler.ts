@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { ServerResponse } from "http";
 import { sseMetrics } from "./sseMetrics";
 
 /**
@@ -7,16 +7,16 @@ import { sseMetrics } from "./sseMetrics";
 type Client = {
   id: string;
   userId: string;
-  response: any;
+  response: ServerResponse;
   connectedAt: number;
   lastActivity: number;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 };
 
 /**
  * Event data structure for SSE events
  */
-interface SSEEvent<T = any> {
+interface SSEEvent<T = unknown> {
   type: string;
   data: T;
   id?: string;
@@ -51,8 +51,8 @@ class SSEHandler {
   addClient(
     id: string,
     userId: string,
-    response: any,
-    metadata?: Record<string, any>,
+    response: ServerResponse,
+    metadata?: Record<string, unknown>,
   ) {
     const now = Date.now();
     this.clients.set(id, {
@@ -111,7 +111,7 @@ class SSEHandler {
   sendEventToUser(
     userId: string,
     eventType: string,
-    data: any,
+    data: unknown,
     options: { retry?: number; id?: string } = {},
   ) {
     const startTime = performance.now();
@@ -153,7 +153,7 @@ class SSEHandler {
    */
   broadcastEvent(
     eventType: string,
-    data: any,
+    data: unknown,
     options: { retry?: number; id?: string } = {},
   ) {
     const startTime = performance.now();
@@ -189,7 +189,7 @@ class SSEHandler {
   /**
    * Send a properly formatted SSE event
    */
-  private sendEvent(response: any, event: SSEEvent) {
+  private sendEvent(response: ServerResponse, event: SSEEvent) {
     try {
       // Format the event according to SSE specification
       let message = "";

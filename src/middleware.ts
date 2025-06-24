@@ -1,21 +1,6 @@
 import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
 import { UserRole } from "@/lib/auth/roles";
-import type { NextRequest } from "next/server";
-
-const prisma = new PrismaClient();
-
-// Check if system needs setup
-async function checkIfSystemNeedsSetup() {
-  try {
-    // Try to count users - if table doesn't exist, this will throw
-    await prisma.user.count();
-    return false;
-  } catch (error) {
-    return true;
-  }
-}
 
 // Combined middleware function
 // The withAuth middleware handles protected routes and authentication

@@ -7,16 +7,16 @@ import { sseMetrics } from "./sseMetrics";
 export type Client = {
   id: string;
   userId: string;
-  response: any;
+  response: NextResponse;
   connectedAt: number;
   lastActivity: number;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 };
 
 /**
  * Event data structure for SSE events
  */
-export interface SSEEvent<T = any> {
+export interface SSEEvent<T = unknown> {
   type: string;
   data: T;
   id?: string;
@@ -47,8 +47,8 @@ export class SSEHandler {
   addClient(
     id: string,
     userId: string,
-    response: any,
-    metadata: Record<string, any> = {},
+    response: NextResponse,
+    metadata: Record<string, unknown> = {},
   ) {
     const now = Date.now();
     this.clients.set(id, {
@@ -87,7 +87,7 @@ export class SSEHandler {
   sendEventToUser(
     userId: string,
     eventType: string,
-    data: any,
+    data: unknown,
     options: { retry?: number; id?: string } = {},
   ) {
     const startTime = performance.now();
@@ -128,7 +128,7 @@ export class SSEHandler {
   sendEventToRole(
     role: string,
     eventType: string,
-    data: any,
+    data: unknown,
     options: { retry?: number; id?: string } = {},
   ) {
     const startTime = performance.now();
@@ -168,7 +168,7 @@ export class SSEHandler {
    */
   broadcastEvent(
     eventType: string,
-    data: any,
+    data: unknown,
     options: { retry?: number; id?: string } = {},
   ) {
     const startTime = performance.now();
@@ -209,7 +209,7 @@ export class SSEHandler {
   /**
    * Send a properly formatted SSE event
    */
-  private sendEvent(response: any, event: SSEEvent) {
+  private sendEvent(response: NextResponse, event: SSEEvent) {
     try {
       // Format the event according to SSE specification
       let message = "";

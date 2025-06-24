@@ -216,9 +216,9 @@ export async function approveReportAction(
 
         if (targetUsers.length > 0) {
           // Generate title and body based on notification type
-          let title =
+          const title =
             status === "approved" ? "Report Approved" : "Report Rejected";
-          let body =
+          const body =
             status === "approved"
               ? `Your report has been approved by ${approverName}.`
               : `Your report has been rejected${comments ? ` with reason: ${comments}` : ""}.`;

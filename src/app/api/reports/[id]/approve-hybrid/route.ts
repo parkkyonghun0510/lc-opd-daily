@@ -252,13 +252,13 @@ export async function POST(request: NextRequest) {
           if (!sqsSent) {
             try {
               // Generate title and body based on notification type
-              let title =
+              const title =
                 status === "approved" ? "Report Approved" : "Report Rejected";
-              let body =
+              const body =
                 status === "approved"
                   ? `Your report has been approved by a manager.`
                   : `Your report has been rejected${comments ? ` with reason: ${comments}` : ""}.`;
-              let actionUrl = `/reports/${report.id}`;
+              const actionUrl = `/reports/${report.id}`;
 
               await createDirectNotifications(
                 notificationType,

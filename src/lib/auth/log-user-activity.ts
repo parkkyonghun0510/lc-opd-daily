@@ -7,7 +7,7 @@ interface ActivityMetadata {
   userAgent: string;
 }
 
-type ActivityDetails = Record<string, any>;
+type ActivityDetails = Record<string, unknown>;
 
 export async function logUserActivity(
   userId: string,

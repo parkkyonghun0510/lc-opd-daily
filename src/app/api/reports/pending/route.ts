@@ -23,7 +23,13 @@ export async function GET(request: NextRequest) {
     const reportType = searchParams.get("type");
 
     // Create base query condition
-    let whereCondition: any = {
+    interface WhereCondition {
+      status: { in: string[] };
+      reportType?: string;
+      branchId?: { in: string[] };
+    }
+
+    const whereCondition: WhereCondition = {
       status: { in: ["pending", "pending_approval"] },
     };
 
@@ -71,9 +77,17 @@ export async function GET(request: NextRequest) {
       });
 
       const pendingReportsResults = await Promise.all(pendingReportsPromises);
+      // Define Report interface with required properties
+      interface ReportWithBranch {
+        id: string;
+        branch: { id: string; name?: string; code?: string };
+        submittedBy?: string;
+        [key: string]: unknown;
+      }
+
       // Filter out null results and reports with missing branches
       const pendingReports = pendingReportsResults.filter(
-        (report): report is any => {
+        (report): report is ReportWithBranch => {
           if (!report) return false;
           if ("error" in report) return false;
           return report.branch !== null;

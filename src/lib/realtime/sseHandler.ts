@@ -6,17 +6,17 @@
  */
 
 import { NextRequest } from "next/server";
-import { eventEmitter } from "./eventEmitter";
+// Removed unused import: import { eventEmitter } from "./eventEmitter";
 import { realtimeMonitor } from "./monitor";
 
 // Client connection interface
 interface Client {
   id: string;
   userId: string;
-  response: any;
+  response: unknown;
   connectedAt: number;
   lastActivity: number;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 class SSEHandler {
@@ -39,8 +39,8 @@ class SSEHandler {
   async handleConnection(
     request: NextRequest,
     userId: string,
-    response: any,
-    metadata?: Record<string, any>,
+    response: unknown,
+    metadata?: Record<string, unknown>,
   ) {
     // Generate a unique client ID
     const clientId = crypto.randomUUID();
@@ -126,7 +126,7 @@ class SSEHandler {
   /**
    * Send an event to a specific client
    */
-  sendEvent(response: any, event: { type: string; data: any }) {
+  sendEvent(response: unknown, event: { type: string; data: unknown }) {
     try {
       // Format the event according to SSE specification
       let message = "";
@@ -157,7 +157,7 @@ class SSEHandler {
   /**
    * Send an event to a specific user
    */
-  sendEventToUser(userId: string, eventType: string, data: any) {
+  sendEventToUser(userId: string, eventType: string, data: unknown) {
     let sentCount = 0;
 
     for (const client of this.clients.values()) {
@@ -180,7 +180,7 @@ class SSEHandler {
   /**
    * Broadcast an event to all connected clients
    */
-  broadcastEvent(eventType: string, data: any) {
+  broadcastEvent(eventType: string, data: unknown) {
     let sentCount = 0;
 
     for (const client of this.clients.values()) {

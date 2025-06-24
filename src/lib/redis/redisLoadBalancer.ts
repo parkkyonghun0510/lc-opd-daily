@@ -203,7 +203,7 @@ export class RedisLoadBalancer {
    */
   private getNextInstance(): { client: Redis; instanceId: string } | null {
     const activeInstances = Array.from(this.instances.entries()).filter(
-      ([_, instance]) => instance.config.isActive && instance.health.isHealthy,
+      ([, instance]) => instance.config.isActive && instance.health.isHealthy,
     );
 
     if (activeInstances.length === 0) {
@@ -367,7 +367,7 @@ export class RedisLoadBalancer {
    * @param message - The message to log
    * @param error - Optional error to log
    */
-  private log(message: string, error?: any): void {
+  private log(message: string, error?: unknown): void {
     if (this.options.debug) {
       console.log(`[RedisLoadBalancer] ${message}`);
       if (error) {

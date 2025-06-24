@@ -3,9 +3,20 @@ import { getToken } from "next-auth/jwt";
 import { prisma } from "@/lib/prisma";
 import { Permission, UserRole, hasPermission } from "@/lib/auth/roles";
 
+// Define a type for Decimal values from Prisma
+type PrismaDecimal =
+  | { toString(): string }
+  | number
+  | string
+  | null
+  | undefined;
+
 // Helper function to convert Decimal to number
-const toNumber = (value: any): number => {
+const toNumber = (value: PrismaDecimal): number => {
   if (typeof value === "number") return value;
+  if (value === null || value === undefined) return 0;
+  if (typeof value === "object" && "toString" in value)
+    return Number(value.toString()) || 0;
   return Number(value) || 0;
 };
 

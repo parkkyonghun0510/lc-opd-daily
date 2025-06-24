@@ -5,7 +5,7 @@ import {
   resetFailedLoginAttempts,
   getRemainingLockoutTime,
 } from "./utils/account-security";
-import { NextAuthOptions, DefaultSession } from "next-auth";
+import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { getPrisma } from "./prisma-server";
 

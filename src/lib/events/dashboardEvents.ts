@@ -25,7 +25,7 @@ export enum DashboardEventTypes {
  */
 export function broadcastDashboardUpdate(
   type: DashboardEventTypes | string,
-  data: any,
+  data: Record<string, unknown>,
 ): string {
   // Create the event data
   const eventData = {
@@ -56,7 +56,7 @@ export function broadcastDashboardUpdate(
 export function sendDashboardUpdate(
   userId: string,
   type: DashboardEventTypes | string,
-  data: any,
+  data: Record<string, unknown>,
 ): string {
   // Create the event data
   const eventData = {
@@ -89,7 +89,7 @@ export function sendDashboardUpdate(
 export function sendDashboardUpdateToRole(
   role: string,
   type: DashboardEventTypes | string,
-  data: any,
+  data: Record<string, unknown>,
 ): string {
   // Create the event data
   const eventData = {

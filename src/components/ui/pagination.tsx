@@ -20,8 +20,8 @@ export function Pagination({
     pageNumbers.push(1);
 
     // Calculate start and end of the pagination range
-    let startPage = Math.max(2, currentPage - 1);
-    let endPage = Math.min(totalPages - 1, currentPage + 1);
+    const startPage = Math.max(2, currentPage - 1);
+    const endPage = Math.min(totalPages - 1, currentPage + 1);
 
     // Add ellipsis if needed before the range
     if (startPage > 2) {

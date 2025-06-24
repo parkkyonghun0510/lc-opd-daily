@@ -16,7 +16,7 @@ import {
 } from "@/utils/notificationTemplates";
 import { emitNotification } from "@/lib/realtime/redisEventEmitter";
 import { NotificationEventType } from "@/types/notifications";
-import { rateLimiter } from "@/lib/rate-limit";
+// Removed unused import: import { rateLimiter } from "@/lib/rate-limit";
 
 // Constants
 const NOTIFICATION_QUEUE_KEY = "notifications:queue";
@@ -28,7 +28,7 @@ const MAX_HISTORY_SIZE = 1000;
 export interface NotificationMessage {
   id: string;
   type: string;
-  data: any;
+  data: Record<string, unknown>;
   userIds: string[];
   timestamp: string;
   priority?: "high" | "normal" | "low";
@@ -286,7 +286,7 @@ export async function processNotification(
  */
 async function createInAppNotifications(
   type: NotificationType,
-  data: Record<string, any>,
+  data: Record<string, unknown>,
   userIds: string[],
 ): Promise<number> {
   try {
@@ -353,7 +353,9 @@ async function createInAppNotifications(
  *
  * @returns Notification metrics
  */
-export async function getNotificationMetrics(): Promise<any> {
+export async function getNotificationMetrics(): Promise<
+  Record<string, unknown>
+> {
   try {
     // Get Redis metrics using load balancer
     const result = await executeRedisOperation(async (redis) => {
