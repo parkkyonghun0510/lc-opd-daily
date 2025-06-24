@@ -2,8 +2,7 @@ module.exports = {
   apps: [
     {
       name: "lc-opd-daily",
-      script: "node_modules/next/dist/bin/next",
-      args: "start",
+      script: "server.js",
       instances: "max",
       exec_mode: "cluster",
       watch: false,
@@ -15,7 +14,7 @@ module.exports = {
     },
     {
       name: "notification-worker",
-      script: "scripts/standalone-worker.js",
+      script: "scripts/utils/standalone-worker.js",
       interpreter: "node",
       interpreterArgs: "--experimental-modules",
       instances: 1,
@@ -31,4 +30,4 @@ module.exports = {
       error_file: "logs/notification-worker-error.log"
     }
   ]
-}; 
+};
