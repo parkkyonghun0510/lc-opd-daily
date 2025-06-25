@@ -2,7 +2,8 @@ module.exports = {
   apps: [
     {
       name: "lc-opd-daily",
-      script: "server.js",
+      script: "next",
+      args: "start",
       instances: "max",
       exec_mode: "cluster",
       watch: false,
