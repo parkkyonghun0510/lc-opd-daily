@@ -16,6 +16,17 @@
     },
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10,
-    "startCommand": "pm2-runtime ecosystem.production.config.cjs"
-  }
+    "startCommand": "npm run start"
+  },
+  "services": [
+    {
+      "name": "notification-worker",
+      "runtime": "V2",
+      "numReplicas": 1,
+      "sleepApplication": false,
+      "restartPolicyType": "ON_FAILURE",
+      "restartPolicyMaxRetries": 10,
+      "startCommand": "npm run start:worker:standalone"
+    }
+  ]
 }
