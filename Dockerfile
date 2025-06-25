@@ -70,6 +70,11 @@ RUN chmod +x ./scripts/db/*.sh
 # Install PM2 globally
 RUN npm install -g pm2
 
+# Create PM2 home directory and set permissions
+RUN mkdir -p /app/.pm2
+RUN chown -R nextjs:nodejs /app/.pm2
+ENV PM2_HOME /app/.pm2
+
 USER nextjs
 
 EXPOSE 3000
