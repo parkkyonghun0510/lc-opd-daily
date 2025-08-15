@@ -16,7 +16,7 @@ module.exports = {
     },
     {
       name: "notification-worker",
-      script: "/app/scripts/standalone-worker.js",
+      script: "/app/scripts/redis-standalone-worker-docker.js",
       interpreter: "node",
       instances: 1,
       autorestart: true,
