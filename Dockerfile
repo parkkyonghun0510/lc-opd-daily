@@ -6,8 +6,8 @@ FROM base AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-# Copy package files
-COPY package.json package-lock.json ./
+# Copy package files and npm config
+COPY package.json package-lock.json .npmrc ./
 RUN npm ci --legacy-peer-deps
 
 # Rebuild the source code only when needed
@@ -54,8 +54,8 @@ COPY --from=builder /app/scripts ./scripts
 COPY --from=builder /app/ecosystem.production.config.cjs ./
 
 # Install only production dependencies
-COPY package.json package-lock.json ./
-RUN npm ci --only=production
+COPY package.json package-lock.json .npmrc ./
+RUN npm ci --omit=dev --legacy-peer-deps
 
 # Generate Prisma client in production
 RUN npx prisma generate

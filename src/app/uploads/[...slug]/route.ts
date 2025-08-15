@@ -46,7 +46,7 @@ export async function GET(
     const contentType = contentTypes[ext] || 'application/octet-stream';
 
     // Return file with appropriate headers
-    return new NextResponse(fileBuffer, {
+    return new NextResponse(Buffer.from(fileBuffer), {
       headers: {
         'Content-Type': contentType,
         'Cache-Control': 'public, max-age=31536000', // Cache for 1 year

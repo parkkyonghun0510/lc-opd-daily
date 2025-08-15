@@ -84,7 +84,7 @@ export async function requestNotificationPermission(): Promise<PushSubscription 
     if (!subscription) {
       subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: convertedVapidKey
+        applicationServerKey: convertedVapidKey.buffer as ArrayBuffer
       });
     }
 
@@ -322,4 +322,4 @@ export function getNotificationStatus(): {
     permission,
     isGranted: permission === 'granted'
   };
-} 
+}

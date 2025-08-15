@@ -525,7 +525,7 @@ async function generatePDF(reports: any[], totals: { totalWriteOffs: number; tot
     const pdfBytes = await pdfDoc.save();
 
     // Return PDF response
-    return new NextResponse(pdfBytes, {
+    return new NextResponse(Buffer.from(pdfBytes), {
       headers: {
         'Content-Type': 'application/pdf',
         'Content-Disposition': `attachment; filename="reports-${format(new Date(), 'dd-MMM-yyyy')}.pdf"`,
