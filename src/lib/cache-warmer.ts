@@ -19,9 +19,7 @@ async function warmStatsCache() {
       growth: await getGrowthRate(),
     };
 
-    await redis.set(CACHE_KEYS.DASHBOARD_STATS, stats, {
-      ex: CACHE_TTL.STATS,
-    });
+    await redis.set(CACHE_KEYS.DASHBOARD_STATS, JSON.stringify(stats), 'EX', CACHE_TTL.STATS);
 
     //console.log("✅ Stats cache warmed successfully");
   } catch (error) {
@@ -39,9 +37,7 @@ async function warmChartsCache() {
       userGrowthData: await getUserGrowthData(),
     };
 
-    await redis.set(CACHE_KEYS.DASHBOARD_CHARTS, chartData, {
-      ex: CACHE_TTL.CHARTS,
-    });
+    await redis.set(CACHE_KEYS.DASHBOARD_CHARTS, JSON.stringify(chartData), 'EX', CACHE_TTL.CHARTS);
 
     //console.log("✅ Charts cache warmed successfully");
   } catch (error) {

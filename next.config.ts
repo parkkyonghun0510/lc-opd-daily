@@ -4,6 +4,11 @@ const nextConfig: NextConfig = {
   // Railway-specific configuration
   serverExternalPackages: ['ioredis'],
   
+  // Disable ESLint blocking the production build (we run lint separately)
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  
   // Enable static file serving for uploads
   async rewrites() {
     return [

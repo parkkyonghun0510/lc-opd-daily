@@ -21,7 +21,6 @@ export class DragonflyQueueService {
       url: DRAGONFLY_URL,
       socket: {
         connectTimeout: 10000,
-        commandTimeout: 5000,
         reconnectStrategy: (retries) => Math.min(retries * 50, 500),
       },
     });
@@ -252,19 +251,15 @@ export class DragonflyQueueService {
       this.client.zCard(`${this.queueName}:delayed`),
     ]);
 
-    return {
-      queueLength,
-      processingLength,
-      delayedLength,
-    };
+    return { queueLength, processingLength, delayedLength };
   }
 
   /**
-   * Clean up expired processing messages (dead letter queue functionality)
+   * Clean up expired messages from processing set
    */
   async cleanupExpiredMessages(): Promise<number> {
     await this.connect();
-    
+
     const now = Date.now();
     const expiredMessages = await this.client.zRangeByScore(
       `${this.queueName}:processing`,
@@ -272,23 +267,23 @@ export class DragonflyQueueService {
       now
     );
 
-    let movedToDLQ = 0;
+    let cleaned = 0;
     for (const messageData of expiredMessages) {
       try {
         const message = JSON.parse(messageData);
-        await this.client.lPush(this.dlqName, messageData);
+        // Move back to main queue
+        await this.client.lPush(this.queueName, JSON.stringify(message));
         await this.client.zRem(`${this.queueName}:processing`, messageData);
-        movedToDLQ++;
+        cleaned++;
       } catch (error) {
-        console.error('Error moving message to DLQ:', error);
+        console.error('Error cleaning up expired message:', error);
       }
     }
 
-    return movedToDLQ;
+    return cleaned;
   }
 }
 
-// Singleton instance
 let dragonflyQueueService: DragonflyQueueService | null = null;
 
 export function getDragonflyQueueService(): DragonflyQueueService {
@@ -298,7 +293,7 @@ export function getDragonflyQueueService(): DragonflyQueueService {
   return dragonflyQueueService;
 }
 
-// SQS-compatible interface for easy migration
+// Minimal SQS-compatible interface wrapper for dragonfly service usage
 export const dragonflySQS = {
   sendMessage: async (params: any) => {
     const service = getDragonflyQueueService();

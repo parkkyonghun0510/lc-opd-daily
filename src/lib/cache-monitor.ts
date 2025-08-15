@@ -27,19 +27,29 @@ export async function recordCacheMiss(key: string) {
 }
 
 async function getMetrics(): Promise<CacheMetrics> {
-  const metrics = await redis.get<CacheMetrics>(METRICS_KEY);
-  if (!metrics) {
+  const raw = await redis.get(METRICS_KEY);
+  if (!raw) {
     return {
       hits: 0,
       misses: 0,
       lastReset: new Date().toISOString(),
     };
   }
-  return metrics;
+  try {
+    const parsed = JSON.parse(raw) as CacheMetrics;
+    return parsed;
+  } catch {
+    // If parsing fails, reset metrics to a sane default
+    return {
+      hits: 0,
+      misses: 0,
+      lastReset: new Date().toISOString(),
+    };
+  }
 }
 
 async function saveMetrics(metrics: CacheMetrics) {
-  await redis.set(METRICS_KEY, metrics);
+  await redis.set(METRICS_KEY, JSON.stringify(metrics));
 }
 
 export async function getCacheStats() {
@@ -55,9 +65,12 @@ export async function getCacheStats() {
 }
 
 export async function resetMetrics() {
-  await redis.set(METRICS_KEY, {
-    hits: 0,
-    misses: 0,
-    lastReset: new Date().toISOString(),
-  });
+  await redis.set(
+    METRICS_KEY,
+    JSON.stringify({
+      hits: 0,
+      misses: 0,
+      lastReset: new Date().toISOString(),
+    })
+  );
 }

@@ -85,7 +85,8 @@ export async function processNotification(notification: NotificationMessage): Pr
     await redis.set(
       `${NOTIFICATION_PROCESSING_KEY}:${notification.id}`,
       JSON.stringify(notification),
-      { ex: 300 } // Expire after 5 minutes
+      'EX',
+      300 // Expire after 5 minutes
     );
 
     // 1. Create in-app notifications
@@ -143,7 +144,8 @@ export async function processNotification(notification: NotificationMessage): Pr
         error: error instanceof Error ? error.message : String(error),
         timestamp: new Date().toISOString()
       }),
-      { ex: 86400 } // Expire after 24 hours
+      'EX',
+      86400 // Expire after 24 hours
     );
 
     return false;
