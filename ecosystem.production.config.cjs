@@ -8,6 +8,7 @@ module.exports = {
       exec_mode: "cluster",
       watch: false,
       max_memory_restart: "1G",
+      cwd: "/app",
       env: {
         NODE_ENV: "production",
         PORT: 3000
@@ -15,20 +16,20 @@ module.exports = {
     },
     {
       name: "notification-worker",
-      script: "scripts/redis-standalone-worker.js",
+      script: "/app/scripts/standalone-worker.js",
       interpreter: "node",
-      interpreterArgs: "--experimental-modules",
       instances: 1,
       autorestart: true,
       watch: false,
       max_memory_restart: "500M",
+      cwd: "/app",
       env: {
         NODE_ENV: "production"
       },
       log_date_format: "YYYY-MM-DD HH:mm:ss",
       merge_logs: true,
-      out_file: "logs/notification-worker.log",
-      error_file: "logs/notification-worker-error.log"
+      out_file: "/app/logs/notification-worker.log",
+      error_file: "/app/logs/notification-worker-error.log"
     }
   ]
 };
