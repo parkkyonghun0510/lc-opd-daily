@@ -2,9 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   // Railway-specific configuration
-  experimental: {
-    serverComponentsExternalPackages: ['ioredis'],
-  },
+  serverExternalPackages: ['ioredis'],
   
   // Enable static file serving for uploads
   async rewrites() {

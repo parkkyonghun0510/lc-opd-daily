@@ -59,9 +59,7 @@ export async function GET() {
     };
 
     // Store in Redis cache
-    await redis.set(cacheKey, JSON.stringify(stats), {
-      ex: CACHE_TTL.STATS,
-    });
+    await redis.set(cacheKey, JSON.stringify(stats), 'EX', CACHE_TTL.STATS);
 
     return NextResponse.json(stats);
   } catch (error) {

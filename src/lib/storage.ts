@@ -3,13 +3,13 @@ import { v4 as uuidv4 } from "uuid";
 import path from 'path';
 
 /**
- * Uploads a file to local storage (Railway-compatible)
+ * Uploads a file to local storage
  * @param file The file to upload
  * @param contentType The content type of the file
  * @param folder Optional folder path
  * @returns Object with the local URL and file path
  */
-export async function uploadToS3(
+export async function upload(
   file: Buffer,
   contentType: string,
   folder: string = "avatars"
@@ -27,7 +27,7 @@ export async function uploadToS3(
  * Deletes a file from local storage
  * @param key The file path to delete
  */
-export async function deleteFromS3(key: string): Promise<void> {
+export async function deleteFromStorage(key: string): Promise<void> {
   try {
     await deleteFile(key);
   } catch (error) {
@@ -41,17 +41,17 @@ export async function deleteFromS3(key: string): Promise<void> {
  * @param url The full local storage URL
  * @returns The local file path
  */
-export function extractS3KeyFromUrl(url: string): string {
+export function extractKeyFromUrl(url: string): string {
   return getFilePathFromUrl(url) || '';
 }
 
 /**
- * Returns the public URL for a local file (Railway-compatible)
+ * Returns the public URL for a local file
  * @param key The local file path
  * @param expiresIn Ignored for local storage
  * @returns Public URL
  */
-export async function getSignedS3Url(
+export async function getSignedUrl(
   key: string,
   expiresIn: number = 3600
 ): Promise<string> {

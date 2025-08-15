@@ -186,15 +186,31 @@ export async function POST(
           const queueData = {
             type: notificationType,
             data: {
-              reportId: report.id,
-              branchId: report.branchId,
-              branchName: report.branch.name,
-              approverName,
-              comments: comments || ""
+              title: status === "approved" ? "Report Approved" : "Report Rejected",
+              body: status === "approved"
+                ? `Your report has been approved by ${approverName}.`
+                : `Your report has been rejected${comments ? ` with reason: ${comments}` : ""} by ${approverName}.`,
+              url: `/reports/${report.id}`,
+              senderName: approverName,
+              metadata: {
+                reportId: report.id,
+                branchId: report.branchId,
+                branchName: report.branch.name,
+                approverName,
+                comments: comments || "",
+                status: status,
+                previousStatus: report.status,
+                timestamp: new Date().toISOString(),
+                reportDate: new Date(report.date).toISOString().split('T')[0],
+                reportType: report.reportType,
+                writeOffs: Number(report.writeOffs),
+                ninetyPlus: Number(report.ninetyPlus)
+              }
             },
-            userIds: targetUsers
+            userIds: targetUsers,
+            priority: "normal" as const,
+            timestamp: new Date().toISOString()
           };
-
           //console.log(`Sending to notification queue:`, JSON.stringify(queueData, null, 2));
 
           let sqsSent = false;
@@ -213,11 +229,11 @@ export async function POST(
 
             try {
               // Generate title and body based on notification type
-              let title = status === "approved" ? "Report Approved" : "Report Rejected";
-              let body = status === "approved"
+              const title = status === "approved" ? "Report Approved" : "Report Rejected";
+              const body = status === "approved"
                 ? `Your report has been approved by ${approverName}.`
                 : `Your report has been rejected${comments ? ` with reason: ${comments}` : ""}.`;
-              let actionUrl = `/reports/${report.id}`;
+              const actionUrl = `/reports/${report.id}`;
 
               // Use the utility function to create direct notifications
               const result = await createDirectNotifications(
@@ -232,6 +248,13 @@ export async function POST(
                   branchName: report.branch.name,
                   approverName,
                   comments: comments || "",
+                  status: status,
+                  previousStatus: report.status,
+                  timestamp: new Date().toISOString(),
+                  reportDate: new Date(report.date).toISOString().split('T')[0],
+                  reportType: report.reportType,
+                  writeOffs: Number(report.writeOffs),
+                  ninetyPlus: Number(report.ninetyPlus),
                   method: "fallback-api"
                 }
               );

@@ -38,9 +38,7 @@ export async function GET() {
     };
 
     // Store in Redis cache
-    await redis.set(CACHE_KEYS.DASHBOARD_CHARTS, JSON.stringify(chartData), {
-      ex: CACHE_TTL.CHARTS,
-    });
+    await redis.set(CACHE_KEYS.DASHBOARD_CHARTS, JSON.stringify(chartData), 'EX', CACHE_TTL.CHARTS);
 
     return NextResponse.json(chartData);
   } catch (error) {

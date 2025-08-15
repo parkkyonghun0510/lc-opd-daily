@@ -473,14 +473,22 @@ export async function POST(request: NextRequest) {
     if (reportStatus === "pending_approval") {
       try {
         const notificationData = {
-          reportId: report.id,
-          branchId: report.branchId,
-          branchName: branch?.name || "a branch",
-          submitterName: submitter?.name || "A user",
-          date: reportDate.toISOString().split('T')[0],
-          writeOffs: Number(report.writeOffs),
-          ninetyPlus: Number(report.ninetyPlus),
-          reportType: report.reportType
+          title: "New Report Submitted",
+          body: `${submitter?.name || "A user"} submitted a ${report.reportType} report for ${branch?.name || "a branch"}`,
+          url: `/dashboard/reports/${report.id}`,
+          senderName: submitter?.name || "System",
+          metadata: {
+            reportId: report.id,
+            branchId: report.branchId,
+            branchName: branch?.name || "a branch",
+            submitterName: submitter?.name || "A user",
+            date: reportDate.toISOString().split('T')[0],
+            writeOffs: Number(report.writeOffs),
+            ninetyPlus: Number(report.ninetyPlus),
+            reportType: report.reportType,
+            status: reportStatus,
+            timestamp: new Date().toISOString()
+          }
         };
 
         // Notify relevant users
@@ -490,7 +498,9 @@ export async function POST(request: NextRequest) {
           await sendToNotificationQueue({
             type: NotificationType.REPORT_SUBMITTED,
             data: notificationData,
-            userIds: targetUsers
+            userIds: targetUsers,
+            priority: "normal" as const,
+            timestamp: new Date().toISOString()
           });
         }
       } catch (notificationError) {
@@ -787,19 +797,31 @@ export async function PATCH(request: NextRequest) {
 
         if (targetUsers.length > 0) {
           const notificationData = {
-            reportId: updatedReport.id,
-            reportDate: new Date(updatedReport.date).toISOString().split('T')[0], // Convert Date to string
-            branchName: updatedReport.branch.name,
-            status: updatedReport.status,
-            actorName: token.name || 'System',
-            // Don't include comments in notification data anymore
-            // Comments should be fetched from ReportComment model if needed
+            title: `Report ${updatedReport.status}`,
+            body: `Report for ${updatedReport.branch.name} has been ${updatedReport.status} by ${token.name || 'System'}`,
+            url: `/reports/${updatedReport.id}`,
+            senderName: token.name || 'System',
+            metadata: {
+              reportId: updatedReport.id,
+              reportDate: new Date(updatedReport.date).toISOString().split('T')[0],
+              branchName: updatedReport.branch.name,
+              branchId: updatedReport.branchId,
+              status: updatedReport.status,
+              previousStatus: existingReport.status,
+              actorName: token.name || 'System',
+              reportType: updatedReport.reportType,
+              writeOffs: Number(updatedReport.writeOffs),
+              ninetyPlus: Number(updatedReport.ninetyPlus),
+              timestamp: new Date().toISOString()
+            }
           };
 
           await sendToNotificationQueue({
             type: statusChangeNotificationType,
             data: notificationData,
             userIds: targetUsers,
+            priority: "normal" as const,
+            timestamp: new Date().toISOString()
           });
         }
       } catch (notificationError) {

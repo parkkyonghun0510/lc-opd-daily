@@ -6,7 +6,7 @@ const queueUrl = process.env.NOTIFICATION_QUEUE_URL || 'redis://notifications';
 const LOW_PRIORITY_DELAY_SECONDS = parseInt(process.env.LOW_PRIORITY_DELAY_SECONDS || '30');
 
 // Define notification types locally until proper type definitions are available
-export type NotificationType = 
+export type NotificationType =
   | 'report_submitted'
   | 'report_approved'
   | 'report_rejected'
@@ -21,6 +21,7 @@ export interface NotificationData {
   senderName?: string;
   metadata?: Record<string, unknown>;
 }
+
 
 export interface NotificationMessage {
   type: NotificationType;
@@ -81,9 +82,9 @@ export async function sendToNotificationQueue(message: NotificationMessage): Pro
  * Send multiple notification messages in a batch to the SQS queue
  * More efficient than sending individual messages
  */
-export async function sendBatchToNotificationQueue(messages: NotificationMessage[]): Promise<{ 
-  Successful: Array<{ Id: string; MessageId: string }>, 
-  Failed: Array<{ Id: string; Code?: string; Message?: string }> 
+export async function sendBatchToNotificationQueue(messages: NotificationMessage[]): Promise<{
+  Successful: Array<{ Id: string; MessageId: string }>,
+  Failed: Array<{ Id: string; Code?: string; Message?: string }>
 }> {
   if (!messages.length) return { Successful: [], Failed: [] };
 
@@ -94,7 +95,7 @@ export async function sendBatchToNotificationQueue(messages: NotificationMessage
       if (!message.timestamp) {
         message.timestamp = new Date().toISOString();
       }
-      
+
       // Generate idempotency key if not provided
       if (!message.idempotencyKey) {
         message.idempotencyKey = `${message.type}-${Date.now()}-${index}-${randomUUID()}`;
@@ -176,7 +177,7 @@ export async function deleteMessageFromQueue(receiptHandle: string) {
       QueueUrl: queueUrl,
       ReceiptHandle: receiptHandle
     });
-    
+
     if (process.env.NODE_ENV !== 'production') {
       console.log('Message deleted from Redis queue:', receiptHandle.substring(0, 20) + '...');
     }
@@ -191,7 +192,7 @@ export async function deleteMessageFromQueue(receiptHandle: string) {
  */
 export async function deleteBatchFromQueue(receiptHandles: string[]) {
   if (!receiptHandles.length) return;
-  
+
   try {
     // Concurrency limit to avoid overwhelming Redis
     const CONCURRENCY = parseInt(process.env.QUEUE_DELETE_CONCURRENCY || '10');

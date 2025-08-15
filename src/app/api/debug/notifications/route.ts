@@ -83,8 +83,12 @@ export async function POST(req: NextRequest) {
       sqsResult = await sendToNotificationQueue({
         type: "DEBUG_TEST",
         data: {
-          source: "debug-api-sqs",
-          timestamp: new Date().toISOString()
+          title: "Debug Test",
+          body: "Test notification from debug API",
+          metadata: {
+            source: "debug-api-sqs",
+            timestamp: new Date().toISOString()
+          }
         },
         userIds: [sampleUser.id],
         priority: "high"
@@ -110,4 +114,4 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
-} 
+}
