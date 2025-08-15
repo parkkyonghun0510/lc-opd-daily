@@ -1,5 +1,0 @@
-{
-    "vue.trace.server": "verbose",
-    "remote.WSL.fileWatcher.polling": false,
-    "remote.WSL.downloadInBackground": true
-}
