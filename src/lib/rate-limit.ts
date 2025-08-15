@@ -1,4 +1,4 @@
-import { Redis } from '@upstash/redis';
+import Redis from 'ioredis';
 import { NextRequest, NextResponse } from 'next/server';
 
 /**
@@ -54,10 +54,10 @@ export class RateLimiter {
 
   constructor() {
     // Initialize Redis client if configured
-    if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
-      this.redis = new Redis({
-        url: process.env.UPSTASH_REDIS_REST_URL,
-        token: process.env.UPSTASH_REDIS_REST_TOKEN,
+    if (process.env.REDIS_URL) {
+      this.redis = new Redis(process.env.REDIS_URL, {
+        lazyConnect: true,
+        maxRetriesPerRequest: 3,
       });
     }
   }
@@ -92,10 +92,13 @@ export class RateLimiter {
     const key = `rate-limit:${config.identifier}:${userId ? `user-${userId}` : `ip-${ip}`}`;
 
     // Get the current count and expiration
-    const [count, reset] = await this.redis.pipeline()
+    const results = await this.redis.pipeline()
       .incr(key)
       .ttl(key)
-      .exec() as [number, number];
+      .exec();
+    
+    const count = results?.[0]?.[1] as number || 0;
+    const reset = results?.[1]?.[1] as number || 0;
 
     // If this is the first request, set the expiration
     if (count === 1) {

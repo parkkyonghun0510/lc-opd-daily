@@ -231,7 +231,7 @@ async function createInAppNotifications(
 export async function getRecentNotifications(limit: number = 100): Promise<any[]> {
   try {
     const notifications = await redis.lrange(NOTIFICATION_HISTORY_KEY, 0, limit - 1);
-    return notifications.map(n => JSON.parse(n));
+    return notifications.map((n: string) => JSON.parse(n));
   } catch (error) {
     console.error('Error getting recent notifications:', error);
     return [];

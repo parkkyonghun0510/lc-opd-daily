@@ -5,7 +5,7 @@
  * to clients through various channels (SSE, WebSocket, Polling) across multiple server instances.
  */
 
-import { Redis } from '@upstash/redis';
+import Redis from 'ioredis';
 import { eventEmitter } from './eventEmitter';
 
 // Event record interface
@@ -38,8 +38,10 @@ class RedisEventEmitter {
     // Generate a unique instance ID
     this.instanceId = `instance:${crypto.randomUUID()}`;
 
-    // Initialize Redis clients
-    this.initRedis();
+    // Only initialize Redis clients if not in build mode
+    if (process.env.NODE_ENV !== 'production' || process.env.NEXT_PHASE !== 'phase-production-build') {
+      this.initRedis();
+    }
   }
 
   /**
@@ -48,19 +50,22 @@ class RedisEventEmitter {
   private initRedis() {
     try {
       // Check if the required environment variables are present
-      if (
-        !process.env.UPSTASH_REDIS_REST_URL ||
-        !process.env.UPSTASH_REDIS_REST_TOKEN
-      ) {
+      if (!process.env.REDIS_URL) {
         console.warn(
-          "[RedisEventEmitter] Redis credentials not found. Using in-memory event emitter instead."
+          "[RedisEventEmitter] Redis URL not found. Using in-memory event emitter instead."
         );
         return;
       }
 
       // Initialize Redis client
-      this.redis = Redis.fromEnv();
-      this.pubsub = Redis.fromEnv();
+      this.redis = new Redis(process.env.REDIS_URL, {
+        lazyConnect: true,
+        maxRetriesPerRequest: 3,
+      });
+      this.pubsub = new Redis(process.env.REDIS_URL, {
+        lazyConnect: true,
+        maxRetriesPerRequest: 3,
+      });
 
       console.log("[RedisEventEmitter] Redis clients initialized");
 
@@ -81,10 +86,10 @@ class RedisEventEmitter {
 
     try {
       // Register this instance
-      await this.redis?.set(`${CHANNELS.CLIENTS}:${this.instanceId}`, {
+      await this.redis?.setex(`${CHANNELS.CLIENTS}:${this.instanceId}`, 3600, JSON.stringify({
         instanceId: this.instanceId,
         startedAt: Date.now()
-      }, { ex: 3600 }); // Expire after 1 hour
+      })); // Expire after 1 hour
 
       // Set up subscription
       // Note: For Upstash Redis, we would typically use their REST API for pub/sub

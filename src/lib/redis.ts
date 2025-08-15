@@ -1,7 +1,45 @@
-import Redis from "ioredis";
+// Dynamic Redis import to avoid bundling issues
+let redisInstance: any = null;
+let Redis: any = null;
 
-// Create a Redis client
-export const redis = new Redis(process.env.REDIS_URL || "");
+async function getRedisClient() {
+  if (!Redis) {
+    try {
+      const ioredis = await import('ioredis');
+      Redis = ioredis.default;
+    } catch (error) {
+      console.error('Failed to import ioredis:', error);
+      return null;
+    }
+  }
+  
+  if (!redisInstance && process.env.REDIS_URL) {
+    try {
+      redisInstance = new Redis(process.env.REDIS_URL, {
+        lazyConnect: true,
+        maxRetriesPerRequest: 3,
+      });
+    } catch (error) {
+      console.error('Failed to create Redis instance:', error);
+      return null;
+    }
+  }
+  
+  return redisInstance;
+}
+
+// Create a proxy that dynamically loads Redis when needed
+export const redis = new Proxy({} as any, {
+  get(target, prop) {
+    return async (...args: any[]) => {
+      const client = await getRedisClient();
+      if (!client) {
+        throw new Error('Redis not configured or failed to initialize');
+      }
+      return client[prop](...args);
+    };
+  }
+});
 
 // Cache TTL in seconds
 export const CACHE_TTL = {
@@ -18,9 +56,15 @@ export const CACHE_KEYS = {
 // Test Redis connection
 export async function testRedisConnection() {
   try {
+    const client = await getRedisClient();
+    if (!client) {
+      console.error("❌ Redis connection failed: No client available");
+      return false;
+    }
+    
     // Try to set and get a test value
-    await redis.set("test:connection", "ok", "EX", 10);
-    const testValue = await redis.get("test:connection");
+    await client.set("test:connection", "ok", "EX", 10);
+    const testValue = await client.get("test:connection");
 
     if (testValue !== "ok") {
       throw new Error("Redis test value mismatch");

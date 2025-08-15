@@ -13,7 +13,7 @@ import { RoleManager } from "./RoleManager";
 import Link from "next/link";
 import BranchHierarchy from "@/components/branch-hierarchy";
 import { useState } from "react";
-import { invalidateUserBranchCaches } from "@/lib/cache/branch-cache";
+import { invalidateUserBranchCachesAction } from "@/app/_actions/cache-actions";
 import { toast } from "@/components/ui/use-toast";
 import { useSession } from "next-auth/react";
 
@@ -32,11 +32,19 @@ export function BranchSettings() {
         });
         return;
       }
-      await invalidateUserBranchCaches(session.user.id);
-      toast({
-        title: "Cache invalidated",
-        description: "Branch hierarchy caches have been refreshed",
-      });
+      const result = await invalidateUserBranchCachesAction(session.user.id);
+      if (result.success) {
+        toast({
+          title: "Cache invalidated",
+          description: "Branch hierarchy caches have been refreshed",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: result.error || "Failed to invalidate cache",
+          variant: "destructive",
+        });
+      }
     } catch (error) {
       console.error("Error invalidating cache:", error);
       toast({

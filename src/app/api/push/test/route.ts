@@ -3,11 +3,19 @@ import { prisma } from '@/lib/prisma';
 import webpush from 'web-push';
 
 // Initialize web-push with VAPID keys
-webpush.setVapidDetails(
-  `mailto:${process.env.VAPID_EMAIL}`,
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
-  process.env.VAPID_PRIVATE_KEY!
-);
+const vapidEmail = process.env.VAPID_EMAIL || 'noreply@example.com';
+const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
+
+if (!vapidPublicKey || !vapidPrivateKey) {
+  console.warn('VAPID keys not configured. Push notifications will not work.');
+} else {
+  webpush.setVapidDetails(
+    `mailto:${vapidEmail}`,
+    vapidPublicKey,
+    vapidPrivateKey
+  );
+}
 
 export async function POST() {
   try {

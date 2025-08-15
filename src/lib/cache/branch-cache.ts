@@ -1,4 +1,3 @@
-import { Redis } from "@upstash/redis";
 import { BranchHierarchy } from "@/lib/types/branch";
 
 // Define cache keys
@@ -16,47 +15,51 @@ const CACHE_TTL = {
   BRANCH_ACCESS: 10 * 60, // 10 minutes
 };
 
-// Initialize Redis client (singleton pattern)
-// This works better with Upstash Redis which is designed for serverless environments
-const getRedisClient = () => {
-  try {
-    // Check if the required environment variables are present
-    if (
-      !process.env.UPSTASH_REDIS_REST_URL ||
-      !process.env.UPSTASH_REDIS_REST_TOKEN
-    ) {
-      console.warn(
-        "[Redis Cache] Redis credentials not found. Cache operations will be skipped."
-      );
+// Dynamic Redis import to avoid bundling issues
+let redisInstance: any = null;
+let Redis: any = null;
+
+const getRedisClient = async () => {
+  if (!Redis) {
+    try {
+      const ioredis = await import('ioredis');
+      Redis = ioredis.default;
+    } catch (error) {
+      console.error('Failed to import ioredis:', error);
       return null;
     }
-
-    // Use environment variables for Redis configuration
-    // Upstash Redis client automatically uses UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN env variables
-    return Redis.fromEnv();
-  } catch (error) {
-    console.error("[Redis Cache] Failed to initialize Redis client:", error);
-    return null;
   }
+  
+  if (!redisInstance && process.env.REDIS_URL) {
+    try {
+      redisInstance = new Redis(process.env.REDIS_URL, {
+        lazyConnect: true,
+        maxRetriesPerRequest: 3,
+      });
+    } catch (error) {
+      console.error('Failed to create Redis instance:', error);
+      return null;
+    }
+  }
+  
+  return redisInstance;
 };
-
-// Create a singleton instance
-const redis = getRedisClient();
 
 /**
  * Helper function to safely execute Redis operations
  * Returns null if Redis is not configured
  */
 const safeRedisOperation = async <T>(
-  operation: () => Promise<T>,
+  operation: (client: any) => Promise<T>,
   fallback: T
 ): Promise<T> => {
-  if (!redis) {
+  const client = await getRedisClient();
+  if (!client) {
     return fallback;
   }
 
   try {
-    return await operation();
+    return await operation(client);
   } catch (error) {
     console.error("[Redis Cache] Error executing Redis operation:", error);
     return fallback;
@@ -70,10 +73,8 @@ export async function setBranchHierarchyCache(
   hierarchy: BranchHierarchy[]
 ): Promise<void> {
   await safeRedisOperation(
-    () =>
-      redis!.set(CACHE_KEYS.BRANCH_HIERARCHY, JSON.stringify(hierarchy), {
-        ex: CACHE_TTL.BRANCH_HIERARCHY,
-      }),
+    (client) =>
+      client.setex(CACHE_KEYS.BRANCH_HIERARCHY, CACHE_TTL.BRANCH_HIERARCHY, JSON.stringify(hierarchy)),
     undefined
   );
 }
@@ -84,8 +85,8 @@ export async function setBranchHierarchyCache(
 export async function getBranchHierarchyCache(): Promise<
   BranchHierarchy[] | null
 > {
-  return safeRedisOperation(async () => {
-    const data = await redis!.get<string>(CACHE_KEYS.BRANCH_HIERARCHY);
+  return safeRedisOperation(async (client) => {
+    const data = await client.get(CACHE_KEYS.BRANCH_HIERARCHY);
     return data ? JSON.parse(data) : null;
   }, null);
 }
@@ -98,10 +99,8 @@ export async function setUserBranchesCache(
   branchIds: string[]
 ): Promise<void> {
   await safeRedisOperation(
-    () =>
-      redis!.set(CACHE_KEYS.USER_BRANCHES(userId), JSON.stringify(branchIds), {
-        ex: CACHE_TTL.USER_BRANCHES,
-      }),
+    (client) =>
+      client.setex(CACHE_KEYS.USER_BRANCHES(userId), CACHE_TTL.USER_BRANCHES, JSON.stringify(branchIds)),
     undefined
   );
 }
@@ -112,8 +111,8 @@ export async function setUserBranchesCache(
 export async function getUserBranchesCache(
   userId: string
 ): Promise<string[] | null> {
-  return safeRedisOperation(async () => {
-    const data = await redis!.get<string>(CACHE_KEYS.USER_BRANCHES(userId));
+  return safeRedisOperation(async (client) => {
+    const data = await client.get(CACHE_KEYS.USER_BRANCHES(userId));
     return data ? JSON.parse(data) : null;
   }, null);
 }
@@ -127,11 +126,11 @@ export async function setBranchAccessCache(
   hasAccess: boolean
 ): Promise<void> {
   await safeRedisOperation(
-    () =>
-      redis!.set(
+    (client) =>
+      client.setex(
         CACHE_KEYS.BRANCH_ACCESS(userId, branchId),
-        hasAccess ? "1" : "0",
-        { ex: CACHE_TTL.BRANCH_ACCESS }
+        CACHE_TTL.BRANCH_ACCESS,
+        hasAccess ? "1" : "0"
       ),
     undefined
   );
@@ -144,8 +143,8 @@ export async function getBranchAccessCache(
   userId: string,
   branchId: string
 ): Promise<boolean | null> {
-  return safeRedisOperation(async () => {
-    const data = await redis!.get<string>(
+  return safeRedisOperation(async (client) => {
+    const data = await client.get(
       CACHE_KEYS.BRANCH_ACCESS(userId, branchId)
     );
     if (data === null) return null;
@@ -158,7 +157,7 @@ export async function getBranchAccessCache(
  */
 export async function invalidateBranchHierarchyCache(): Promise<void> {
   await safeRedisOperation(
-    () => redis!.del(CACHE_KEYS.BRANCH_HIERARCHY),
+    (client) => client.del(CACHE_KEYS.BRANCH_HIERARCHY),
     undefined
   );
 }
@@ -169,7 +168,8 @@ export async function invalidateBranchHierarchyCache(): Promise<void> {
 export async function invalidateUserBranchCaches(
   userId: string
 ): Promise<void> {
-  if (!redis) {
+  const client = await getRedisClient();
+  if (!client) {
     console.log(
     `[Redis Cache] Skipping cache invalidation for user ${userId} - Redis not configured`
     );
@@ -178,23 +178,20 @@ export async function invalidateUserBranchCaches(
 
   // Try to delete the user branches cache first
   await safeRedisOperation(
-    () => redis!.del(CACHE_KEYS.USER_BRANCHES(userId)),
+    (client) => client.del(CACHE_KEYS.USER_BRANCHES(userId)),
     undefined
   );
 
   // Then try to scan and delete branch access caches
-  await safeRedisOperation(async () => {
+  await safeRedisOperation(async (client) => {
     let cursor = 0;
     do {
-      const [nextCursor, keys] = await redis!.scan(cursor, {
-        match: `access:${userId}:*`,
-        count: 100,
-      });
+      const [nextCursor, keys] = await client.scan(cursor, 'MATCH', `access:${userId}:*`, 'COUNT', 100);
 
       cursor = parseInt(nextCursor);
 
       if (keys.length > 0) {
-        await Promise.all(keys.map((key) => redis!.del(key)));
+        await Promise.all(keys.map((key: string) => client.del(key)));
       }
     } while (cursor !== 0);
     return;

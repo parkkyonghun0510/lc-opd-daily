@@ -4,7 +4,7 @@
  * This module provides monitoring and logging for real-time connections.
  */
 
-import { Redis } from '@upstash/redis';
+import Redis from 'ioredis';
 
 // Types
 interface RedisMetricsData {
@@ -78,18 +78,18 @@ class RealtimeMonitor {
   private initRedis() {
     try {
       // Check if the required environment variables are present
-      if (
-        !process.env.UPSTASH_REDIS_REST_URL ||
-        !process.env.UPSTASH_REDIS_REST_TOKEN
-      ) {
+      if (!process.env.REDIS_URL) {
         console.warn(
-          "[RealtimeMonitor] Redis credentials not found. Using in-memory monitoring only."
+          "[RealtimeMonitor] Redis URL not found. Using in-memory monitoring only."
         );
         return;
       }
 
       // Initialize Redis client
-      this.redis = Redis.fromEnv();
+      this.redis = new Redis(process.env.REDIS_URL, {
+        lazyConnect: true,
+        maxRetriesPerRequest: 3,
+      });
       console.log("[RealtimeMonitor] Redis client initialized");
     } catch (error) {
       console.error("[RealtimeMonitor] Failed to initialize Redis:", error);
@@ -201,10 +201,10 @@ class RealtimeMonitor {
 
     try {
       // Store metrics in Redis
-      await this.redis.set(`realtime:metrics:${this.instanceId}`, {
+      await this.redis.setex(`realtime:metrics:${this.instanceId}`, 3600, JSON.stringify({
         metrics: this.metrics,
         timestamp: Date.now()
-      }, { ex: 3600 }); // Expire after 1 hour
+      })); // Expire after 1 hour
     } catch (error) {
       console.error("[RealtimeMonitor] Failed to update Redis metrics:", error);
     }
@@ -242,10 +242,16 @@ class RealtimeMonitor {
 
       // Convert to object with proper typing
       return instanceMetrics.reduce((acc, { key, data }) => {
-        const metricsData = data as RedisMetricsData | null;
-        if (metricsData?.metrics) {
-          const instanceId = key.replace('realtime:metrics:', '');
-          acc[instanceId] = metricsData.metrics;
+        if (data) {
+          try {
+            const metricsData = JSON.parse(data) as RedisMetricsData;
+            if (metricsData?.metrics) {
+              const instanceId = key.replace('realtime:metrics:', '');
+              acc[instanceId] = metricsData.metrics;
+            }
+          } catch (e) {
+            console.error("[RealtimeMonitor] Failed to parse metrics data:", e);
+          }
         }
         return acc;
       }, {} as { [instanceId: string]: Metrics });

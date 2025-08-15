@@ -5,7 +5,7 @@
  * to prevent abuse of the SSE and WebSocket endpoints.
  */
 
-import { Redis } from '@upstash/redis';
+import Redis from 'ioredis';
 
 // Default rate limits
 const DEFAULT_LIMITS = {
@@ -35,19 +35,19 @@ class RateLimiter {
   private initRedis() {
     try {
       // Check if the required environment variables are present
-      if (
-        !process.env.UPSTASH_REDIS_REST_URL ||
-        !process.env.UPSTASH_REDIS_REST_TOKEN
-      ) {
+      if (!process.env.REDIS_URL) {
         console.warn(
-          "[RateLimiter] Redis credentials not found. Rate limiting will be disabled."
+          "[RateLimiter] Redis URL not found. Rate limiting will be disabled."
         );
         this.enabled = false;
         return;
       }
       
       // Initialize Redis client
-      this.redis = Redis.fromEnv();
+      this.redis = new Redis(process.env.REDIS_URL, {
+        lazyConnect: true,
+        maxRetriesPerRequest: 3,
+      });
       console.log("[RateLimiter] Redis client initialized");
     } catch (error) {
       console.error("[RateLimiter] Failed to initialize Redis:", error);
@@ -73,16 +73,16 @@ class RateLimiter {
       const key = `ratelimit:${limitType.toLowerCase()}:user:${userId}`;
       
       // Get current count
-      const count = await this.redis.get(key) as number | null;
+      const count = await this.redis.get(key);
       
       // If no count exists, set it to 1 with expiry
       if (count === null) {
-        await this.redis.set(key, 1, { ex: limit.window });
+        await this.redis.setex(key, limit.window, 1);
         return false;
       }
       
       // Check if limit exceeded
-      if (count >= limit.max) {
+      if (parseInt(count as string) >= limit.max) {
         return true;
       }
       
@@ -112,16 +112,16 @@ class RateLimiter {
       const key = `ratelimit:${limitType.toLowerCase()}:ip:${ip}`;
       
       // Get current count
-      const count = await this.redis.get(key) as number | null;
+      const count = await this.redis.get(key);
       
       // If no count exists, set it to 1 with expiry
       if (count === null) {
-        await this.redis.set(key, 1, { ex: limit.window });
+        await this.redis.setex(key, limit.window, 1);
         return false;
       }
       
       // Check if limit exceeded
-      if (count >= limit.max) {
+      if (parseInt(count as string) >= limit.max) {
         return true;
       }
       

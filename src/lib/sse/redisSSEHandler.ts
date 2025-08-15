@@ -1,4 +1,4 @@
-import { Redis } from '@upstash/redis';
+import Redis from 'ioredis';
 import { NextResponse } from "next/server";
 
 /**
@@ -41,17 +41,17 @@ class RedisSSEHandler {
     private pubSubClient: Redis;
     private isSubscribed = false;
 
-    constructor(redisUrl: string, redisToken: string) {
+    constructor(redisUrl: string) {
         // Create Redis client for operations
-        this.redis = new Redis({
-            url: redisUrl,
-            token: redisToken,
+        this.redis = new Redis(redisUrl, {
+            lazyConnect: true,
+            maxRetriesPerRequest: 3,
         });
 
         // Create a separate Redis client for pub/sub
-        this.pubSubClient = new Redis({
-            url: redisUrl,
-            token: redisToken,
+        this.pubSubClient = new Redis(redisUrl, {
+            lazyConnect: true,
+            maxRetriesPerRequest: 3,
         });
 
         // Generate a unique ID for this server instance
@@ -480,12 +480,21 @@ class RedisSSEHandler {
 // Create a singleton instance if Redis is configured
 let redisSSEHandler: RedisSSEHandler | null = null;
 
-// Initialize the Redis SSE handler if Redis is configured
-if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
-    redisSSEHandler = new RedisSSEHandler(
-        process.env.UPSTASH_REDIS_REST_URL,
-        process.env.UPSTASH_REDIS_REST_TOKEN
-    );
+// Initialize the Redis SSE handler if Redis is configured and not in build mode
+if (
+    process.env.REDIS_URL &&
+    (process.env.NODE_ENV !== 'production' || 
+    process.env.NEXT_PHASE !== 'phase-production-build')
+) {
+    try {
+        const redisUrl = process.env.REDIS_URL;
+        
+        if (redisUrl) {
+            redisSSEHandler = new RedisSSEHandler(redisUrl);
+        }
+    } catch (error) {
+        console.warn('[SSE] Failed to initialize Redis SSE handler:', error);
+    }
 }
 
 // Export the Redis SSE handler if available, otherwise export the in-memory handler

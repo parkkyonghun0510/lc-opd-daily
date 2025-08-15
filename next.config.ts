@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   // Railway-specific configuration
+  output: 'standalone',
   serverExternalPackages: ['ioredis'],
   
   // Disable ESLint blocking the production build (we run lint separately)

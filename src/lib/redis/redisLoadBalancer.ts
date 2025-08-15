@@ -5,12 +5,11 @@
  * distributing the load across multiple Redis instances.
  */
 
-import { Redis } from '@upstash/redis';
+import Redis from 'ioredis';
 
 // Redis instance configuration
 interface RedisInstanceConfig {
   url: string;
-  token: string;
   weight?: number; // Higher weight means more traffic
   isActive?: boolean; // Whether this instance is active
 }
@@ -79,13 +78,11 @@ export class RedisLoadBalancer {
   private initializeInstances(configs: RedisInstanceConfig[]): void {
     // If no configs provided, use environment variables
     if (configs.length === 0) {
-      const mainRedisUrl = process.env.REDIS_URL || process.env.UPSTASH_REDIS_REST_URL;
-      const mainRedisToken = process.env.REDIS_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+      const mainRedisUrl = process.env.REDIS_URL;
       
-      if (mainRedisUrl && mainRedisToken) {
+      if (mainRedisUrl) {
         configs.push({
           url: mainRedisUrl,
-          token: mainRedisToken,
           weight: 1,
           isActive: true
         });
@@ -94,15 +91,15 @@ export class RedisLoadBalancer {
     
     // Create Redis clients for each config
     configs.forEach((config, index) => {
-      if (!config.url || !config.token) {
+      if (!config.url) {
         this.log(`Invalid Redis config at index ${index}`);
         return;
       }
       
       try {
-        const client = new Redis({
-          url: config.url,
-          token: config.token
+        const client = new Redis(config.url, {
+          lazyConnect: true,
+          maxRetriesPerRequest: 3,
         });
         
         const instanceId = `redis-${index}`;

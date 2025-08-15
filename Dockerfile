@@ -23,7 +23,7 @@ ENV NODE_ENV production
 # Generate Prisma client
 RUN npx prisma generate
 
-# Build the application with force option to bypass dependency errors
+# Build the application
 RUN npm run build:production
 
 # Production image, copy all the files and run next

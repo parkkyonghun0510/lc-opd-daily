@@ -60,7 +60,7 @@ async function isRateLimited(notification: Omit<NotificationMessage, 'id' | 'tim
 
         if (count === null) {
           // Set initial count with expiry
-          await redis.set(userKey, 1, { ex: RATE_LIMITS.USER_NOTIFICATIONS.window });
+          await redis.setex(userKey, RATE_LIMITS.USER_NOTIFICATIONS.window, 1);
           return false;
         }
 
@@ -85,7 +85,7 @@ async function isRateLimited(notification: Omit<NotificationMessage, 'id' | 'tim
 
       if (count === null) {
         // Set initial count with expiry
-        await redis.set(typeKey, 1, { ex: RATE_LIMITS.TYPE_NOTIFICATIONS.window });
+        await redis.setex(typeKey, RATE_LIMITS.TYPE_NOTIFICATIONS.window, 1);
         return false;
       }
 
@@ -178,10 +178,10 @@ export async function processNotification(notification: NotificationMessage): Pr
   try {
     // Mark notification as being processed
     await executeRedisOperation(async (redis) => {
-      await redis.set(
+      await redis.setex(
         `${NOTIFICATION_PROCESSING_KEY}:${notification.id}`,
-        JSON.stringify(notification),
-        { ex: 300 } // Expire after 5 minutes
+        300, // Expire after 5 minutes
+        JSON.stringify(notification)
       );
       return true;
     });
@@ -241,14 +241,14 @@ export async function processNotification(notification: NotificationMessage): Pr
 
     // Store the error in Redis for debugging
     await executeRedisOperation(async (redis) => {
-      await redis.set(
+      await redis.setex(
         `notifications:errors:${notification.id}`,
+        86400, // Expire after 24 hours
         JSON.stringify({
           notification,
           error: error instanceof Error ? error.message : String(error),
           timestamp: new Date().toISOString()
-        }),
-        { ex: 86400 } // Expire after 24 hours
+        })
       );
       return true;
     });
