@@ -1,37 +1,29 @@
-import {
-  SQSClient,
-  SendMessageCommand,
-  ReceiveMessageCommand,
-  DeleteMessageCommand,
-  DeleteMessageBatchCommand,
-  SendMessageBatchCommand,
-  SendMessageBatchRequestEntry,
-  SendMessageBatchResultEntry,
-  BatchResultErrorEntry
-} from '@aws-sdk/client-sqs';
-import { NotificationType } from '@/utils/notificationTemplates';
+import { notificationQueue } from './redis-queue';
+import { randomUUID } from 'crypto';
 
-// Initialize the SQS client
-const sqsClient = new SQSClient({
-  region: process.env.AWS_REGION || 'ap-southeast-1',
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID || process.env.SQS_AWS_ACCESS_KEY_ID || '',
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || process.env.SQS_AWS_SECRET_ACCESS_KEY || ''
-  },
-  maxAttempts: 3 // Built-in retry mechanism
-});
+// Configuration for Redis-based queue (SQS-compatible interface)
+const queueUrl = process.env.NOTIFICATION_QUEUE_URL || 'redis://notifications';
+const LOW_PRIORITY_DELAY_SECONDS = parseInt(process.env.LOW_PRIORITY_DELAY_SECONDS || '30');
 
-// Queue URL from environment
-const queueUrl = process.env.AWS_SQS_NOTIFICATION_QUEUE_URL || '';
+// Define notification types locally until proper type definitions are available
+export type NotificationType = 
+  | 'report_submitted'
+  | 'report_approved'
+  | 'report_rejected'
+  | 'user_created'
+  | 'system_maintenance'
+  | string; // Allow custom types
 
-// Validate environment configuration
-if (!queueUrl && typeof window === 'undefined') {
-  console.error('AWS_SQS_NOTIFICATION_QUEUE_URL environment variable is not set');
+export interface NotificationData {
+  title: string;
+  body: string;
+  url?: string;
+  metadata?: Record<string, unknown>;
 }
 
 export interface NotificationMessage {
-  type: string | NotificationType;
-  data: any;
+  type: NotificationType;
+  data: NotificationData;
   userIds?: string[];
   timestamp?: string;
   priority?: 'high' | 'normal' | 'low';
@@ -48,7 +40,7 @@ export async function sendToNotificationQueue(message: NotificationMessage): Pro
 
   // Generate idempotency key if not provided to prevent duplicate processing
   if (!message.idempotencyKey) {
-    message.idempotencyKey = `${message.type}-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`;
+    message.idempotencyKey = `${message.type}-${Date.now()}-${randomUUID()}`;
   }
 
   try {
@@ -56,35 +48,30 @@ export async function sendToNotificationQueue(message: NotificationMessage): Pro
       // Minimal logging in production
       console.log(`Sending ${message.type} notification to ${message.userIds?.length || 0} recipients`);
     } else {
-      console.log('Sending notification to queue:', {
+      console.log('Sending notification to Redis queue:', {
         type: message.type,
         targetUsers: message.userIds?.length || 0,
         priority: message.priority || 'normal'
       });
     }
 
-    // Set up message attributes based on priority
-    const messageAttributes: Record<string, any> = {};
-    if (message.priority) {
-      messageAttributes['Priority'] = {
-        DataType: 'String',
-        StringValue: message.priority
-      };
+    // Calculate delay based on priority
+    let delaySeconds = 0;
+    if (message.priority === 'low') {
+      delaySeconds = LOW_PRIORITY_DELAY_SECONDS; // Configurable delay for low priority
+    } else if (message.priority === 'high') {
+      delaySeconds = 0; // No delay for high priority
     }
 
-    const command = new SendMessageCommand({
+    const response = await notificationQueue.sendMessage({
       QueueUrl: queueUrl,
       MessageBody: JSON.stringify(message),
-      MessageAttributes: Object.keys(messageAttributes).length > 0 ? messageAttributes : undefined,
-      // For FIFO queues
-      // MessageGroupId: 'notifications',
-      // MessageDeduplicationId: message.idempotencyKey,
+      DelaySeconds: delaySeconds
     });
 
-    const response = await sqsClient.send(command);
     return { MessageId: response.MessageId };
   } catch (error) {
-    console.error('Error sending message to SQS:', error);
+    console.error('Error sending message to Redis queue:', error);
     throw error;
   }
 }
@@ -94,14 +81,14 @@ export async function sendToNotificationQueue(message: NotificationMessage): Pro
  * More efficient than sending individual messages
  */
 export async function sendBatchToNotificationQueue(messages: NotificationMessage[]): Promise<{ 
-  Successful: SendMessageBatchResultEntry[], 
-  Failed: BatchResultErrorEntry[] 
+  Successful: Array<{ Id: string; MessageId: string }>, 
+  Failed: Array<{ Id: string; Code?: string; Message?: string }> 
 }> {
   if (!messages.length) return { Successful: [], Failed: [] };
 
   try {
     // Prepare batch entries
-    const entries: SendMessageBatchRequestEntry[] = messages.map((message, index) => {
+    const entries = messages.map((message, index) => {
       // Add timestamp if not provided
       if (!message.timestamp) {
         message.timestamp = new Date().toISOString();
@@ -109,55 +96,50 @@ export async function sendBatchToNotificationQueue(messages: NotificationMessage
       
       // Generate idempotency key if not provided
       if (!message.idempotencyKey) {
-        message.idempotencyKey = `${message.type}-${Date.now()}-${index}-${Math.random().toString(36).substring(2, 10)}`;
+        message.idempotencyKey = `${message.type}-${Date.now()}-${index}-${randomUUID()}`;
       }
 
-      // Set up message attributes based on priority
-      const messageAttributes: Record<string, any> = {};
-      if (message.priority) {
-        messageAttributes['Priority'] = {
-          DataType: 'String',
-          StringValue: message.priority
-        };
+      // Calculate delay based on priority
+      let delaySeconds = 0;
+      if (message.priority === 'low') {
+        delaySeconds = LOW_PRIORITY_DELAY_SECONDS;
+      } else if (message.priority === 'high') {
+        delaySeconds = 0;
       }
 
       return {
-        Id: `msg-${index}`,
-        MessageBody: JSON.stringify(message),
-        MessageAttributes: Object.keys(messageAttributes).length > 0 ? messageAttributes : undefined,
-        // For FIFO queues
-        // MessageGroupId: 'notifications',
-        // MessageDeduplicationId: message.idempotencyKey,
+        id: `msg-${index}`,
+        body: JSON.stringify(message),
+        delaySeconds
       };
     });
 
-    // SQS restricts batch size to 10 messages
-    const results: { 
-      Successful: SendMessageBatchResultEntry[], 
-      Failed: BatchResultErrorEntry[] 
-    } = { 
-      Successful: [], 
-      Failed: [] 
-    };
-    
-    // Split into chunks of 10
+    // Optional: chunk to 10 to mimic SQS behavior
+    const chunks: typeof entries[] = [];
     for (let i = 0; i < entries.length; i += 10) {
-      const chunk = entries.slice(i, i + 10);
-      
-      const command = new SendMessageBatchCommand({
-        QueueUrl: queueUrl,
-        Entries: chunk
-      });
-
-      const response = await sqsClient.send(command);
-      
-      if (response.Successful) results.Successful.push(...response.Successful);
-      if (response.Failed) results.Failed.push(...response.Failed);
+      chunks.push(entries.slice(i, i + 10));
     }
 
-    return results;
+    let Successful: Array<{ Id: string; MessageId: string }> = [];
+    let Failed: Array<{ Id: string; Code?: string; Message?: string }> = [];
+
+    for (const chunk of chunks) {
+      const response = await notificationQueue.sendMessageBatch({
+        QueueUrl: queueUrl,
+        Entries: chunk.map(entry => ({
+          Id: entry.id,
+          MessageBody: entry.body,
+          DelaySeconds: entry.delaySeconds
+        }))
+      });
+
+      Successful = Successful.concat(response.Successful || []);
+      Failed = Failed.concat(response.Failed || []);
+    }
+
+    return { Successful, Failed };
   } catch (error) {
-    console.error('Error sending batch to SQS:', error);
+    console.error('Error sending batch to Redis queue:', error);
     throw error;
   }
 }
@@ -167,19 +149,19 @@ export async function sendBatchToNotificationQueue(messages: NotificationMessage
  */
 export async function receiveFromNotificationQueue(maxMessages = 10) {
   try {
-    const command = new ReceiveMessageCommand({
+    const messages = await notificationQueue.receiveMessage({
       QueueUrl: queueUrl,
-      MaxNumberOfMessages: maxMessages > 10 ? 10 : maxMessages, // SQS limits to 10 per request
-      WaitTimeSeconds: 20, // Long polling to reduce empty responses
-      AttributeNames: ['All'],
-      MessageAttributeNames: ['All'],
-      VisibilityTimeout: 120 // Give 2 minutes to process before message becomes visible again
+      MaxNumberOfMessages: maxMessages
     });
 
-    const response = await sqsClient.send(command);
-    return response.Messages || [];
+    return messages.map(msg => ({
+      MessageId: msg.id,
+      ReceiptHandle: msg.receiptHandle,
+      Body: msg.body,
+      Attributes: msg.attributes || {}
+    }));
   } catch (error) {
-    console.error('Error receiving messages from SQS:', error);
+    console.error('Error receiving messages from Redis queue:', error);
     throw error;
   }
 }
@@ -189,18 +171,16 @@ export async function receiveFromNotificationQueue(maxMessages = 10) {
  */
 export async function deleteMessageFromQueue(receiptHandle: string) {
   try {
-    const command = new DeleteMessageCommand({
+    await notificationQueue.deleteMessage({
       QueueUrl: queueUrl,
       ReceiptHandle: receiptHandle
     });
-
-    await sqsClient.send(command);
     
     if (process.env.NODE_ENV !== 'production') {
-      console.log('Message deleted from queue:', receiptHandle.substring(0, 20) + '...');
+      console.log('Message deleted from Redis queue:', receiptHandle.substring(0, 20) + '...');
     }
   } catch (error) {
-    console.error('Error deleting message from SQS:', error);
+    console.error('Error deleting message from Redis queue:', error);
     throw error;
   }
 }
@@ -212,30 +192,29 @@ export async function deleteBatchFromQueue(receiptHandles: string[]) {
   if (!receiptHandles.length) return;
   
   try {
-    // Prepare entries for batch deletion
-    const entries = receiptHandles.map((handle, index) => ({
-      Id: `msg-${index}`,
-      ReceiptHandle: handle
-    }));
-    
-    // SQS restricts batch size to 10 messages
-    // Split into chunks of 10
-    for (let i = 0; i < entries.length; i += 10) {
-      const chunk = entries.slice(i, i + 10);
-      
-      const command = new DeleteMessageBatchCommand({
-        QueueUrl: queueUrl,
-        Entries: chunk
-      });
+    // Concurrency limit to avoid overwhelming Redis
+    const CONCURRENCY = parseInt(process.env.QUEUE_DELETE_CONCURRENCY || '10');
+    let index = 0;
 
-      await sqsClient.send(command);
-    }
-    
+    const worker = async () => {
+      while (index < receiptHandles.length) {
+        const current = index++;
+        const handle = receiptHandles[current];
+        await notificationQueue.deleteMessage({
+          QueueUrl: queueUrl,
+          ReceiptHandle: handle
+        });
+      }
+    };
+
+    const workers = Array.from({ length: Math.min(CONCURRENCY, receiptHandles.length) }, () => worker());
+    await Promise.all(workers);
+
     if (process.env.NODE_ENV !== 'production') {
       console.log(`Batch deleted ${receiptHandles.length} messages from queue`);
     }
   } catch (error) {
-    console.error('Error batch deleting messages from SQS:', error);
+    console.error('Error batch deleting messages from Redis queue:', error);
     throw error;
   }
-} 
+}

@@ -11,6 +11,7 @@
     "build": "next build",
     "build:production": "NODE_ENV=production next build --no-lint",
     "build:production:force": "./scripts/production-build.sh",
+    "build:railway": "NODE_ENV=production next build --no-lint",
     "patch-deps": "node scripts/patch-dependencies.js",
     "deploy": "bash scripts/deploy-lightsail.sh",
     "build:deploy": "npm run build:production && npm run deploy",
@@ -18,6 +19,7 @@
     "start": "next start",
     "start:production": "chmod +x scripts/start-production.sh && ./scripts/start-production.sh",
     "start:pm2": "bash scripts/pm2-start.sh",
+    "start:railway": "npm run db:deploy && npm run start",
     "stop:pm2": "bash scripts/pm2-stop.sh",
     "restart:pm2": "bash scripts/pm2-restart.sh",
     "lint": "next lint",
@@ -54,13 +56,14 @@
     "db:backup": "bash scripts/backup-database.sh",
     "db:restore": "bash scripts/restore-database.sh",
     "db:restore:modified": "bash scripts/restore-modified.sh",
-    "fix:utf8": "bash scripts/fix-utf8-issues.sh"
+    "fix:utf8": "bash scripts/fix-utf8-issues.sh",
+    "railway:build": "npm run build:railway",
+    "railway:start": "npm run start:railway",
+    "railway:deploy": "npm run railway:build && npm run railway:start"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.8.0",
-    "@aws-sdk/client-s3": "^3.772.0",
-    "@aws-sdk/client-sqs": "^3.775.0",
-    "@aws-sdk/s3-request-presigner": "^3.772.0",
+
     "@hookform/resolvers": "^4.1.3",
     "@json2csv/plainjs": "^7.0.6",
     "@radix-ui/react-accordion": "^1.2.3",
@@ -87,7 +90,7 @@
     "@types/node-telegram-bot-api": "^0.64.8",
     "@types/web-push": "^3.6.4",
     "@upstash/redis": "^1.34.5",
-    "aws-sdk": "^2.1692.0",
+
     "bcrypt": "^5.1.1",
     "bcryptjs": "^3.0.2",
     "chart.js": "^4.4.8",
@@ -99,6 +102,7 @@
     "exceljs": "^4.4.0",
     "file-saver": "^2.0.5",
     "framer-motion": "^10.18.0",
+    "ioredis": "^5.7.0",
     "jose": "^6.0.8",
     "jsonwebtoken": "^9.0.2",
     "jwt-decode": "^4.0.0",

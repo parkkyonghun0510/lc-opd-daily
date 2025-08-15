@@ -1,10 +1,7 @@
-import { Redis } from "@upstash/redis";
+import Redis from "ioredis";
 
 // Create a Redis client
-export const redis = new Redis({
-  url: process.env.REDIS_URL || "",
-  token: process.env.REDIS_TOKEN || "",
-});
+export const redis = new Redis(process.env.REDIS_URL || "");
 
 // Cache TTL in seconds
 export const CACHE_TTL = {
@@ -22,7 +19,7 @@ export const CACHE_KEYS = {
 export async function testRedisConnection() {
   try {
     // Try to set and get a test value
-    await redis.set("test:connection", "ok", { ex: 10 });
+    await redis.set("test:connection", "ok", "EX", 10);
     const testValue = await redis.get("test:connection");
 
     if (testValue !== "ok") {

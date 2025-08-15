@@ -15,7 +15,7 @@ module.exports = {
     },
     {
       name: "notification-worker",
-      script: "scripts/standalone-worker.js",
+      script: "scripts/redis-standalone-worker.js",
       interpreter: "node",
       interpreterArgs: "--experimental-modules",
       instances: 1,
@@ -31,4 +31,4 @@ module.exports = {
       error_file: "logs/notification-worker-error.log"
     }
   ]
-}; 
+};

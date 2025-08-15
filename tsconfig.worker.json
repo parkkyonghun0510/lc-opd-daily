@@ -15,6 +15,10 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src/workers/**/*.ts", "src/lib/queue/**/*.ts", "src/utils/notificationTemplates.ts", "src/utils/notificationTargeting.ts", "src/utils/notificationTracking.ts", "src/lib/prisma.ts"],
+  "include": [
+    "src/workers/**/*.ts",
+    "src/lib/queue/**/*.ts",
+    "src/lib/prisma.ts"
+  ],
   "exclude": ["node_modules"]
-} 
+}

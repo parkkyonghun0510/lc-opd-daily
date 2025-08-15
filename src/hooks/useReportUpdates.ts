@@ -10,9 +10,11 @@ interface ReportUpdate {
 export function useReportUpdates(onUpdate: () => void) {
     const [isConnected, setIsConnected] = useState(false);
 
-    const setupSSE = useCallback(() => {
+    const setupSSE = useCallback((retryCount = 0) => {
         try {
-            const eventSource = new EventSource('/api/reports/updates');
+            const eventSource = new EventSource('/api/reports/updates', {
+                withCredentials: true // Include credentials if needed for authentication
+            });
 
             eventSource.onopen = () => {
                 setIsConnected(true);
@@ -20,12 +22,29 @@ export function useReportUpdates(onUpdate: () => void) {
             };
 
             eventSource.onerror = (error) => {
-                console.error('SSE connection error:', error);
+                console.error('SSE connection error:', {
+                    error,
+                    readyState: eventSource.readyState,
+                    url: eventSource.url,
+                    timestamp: new Date().toISOString()
+                });
                 setIsConnected(false);
                 eventSource.close();
 
-                // Attempt to reconnect after 5 seconds
-                setTimeout(setupSSE, 5000);
+                // Limit retry attempts to prevent infinite reconnection
+                if (retryCount < 5) {
+                    // Attempt to reconnect with exponential backoff
+                    const retryDelay = Math.min(30000, Math.pow(2, retryCount) * 1000);
+                    console.log(`Attempting SSE reconnection in ${retryDelay}ms (attempt ${retryCount + 1})`);
+                    setTimeout(() => setupSSE(retryCount + 1), retryDelay);
+                } else {
+                    console.error('Max SSE reconnection attempts reached. Please refresh the page to retry.');
+                    toast({
+                        title: 'Connection Lost',
+                        description: 'Unable to establish real-time updates. Please refresh the page.',
+                        variant: 'destructive',
+                    });
+                }
             };
 
             eventSource.addEventListener('report-update', (event) => {
@@ -68,8 +87,30 @@ export function useReportUpdates(onUpdate: () => void) {
                 setIsConnected(false);
             };
         } catch (error) {
-            console.error('Error setting up SSE:', error);
-            setIsConnected(false);
+            console.error('Error setting up SSE:', {
+                error,
+                message: error instanceof Error ? error.message : 'Unknown error',
+                stack: error instanceof Error ? error.stack : undefined,
+                browserSupport: typeof EventSource !== 'undefined'
+            });
+            
+            if (typeof EventSource === 'undefined') {
+                console.warn('EventSource (SSE) is not supported in this browser');
+                toast({
+                    title: 'Browser Not Supported',
+                    description: 'Real-time updates are not supported in your browser. Please use a modern browser.',
+                    variant: 'destructive',
+                });
+            } else {
+                setIsConnected(false);
+                
+                // Retry setup on error with backoff
+                if (retryCount < 5) {
+                    const retryDelay = Math.min(30000, Math.pow(2, retryCount) * 1000);
+                    console.log(`Retrying SSE setup in ${retryDelay}ms (attempt ${retryCount + 1})`);
+                    setTimeout(() => setupSSE(retryCount + 1), retryDelay);
+                }
+            }
         }
     }, [onUpdate]);
 
