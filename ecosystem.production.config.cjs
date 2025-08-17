@@ -4,11 +4,10 @@ module.exports = {
       name: "lc-opd-daily",
       script: "server.js",
       cwd: "/app",
-      instances: "max",
-      exec_mode: "cluster",
+      instances: 1,
+      exec_mode: "fork",
       watch: false,
       max_memory_restart: "1G",
-      cwd: "/app",
       env: {
         NODE_ENV: "production",
         PORT: 3000,
