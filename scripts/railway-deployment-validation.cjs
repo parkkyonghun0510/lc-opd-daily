@@ -399,7 +399,7 @@ function checkDockerCompatibility() {
       return false;
     }
     
-    if (dockerContent.includes('chmod +x ./scripts/start-pm2.sh')) {
+    if (dockerContent.includes('chmod +x ./scripts/start-pm2.sh') || dockerContent.includes('chmod +x ./scripts/*.sh')) {
       console.log('✅ Dockerfile makes startup script executable');
     } else {
       console.log('❌ Dockerfile missing script permissions');

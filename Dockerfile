@@ -1,17 +1,16 @@
 # Use Node.js 18 as the base image
 FROM node:18-alpine AS base
 
-# Install bash (required for startup scripts)
-RUN apk add --no-cache bash
+# Install system dependencies in one layer
+RUN apk add --no-cache bash libc6-compat
 
 # Install dependencies only when needed
 FROM base AS deps
-RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 # Copy package files and npm config
 COPY package.json package-lock.json .npmrc ./
-RUN npm ci --legacy-peer-deps
+RUN npm ci --legacy-peer-deps --no-audit --no-fund
 
 # Rebuild the source code only when needed
 FROM base AS builder
@@ -56,24 +55,15 @@ COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/ecosystem.production.config.cjs ./
 COPY --from=builder /app/scripts ./scripts
 
-# Install only production dependencies
+# Install production dependencies, PM2, and setup in one layer
 COPY package.json package-lock.json .npmrc ./
-RUN npm ci --omit=dev --legacy-peer-deps
-
-# Generate Prisma client in production
-RUN npx prisma generate
-
-# Make scripts executable
-RUN chmod +x ./scripts/*.sh 2>/dev/null || true
-RUN chmod +x ./scripts/*.js 2>/dev/null || true
-RUN chmod +x ./scripts/start-pm2.sh
-
-# Install PM2 globally
-RUN npm install -g pm2
-
-# Set working directory and permissions
-WORKDIR /app
-RUN mkdir -p logs && chown -R nextjs:nodejs /app
+RUN npm ci --omit=dev --legacy-peer-deps --no-audit --no-fund && \
+    npm install -g pm2 && \
+    npx prisma generate && \
+    chmod +x ./scripts/*.sh 2>/dev/null || true && \
+    chmod +x ./scripts/*.js 2>/dev/null || true && \
+    mkdir -p logs && \
+    chown -R nextjs:nodejs /app
 
 # Verify critical files exist and show directory structure for debugging
 RUN ls -la ecosystem.production.config.cjs && ls -la scripts/ && echo "Docker build verification complete"

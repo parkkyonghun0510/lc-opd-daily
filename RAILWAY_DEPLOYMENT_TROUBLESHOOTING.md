@@ -177,6 +177,59 @@ DRAGONFLY_PASSWORD=your-redis-password
 4. **Monitor startup logs** for PM2 and application initialization
 5. **Verify file permissions** in the container
 
+## Docker Build Timeout Issues
+
+### Problem: "importing to docker" or "exporting to docker image format" errors with SIGTERM
+
+```
+✕ importing to docker 
+got 1 SIGTERM/SIGINTs, forcing shutdown 
+✕ exporting to docker image format 
+rpc error: code = Canceled desc = context canceled
+```
+
+### Root Cause
+- Railway's build timeout (typically 10-15 minutes)
+- Large Docker build context
+- Inefficient Dockerfile layers
+- Missing .dockerignore file
+
+### Solutions
+
+1. **Optimize Dockerfile layers** (already implemented):
+   - Consolidate RUN commands
+   - Add `--no-audit --no-fund` flags to npm commands
+   - Combine system dependencies installation
+
+2. **Add .dockerignore file** (already implemented):
+   - Excludes unnecessary files from build context
+   - Reduces upload time to Railway
+
+3. **Monitor build progress**:
+   ```bash
+   # Check build logs in Railway dashboard
+   # Look for specific timeout points
+   ```
+
+4. **Alternative deployment strategies**:
+   - Use Railway's native Node.js buildpack instead of Docker
+   - Split into smaller services if the application is too large
+   - Consider using Railway's build cache optimization
+
+### Prevention
+- Keep Docker images lean
+- Regularly clean up unused dependencies
+- Use multi-stage builds effectively
+- Monitor build times and optimize bottlenecks
+
+## Next Steps
+
+1. **Commit your changes**: `git add . && git commit -m "Fix Railway deployment issues"`
+2. **Set environment variables** in Railway dashboard
+3. **Run build locally**: `npm run build` to verify
+4. **Redeploy** on Railway
+5. **Monitor logs** for any remaining issues
+
 ## Getting Help
 
 If issues persist:
