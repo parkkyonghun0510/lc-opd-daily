@@ -63,6 +63,7 @@ RUN npx prisma generate
 # Make scripts executable
 RUN chmod +x ./scripts/*.sh 2>/dev/null || true
 RUN chmod +x ./scripts/*.js 2>/dev/null || true
+RUN chmod +x ./scripts/start-pm2.sh
 
 # Install PM2 globally
 RUN npm install -g pm2
@@ -81,5 +82,5 @@ EXPOSE 3000
 ENV PORT 3000
 ENV HOSTNAME "0.0.0.0"
 
-# Use PM2 to start both the app and worker
-CMD ["pm2-runtime", "start", "ecosystem.production.config.cjs"]
+# Use PM2 startup script to start both the app and worker
+CMD ["./scripts/start-pm2.sh"]

@@ -5,7 +5,7 @@
     "dockerfilePath": "Dockerfile"
   },
   "deploy": {
-    "startCommand": "pm2-runtime ecosystem.production.config.cjs",
+    "startCommand": "./scripts/start-pm2.sh",
     "healthcheckPath": "/api/health",
     "healthcheckTimeout": 300,
     "restartPolicyType": "ON_FAILURE",
@@ -18,7 +18,7 @@
         "dockerfilePath": "Dockerfile"
       },
       "deploy": {
-        "startCommand": "pm2-runtime ecosystem.production.config.cjs",
+        "startCommand": "./scripts/start-pm2.sh",
         "healthcheckPath": "/api/health",
         "healthcheckTimeout": 300
       }

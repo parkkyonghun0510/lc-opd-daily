@@ -46,7 +46,7 @@ function checkEcosystemConfig() {
   return true;
 }
 
-// Check 2: Verify Dockerfile uses relative path
+// Check 2: Verify Dockerfile uses proper startup configuration
 function checkDockerfile() {
   const dockerfilePath = path.join(projectRoot, 'Dockerfile');
   
@@ -57,15 +57,19 @@ function checkDockerfile() {
   
   const dockerContent = fs.readFileSync(dockerfilePath, 'utf8');
   
-  if (dockerContent.includes('CMD ["pm2-runtime", "start", "ecosystem.production.config.cjs"]')) {
-    console.log('✅ Dockerfile uses relative path for PM2 config');
+  if (dockerContent.includes('./scripts/start-pm2.sh')) {
+    console.log('✅ Dockerfile uses PM2 startup script');
+    return true;
+  } else if (dockerContent.includes('CMD ["pm2-runtime", "start", "ecosystem.production.config.cjs"]')) {
+    console.log('⚠️  Dockerfile uses direct PM2 config (consider using startup script)');
     return true;
   } else if (dockerContent.includes('CMD ["pm2-runtime", "start", "/app/ecosystem.production.config.cjs"]')) {
     console.log('❌ Dockerfile still uses absolute path');
-    console.log('   Fix: Change to "ecosystem.production.config.cjs"');
+    console.log('   Fix: Change to "ecosystem.production.config.cjs" or use "./scripts/start-pm2.sh"');
     return false;
   } else {
-    console.log('⚠️  Dockerfile CMD not found or different format');
+    console.log('❌ Dockerfile does not use proper PM2 configuration');
+    console.log('   Expected: "./scripts/start-pm2.sh" or "ecosystem.production.config.cjs"');
     return false;
   }
 }
@@ -82,11 +86,11 @@ function checkRailwayConfig() {
   const railwayContent = fs.readFileSync(railwayPath, 'utf8');
   const config = JSON.parse(railwayContent);
   
-  if (config.deploy?.startCommand === 'pm2-runtime ecosystem.production.config.cjs') {
-    console.log('✅ railway.json startCommand uses relative path');
+  if (config.deploy?.startCommand?.includes('./scripts/start-pm2.sh')) {
+    console.log('✅ railway.json uses PM2 startup script');
   } else {
-    console.log('❌ railway.json startCommand incorrect');
-    console.log('   Expected: "pm2-runtime ecosystem.production.config.cjs"');
+    console.log('❌ railway.json does not use PM2 startup script');
+    console.log('   Expected: "./scripts/start-pm2.sh"');
     console.log('   Found:', config.deploy?.startCommand);
     return false;
   }
@@ -95,6 +99,33 @@ function checkRailwayConfig() {
     console.log('✅ railway.json health check configured');
   } else {
     console.log('⚠️  railway.json health check not configured');
+  }
+  
+  return true;
+}
+
+// Check 5: Verify PM2 startup script
+function checkStartupScript() {
+  const scriptPath = path.join(projectRoot, 'scripts/start-pm2.sh');
+  
+  if (!fs.existsSync(scriptPath)) {
+    console.log('❌ PM2 startup script not found');
+    return false;
+  }
+  
+  const scriptContent = fs.readFileSync(scriptPath, 'utf8');
+  
+  if (scriptContent.includes('ecosystem.production.config.cjs')) {
+    console.log('✅ Startup script references ecosystem config');
+  } else {
+    console.log('❌ Startup script does not reference ecosystem config');
+    return false;
+  }
+  
+  if (scriptContent.includes('chmod +x')) {
+    console.log('✅ Startup script is executable');
+  } else {
+    console.log('⚠️  Startup script may need executable permissions');
   }
   
   return true;
@@ -168,6 +199,7 @@ function runValidation() {
     { name: 'Ecosystem Config', fn: checkEcosystemConfig },
     { name: 'Dockerfile', fn: checkDockerfile },
     { name: 'Railway Config', fn: checkRailwayConfig },
+    { name: 'Startup Script', fn: checkStartupScript },
     { name: 'Worker Script', fn: checkWorkerScript }
   ];
   
