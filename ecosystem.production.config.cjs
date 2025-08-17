@@ -16,7 +16,7 @@ module.exports = {
     },
     {
       name: "notification-worker",
-      script: "/app/scripts/redis-standalone-worker-docker.js",
+      script: "scripts/redis-standalone-worker-docker.js",
       interpreter: "node",
       instances: 1,
       autorestart: true,
@@ -28,8 +28,8 @@ module.exports = {
       },
       log_date_format: "YYYY-MM-DD HH:mm:ss",
       merge_logs: true,
-      out_file: "/app/logs/notification-worker.log",
-      error_file: "/app/logs/notification-worker-error.log"
+      out_file: "logs/notification-worker.log",
+      error_file: "logs/notification-worker-error.log"
     }
   ]
 };

@@ -61,8 +61,8 @@ RUN npm ci --omit=dev --legacy-peer-deps
 RUN npx prisma generate
 
 # Make scripts executable
-RUN chmod +x ./scripts/*.sh
-RUN chmod +x ./scripts/*.js
+RUN chmod +x ./scripts/*.sh 2>/dev/null || true
+RUN chmod +x ./scripts/*.js 2>/dev/null || true
 
 # Install PM2 globally
 RUN npm install -g pm2
@@ -71,8 +71,8 @@ RUN npm install -g pm2
 WORKDIR /app
 RUN mkdir -p logs && chown -R nextjs:nodejs /app
 
-# Verify files exist
-RUN ls -la /app/ecosystem.production.config.cjs && ls -la /app/scripts/
+# Verify critical files exist and show directory structure for debugging
+RUN ls -la ecosystem.production.config.cjs && ls -la scripts/ && echo "Docker build verification complete"
 
 USER nextjs
 
@@ -82,4 +82,4 @@ ENV PORT 3000
 ENV HOSTNAME "0.0.0.0"
 
 # Use PM2 to start both the app and worker
-CMD ["pm2-runtime", "start", "/app/ecosystem.production.config.cjs"]
+CMD ["pm2-runtime", "start", "ecosystem.production.config.cjs"]

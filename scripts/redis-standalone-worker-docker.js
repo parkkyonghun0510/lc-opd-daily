@@ -13,20 +13,27 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, '..');
 
+console.log(`[Worker] Starting in directory: ${process.cwd()}`);
+console.log(`[Worker] Script directory: ${__dirname}`);
+console.log(`[Worker] Project root: ${projectRoot}`);
+
 // Load environment variables explicitly from .env.local first, then .env
+// In Railway/Docker, environment variables are typically injected directly
 const envLocalPath = path.join(projectRoot, '.env.local');
 const envPath = path.join(projectRoot, '.env');
 
 if (fs.existsSync(envLocalPath)) {
+  console.log(`[Worker] Loading environment from: ${envLocalPath}`);
   config({ path: envLocalPath });
 } else if (fs.existsSync(envPath)) {
+  console.log(`[Worker] Loading environment from: ${envPath}`);
   config({ path: envPath });
 } else {
-  console.warn('No .env.local or .env file found!');
+  console.log('[Worker] No .env files found, using system environment variables (Railway/Docker mode)');
 }
 
-// Initialize Redis client for DragonflyDB
-const redis = new Redis({
+// Initialize Redis client for DragonflyDB with Railway support
+const redisConfig = {
   host: process.env.DRAGONFLY_HOST || process.env.REDIS_HOST || 'localhost',
   port: parseInt(process.env.DRAGONFLY_PORT || process.env.REDIS_PORT || '6379'),
   username: process.env.DRAGONFLY_USER || 'default',
@@ -39,7 +46,17 @@ const redis = new Redis({
   keepAlive: 30000,
   family: 4,
   keyPrefix: 'lc-opd-daily:',
-});
+};
+
+console.log(`[Worker] Redis config: ${redisConfig.host}:${redisConfig.port} (DB: ${redisConfig.db})`);
+const redis = new Redis(redisConfig);
+
+// Add Redis connection event handlers for better debugging
+redis.on('connect', () => console.log('[Worker] Redis connected'));
+redis.on('ready', () => console.log('[Worker] Redis ready'));
+redis.on('error', (err) => console.error('[Worker] Redis error:', err));
+redis.on('close', () => console.log('[Worker] Redis connection closed'));
+redis.on('reconnecting', () => console.log('[Worker] Redis reconnecting...'));
 
 // Initialize Prisma client
 const prisma = new PrismaClient();
