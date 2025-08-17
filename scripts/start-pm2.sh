@@ -15,5 +15,6 @@ fi
 echo "Found ecosystem.production.config.cjs"
 echo "Starting PM2..."
 
-# Start PM2 with explicit path
-exec pm2-runtime start ./ecosystem.production.config.cjs
+# Start PM2 with explicit working directory
+cd /app
+exec pm2-runtime start ecosystem.production.config.cjs

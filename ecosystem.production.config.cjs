@@ -8,7 +8,7 @@ module.exports = {
       exec_mode: "cluster",
       watch: false,
       max_memory_restart: "1G",
-      cwd: ".",
+      cwd: "/app",
       env: {
         NODE_ENV: "production",
         PORT: 3000,
@@ -26,7 +26,7 @@ module.exports = {
       autorestart: true,
       watch: false,
       max_memory_restart: "500M",
-      cwd: ".",
+      cwd: "/app",
       env: {
         NODE_ENV: "production",
         FORCE_COLOR: 0

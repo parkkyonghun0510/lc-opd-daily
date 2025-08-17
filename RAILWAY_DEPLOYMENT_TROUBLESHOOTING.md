@@ -48,6 +48,39 @@ This guide helps you troubleshoot common issues when deploying to Railway.
    file scripts/start-pm2.sh
    ```
 
+### Error: `Failed to load env from .env.production.local [Error: ENOTDIR: not a directory, stat '/app/ecosystem.production.config.cjs/.env.production.local']`
+
+**Cause**: PM2 is using the wrong working directory, causing Next.js to look for environment files in the config file's path instead of the app root.
+
+**Solutions**:
+
+1. **Fix PM2 startup script** (Recommended):
+   ```bash
+   # In start-pm2.sh, ensure explicit working directory
+   cd /app
+   exec pm2-runtime start ecosystem.production.config.cjs
+   ```
+
+2. **Fix PM2 configuration**:
+   ```javascript
+   // In ecosystem.production.config.cjs
+   module.exports = {
+     apps: [{
+       name: "lc-opd-daily",
+       script: "node_modules/next/dist/bin/next",
+       cwd: "/app", // Use absolute path
+       // ... other config
+     }]
+   };
+   ```
+
+3. **Verify working directory**:
+   ```bash
+   # Add debug output to startup script
+   echo "Current working directory: $(pwd)"
+   ls -la
+   ```
+
 ## Redis Connection Issues
 
 ### Warning: `Redis URL not found, using in-memory fallback`

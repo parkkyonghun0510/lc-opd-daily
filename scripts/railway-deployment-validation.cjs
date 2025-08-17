@@ -22,17 +22,13 @@ function checkEcosystemConfig() {
   
   const configContent = fs.readFileSync(configPath, 'utf8');
   
-  // Check for relative paths (should use "." not "/app")
-  if (configContent.includes('cwd: "/app"')) {
-    console.log('❌ ecosystem.production.config.cjs still uses absolute paths');
-    console.log('   Fix: Change cwd: "/app" to cwd: "."');
-    return false;
-  }
-  
-  if (configContent.includes('cwd: "."')) {
-    console.log('✅ ecosystem.production.config.cjs uses relative paths');
+  // Check for proper working directory configuration
+  if (configContent.includes('cwd: "/app"') || configContent.includes('cwd: "."')) {
+    console.log('✅ ecosystem.production.config.cjs has proper working directory');
   } else {
-    console.log('⚠️  ecosystem.production.config.cjs cwd not found');
+    console.log('❌ ecosystem.production.config.cjs missing working directory');
+    console.log('   Fix: Set cwd: "/app" or cwd: "."');
+    return false;
   }
   
   // Check for NODE_ENV configuration
