@@ -33,29 +33,58 @@ if (fs.existsSync(envLocalPath)) {
 }
 
 // Initialize Redis client for DragonflyDB with Railway support
-const redisConfig = {
-  host: process.env.DRAGONFLY_HOST || process.env.REDIS_HOST || 'localhost',
-  port: parseInt(process.env.DRAGONFLY_PORT || process.env.REDIS_PORT || '6379'),
-  username: process.env.DRAGONFLY_USER || 'default',
-  password: process.env.DRAGONFLY_PASSWORD || process.env.REDIS_PASSWORD || undefined,
-  db: parseInt(process.env.REDIS_DB || '0'),
-  retryDelayOnFailover: 2000,
-  enableReadyCheck: true,
-  maxRetriesPerRequest: 5,
-  lazyConnect: true,
-  keepAlive: 30000,
-  family: 4,
-  keyPrefix: 'lc-opd-daily:',
-  connectTimeout: 10000,
-  commandTimeout: 5000,
-  retryDelayOnClusterDown: 300,
-  retryDelayOnFailover: 100,
-  maxRetriesPerRequest: 3,
-  retryDelayOnClusterDown: 300,
-  enableOfflineQueue: false,
-};
+let redisConfig;
 
-console.log(`[Worker] Redis config: ${redisConfig.host}:${redisConfig.port} (DB: ${redisConfig.db})`);
+// Check if REDIS_URL is provided (Railway standard)
+if (process.env.REDIS_URL) {
+  console.log('[Worker] Using REDIS_URL for connection');
+  redisConfig = {
+    connectionString: process.env.REDIS_URL,
+    retryDelayOnFailover: 2000,
+    enableReadyCheck: true,
+    maxRetriesPerRequest: 5,
+    lazyConnect: true,
+    keepAlive: 30000,
+    family: 4,
+    keyPrefix: 'lc-opd-daily:',
+    connectTimeout: 10000,
+    commandTimeout: 5000,
+    retryDelayOnClusterDown: 300,
+    retryDelayOnFailover: 100,
+    maxRetriesPerRequest: 3,
+    retryDelayOnClusterDown: 300,
+    enableOfflineQueue: false,
+  };
+} else {
+  console.log('[Worker] Using individual Redis environment variables');
+  redisConfig = {
+    host: process.env.DRAGONFLY_HOST || process.env.REDIS_HOST || 'localhost',
+    port: parseInt(process.env.DRAGONFLY_PORT || process.env.REDIS_PORT || '6379'),
+    username: process.env.DRAGONFLY_USER || 'default',
+    password: process.env.DRAGONFLY_PASSWORD || process.env.REDIS_PASSWORD || undefined,
+    db: parseInt(process.env.REDIS_DB || '0'),
+    retryDelayOnFailover: 2000,
+    enableReadyCheck: true,
+    maxRetriesPerRequest: 5,
+    lazyConnect: true,
+    keepAlive: 30000,
+    family: 4,
+    keyPrefix: 'lc-opd-daily:',
+    connectTimeout: 10000,
+    commandTimeout: 5000,
+    retryDelayOnClusterDown: 300,
+    retryDelayOnFailover: 100,
+    maxRetriesPerRequest: 3,
+    retryDelayOnClusterDown: 300,
+    enableOfflineQueue: false,
+  };
+}
+
+if (process.env.REDIS_URL) {
+  console.log(`[Worker] Redis config: Using connection string from REDIS_URL`);
+} else {
+  console.log(`[Worker] Redis config: ${redisConfig.host}:${redisConfig.port} (DB: ${redisConfig.db})`);
+}
 console.log(`[Worker] Environment: NODE_ENV=${process.env.NODE_ENV}`);
 
 // Check if Redis service is available before connecting
