@@ -1,6 +1,9 @@
 # Use Node.js 18 as the base image
 FROM node:18-alpine AS base
 
+# Install bash (required for startup scripts)
+RUN apk add --no-cache bash
+
 # Install dependencies only when needed
 FROM base AS deps
 RUN apk add --no-cache libc6-compat
