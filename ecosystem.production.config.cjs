@@ -4,6 +4,7 @@ module.exports = {
       name: "lc-opd-daily",
       script: "node_modules/next/dist/bin/next",
       args: "start",
+      cwd: "/app",
       instances: "max",
       exec_mode: "cluster",
       watch: false,
