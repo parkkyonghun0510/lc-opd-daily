@@ -8,10 +8,14 @@ module.exports = {
       exec_mode: "cluster",
       watch: false,
       max_memory_restart: "1G",
-      cwd: "/app",
+      cwd: ".",
       env: {
         NODE_ENV: "production",
-        PORT: 3000
+        PORT: 3000,
+        FORCE_COLOR: 0
+      },
+      env_production: {
+        NODE_ENV: "production"
       }
     },
     {
@@ -22,8 +26,12 @@ module.exports = {
       autorestart: true,
       watch: false,
       max_memory_restart: "500M",
-      cwd: "/app",
+      cwd: ".",
       env: {
+        NODE_ENV: "production",
+        FORCE_COLOR: 0
+      },
+      env_production: {
         NODE_ENV: "production"
       },
       log_date_format: "YYYY-MM-DD HH:mm:ss",

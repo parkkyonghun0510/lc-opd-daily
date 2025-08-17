@@ -39,24 +39,86 @@ const redisConfig = {
   username: process.env.DRAGONFLY_USER || 'default',
   password: process.env.DRAGONFLY_PASSWORD || process.env.REDIS_PASSWORD || undefined,
   db: parseInt(process.env.REDIS_DB || '0'),
-  retryDelayOnFailover: 100,
+  retryDelayOnFailover: 2000,
   enableReadyCheck: true,
-  maxRetriesPerRequest: 3,
+  maxRetriesPerRequest: 5,
   lazyConnect: true,
   keepAlive: 30000,
   family: 4,
   keyPrefix: 'lc-opd-daily:',
+  connectTimeout: 10000,
+  commandTimeout: 5000,
+  retryDelayOnClusterDown: 300,
+  retryDelayOnFailover: 100,
+  maxRetriesPerRequest: 3,
+  retryDelayOnClusterDown: 300,
+  enableOfflineQueue: false,
 };
 
 console.log(`[Worker] Redis config: ${redisConfig.host}:${redisConfig.port} (DB: ${redisConfig.db})`);
-const redis = new Redis(redisConfig);
+console.log(`[Worker] Environment: NODE_ENV=${process.env.NODE_ENV}`);
+
+// Check if Redis service is available before connecting
+let redis;
+try {
+  redis = new Redis(redisConfig);
+} catch (error) {
+  console.error('[Worker] Failed to create Redis instance:', error);
+  process.exit(1);
+}
 
 // Add Redis connection event handlers for better debugging
-redis.on('connect', () => console.log('[Worker] Redis connected'));
-redis.on('ready', () => console.log('[Worker] Redis ready'));
-redis.on('error', (err) => console.error('[Worker] Redis error:', err));
-redis.on('close', () => console.log('[Worker] Redis connection closed'));
-redis.on('reconnecting', () => console.log('[Worker] Redis reconnecting...'));
+let redisConnected = false;
+let connectionAttempts = 0;
+const MAX_CONNECTION_ATTEMPTS = 10;
+
+redis.on('connect', () => {
+  console.log('[Worker] Redis connected');
+  redisConnected = true;
+  connectionAttempts = 0;
+});
+
+redis.on('ready', () => {
+  console.log('[Worker] Redis ready');
+  redisConnected = true;
+});
+
+redis.on('error', (err) => {
+  console.error('[Worker] Redis error:', err);
+  redisConnected = false;
+  connectionAttempts++;
+  
+  if (connectionAttempts >= MAX_CONNECTION_ATTEMPTS) {
+    console.error(`[Worker] Max Redis connection attempts (${MAX_CONNECTION_ATTEMPTS}) reached. Worker will continue without Redis.`);
+    redisConnected = false;
+  }
+});
+
+redis.on('close', () => {
+  console.log('[Worker] Redis connection closed');
+  redisConnected = false;
+});
+
+redis.on('reconnecting', () => {
+  console.log('[Worker] Redis reconnecting...');
+  redisConnected = false;
+});
+
+// Function to add startup delay for Railway environment
+async function initializeWorker() {
+  if (process.env.RAILWAY_ENVIRONMENT) {
+    console.log('[Worker] Railway environment detected, adding startup delay...');
+    await new Promise(resolve => setTimeout(resolve, 5000));
+  }
+  
+  // Ensure NODE_ENV is set to production
+  if (!process.env.NODE_ENV || !['production', 'development', 'test'].includes(process.env.NODE_ENV)) {
+    console.warn(`[Worker] Non-standard NODE_ENV detected: ${process.env.NODE_ENV}. Setting to 'production'.`);
+    process.env.NODE_ENV = 'production';
+  }
+  
+  console.log(`[Worker] NODE_ENV is now: ${process.env.NODE_ENV}`);
+}
 
 // Initialize Prisma client
 const prisma = new PrismaClient();
@@ -172,31 +234,58 @@ async function processNotificationMessage(message) {
 
 // Worker main loop
 async function startWorker() {
+  // Initialize worker with Railway-specific settings
+  await initializeWorker();
+  
   console.log('======================================');
   console.log('Starting Redis-based notification worker...');
   console.log('Worker version: 3.0.0');
   console.log('Queue:', QUEUE_NAME);
-  console.log('Redis host:', process.env.REDIS_HOST || 'localhost');
+  console.log('Redis host:', process.env.DRAGONFLY_HOST || process.env.REDIS_HOST || 'localhost');
   console.log('Telegram bot enabled:', !!telegramBot);
   console.log('======================================');
   
-  // Check initial queue length
-  const queueLength = await redis.llen(QUEUE_NAME);
-  console.log(`Initial queue length: ${queueLength}`);
+  // Check initial queue length with error handling
+  let queueLength = 0;
+  try {
+    if (redisConnected) {
+      queueLength = await redis.llen(QUEUE_NAME);
+      console.log(`Initial queue length: ${queueLength}`);
+    } else {
+      console.log('Redis not connected, starting worker in degraded mode');
+    }
+  } catch (error) {
+    console.error('Error checking queue length:', error);
+    console.log('Starting worker in degraded mode');
+  }
   
   while (true) {
     try {
+      // Check Redis connection before processing
+      if (!redisConnected) {
+        console.log('[Worker] Redis not connected, waiting for connection...');
+        await new Promise(resolve => setTimeout(resolve, POLLING_INTERVAL));
+        continue;
+      }
+      
       // Receive messages from Redis queue (using RPOP to get oldest first)
       const messages = [];
-      for (let i = 0; i < BATCH_SIZE; i++) {
-        const message = await redis.rpop(QUEUE_NAME);
-        if (message) {
-          messages.push({
-            id: Date.now() + Math.random(),
-            body: message,
-            receiptHandle: Date.now() + Math.random()
-          });
+      try {
+        for (let i = 0; i < BATCH_SIZE; i++) {
+          const message = await redis.rpop(QUEUE_NAME);
+          if (message) {
+            messages.push({
+              id: Date.now() + Math.random(),
+              body: message,
+              receiptHandle: Date.now() + Math.random()
+            });
+          }
         }
+      } catch (redisError) {
+        console.error('[Worker] Redis operation failed:', redisError);
+        redisConnected = false;
+        await new Promise(resolve => setTimeout(resolve, POLLING_INTERVAL));
+        continue;
       }
       
       if (messages.length > 0) {
@@ -211,7 +300,15 @@ async function startWorker() {
           } else {
             console.error(`Failed to process message ${message.id}, will retry`);
             // Re-add failed message to the end of the queue for retry
-            await redis.lpush(QUEUE_NAME, message.body);
+            try {
+              if (redisConnected) {
+                await redis.lpush(QUEUE_NAME, message.body);
+              } else {
+                console.error('[Worker] Cannot retry message - Redis disconnected');
+              }
+            } catch (retryError) {
+              console.error('[Worker] Failed to re-queue message:', retryError);
+            }
           }
         }
         
