@@ -84,7 +84,7 @@ export default function DashboardPage() {
   ) : (
     <div className="container mx-auto p-6">
       <h1 className="mb-8 text-3xl font-bold">Dashboard Overview</h1>
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Users</CardTitle>
