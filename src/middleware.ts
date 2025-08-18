@@ -1,21 +1,7 @@
 import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
 import { UserRole } from "@/lib/auth/roles";
 import type { NextRequest } from 'next/server';
-
-const prisma = new PrismaClient();
-
-// Check if system needs setup
-async function checkIfSystemNeedsSetup() {
-  try {
-    // Try to count users - if table doesn't exist, this will throw
-    await prisma.user.count();
-    return false;
-  } catch (error) {
-    return true;
-  }
-}
 
 // Combined middleware function
 // The withAuth middleware handles protected routes and authentication
@@ -52,7 +38,7 @@ export default withAuth(
       const filename = path.split('/').pop();
 
       // Create a fallback URL for avatars that may not exist
-      return NextResponse.rewrite(
+      return NextResponse.redirect(
         new URL(`https://api.dicebear.com/7.x/initials/svg?seed=${filename}&backgroundColor=4f46e5`, req.url)
       );
     }
@@ -60,12 +46,15 @@ export default withAuth(
     // Get the token
     const token = req.nextauth.token;
 
-    // Handle root path redirection
-    if (path === "/") {
-      if (token) {
-        return NextResponse.redirect(new URL("/dashboard", req.url));
+    // Handle login path: redirect authenticated users away from login
+    if (path === "/login" && token) {
+      // Redirect based on role for better UX
+      if (token?.role === UserRole.ADMIN) {
+        return NextResponse.redirect(new URL("/dashboard/admin", req.url));
+      } else if (token?.role === UserRole.BRANCH_MANAGER) {
+        return NextResponse.redirect(new URL("/dashboard/branch-manager", req.url));
       }
-      return NextResponse.redirect(new URL("/setup", req.url));
+      return NextResponse.redirect(new URL("/dashboard/user", req.url));
     }
 
     // Role-based dashboard redirects
@@ -80,7 +69,7 @@ export default withAuth(
       }
     }
 
-    // Role-based API access control
+    // Role-based API access control (Note: API routes are excluded from matcher below)
     if (path.startsWith("/api/admin") && token?.role !== UserRole.ADMIN) {
       return new NextResponse(
         JSON.stringify({ error: "Unauthorized: Admin access required" }),
@@ -116,8 +105,9 @@ export default withAuth(
       authorized: ({ token, req }) => {
         const path = req.nextUrl.pathname;
 
-        // Always allow setup-related paths and static/PWA assets
+        // Skip auth for NextAuth internal and public/static routes
         if (
+          path.startsWith("/api/auth") ||
           path === "/setup" ||
           path === "/api/setup" ||
           path.startsWith("/_next") ||
@@ -136,11 +126,13 @@ export default withAuth(
           return true;
         }
 
-        // Special handling for login page
-        if (path === "/login") {
-          if (token) {
-            return false; // Redirect to dashboard if already logged in
-          }
+        // Always allow home and login pages; top-level middleware will redirect authenticated users
+        if (path === "/" || path === "/login") {
+          return true;
+        }
+
+        // Allow static uploads like avatars without auth
+        if (path.startsWith("/uploads/avatars")) {
           return true;
         }
 
@@ -150,7 +142,7 @@ export default withAuth(
     },
     pages: {
       signIn: "/login",
-    },
+    }
   }
 );
 
@@ -158,17 +150,15 @@ export default withAuth(
 export const config = {
   matcher: [
     // Protected routes (requiring auth)
-    // Exclude Next internals and public PWA assets from middleware
+    // Exclude API, Next internals, NextAuth routes and public PWA assets from middleware
     "/((?!api|_next/static|_next/image|favicon.ico|manifest.json|service-worker.js|sw.js|icons|offline.html|robots.txt|sitemap.xml|\\.well-known|public|login|setup).*)",
 
-    // Special routes that need middleware processing but not auth
+    // Explicitly include home, login and setup
+    "/",
     "/login",
     "/setup",
 
-    // API routes that need processing
-    "/api/:path*",
-
     // Add avatar path matcher
-    '/uploads/avatars/:path*',
+    "/uploads/avatars/:path*",
   ],
 };
