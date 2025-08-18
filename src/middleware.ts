@@ -23,14 +23,22 @@ export default withAuth(
   async function middleware(req) {
     const path = req.nextUrl.pathname;
 
-    // Always allow setup-related paths and static assets
+    // Always allow setup-related paths and static/PWA assets
     if (
       path === "/setup" ||
       path === "/api/setup" ||
       path.startsWith("/_next") ||
       path.startsWith("/static") ||
       path === "/api/test/report-comments" ||
-      path === "/test-report-comments"
+      path === "/test-report-comments" ||
+      // PWA/public assets that must be accessible without auth
+      path === "/manifest.json" ||
+      path === "/service-worker.js" ||
+      path === "/sw.js" ||
+      path === "/offline.html" ||
+      path.startsWith("/icons") ||
+      path.startsWith("/favicon") ||
+      path.startsWith("/.well-known")
     ) {
       return NextResponse.next();
     }
@@ -108,14 +116,22 @@ export default withAuth(
       authorized: ({ token, req }) => {
         const path = req.nextUrl.pathname;
 
-        // Always allow setup-related paths and static assets
+        // Always allow setup-related paths and static/PWA assets
         if (
           path === "/setup" ||
           path === "/api/setup" ||
           path.startsWith("/_next") ||
           path.startsWith("/static") ||
           path === "/api/test/report-comments" ||
-          path === "/test-report-comments"
+          path === "/test-report-comments" ||
+          // PWA/public assets that must be accessible without auth
+          path === "/manifest.json" ||
+          path === "/service-worker.js" ||
+          path === "/sw.js" ||
+          path === "/offline.html" ||
+          path.startsWith("/icons") ||
+          path.startsWith("/favicon") ||
+          path.startsWith("/.well-known")
         ) {
           return true;
         }
@@ -142,7 +158,8 @@ export default withAuth(
 export const config = {
   matcher: [
     // Protected routes (requiring auth)
-    "/((?!api|_next/static|_next/image|favicon.ico|public|login|setup).*)",
+    // Exclude Next internals and public PWA assets from middleware
+    "/((?!api|_next/static|_next/image|favicon.ico|manifest.json|service-worker.js|sw.js|icons|offline.html|robots.txt|sitemap.xml|\\.well-known|public|login|setup).*)",
 
     // Special routes that need middleware processing but not auth
     "/login",

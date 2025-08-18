@@ -12,12 +12,13 @@ const NOTIFICATION_EVENT = {
 };
 
 // Assets to cache
+const OFFLINE_URL = '/offline.html';
 const CACHE_ASSETS = [
   '/',
   '/dashboard',
-  '/offline',
-  '/icons/default.png',
-  '/icons/badge.png',
+  OFFLINE_URL,
+  '/icons/icon-192x192.png',
+  '/favicon.ico',
 ];
 
 // Install event - cache assets
@@ -92,8 +93,8 @@ self.addEventListener('push', (event) => {
     const title = payload.title || 'Notification';
     const options = {
       body: payload.body || '',
-      icon: payload.icon || '/icons/default.png',
-      badge: payload.badge || '/icons/badge.png',
+      icon: payload.icon || '/icons/icon-192x192.png',
+      badge: payload.badge || '/icons/icon-192x192.png',
       vibrate: payload.vibrate || [100, 50, 100],
       data: {
         ...payload.data,
@@ -213,7 +214,7 @@ self.addEventListener('fetch', (event) => {
         .catch(() => {
           // If both cache and network fail, serve offline page
           if (event.request.mode === 'navigate') {
-            return caches.match('/offline');
+            return caches.match(OFFLINE_URL);
           }
           return null;
         });

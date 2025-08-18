@@ -12,7 +12,7 @@ export function ServiceWorkerRegistration() {
       try {
         if ('serviceWorker' in navigator) {
           // Try to register the service worker
-          const registration = await navigator.serviceWorker.register('/sw.js');
+          const registration = await navigator.serviceWorker.register('/service-worker.js');
           //console.log('Service Worker registered:', registration);
           setServiceWorkerRegistered(true);
           
@@ -33,4 +33,4 @@ export function ServiceWorkerRegistration() {
   }, [toast]);
 
   return null;
-} 
+}
