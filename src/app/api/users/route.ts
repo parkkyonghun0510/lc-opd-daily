@@ -4,6 +4,8 @@ import { hashPassword } from "@/lib/auth";
 import { getToken } from "next-auth/jwt";
 import { prisma } from "@/lib/prisma";
 import { UserRole } from "@/lib/auth/roles";
+import { sendNotification } from "@/lib/notifications/dragonflyNotificationService";
+import { NotificationType } from "@/utils/notificationTemplates";
 
 type SearchField = {
   contains: string;
@@ -228,6 +230,27 @@ export async function POST(request: NextRequest) {
         updatedAt: true,
       },
     });
+
+    // If the user was created as inactive, notify admins/managers
+    if (!user.isActive) {
+      try {
+        await sendNotification({
+          type: NotificationType.USER_APPROVAL_REQUESTED,
+          userIds: [], // targeting computes admins/managers
+          data: {
+            userId: user.id,
+            userName: user.name || user.username,
+            branchId: user.branchId,
+            email: user.email,
+            createdBy: token.id,
+          },
+          priority: 'high'
+        });
+      } catch (notificationError) {
+        console.error('Failed to send approval-request notification:', notificationError);
+        // Do not fail user creation on notification error
+      }
+    }
 
     return NextResponse.json(user as UserResponse);
   } catch (error) {

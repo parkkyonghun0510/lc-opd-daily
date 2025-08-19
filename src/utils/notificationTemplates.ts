@@ -8,7 +8,9 @@ export enum NotificationType {
   REPORT_NEEDS_REVISION = 'REPORT_NEEDS_REVISION',
   APPROVAL_PENDING = 'APPROVAL_PENDING',
   COMMENT_ADDED = 'COMMENT_ADDED',
-  COMMENT_REPLY = 'COMMENT_REPLY'
+  COMMENT_REPLY = 'COMMENT_REPLY',
+  USER_APPROVED = 'USER_APPROVED',
+  USER_APPROVAL_REQUESTED = 'USER_APPROVAL_REQUESTED'
 }
 
 interface NotificationContent {
@@ -115,6 +117,20 @@ export function generateNotificationContent(
       }
       if (!data.url) defaultContent.url = data.reportId ? `/dashboard?viewReport=${data.reportId}&action=reply` : '/dashboard';
       defaultContent.icon = '/icons/comment.png';
+      break;
+
+    case NotificationType.USER_APPROVED:
+      if (!data.title) defaultContent.title = 'Account Approved';
+      if (!data.body) defaultContent.body = `Your account has been approved. You can now access all features.`;
+      if (!data.url) defaultContent.url = '/dashboard';
+      defaultContent.icon = '/icons/user-approved.png';
+      break;
+
+    case NotificationType.USER_APPROVAL_REQUESTED:
+      if (!data.title) defaultContent.title = 'User Approval Requested';
+      if (!data.body) defaultContent.body = `${data.requesterName || 'A user'} has requested account approval.`;
+      if (!data.url) defaultContent.url = '/admin/users?filter=pending';
+      defaultContent.icon = '/icons/user-approval-request.png';
       break;
   }
 

@@ -10,4 +10,4 @@ if [ $? -eq 0 ]; then
 else
   echo "Failed to stop notification worker"
   exit 1
-fi 
+fi

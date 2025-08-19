@@ -22,9 +22,8 @@ module.exports = {
   apps: [
     {
       name: 'notification-worker',
-      script: 'scripts/standalone-worker.js',
+      script: 'dist/workers/dragonfly-worker.js',
       interpreter: 'node',
-      interpreterArgs: '--experimental-modules',
       instances: 1,
       autorestart: true,
       watch: false,
@@ -39,4 +38,4 @@ module.exports = {
       error_file: 'logs/notification-worker-error.log',
     }
   ]
-}; 
+};

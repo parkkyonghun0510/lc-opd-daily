@@ -6,7 +6,7 @@
  */
 
 import { ReportCommentType } from '@/types/reports';
-import { sendNotification } from '@/lib/redis/enhancedRedisNotificationService';
+import { sendNotification } from '@/lib/notifications/dragonflyNotificationService';
 import { prisma } from '@/lib/prisma';
 import { rateLimiter } from '@/lib/rate-limit';
 

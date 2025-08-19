@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { NotificationPrompt } from "@/components/pwa/NotificationPrompt";
 import { ServiceWorkerRegistration } from "@/components/pwa/ServiceWorkerRegistration";
+import { StartupProvider } from "@/components/providers/StartupProvider";
 import { metadata } from "./metadata";
 import Script from "next/script";
 import { OfflineProvider } from "@/components/providers/OfflineProvider";
@@ -50,13 +51,15 @@ export default function RootLayout({
         </Script>
       </head>
       <body className={inter.className} suppressHydrationWarning={true}>
-        <Providers>
-          {children}
-          <Toaster />
-          <InstallPrompt />
-          <NotificationPrompt />
-          <ServiceWorkerRegistration />
-        </Providers>
+        <StartupProvider>
+          <Providers>
+            {children}
+            <Toaster />
+            <InstallPrompt />
+            <NotificationPrompt />
+            <ServiceWorkerRegistration />
+          </Providers>
+        </StartupProvider>
       </body>
     </html>
   );

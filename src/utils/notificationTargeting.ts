@@ -164,8 +164,43 @@ export async function getUsersForNotification(
     // Extract branchId directly or from the branch object if provided
     const branchId = data.branchId || (data.branch?.id || null);
 
+    if (type === NotificationType.USER_APPROVED) {
+      // Notify only the user who was approved
+      const targetUserId = data.userId || data.approvedUserId;
+      if (targetUserId) {
+        return [targetUserId];
+      }
+      return [];
+    }
+
+    if (type === NotificationType.USER_APPROVAL_REQUESTED) {
+      // Notify admins and branch managers responsible for the user's branch
+      const requestingUserId = data.userId || data.requesterId;
+      const targetBranchId = data.branchId || null;
+
+      let targets: string[] = [];
+      const admins = await getGlobalAdmins();
+      targets.push(...admins);
+
+      if (targetBranchId) {
+        const managers = await getBranchManagers(targetBranchId);
+        targets.push(...managers);
+
+        // Also notify managers up the hierarchy
+        const parentBranches = await getBranchHierarchy(targetBranchId);
+        for (const parentId of parentBranches) {
+          if (parentId !== targetBranchId) {
+            const parentManagers = await getBranchManagers(parentId);
+            targets.push(...parentManagers);
+          }
+        }
+      }
+
+      // Deduplicate and return
+      return [...new Set(targets)];
+    }
+
     if (!branchId) {
-      //console.log('No branch ID provided for notification targeting.');
       return [...new Set(userIds)]; // Return unique user IDs
     }
 

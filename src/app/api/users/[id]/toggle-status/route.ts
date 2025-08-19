@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { prisma } from "@/lib/prisma";
 import { UserRole } from "@/lib/auth/roles";
+import { sendNotification } from "@/lib/notifications/redisNotificationService";
+import { NotificationType } from "@/utils/notificationTemplates";
 
 export async function POST(
   request: NextRequest,
@@ -29,12 +31,15 @@ export async function POST(
       );
     }
 
-    // Get the user
+    // Get the user with additional details for notifications
     const user = await prisma.user.findUnique({
       where: { id },
       select: { 
         isActive: true,
-        role: true 
+        role: true,
+        name: true,
+        username: true,
+        branchId: true,
       },
     });
 
@@ -79,6 +84,27 @@ export async function POST(
       },
     });
 
+    // Send notification if user was activated (approved)
+    if (!user.isActive && updatedUser.isActive) {
+      try {
+        await sendNotification({
+          type: NotificationType.USER_APPROVED,
+          userIds: [updatedUser.id],
+          data: {
+            userId: updatedUser.id,
+            userName: updatedUser.name || updatedUser.username,
+            approverName: token.name || token.username,
+            approverId: token.id,
+            branchId: updatedUser.branchId,
+          },
+          priority: 'high'
+        });
+      } catch (notificationError) {
+        console.error('Failed to send user approval notification:', notificationError);
+        // Don't fail the request if notification fails
+      }
+    }
+
     return NextResponse.json(updatedUser);
   } catch (error) {
     console.error("Error toggling user status:", error);
@@ -87,4 +113,4 @@ export async function POST(
       { status: 500 }
     );
   }
-} 
+}

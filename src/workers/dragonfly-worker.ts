@@ -1,6 +1,6 @@
 import webpush from 'web-push';
 import { PrismaClient } from '@prisma/client';
-import { getDragonflyQueueService } from '../lib/dragonfly-queue';
+import { getDragonflyQueueService } from '../lib/dragonfly-queue.js'
 
 // Define interfaces for type safety
 interface NotificationPayload {

@@ -56,7 +56,11 @@
     "fix:utf8": "bash scripts/fix-utf8-issues.sh",
     "railway:build": "npm run build:railway",
     "railway:start": "npm run start:railway",
-    "railway:deploy": "npm run railway:build && npm run railway:start"
+    "railway:deploy": "npm run railway:build && npm run railway:start",
+    "bench:queues": "node scripts/test-redis-dragonfly-performance.cjs",
+    "validate:env": "node scripts/validate-environment.js",
+    "validate:build": "npm run validate:env && npm run build",
+    "validate:production": "NODE_ENV=production npm run validate:env"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.8.0",
