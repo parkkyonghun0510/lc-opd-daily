@@ -60,7 +60,8 @@
     "bench:queues": "node scripts/test-redis-dragonfly-performance.cjs",
     "validate:env": "node scripts/validate-environment.js",
     "validate:build": "npm run validate:env && npm run build",
-    "validate:production": "NODE_ENV=production npm run validate:env"
+    "validate:production": "NODE_ENV=production npm run validate:env",
+    "validate:railway": "node scripts/railway-pre-deploy-validation.js"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.8.0",

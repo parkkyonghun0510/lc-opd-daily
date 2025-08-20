@@ -165,17 +165,9 @@ export class EnvironmentValidator {
     if (isBrowser) {
       const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
       if (!publicKey || publicKey.trim().length === 0) {
-        if (isProd) {
-          errors.push('NEXT_PUBLIC_VAPID_PUBLIC_KEY is required for push notifications');
-        } else {
-          warnings.push('NEXT_PUBLIC_VAPID_PUBLIC_KEY is not set; push notifications will be disabled in development');
-        }
+        warnings.push('NEXT_PUBLIC_VAPID_PUBLIC_KEY is not set; push notifications will be disabled');
       } else if (!this.isValidVapidKey(publicKey)) {
-        if (isProd) {
-          errors.push('NEXT_PUBLIC_VAPID_PUBLIC_KEY must be a valid Base64URL-encoded VAPID public key');
-        } else {
-          warnings.push('NEXT_PUBLIC_VAPID_PUBLIC_KEY may be invalid; push notifications may not work in development');
-        }
+        warnings.push('NEXT_PUBLIC_VAPID_PUBLIC_KEY may be invalid; push notifications may not work');
       }
 
       // Private keys are not exposed to the browser – warn instead of error.
@@ -188,45 +180,25 @@ export class EnvironmentValidator {
       return;
     }
 
-    // Server-side validation (production warn, do not block)
+    // Server-side validation (all warnings, no blocking errors)
     const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
     const privateKey = process.env.VAPID_PRIVATE_KEY;
     const contactEmail = process.env.VAPID_CONTACT_EMAIL;
 
     if (!publicKey || publicKey.trim().length === 0) {
-      if (isProd) {
-        warnings.push('NEXT_PUBLIC_VAPID_PUBLIC_KEY is required for push notifications (push disabled)');
-      } else {
-        warnings.push('NEXT_PUBLIC_VAPID_PUBLIC_KEY is not set; push notifications will be disabled in development');
-      }
+      warnings.push('NEXT_PUBLIC_VAPID_PUBLIC_KEY is not set; push notifications will be disabled');
     } else if (!this.isValidVapidKey(publicKey)) {
-      if (isProd) {
-        warnings.push('NEXT_PUBLIC_VAPID_PUBLIC_KEY must be a valid Base64URL-encoded VAPID public key');
-      } else {
-        warnings.push('NEXT_PUBLIC_VAPID_PUBLIC_KEY may be invalid; push notifications may not work in development');
-      }
+      warnings.push('NEXT_PUBLIC_VAPID_PUBLIC_KEY may be invalid; push notifications may not work');
     }
 
     if (!privateKey || privateKey.trim().length === 0) {
-      if (isProd) {
-        errors.push('VAPID_PRIVATE_KEY is required for push notifications');
-      } else {
-        warnings.push('VAPID_PRIVATE_KEY is not set; push notifications will be disabled in development');
-      }
+      warnings.push('VAPID_PRIVATE_KEY is not set; push notifications will be disabled');
     } else if (!this.isValidVapidKey(privateKey)) {
-      if (isProd) {
-        errors.push('VAPID_PRIVATE_KEY must be a valid Base64URL-encoded VAPID private key');
-      } else {
-        warnings.push('VAPID_PRIVATE_KEY may be invalid; push notifications may not work in development');
-      }
+      warnings.push('VAPID_PRIVATE_KEY may be invalid; push notifications may not work');
     }
 
     if (!contactEmail) {
-      if (isProd) {
-        errors.push('VAPID_CONTACT_EMAIL is required for push notifications');
-      } else {
-        warnings.push('VAPID_CONTACT_EMAIL is not set; push notifications will be disabled in development');
-      }
+      warnings.push('VAPID_CONTACT_EMAIL is not set; push notifications will be disabled');
     }
   }
 
