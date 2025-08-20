@@ -19,7 +19,7 @@ module.exports = {
     },
     {
       name: "notification-worker",
-      script: "scripts/redis-standalone-worker-docker.js",
+      script: "dist/workers/dragonfly-worker.js",
       interpreter: "node",
       instances: 1,
       autorestart: true,

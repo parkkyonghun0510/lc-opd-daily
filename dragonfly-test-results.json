@@ -1,0 +1,59 @@
+{
+  "timestamp": "2025-08-20T11:20:52.931Z",
+  "dragonfly_url": "redis://default:qK0fRBdWviBVnD9tjYrqTmraAuHIjQHW@trolley.proxy.rlwy.net:50549",
+  "queue_name": "notifications",
+  "tests": {
+    "environment": {
+      "dragonfly_url_provided": true,
+      "queue_name_provided": true,
+      "url_format_valid": true,
+      "missing_vars": [],
+      "parsed_url": {
+        "protocol": "redis:",
+        "hostname": "trolley.proxy.rlwy.net",
+        "port": "50549",
+        "username": "default",
+        "password": "***"
+      }
+    },
+    "connectivity": {
+      "connection_successful": true,
+      "ping_response": "PONG",
+      "basic_operations": true,
+      "error": null
+    },
+    "queue": {
+      "queue_exists": true,
+      "send_message": true,
+      "receive_message": true,
+      "delete_message": true,
+      "queue_length": 0,
+      "error": null,
+      "received_data": {
+        "id": "test-1755688854408",
+        "type": "TEST",
+        "data": {
+          "test": true,
+          "timestamp": "2025-08-20T11:20:54.408Z"
+        },
+        "userIds": [
+          "test-user"
+        ]
+      }
+    },
+    "redis_info": {
+      "server_info": "# Server\r\nredis_version:7.4.0\r\ndragonfly_version:df-v1.32.0\r\nredis_mode:standalone\r\narch_bits:64\r\nprocess_id:1\r\nos:Linux 6.12.12+bpo-cloud-amd64 x86_64\r\nthread_count:2\r\nmultiplexing_api:epoll\r\ntcp_port:6379\r\nuptime_in_seconds:463645\r\nuptime_in_days:5\r\nhz:100\r\nexecutable:dragonfly\r\nconfig_file:\r\n\r\n# Clients\r\nconnected_clients:1\r\nmax_clients:64000\r\nclient_read_buffer_bytes:256\r\nblocked_clients:0\r\npipeline_queue_length:0\r\nsend_delay_ms:0\r\ntimeout_disconnects:0\r\n\r\n# Memory\r\nused_memory:852192\r\nused_...",
+      "memory_usage": "832.2KiB",
+      "connected_clients": 1,
+      "version": "7.4.0",
+      "error": null
+    }
+  },
+  "errors": [],
+  "summary": {
+    "total_tests": 4,
+    "passed": 1,
+    "failed": 3,
+    "errors": 0
+  }
+}
