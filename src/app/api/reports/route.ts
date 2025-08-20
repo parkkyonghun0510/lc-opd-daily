@@ -236,13 +236,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Parse date properly for DateTime field
+    // Parse date properly, ensuring UTC handling
     const reportDate = new Date(reportData.date);
-    const reportDateOnly = new Date(reportDate);
-    reportDateOnly.setHours(0, 0, 0, 0);
+    // Adjust for timezone offset to get UTC date
+    const reportDateUTC = new Date(reportDate.getTime() + reportDate.getTimezoneOffset() * 60000);
+    const reportDateOnly = new Date(reportDateUTC);
+    reportDateOnly.setUTCHours(0, 0, 0, 0);
 
     // Ensure date is valid
-    if (isNaN(reportDate.getTime())) {
+    if (isNaN(reportDateOnly.getTime())) {
       return NextResponse.json(
         { error: "Invalid date format" },
         { status: 400 }
@@ -250,8 +252,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check for existing report
-    const reportDateObj = new Date(reportData.date);
-    const reportDateStr = reportDateObj.toISOString().split('T')[0]; // 'YYYY-MM-DD'
+    const reportDateStr = reportDateOnly.toISOString().split('T')[0]; // 'YYYY-MM-DD'
 
     //console.log("[DEBUG] Duplicate check normalized reportDate string:", reportDateStr);
 
