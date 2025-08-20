@@ -121,8 +121,8 @@ self.addEventListener('periodicsync', event => {
 // Handle API requests with network-first strategy
 async function handleApiRequest(request) {
   try {
-    // Try network first
-    const response = await fetch(request);
+    // Try network first, ensuring credentials are sent.
+    const response = await fetch(new Request(request, { credentials: 'include' }));
     
     // Cache successful GET responses
     if (response.ok && request.method === 'GET') {
