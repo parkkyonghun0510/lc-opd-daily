@@ -142,10 +142,13 @@ class RedisEventEmitter {
 
     try {
       // Store the event in Redis
-      await this.redis.lpush(CHANNELS.EVENTS, JSON.stringify(event));
-
-      // Trim the list to keep only the most recent events
-      await this.redis.ltrim(CHANNELS.EVENTS, 0, this.maxEvents - 1);
+      if (this.redis && this.redis.status === 'ready') {
+        await this.redis.lpush(CHANNELS.EVENTS, JSON.stringify(event));
+        // Trim the list to keep only the most recent events
+        await this.redis.ltrim(CHANNELS.EVENTS, 0, this.maxEvents - 1);
+      } else {
+        console.warn('[RedisEventEmitter] Redis not ready, skipping event storage');
+      }
 
       // Publish the event to other instances
       await this.redis.publish(CHANNELS.EVENTS, JSON.stringify({

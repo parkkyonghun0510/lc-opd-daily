@@ -94,8 +94,8 @@ class RateLimiter {
    * @returns Whether the user has exceeded their rate limit
    */
   async checkUserLimit(userId: string, limitType: keyof typeof DEFAULT_LIMITS): Promise<boolean> {
-    if (!this.enabled || !this.redis) {
-      return false; // If rate limiting is disabled, always allow
+    if (!this.enabled || !this.redis || this.redis.status !== 'ready') {
+      return false; // If rate limiting is disabled or Redis not ready, always allow
     }
     
     try {
@@ -133,8 +133,8 @@ class RateLimiter {
    * @returns Whether the IP has exceeded their rate limit
    */
   async checkIpLimit(ip: string, limitType: keyof typeof DEFAULT_LIMITS): Promise<boolean> {
-    if (!this.enabled || !this.redis) {
-      return false; // If rate limiting is disabled, always allow
+    if (!this.enabled || !this.redis || this.redis.status !== 'ready') {
+      return false; // If rate limiting is disabled or Redis not ready, always allow
     }
     
     try {

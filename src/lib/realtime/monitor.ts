@@ -231,12 +231,7 @@ class RealtimeMonitor {
    * Update Redis metrics
    */
   private async updateRedisMetrics() {
-    if (!this.redis) {
-      return;
-    }
-
-    // If client isn't ready yet, skip writing to avoid stream write errors
-    if (this.redis.status !== 'ready') {
+    if (!this.redis || this.redis.status !== 'ready') {
       return;
     }
 

@@ -208,6 +208,10 @@ class RedisSSEHandler {
      */
     private async publishEvent(event: any) {
         try {
+            if (!this.redis || this.redis.status !== 'ready') {
+                console.warn('[SSE] Redis not ready, skipping event publishing');
+                return;
+            }
             const message = JSON.stringify({
                 sourceInstanceId: this.instanceId,
                 event,
@@ -451,6 +455,12 @@ class RedisSSEHandler {
         // This is a more expensive operation, so do it less often
         if (Math.random() < 0.1) { // 10% chance each time
             try {
+                // Skip Redis operations if connection isn't ready
+                if (!this.redis || this.redis.status !== 'ready') {
+                    console.warn('[SSE] Redis not ready, skipping cleanup of orphaned entries');
+                    return;
+                }
+
                 // Get all user IDs with active connections
                 const userCounts = await this.redis.hgetall('sse:user-counts');
 
