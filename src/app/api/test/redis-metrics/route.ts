@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import { redis } from '@/lib/redis';
+import { getRedis } from '@/lib/redis';
 import { getNotificationMetrics } from '@/lib/notifications/redisNotificationService';
 
 /**
@@ -26,18 +26,19 @@ export async function GET() {
     const metrics = await getNotificationMetrics();
     
     // Get additional Redis info
+    const redisClient = await getRedis();
     const redisInfo = {
       // Get notification queue
-      queue: await redis.lrange('notifications:queue', 0, 5),
+      queue: await redisClient.lrange('notifications:queue', 0, 5),
       
       // Get notification history
-      history: await redis.lrange('notifications:history', 0, 5),
+      history: await redisClient.lrange('notifications:history', 0, 5),
       
       // Get error keys
-      errorKeys: await redis.keys('notifications:errors:*'),
+      errorKeys: await redisClient.keys('notifications:errors:*'),
       
       // Get processing keys
-      processingKeys: await redis.keys('notifications:processing:*'),
+      processingKeys: await redisClient.keys('notifications:processing:*'),
     };
     
     // Return metrics and info

@@ -8,7 +8,7 @@
 import { prisma } from '@/lib/prisma';
 import { NotificationType, generateNotificationContent } from '@/utils/notificationTemplates';
 import { emitNotification } from '@/lib/realtime/redisEventEmitter';
-import { redis } from '@/lib/redis';
+import { getRedis } from '@/lib/redis';
 import { trackNotificationEvent } from '@/utils/notificationTracking';
 import { NotificationEventType } from '@/types/notifications';
 
@@ -58,10 +58,11 @@ export async function sendNotification(notification: Omit<NotificationMessage, '
     };
 
     // Store notification in Redis
-    await redis.lpush(NOTIFICATION_QUEUE_KEY, JSON.stringify(fullNotification));
+    const redisClient = await getRedis();
+    await redisClient.lpush(NOTIFICATION_QUEUE_KEY, JSON.stringify(fullNotification));
 
     // Trim the queue to prevent unbounded growth
-    await redis.ltrim(NOTIFICATION_QUEUE_KEY, 0, 999);
+    await redisClient.ltrim(NOTIFICATION_QUEUE_KEY, 0, 999);
 
     // Process the notification immediately
     await processNotification(fullNotification);
@@ -82,7 +83,8 @@ export async function sendNotification(notification: Omit<NotificationMessage, '
 export async function processNotification(notification: NotificationMessage): Promise<boolean> {
   try {
     // Mark notification as being processed
-    await redis.set(
+    const redisClient = await getRedis();
+    await redisClient.set(
       `${NOTIFICATION_PROCESSING_KEY}:${notification.id}`,
       JSON.stringify(notification),
       'EX',
@@ -117,7 +119,7 @@ export async function processNotification(notification: NotificationMessage): Pr
     }
 
     // 3. Store notification in history
-    await redis.lpush(
+    await redisClient.lpush(
       NOTIFICATION_HISTORY_KEY,
       JSON.stringify({
         ...notification,
@@ -127,17 +129,18 @@ export async function processNotification(notification: NotificationMessage): Pr
     );
 
     // Trim history to prevent unbounded growth
-    await redis.ltrim(NOTIFICATION_HISTORY_KEY, 0, MAX_HISTORY_SIZE - 1);
+    await redisClient.ltrim(NOTIFICATION_HISTORY_KEY, 0, MAX_HISTORY_SIZE - 1);
 
     // 4. Remove from processing
-    await redis.del(`${NOTIFICATION_PROCESSING_KEY}:${notification.id}`);
+    await redisClient.del(`${NOTIFICATION_PROCESSING_KEY}:${notification.id}`);
 
     return true;
   } catch (error) {
     console.error('Error processing notification:', error);
 
     // Store the error in Redis for debugging
-    await redis.set(
+    const redisClient = await getRedis();
+    await redisClient.set(
       `notifications:errors:${notification.id}`,
       JSON.stringify({
         notification,
@@ -230,7 +233,8 @@ async function createInAppNotifications(
  */
 export async function getRecentNotifications(limit: number = 100): Promise<any[]> {
   try {
-    const notifications = await redis.lrange(NOTIFICATION_HISTORY_KEY, 0, limit - 1);
+    const redisClient = await getRedis();
+    const notifications = await redisClient.lrange(NOTIFICATION_HISTORY_KEY, 0, limit - 1);
     return notifications.map((n: string) => JSON.parse(n));
   } catch (error) {
     console.error('Error getting recent notifications:', error);
@@ -246,17 +250,18 @@ export async function getRecentNotifications(limit: number = 100): Promise<any[]
 export async function getNotificationMetrics(): Promise<any> {
   try {
     // Get queue length
-    const queueLength = await redis.llen(NOTIFICATION_QUEUE_KEY);
+    const redisClient = await getRedis();
+    const queueLength = await redisClient.llen(NOTIFICATION_QUEUE_KEY);
 
     // Get processing count
-    const processingKeys = await redis.keys(`${NOTIFICATION_PROCESSING_KEY}:*`);
+    const processingKeys = await redisClient.keys(`${NOTIFICATION_PROCESSING_KEY}:*`);
     const processingCount = processingKeys.length;
 
     // Get history count
-    const historyCount = await redis.llen(NOTIFICATION_HISTORY_KEY);
+    const historyCount = await redisClient.llen(NOTIFICATION_HISTORY_KEY);
 
     // Get error count
-    const errorKeys = await redis.keys('notifications:errors:*');
+    const errorKeys = await redisClient.keys('notifications:errors:*');
     const errorCount = errorKeys.length;
 
     return {

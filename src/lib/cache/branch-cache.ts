@@ -34,8 +34,37 @@ const getRedisClient = async () => {
     try {
       redisInstance = new Redis(process.env.DRAGONFLY_URL, {
         lazyConnect: true,
-        maxRetriesPerRequest: 3,
+        maxRetriesPerRequest: 5,
+        enableOfflineQueue: false,
+        connectTimeout: 10000,
+        commandTimeout: 5000,
+        family: 4, // Force IPv4 to avoid DNS resolution issues
       });
+      
+      // Add comprehensive error handling
+      redisInstance.on('error', (error: Error) => {
+        console.error('[BranchCache] Redis error:', error);
+        if (error.message.includes('ENOTFOUND') || error.message.includes('getaddrinfo')) {
+          console.error('[BranchCache] DNS resolution failed. Check DRAGONFLY_URL hostname.');
+        }
+      });
+      
+      redisInstance.on('connect', () => {
+        console.log('[BranchCache] Redis connected successfully');
+      });
+      
+      redisInstance.on('ready', () => {
+        console.log('[BranchCache] Redis ready to accept commands');
+      });
+      
+      redisInstance.on('close', () => {
+        console.warn('[BranchCache] Redis connection closed');
+      });
+      
+      redisInstance.on('end', () => {
+        console.warn('[BranchCache] Redis connection ended');
+      });
+      
     } catch (error) {
       console.error('Failed to create Redis instance:', error);
       return null;

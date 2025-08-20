@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
-import { redis, CACHE_TTL, CACHE_KEYS } from "@/lib/redis";
+import { getRedis, CACHE_TTL, CACHE_KEYS } from "@/lib/redis";
 import { recordCacheHit, recordCacheMiss } from "@/lib/cache-monitor";
 import { Permission, UserRole, hasPermission } from "@/lib/auth/roles";
 import { getServerSession } from "next-auth";
@@ -41,8 +41,9 @@ export async function GET() {
     }
 
     // Try to get data from Redis cache first
+    const redisClient = await getRedis();
     const cacheKey = `${CACHE_KEYS.DASHBOARD_STATS}:${user.branchId || "all"}`;
-    const cachedStats = await redis.get(cacheKey);
+    const cachedStats = await redisClient.get(cacheKey);
     if (cachedStats && typeof cachedStats === 'string') {
       await recordCacheHit(cacheKey);
       return NextResponse.json(JSON.parse(cachedStats));
@@ -59,7 +60,7 @@ export async function GET() {
     };
 
     // Store in Redis cache
-    await redis.set(cacheKey, JSON.stringify(stats), 'EX', CACHE_TTL.STATS);
+    await redisClient.set(cacheKey, JSON.stringify(stats), 'EX', CACHE_TTL.STATS);
 
     return NextResponse.json(stats);
   } catch (error) {

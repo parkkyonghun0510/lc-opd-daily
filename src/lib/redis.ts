@@ -1,46 +1,118 @@
-// Dynamic Redis import to avoid bundling issues
-let redisInstance: any = null;
-let Redis: any = null;
+import type { Redis } from 'ioredis';
 
-async function getRedisClient() {
-  if (!Redis) {
+let redis: Redis | null = null;
+let isConnecting = false;
+let connectionRetries = 0;
+const MAX_CONNECTION_RETRIES = 5;
+const RETRY_DELAY_MS = 2000;
+
+/**
+ * Get Redis client instance with enhanced error handling
+ */
+export async function getRedis(): Promise<Redis> {
+  if (!redis && !isConnecting) {
+    isConnecting = true;
+    
     try {
-      const ioredis = await import('ioredis');
-      Redis = ioredis.default;
-    } catch (error) {
-      console.error('Failed to import ioredis:', error);
-      return null;
-    }
-  }
-  
-  const redisUrl = process.env.DRAGONFLY_URL;
-  if (!redisInstance && redisUrl) {
-    try {
-      redisInstance = new Redis(redisUrl, {
+      const { default: IORedis } = await import('ioredis');
+      
+      const redisUrl = process.env.DRAGONFLY_URL;
+      if (!redisUrl) {
+        throw new Error('DRAGONFLY_URL environment variable is required');
+      }
+      
+      redis = new IORedis(redisUrl, {
         lazyConnect: true,
-        maxRetriesPerRequest: 3,
+        maxRetriesPerRequest: 5,
+        enableOfflineQueue: false,
+        connectTimeout: 10000,
+        commandTimeout: 5000,
+        family: 4, // Force IPv4 to avoid DNS resolution issues
       });
+      
+      // Add comprehensive error handling
+      redis.on('error', (error) => {
+        console.error('[Redis] Connection error:', error);
+        if (error.message.includes('ENOTFOUND') || error.message.includes('getaddrinfo')) {
+          console.error('[Redis] DNS resolution failed. Check DRAGONFLY_URL hostname.');
+        }
+      });
+      
+      redis.on('connect', () => {
+        console.log('[Redis] Connected successfully');
+        connectionRetries = 0;
+      });
+      
+      redis.on('ready', () => {
+        console.log('[Redis] Ready to accept commands');
+      });
+      
+      redis.on('close', () => {
+        console.warn('[Redis] Connection closed');
+      });
+      
+      redis.on('reconnecting', (delay: number) => {
+        console.log(`[Redis] Reconnecting in ${delay}ms...`);
+      });
+      
+      redis.on('end', () => {
+        console.warn('[Redis] Connection ended');
+        redis = null;
+      });
+      
     } catch (error) {
-      console.error('Failed to create Redis instance:', error);
-      return null;
+      console.error('[Redis] Failed to initialize client:', error);
+      redis = null;
+      throw error;
+    } finally {
+      isConnecting = false;
     }
   }
   
-  return redisInstance;
+  // Wait for connection if still connecting
+  while (isConnecting) {
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  
+  if (!redis) {
+    throw new Error('Failed to initialize Redis client');
+  }
+  
+  return redis;
 }
 
-// Create a proxy that dynamically loads Redis when needed
-export const redis = new Proxy({} as any, {
-  get(target, prop) {
-    return async (...args: any[]) => {
-      const client = await getRedisClient();
-      if (!client) {
-        throw new Error('Redis not configured or failed to initialize');
-      }
-      return client[prop](...args);
-    };
+// Export the getRedis function as the main export
+export { getRedis as redis };
+
+/**
+ * Gracefully close Redis connection
+ */
+export async function closeRedis(): Promise<void> {
+  if (redis) {
+    try {
+      await redis.quit();
+      console.log('[Redis] Connection closed gracefully');
+    } catch (error) {
+      console.error('[Redis] Error closing connection:', error);
+    } finally {
+      redis = null;
+    }
   }
-});
+}
+
+/**
+ * Get Redis connection status
+ */
+export function getRedisStatus(): { connected: boolean; status: string } {
+  if (!redis) {
+    return { connected: false, status: 'not_initialized' };
+  }
+  
+  return {
+    connected: redis.status === 'ready',
+    status: redis.status
+  };
+}
 
 // Cache TTL in seconds
 export const CACHE_TTL = {
@@ -54,40 +126,77 @@ export const CACHE_KEYS = {
   DASHBOARD_CHARTS: "dashboard:charts",
 };
 
-// Test Redis connection
-export async function testRedisConnection() {
-  try {
-    const client = await getRedisClient();
-    if (!client) {
-      console.error("❌ Redis connection failed: No client available");
-      return false;
+/**
+ * Test Redis connection with retry logic
+ */
+export async function testRedisConnection(): Promise<boolean> {
+  let attempts = 0;
+  
+  while (attempts < MAX_CONNECTION_RETRIES) {
+    try {
+      const client = await getRedis();
+      await client.ping();
+      console.log(`[Redis] Connection test successful (attempt ${attempts + 1})`);
+      return true;
+    } catch (error) {
+      attempts++;
+      console.error(`[Redis] Connection test failed (attempt ${attempts}/${MAX_CONNECTION_RETRIES}):`, error);
+      
+      if (attempts < MAX_CONNECTION_RETRIES) {
+        console.log(`[Redis] Retrying in ${RETRY_DELAY_MS}ms...`);
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+        // Reset redis instance to force reconnection
+        redis = null;
+      }
     }
-    
-    // Try to set and get a test value
-    await client.set("test:connection", "ok", "EX", 10);
-    const testValue = await client.get("test:connection");
-
-    if (testValue !== "ok") {
-      throw new Error("Redis test value mismatch");
-    }
-
-    //console.log("✅ Redis connection successful");
-    return true;
-  } catch (error) {
-    console.error("❌ Redis connection failed:", error);
-    return false;
   }
+  
+  return false;
 }
 
-// Helper function to safely interact with Redis
+/**
+ * Execute Redis operation with enhanced error handling and retries
+ */
 export async function safeRedisOperation<T>(
-  operation: () => Promise<T>,
-  fallback: T
-): Promise<T> {
-  try {
-    return await operation();
-  } catch (error) {
-    console.error("Redis operation failed:", error);
-    return fallback;
+  operation: (redis: Redis) => Promise<T>,
+  fallback?: T,
+  maxRetries: number = 3
+): Promise<T | null> {
+  let attempts = 0;
+  
+  while (attempts < maxRetries) {
+    try {
+      const client = await getRedis();
+      return await operation(client);
+    } catch (error) {
+      attempts++;
+      console.error(`[Redis] Operation failed (attempt ${attempts}/${maxRetries}):`, error);
+      
+      // Check for specific error types
+      if (error instanceof Error) {
+        if (error.message.includes('ENOTFOUND') || error.message.includes('getaddrinfo')) {
+          console.error('[Redis] DNS resolution error - check DRAGONFLY_URL hostname');
+          break; // Don't retry DNS errors
+        }
+        
+        if (error.message.includes('MaxRetriesPerRequestError')) {
+          console.error('[Redis] Max retries exceeded - Redis server may be unavailable');
+        }
+        
+        if (error.message.includes('Connection is closed')) {
+          console.warn('[Redis] Connection closed, resetting client');
+          redis = null; // Force reconnection
+        }
+      }
+      
+      if (attempts < maxRetries) {
+        const delay = Math.min(1000 * Math.pow(2, attempts - 1), 5000); // Exponential backoff
+        console.log(`[Redis] Retrying operation in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
   }
+  
+  console.error(`[Redis] Operation failed after ${maxRetries} attempts, using fallback`);
+  return fallback ?? null;
 }

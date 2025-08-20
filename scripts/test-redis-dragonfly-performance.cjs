@@ -12,9 +12,9 @@ const { performance } = require('perf_hooks');
 
 // Configuration
 const REDIS_CONFIG = {
-  host: process.env.REDIS_HOST || 'localhost',
-  port: process.env.REDIS_PORT || 6379,
-  password: process.env.REDIS_PASSWORD || undefined,
+  host: process.env.DRAGONFLY_HOST || 'localhost',
+  port: process.env.DRAGONFLY_PORT || 6379,
+  password: process.env.DRAGONFLY_PASSWORD || undefined,
   db: 0,
   maxRetriesPerRequest: 3,
   retryDelayOnFailover: 100,

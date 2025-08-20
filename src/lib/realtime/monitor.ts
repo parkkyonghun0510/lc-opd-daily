@@ -86,12 +86,41 @@ class RealtimeMonitor {
         return;
       }
 
-      // Initialize Redis client
+      // Initialize Redis client with enhanced configuration
       this.redis = new Redis(redisUrl, {
         lazyConnect: true,
-        maxRetriesPerRequest: 3,
+        maxRetriesPerRequest: 5,
+        enableOfflineQueue: false,
+        connectTimeout: 10000,
+        commandTimeout: 5000,
+        family: 4, // Force IPv4 to avoid DNS resolution issues
       });
-      console.log("[RealtimeMonitor] Redis client initialized");
+      
+      // Add comprehensive error handling
+      this.redis.on('error', (error) => {
+        console.error('[RealtimeMonitor] Redis error:', error);
+        if (error.message.includes('ENOTFOUND') || error.message.includes('getaddrinfo')) {
+          console.error('[RealtimeMonitor] DNS resolution failed. Check DRAGONFLY_URL hostname.');
+        }
+      });
+      
+      this.redis.on('connect', () => {
+        console.log('[RealtimeMonitor] Redis connected successfully');
+      });
+      
+      this.redis.on('ready', () => {
+        console.log('[RealtimeMonitor] Redis ready to accept commands');
+      });
+      
+      this.redis.on('close', () => {
+        console.warn('[RealtimeMonitor] Redis connection closed');
+      });
+      
+      this.redis.on('end', () => {
+        console.warn('[RealtimeMonitor] Redis connection ended');
+      });
+      
+      console.log("[RealtimeMonitor] Redis client initialized with enhanced error handling");
     } catch (error) {
       console.error("[RealtimeMonitor] Failed to initialize Redis:", error);
       this.redis = null;

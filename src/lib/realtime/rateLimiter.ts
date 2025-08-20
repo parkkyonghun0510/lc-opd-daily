@@ -44,12 +44,41 @@ class RateLimiter {
         return;
       }
       
-      // Initialize Redis client
+      // Initialize Redis client with enhanced configuration
       this.redis = new Redis(redisUrl, {
         lazyConnect: true,
-        maxRetriesPerRequest: 3,
+        maxRetriesPerRequest: 5,
+        enableOfflineQueue: false,
+        connectTimeout: 10000,
+        commandTimeout: 5000,
+        family: 4, // Force IPv4 to avoid DNS resolution issues
       });
-      console.log("[RateLimiter] Redis client initialized");
+      
+      // Add comprehensive error handling
+      this.redis.on('error', (error) => {
+        console.error('[RateLimiter] Redis error:', error);
+        if (error.message.includes('ENOTFOUND') || error.message.includes('getaddrinfo')) {
+          console.error('[RateLimiter] DNS resolution failed. Check DRAGONFLY_URL hostname.');
+        }
+      });
+      
+      this.redis.on('connect', () => {
+        console.log('[RateLimiter] Redis connected successfully');
+      });
+      
+      this.redis.on('ready', () => {
+        console.log('[RateLimiter] Redis ready to accept commands');
+      });
+      
+      this.redis.on('close', () => {
+        console.warn('[RateLimiter] Redis connection closed');
+      });
+      
+      this.redis.on('end', () => {
+        console.warn('[RateLimiter] Redis connection ended');
+      });
+      
+      console.log("[RateLimiter] Redis client initialized with enhanced error handling");
     } catch (error) {
       console.error("[RateLimiter] Failed to initialize Redis:", error);
       this.redis = null;

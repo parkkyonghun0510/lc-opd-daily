@@ -1,4 +1,5 @@
-import { redis } from '../redis';
+import { getRedis } from '../redis';
+import type { Redis } from 'ioredis';
 
 export interface RedisQueueMessage {
   id: string;
@@ -59,6 +60,10 @@ export class RedisQueueService {
     this.visibilityTimeout = visibilityTimeout;
   }
 
+  private async getRedis(): Promise<Redis> {
+    return await getRedis();
+  }
+
   /**
    * Send a single message to the queue
    */
@@ -70,14 +75,16 @@ export class RedisQueueService {
       timestamp: Date.now()
     };
 
+    const redisClient = await this.getRedis();
+
     if (request.DelaySeconds && request.DelaySeconds > 0) {
       // Use Redis sorted set for delayed messages
       const delayedKey = `${this.queueKey}:delayed`;
       const score = Date.now() + (request.DelaySeconds * 1000);
-      await redis.zadd(delayedKey, score, JSON.stringify(message));
+      await redisClient.zadd(delayedKey, score, JSON.stringify(message));
     } else {
       // Add to main queue
-      await redis.lpush(this.queueKey, JSON.stringify(message));
+      await redisClient.lpush(this.queueKey, JSON.stringify(message));
     }
 
     return { MessageId: messageId };
@@ -99,12 +106,14 @@ export class RedisQueueService {
           timestamp: Date.now()
         };
 
+        const redisClient = await this.getRedis();
+
         if (entry.DelaySeconds && entry.DelaySeconds > 0) {
           const delayedKey = `${this.queueKey}:delayed`;
           const score = Date.now() + (entry.DelaySeconds * 1000);
-          await redis.zadd(delayedKey, score, JSON.stringify(message));
+          await redisClient.zadd(delayedKey, score, JSON.stringify(message));
         } else {
-          await redis.lpush(this.queueKey, JSON.stringify(message));
+          await redisClient.lpush(this.queueKey, JSON.stringify(message));
         }
 
         successful.push({ Id: entry.Id, MessageId: messageId });
@@ -127,12 +136,13 @@ export class RedisQueueService {
   async receiveMessage(request: ReceiveMessageRequest): Promise<RedisQueueMessage[]> {
     const maxMessages = Math.min(request.MaxNumberOfMessages || 1, 10);
     const messages: RedisQueueMessage[] = [];
+    const redisClient = await this.getRedis();
 
     // Process delayed messages first
     await this.processDelayedMessages();
 
     for (let i = 0; i < maxMessages; i++) {
-      const messageStr = await redis.rpoplpush(this.queueKey, this.processingKey);
+      const messageStr = await redisClient.rpoplpush(this.queueKey, this.processingKey);
       if (!messageStr) break;
 
       try {
@@ -140,7 +150,7 @@ export class RedisQueueService {
         const receiptHandle = this.generateReceiptHandle(messageData.id);
         
         // Set expiration for processing key
-        await redis.expire(this.processingKey, this.visibilityTimeout);
+        await redisClient.expire(this.processingKey, this.visibilityTimeout);
 
         messages.push({
           id: messageData.id,
@@ -150,7 +160,7 @@ export class RedisQueueService {
       } catch (error) {
         console.error('Error parsing message:', error);
         // Put back invalid message to main queue
-        await redis.lpush(this.queueKey, messageStr);
+        await redisClient.lpush(this.queueKey, messageStr);
       }
     }
 
@@ -162,15 +172,16 @@ export class RedisQueueService {
    */
   async deleteMessage(request: DeleteMessageRequest): Promise<void> {
     const messageId = this.extractMessageIdFromReceiptHandle(request.ReceiptHandle);
+    const redisClient = await this.getRedis();
     
     // Remove from processing queue
-    const processingMessages = await redis.lrange(this.processingKey, 0, -1);
+    const processingMessages = await redisClient.lrange(this.processingKey, 0, -1);
     for (let i = 0; i < processingMessages.length; i++) {
       const messageStr = processingMessages[i];
       try {
         const messageData = JSON.parse(messageStr);
         if (messageData.id === messageId) {
-          await redis.lrem(this.processingKey, 0, messageStr);
+          await redisClient.lrem(this.processingKey, 0, messageStr);
           break;
         }
       } catch (error) {
@@ -185,12 +196,13 @@ export class RedisQueueService {
   private async processDelayedMessages(): Promise<void> {
     const delayedKey = `${this.queueKey}:delayed`;
     const now = Date.now();
+    const redisClient = await this.getRedis();
     
-    const readyMessages = await redis.zrangebyscore(delayedKey, 0, now);
+    const readyMessages = await redisClient.zrangebyscore(delayedKey, 0, now);
     
     for (const messageStr of readyMessages) {
-      await redis.zrem(delayedKey, messageStr);
-      await redis.lpush(this.queueKey, messageStr);
+      await redisClient.zrem(delayedKey, messageStr);
+      await redisClient.lpush(this.queueKey, messageStr);
     }
   }
 
@@ -202,10 +214,11 @@ export class RedisQueueService {
     processingLength: number;
     delayedLength: number;
   }> {
+    const redisClient = await this.getRedis();
     const [queueLength, processingLength, delayedLength] = await Promise.all([
-      redis.llen(this.queueKey),
-      redis.llen(this.processingKey),
-      redis.zcard(`${this.queueKey}:delayed`)
+      redisClient.llen(this.queueKey),
+      redisClient.llen(this.processingKey),
+      redisClient.zcard(`${this.queueKey}:delayed`)
     ]);
 
     return { queueLength, processingLength, delayedLength };
@@ -215,10 +228,11 @@ export class RedisQueueService {
    * Purge all messages from the queue
    */
   async purgeQueue(): Promise<void> {
+    const redisClient = await this.getRedis();
     await Promise.all([
-      redis.del(this.queueKey),
-      redis.del(this.processingKey),
-      redis.del(`${this.queueKey}:delayed`)
+      redisClient.del(this.queueKey),
+      redisClient.del(this.processingKey),
+      redisClient.del(`${this.queueKey}:delayed`)
     ]);
   }
 

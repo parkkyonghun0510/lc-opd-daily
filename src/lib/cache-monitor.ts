@@ -1,4 +1,4 @@
-import { redis } from "./redis";
+import { getRedis } from "./redis";
 
 const METRICS_KEY = "cache:metrics";
 
@@ -27,7 +27,8 @@ export async function recordCacheMiss(key: string) {
 }
 
 async function getMetrics(): Promise<CacheMetrics> {
-  const raw = await redis.get(METRICS_KEY);
+  const redisClient = await getRedis();
+  const raw = await redisClient.get(METRICS_KEY);
   if (!raw) {
     return {
       hits: 0,
@@ -49,7 +50,8 @@ async function getMetrics(): Promise<CacheMetrics> {
 }
 
 async function saveMetrics(metrics: CacheMetrics) {
-  await redis.set(METRICS_KEY, JSON.stringify(metrics));
+  const redisClient = await getRedis();
+  await redisClient.set(METRICS_KEY, JSON.stringify(metrics));
 }
 
 export async function getCacheStats() {
@@ -65,7 +67,8 @@ export async function getCacheStats() {
 }
 
 export async function resetMetrics() {
-  await redis.set(
+  const redisClient = await getRedis();
+  await redisClient.set(
     METRICS_KEY,
     JSON.stringify({
       hits: 0,

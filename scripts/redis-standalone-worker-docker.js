@@ -43,37 +43,33 @@ if (process.env.DRAGONFLY_URL) {
     connectionString: connectionUrl,
     retryDelayOnFailover: 2000,
     enableReadyCheck: true,
-    maxRetriesPerRequest: 3,
+    maxRetriesPerRequest: 5,
     lazyConnect: true,
     keepAlive: 30000,
     family: 4,
     keyPrefix: 'lc-opd-daily:',
-    connectTimeout: 15000,
-    commandTimeout: 8000,
-    retryDelayOnClusterDown: 300,
-    retryDelayOnFailover: 100,
-    enableOfflineQueue: true, // Enable offline queue for better resilience
+    connectTimeout: 10000,
+    commandTimeout: 5000,
+    enableOfflineQueue: false, // Disable offline queue for better error handling
   };
 } else {
   console.log('[Worker] Using individual Redis environment variables');
   redisConfig = {
-    host: process.env.DRAGONFLY_HOST || process.env.REDIS_HOST || 'localhost',
-    port: parseInt(process.env.DRAGONFLY_PORT || process.env.REDIS_PORT || '6379'),
-    username: process.env.DRAGONFLY_USER || process.env.DRAGONFLY_USERNAME || 'default',
-    password: process.env.DRAGONFLY_PASSWORD || process.env.REDIS_PASSWORD || undefined,
-    db: parseInt(process.env.REDIS_DB || '0'),
+    host: process.env.DRAGONFLY_HOST || 'localhost',
+    port: parseInt(process.env.DRAGONFLY_PORT || '6379'),
+    // password: process.env.DRAGONFLY_PASSWORD || undefined,
+    password: process.env.DRAGONFLY_PASSWORD || undefined,
+    db: parseInt(process.env.DRAGONFLY_DB || '0'),
     retryDelayOnFailover: 2000,
     enableReadyCheck: true,
-    maxRetriesPerRequest: 3,
+    maxRetriesPerRequest: 5,
     lazyConnect: true,
     keepAlive: 30000,
     family: 4,
     keyPrefix: 'lc-opd-daily:',
-    connectTimeout: 15000,
-    commandTimeout: 8000,
-    retryDelayOnClusterDown: 300,
-    retryDelayOnFailover: 100,
-    enableOfflineQueue: true, // Enable offline queue for better resilience
+    connectTimeout: 10000,
+    commandTimeout: 5000,
+    enableOfflineQueue: false, // Disable offline queue for better error handling
   };
 }
 
@@ -112,6 +108,9 @@ redis.on('ready', () => {
 
 redis.on('error', (err) => {
   console.error('[Worker] Redis error:', err);
+  if (err.message.includes('ENOTFOUND') || err.message.includes('getaddrinfo')) {
+    console.error('[Worker] DNS resolution failed. Check DRAGONFLY_URL hostname.');
+  }
   redisConnected = false;
   connectionAttempts++;
   

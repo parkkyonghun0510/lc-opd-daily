@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
-import { redis, CACHE_TTL, CACHE_KEYS } from "@/lib/redis";
+import { getRedis, CACHE_TTL, CACHE_KEYS } from "@/lib/redis";
 import { recordCacheHit, recordCacheMiss } from "@/lib/cache-monitor";
 import { headers } from "next/headers";
 
@@ -23,7 +23,8 @@ export async function GET() {
 
   try {
     // Try to get data from Redis cache first
-    const cachedChartData = await redis.get(CACHE_KEYS.DASHBOARD_CHARTS);
+    const redisClient = await getRedis();
+    const cachedChartData = await redisClient.get(CACHE_KEYS.DASHBOARD_CHARTS);
     if (cachedChartData && typeof cachedChartData === 'string') {
       await recordCacheHit(CACHE_KEYS.DASHBOARD_CHARTS);
       return NextResponse.json(JSON.parse(cachedChartData));
@@ -38,7 +39,7 @@ export async function GET() {
     };
 
     // Store in Redis cache
-    await redis.set(CACHE_KEYS.DASHBOARD_CHARTS, JSON.stringify(chartData), 'EX', CACHE_TTL.CHARTS);
+    await redisClient.set(CACHE_KEYS.DASHBOARD_CHARTS, JSON.stringify(chartData), 'EX', CACHE_TTL.CHARTS);
 
     return NextResponse.json(chartData);
   } catch (error) {

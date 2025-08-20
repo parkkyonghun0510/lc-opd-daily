@@ -1,5 +1,5 @@
 import { getPrisma } from "@/lib/prisma-server";
-import { redis, CACHE_TTL, CACHE_KEYS } from "./redis";
+import { getRedis, CACHE_TTL, CACHE_KEYS } from "./redis";
 
 // Helper function to convert Decimal to number
 const toNumber = (value: any): number => {
@@ -19,7 +19,8 @@ async function warmStatsCache() {
       growth: await getGrowthRate(),
     };
 
-    await redis.set(CACHE_KEYS.DASHBOARD_STATS, JSON.stringify(stats), 'EX', CACHE_TTL.STATS);
+    const redisClient = await getRedis();
+    await redisClient.set(CACHE_KEYS.DASHBOARD_STATS, JSON.stringify(stats), 'EX', CACHE_TTL.STATS);
 
     //console.log("✅ Stats cache warmed successfully");
   } catch (error) {
@@ -37,7 +38,8 @@ async function warmChartsCache() {
       userGrowthData: await getUserGrowthData(),
     };
 
-    await redis.set(CACHE_KEYS.DASHBOARD_CHARTS, JSON.stringify(chartData), 'EX', CACHE_TTL.CHARTS);
+    const redisClient = await getRedis();
+    await redisClient.set(CACHE_KEYS.DASHBOARD_CHARTS, JSON.stringify(chartData), 'EX', CACHE_TTL.CHARTS);
 
     //console.log("✅ Charts cache warmed successfully");
   } catch (error) {
