@@ -59,6 +59,10 @@ export async function getRedis(): Promise<Redis> {
         console.warn('[Redis] Connection ended');
         redis = null;
       });
+
+      // Explicitly establish the connection when lazyConnect is true
+      // This prevents: "Stream isn't writeable and enableOfflineQueue options is false"
+      await redis.connect();
       
     } catch (error) {
       console.error('[Redis] Failed to initialize client:', error);

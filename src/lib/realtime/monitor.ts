@@ -78,7 +78,7 @@ class RealtimeMonitor {
   private initRedis() {
     try {
       // Check if the required environment variables are present
-      const redisUrl = process.env.DRAGONFLY_URL || process.env.REDIS_URL;
+      const redisUrl = process.env.DRAGONFLY_URL || 'redis://localhost:6379';
       if (!redisUrl) {
         console.warn(
           "[RealtimeMonitor] Redis URL not found (DRAGONFLY_URL or REDIS_URL). Using in-memory monitoring only."
@@ -121,6 +121,12 @@ class RealtimeMonitor {
       });
       
       console.log("[RealtimeMonitor] Redis client initialized with enhanced error handling");
+
+      // Explicitly connect so commands are not issued before the stream is writable
+      // Avoids: "Stream isn't writeable and enableOfflineQueue options is false"
+      this.redis.connect().catch((err) => {
+        console.error('[RealtimeMonitor] Failed to connect Redis client:', err);
+      });
     } catch (error) {
       console.error("[RealtimeMonitor] Failed to initialize Redis:", error);
       this.redis = null;
@@ -226,6 +232,11 @@ class RealtimeMonitor {
    */
   private async updateRedisMetrics() {
     if (!this.redis) {
+      return;
+    }
+
+    // If client isn't ready yet, skip writing to avoid stream write errors
+    if (this.redis.status !== 'ready') {
       return;
     }
 
