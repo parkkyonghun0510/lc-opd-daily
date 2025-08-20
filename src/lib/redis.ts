@@ -13,9 +13,10 @@ async function getRedisClient() {
     }
   }
   
-  if (!redisInstance && process.env.DRAGONFLY_URL) {
+  const redisUrl = process.env.DRAGONFLY_URL;
+  if (!redisInstance && redisUrl) {
     try {
-      redisInstance = new Redis(process.env.DRAGONFLY_URL, {
+      redisInstance = new Redis(redisUrl, {
         lazyConnect: true,
         maxRetriesPerRequest: 3,
       });

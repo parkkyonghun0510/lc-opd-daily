@@ -10,15 +10,14 @@ import { z } from 'zod';
 // Environment variable schemas for validation
 const EnvironmentSchema = z.object({
   // Dragonfly/Redis Queue Configuration
-  DRAGONFLY_URL: z.string().url().optional(),
-  REDIS_URL: z.string().url().optional(),
+  DRAGONFLY_URL: z.string().url('DRAGONFLY_URL must be a valid URL').optional(),
   DRAGONFLY_QUEUE_NAME: z.string().min(1).default('notifications'),
   DRAGONFLY_QUEUE_URL: z.string().url().optional(),
 
   // VAPID Push Notification Configuration
-  NEXT_PUBLIC_VAPID_PUBLIC_KEY: z.string().min(1, 'VAPID public key is required'),
-  VAPID_PRIVATE_KEY: z.string().min(1, 'VAPID private key is required'),
-  VAPID_CONTACT_EMAIL: z.string().email('Valid VAPID contact email is required'),
+  NEXT_PUBLIC_VAPID_PUBLIC_KEY: z.string().optional(),
+  VAPID_PRIVATE_KEY: z.string().optional(),
+  VAPID_CONTACT_EMAIL: z.string().optional(),
 });
 
 // Type for validated environment variables
@@ -73,10 +72,9 @@ export class EnvironmentValidator {
       // so we use a lighter schema that only requires public variables.
       const clientSchema = z.object({
         DRAGONFLY_URL: z.string().optional(),
-        REDIS_URL: z.string().optional(),
         DRAGONFLY_QUEUE_NAME: z.string().min(1).default('notifications'),
         DRAGONFLY_QUEUE_URL: z.string().optional(),
-        NEXT_PUBLIC_VAPID_PUBLIC_KEY: z.string().min(1, 'VAPID public key is required'),
+        NEXT_PUBLIC_VAPID_PUBLIC_KEY: z.string().optional(),
       });
 
       const validation = (isBrowser ? clientSchema : EnvironmentSchema).safeParse(process.env);
@@ -117,20 +115,20 @@ export class EnvironmentValidator {
    */
   private validateDragonflyConfig(errors: string[], warnings: string[]): void {
     const isBrowser = typeof window !== 'undefined';
-    const dragonflyUrl = process.env.DRAGONFLY_URL || process.env.DRAGONFLY_URL;
+    const dragonflyUrl = process.env.DRAGONFLY_URL;
 
     // In the browser, private env vars (non NEXT_PUBLIC_) are unavailable.
     // Do not fail the app; just warn that server needs to be configured.
     if (isBrowser) {
       if (!dragonflyUrl) {
-        warnings.push('Queue configuration cannot be validated in the browser. Ensure DRAGONFLY_URL or REDIS_URL is set on the server.');
+        warnings.push('Queue configuration cannot be validated in the browser. Ensure DRAGONFLY_URL is set on the server.');
       }
       // Skip strict URL validation in the browser context
       return;
     }
 
     if (!dragonflyUrl) {
-      errors.push('DRAGONFLY_URL or REDIS_URL must be configured for queue functionality');
+      errors.push('DRAGONFLY_URL must be configured for queue functionality');
     } else {
       // Validate URL format
       try {
@@ -190,20 +188,20 @@ export class EnvironmentValidator {
       return;
     }
 
-    // Server-side validation (production strict, development lenient)
+    // Server-side validation (production warn, do not block)
     const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
     const privateKey = process.env.VAPID_PRIVATE_KEY;
     const contactEmail = process.env.VAPID_CONTACT_EMAIL;
 
     if (!publicKey || publicKey.trim().length === 0) {
       if (isProd) {
-        errors.push('NEXT_PUBLIC_VAPID_PUBLIC_KEY is required for push notifications');
+        warnings.push('NEXT_PUBLIC_VAPID_PUBLIC_KEY is required for push notifications (push disabled)');
       } else {
         warnings.push('NEXT_PUBLIC_VAPID_PUBLIC_KEY is not set; push notifications will be disabled in development');
       }
     } else if (!this.isValidVapidKey(publicKey)) {
       if (isProd) {
-        errors.push('NEXT_PUBLIC_VAPID_PUBLIC_KEY must be a valid Base64URL-encoded VAPID public key');
+        warnings.push('NEXT_PUBLIC_VAPID_PUBLIC_KEY must be a valid Base64URL-encoded VAPID public key');
       } else {
         warnings.push('NEXT_PUBLIC_VAPID_PUBLIC_KEY may be invalid; push notifications may not work in development');
       }
@@ -252,8 +250,8 @@ export class EnvironmentValidator {
 
     // Check for production environment requirements
     if (process.env.NODE_ENV === 'production') {
-      if (!process.env.DRAGONFLY_URL && !process.env.DRAGONFLY_URL) {
-        warnings.push('In production, it is recommended to configure DRAGONFLY_URL or REDIS_URL');
+      if (!process.env.DRAGONFLY_URL) {
+        warnings.push('In production, it is recommended to configure DRAGONFLY_URL');
       }
     }
   }

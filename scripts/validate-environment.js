@@ -55,8 +55,7 @@ async function validateEnvironment() {
   log('=' .repeat(60));
 
   const requiredEnvVars = [
-    { name: 'DRAGONFLY_URL', description: 'Dragonfly Redis URL for queue functionality', required: false, alternative: 'REDIS_URL' },
-    { name: 'REDIS_URL', description: 'Redis URL for caching and sessions', required: false, alternative: 'DRAGONFLY_URL' },
+    { name: 'DRAGONFLY_URL', description: 'Dragonfly Redis URL for queue functionality', required: false },
     { name: 'DRAGONFLY_QUEUE_NAME', description: 'Queue name for notifications', required: false, default: 'notifications' },
     { name: 'DRAGONFLY_QUEUE_URL', description: 'Dragonfly queue endpoint', required: false },
     { name: 'NEXT_PUBLIC_VAPID_PUBLIC_KEY', description: 'VAPID public key for push notifications', required: process.env.NODE_ENV === 'production' },
@@ -167,10 +166,11 @@ async function validateEnvironment() {
 async function testRedisConnection() {
   log('\n🔌 Testing Redis/Dragonfly Connection...', colors.bright);
   
-  const redisUrl = process.env.DRAGONFLY_URL || process.env.DRAGONFLY_URL;
+  const redisUrl = process.env.DRAGONFLY_URL;
   
   if (!redisUrl) {
-    warning('No Redis/Dragonfly URL configured, skipping connection test');
+    warning('DRAGONFLY_URL is not set. Queue functionality will be disabled.');
+    warning('Set DRAGONFLY_URL to enable queue functionality.');
     return;
   }
 

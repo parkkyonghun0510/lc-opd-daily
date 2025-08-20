@@ -35,53 +35,51 @@ if (fs.existsSync(envLocalPath)) {
 // Initialize Redis client for DragonflyDB with Railway support
 let redisConfig;
 
-// Check if REDIS_URL is provided (Railway standard)
+// Check if DRAGONFLY_URL is provided (Railway standard)
 if (process.env.DRAGONFLY_URL) {
-  console.log('[Worker] Using REDIS_URL for connection');
+  const connectionUrl = process.env.DRAGONFLY_URL;
+  console.log('[Worker] Using connection URL for Redis/Dragonfly');
   redisConfig = {
-    connectionString: process.env.DRAGONFLY_URL,
+    connectionString: connectionUrl,
     retryDelayOnFailover: 2000,
     enableReadyCheck: true,
-    maxRetriesPerRequest: 5,
+    maxRetriesPerRequest: 3,
     lazyConnect: true,
     keepAlive: 30000,
     family: 4,
     keyPrefix: 'lc-opd-daily:',
-    connectTimeout: 10000,
-    commandTimeout: 5000,
+    connectTimeout: 15000,
+    commandTimeout: 8000,
     retryDelayOnClusterDown: 300,
     retryDelayOnFailover: 100,
-    maxRetriesPerRequest: 3,
-    retryDelayOnClusterDown: 300,
-    enableOfflineQueue: false,
+    enableOfflineQueue: true, // Enable offline queue for better resilience
   };
 } else {
   console.log('[Worker] Using individual Redis environment variables');
   redisConfig = {
     host: process.env.DRAGONFLY_HOST || process.env.REDIS_HOST || 'localhost',
     port: parseInt(process.env.DRAGONFLY_PORT || process.env.REDIS_PORT || '6379'),
-    username: process.env.DRAGONFLY_USER || 'default',
+    username: process.env.DRAGONFLY_USER || process.env.DRAGONFLY_USERNAME || 'default',
     password: process.env.DRAGONFLY_PASSWORD || process.env.REDIS_PASSWORD || undefined,
     db: parseInt(process.env.REDIS_DB || '0'),
     retryDelayOnFailover: 2000,
     enableReadyCheck: true,
-    maxRetriesPerRequest: 5,
+    maxRetriesPerRequest: 3,
     lazyConnect: true,
     keepAlive: 30000,
     family: 4,
     keyPrefix: 'lc-opd-daily:',
-    connectTimeout: 10000,
-    commandTimeout: 5000,
+    connectTimeout: 15000,
+    commandTimeout: 8000,
     retryDelayOnClusterDown: 300,
     retryDelayOnFailover: 100,
-    maxRetriesPerRequest: 3,
-    retryDelayOnClusterDown: 300,
-    enableOfflineQueue: false,
+    enableOfflineQueue: true, // Enable offline queue for better resilience
   };
 }
 
 if (process.env.DRAGONFLY_URL) {
-  console.log(`[Worker] Redis config: Using connection string from REDIS_URL`);
+  const connectionUrl = process.env.DRAGONFLY_URL;
+  console.log(`[Worker] Redis config: Using connection string (${connectionUrl ? connectionUrl.split('@')[1] || connectionUrl : 'URL'})`);
 } else {
   console.log(`[Worker] Redis config: ${redisConfig.host}:${redisConfig.port} (DB: ${redisConfig.db})`);
 }
@@ -270,7 +268,13 @@ async function startWorker() {
   console.log('Starting Redis-based notification worker...');
   console.log('Worker version: 3.0.0');
   console.log('Queue:', QUEUE_NAME);
-  console.log('Redis host:', process.env.DRAGONFLY_HOST || process.env.REDIS_HOST || 'localhost');
+  if (process.env.DRAGONFLY_URL) {
+    const connectionUrl = process.env.DRAGONFLY_URL;
+    const urlHost = connectionUrl ? connectionUrl.split('@')[1]?.split(':')[0] || connectionUrl.split('://')[1]?.split(':')[0] : 'unknown';
+    console.log('Redis host:', urlHost);
+  } else {
+    console.log('Redis host:', process.env.DRAGONFLY_HOST || 'localhost');
+  }
   console.log('Telegram bot enabled:', !!telegramBot);
   console.log('======================================');
   
@@ -360,16 +364,49 @@ async function startWorker() {
 // Handle graceful shutdown
 process.on('SIGTERM', async () => {
   console.log('Received SIGTERM, shutting down gracefully...');
-  await redis.quit();
-  await prisma.$disconnect();
+  try {
+    if (redisConnected && redis.status === 'ready') {
+      await redis.quit();
+    } else {
+      console.log('[Worker] Redis not connected, skipping quit');
+    }
+  } catch (error) {
+    console.error('[Worker] Error during Redis shutdown:', error);
+  }
+  try {
+    await prisma.$disconnect();
+  } catch (error) {
+    console.error('[Worker] Error during Prisma disconnect:', error);
+  }
   process.exit(0);
 });
 
 process.on('SIGINT', async () => {
   console.log('Received SIGINT, shutting down gracefully...');
-  await redis.quit();
-  await prisma.$disconnect();
+  try {
+    if (redisConnected && redis.status === 'ready') {
+      await redis.quit();
+    } else {
+      console.log('[Worker] Redis not connected, skipping quit');
+    }
+  } catch (error) {
+    console.error('[Worker] Error during Redis shutdown:', error);
+  }
+  try {
+    await prisma.$disconnect();
+  } catch (error) {
+    console.error('[Worker] Error during Prisma disconnect:', error);
+  }
   process.exit(0);
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  // Don't exit on unhandled rejections in production
+  if (process.env.NODE_ENV !== 'production') {
+    process.exit(1);
+  }
 });
 
 // Start the worker

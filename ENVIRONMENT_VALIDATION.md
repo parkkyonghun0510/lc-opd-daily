@@ -15,12 +15,12 @@ The application includes a robust environment validation system that checks all 
 
 | Variable | Description | Required | Default | Example |
 |----------|-------------|----------|---------|---------|
-| `DRAGONFLY_URL` | Dragonfly Redis connection URL | No* | - | `redis://localhost:6379` |
-| `REDIS_URL` | Alternative Redis connection URL | No* | - | `redis://localhost:6379` |
+| `DRAGONFLY_URL` | Dragonfly Redis connection URL | Yes | - | `redis://localhost:6379` |
+| `REDIS_URL` | Alternative Redis connection URL | No | - | `redis://localhost:6379` |
 | `DRAGONFLY_QUEUE_NAME` | Queue name for notifications | No | `notifications` | `lc-notifications` |
 | `DRAGONFLY_QUEUE_URL` | Custom queue endpoint | No | - | `http://localhost:6379` |
 
-*At least one of `DRAGONFLY_URL` or `REDIS_URL` must be provided for queue functionality.
+*`DRAGONFLY_URL` must be set for queue functionality.
 
 ### VAPID Push Notification Configuration
 

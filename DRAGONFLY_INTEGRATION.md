@@ -28,7 +28,7 @@ API Routes → dragonflyNotificationService → Dragonfly Redis Queue
 ```bash
 # Dragonfly/Redis Connection
 DRAGONFLY_URL=redis://localhost:6379
-# Alternative: REDIS_URL=redis://localhost:6379 (fallback)
+# Note: REDIS_URL is no longer supported
 
 # Queue Configuration
 DRAGONFLY_QUEUE_NAME=notifications  # default

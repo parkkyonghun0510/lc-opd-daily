@@ -25,10 +25,14 @@ for ENV_FILE in .env.production .env.production.local .env.local .env; do
   fi
 done
 
+
 # Basic sanity checks for critical envs (masked output)
 [ -z "${DATABASE_URL:-}" ] && echo "WARNING: DATABASE_URL is not set" || echo "DATABASE_URL is set"
-[ -z "${REDIS_URL:-}" ] && echo "WARNING: REDIS_URL is not set" || echo "REDIS_URL is set"
-
+[ -z "${DRAGONFLY_URL:-}" ] && echo "WARNING: DRAGONFLY_URL is not set" || echo "DRAGONFLY_URL is set"
+[ -z "${DRAGONFLY_QUEUE_NAME:-}" ] && echo "WARNING: DRAGONFLY_QUEUE_NAME is not set" || echo "DRAGONFLY_QUEUE_NAME is set"
+[ -z "${DRAGONFLY_QUEUE_URL:-}" ] && echo "WARNING: DRAGONFLY_QUEUE_URL is not set" || echo "DRAGONFLY_QUEUE_URL is set"
+[ -z "${NEXT_PUBLIC_VAPID_PUBLIC_KEY:-}" ] && echo "WARNING: NEXT_PUBLIC_VAPID_PUBLIC_KEY is not set" || echo "NEXT_PUBLIC_VAPID_PUBLIC_KEY is set"
+[ -z "${VAPID_PRIVATE_KEY:-}" ] && echo "WARNING: VAPID_PRIVATE_KEY is not set" || echo "VAPID_PRIVATE_KEY is set"
 # Check if ecosystem config exists
 if [ ! -f "ecosystem.production.config.cjs" ]; then
     echo "ERROR: ecosystem.production.config.cjs not found in /app!"
