@@ -51,6 +51,10 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 # Copy prisma schema and migrations
 COPY --from=builder /app/prisma ./prisma
 
+# Copy workers and lib directories
+COPY --from=builder --chown=nextjs:nodejs /app/dist/workers ./dist/workers
+COPY --from=builder --chown=nextjs:nodejs /app/dist/lib ./dist/lib
+
 # Copy PM2 config and scripts
 COPY --from=builder /app/ecosystem.production.config.cjs ./
 COPY --from=builder /app/scripts ./scripts
@@ -66,7 +70,7 @@ RUN npm ci --omit=dev --legacy-peer-deps --no-audit --no-fund && \
     chown -R nextjs:nodejs /app
 
 # Verify critical files exist and show directory structure for debugging
-RUN ls -la ecosystem.production.config.cjs && ls -la scripts/ && echo "Docker build verification complete"
+RUN ls -la ecosystem.production.config.cjs && ls -la scripts/ && ls -la dist/workers/ && echo "Docker build verification complete"
 
 USER nextjs
 
