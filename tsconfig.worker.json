@@ -16,13 +16,9 @@
     }
   },
   "include": [
-    "src/workers/**/*.ts",
-    "src/lib/queue/**/*.ts",
-    "src/lib/prisma.ts",
-    "src/lib/dragonfly-queue.ts",
-    "src/utils/**/*.ts",
-    "src/lib/telegram.ts",
-    "src/lib/sse/**/*.ts"
+    "src/workers/dragonfly-worker.ts",
+    "src/workers/db-maintenance.ts",
+    "src/lib/dragonfly-queue.ts"
   ],
   "exclude": ["node_modules"]
 }

@@ -39,7 +39,7 @@
     "link-reports": "node scripts/link-plan-actual-reports.mjs",
     "typecheck": "tsc --noEmit",
     "generate-icons": "node scripts/generate-icons.js",
-    "build:worker": "tsc --project tsconfig.worker.json && node scripts/fix-paths.cjs",
+    "build:worker": "tsc --project tsconfig.worker.json",
     "start:worker": "node scripts/start-notification-worker.js",
     "rebuild:worker": "npm run build:worker && npm run start:worker",
     "test:send": "node --experimental-modules scripts/send-test-notification.js",
