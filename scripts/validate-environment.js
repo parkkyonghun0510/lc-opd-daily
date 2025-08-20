@@ -59,9 +59,9 @@ async function validateEnvironment() {
     { name: 'REDIS_URL', description: 'Redis URL for caching and sessions', required: false, alternative: 'DRAGONFLY_URL' },
     { name: 'DRAGONFLY_QUEUE_NAME', description: 'Queue name for notifications', required: false, default: 'notifications' },
     { name: 'DRAGONFLY_QUEUE_URL', description: 'Dragonfly queue endpoint', required: false },
-    { name: 'NEXT_PUBLIC_VAPID_PUBLIC_KEY', description: 'VAPID public key for push notifications', required: true },
-    { name: 'VAPID_PRIVATE_KEY', description: 'VAPID private key for push notifications', required: true },
-    { name: 'VAPID_CONTACT_EMAIL', description: 'Contact email for VAPID notifications', required: true },
+    { name: 'NEXT_PUBLIC_VAPID_PUBLIC_KEY', description: 'VAPID public key for push notifications', required: process.env.NODE_ENV === 'production' },
+    { name: 'VAPID_PRIVATE_KEY', description: 'VAPID private key for push notifications', required: process.env.NODE_ENV === 'production' },
+    { name: 'VAPID_CONTACT_EMAIL', description: 'Contact email for VAPID notifications', required: process.env.NODE_ENV === 'production' },
   ];
 
   let hasErrors = false;
@@ -71,52 +71,77 @@ async function validateEnvironment() {
   requiredEnvVars.forEach(envVar => {
     const value = process.env[envVar.name];
     const altValue = envVar.alternative ? process.env[envVar.alternative] : null;
-    
-    if (!value && !altValue && envVar.required) {
-      error(`Missing required environment variable: ${envVar.name}`);
-      info(`   ${envVar.description}`);
-      hasErrors = true;
-    } else if (!value && !altValue && !envVar.required) {
-      if (envVar.default) {
-        warning(`${envVar.name} not set, using default: ${envVar.default}`);
-      } else {
-        warning(`${envVar.name} not set, ${envVar.description.toLowerCase()}`);
-      }
-      hasWarnings = true;
-    } else {
-      success(`${envVar.name} is configured`);
-      
-      // Validate URL formats
-      if ((envVar.name.includes('URL') || envVar.alternative?.includes('URL')) && (value || altValue)) {
-        const urlValue = value || altValue;
-        try {
-          new URL(urlValue);
-        } catch {
-          error(`Invalid URL format for ${envVar.name}: ${urlValue}`);
-          hasErrors = true;
+
+    const isVapid = envVar.name.startsWith('VAPID') || envVar.name === 'NEXT_PUBLIC_VAPID_PUBLIC_KEY';
+    const isProd = process.env.NODE_ENV === 'production';
+    const required = envVar.required;
+
+    if (!value && !altValue) {
+      if (required) {
+        // Required in production
+        error(`Missing required environment variable: ${envVar.name}`);
+        info(`   ${envVar.description}`);
+        hasErrors = true;
+      } else if (isVapid && !isProd) {
+        // VAPID missing in development -> warning
+        warning(`${envVar.name} not set; push notifications will be disabled in development`);
+        hasWarnings = true;
+      } else if (!required) {
+        if (envVar.default) {
+          warning(`${envVar.name} not set, using default: ${envVar.default}`);
+        } else {
+          warning(`${envVar.name} not set, ${envVar.description.toLowerCase()}`);
         }
+        hasWarnings = true;
       }
-      
-      // Validate email format for VAPID contact
-      if (envVar.name === 'VAPID_CONTACT_EMAIL' && value) {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(value)) {
+      return;
+    }
+
+    success(`${envVar.name} is configured`);
+
+    // Validate URL formats
+    if ((envVar.name.includes('URL') || envVar.alternative?.includes('URL')) && (value || altValue)) {
+      const urlValue = value || altValue;
+      try {
+        new URL(urlValue);
+      } catch {
+        error(`Invalid URL format for ${envVar.name}: ${urlValue}`);
+        hasErrors = true;
+      }
+    }
+
+    // Validate email format for VAPID contact
+    if (envVar.name === 'VAPID_CONTACT_EMAIL' && value) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(value)) {
+        if (isProd) {
           error(`Invalid email format for ${envVar.name}: ${value}`);
           hasErrors = true;
+        } else {
+          warning(`Invalid email format for ${envVar.name} (development): ${value}`);
+          hasWarnings = true;
         }
       }
-      
-      // Validate VAPID key formats
-      if (envVar.name.includes('VAPID') && envVar.name.includes('KEY') && value) {
-        if (value.length < 20) {
+    }
+
+    // Validate VAPID key formats
+    if (isVapid && value) {
+      if (value.length < 20) {
+        if (isProd) {
           error(`VAPID key appears too short: ${envVar.name}`);
           hasErrors = true;
+        } else {
+          warning(`VAPID key appears too short (development): ${envVar.name}`);
+          hasWarnings = true;
         }
-        
-        // Check for Base64URL format
-        const base64UrlRegex = /^[A-Za-z0-9_-]+$/;
-        if (!base64UrlRegex.test(value)) {
+      }
+      const base64UrlRegex = /^[A-Za-z0-9_-]+$/;
+      if (!base64UrlRegex.test(value)) {
+        if (isProd) {
           warning(`VAPID key may not be properly Base64URL encoded: ${envVar.name}`);
+          hasWarnings = true;
+        } else {
+          warning(`VAPID key may not be properly Base64URL encoded (development): ${envVar.name}`);
           hasWarnings = true;
         }
       }
@@ -142,7 +167,7 @@ async function validateEnvironment() {
 async function testRedisConnection() {
   log('\n🔌 Testing Redis/Dragonfly Connection...', colors.bright);
   
-  const redisUrl = process.env.DRAGONFLY_URL || process.env.REDIS_URL;
+  const redisUrl = process.env.DRAGONFLY_URL || process.env.DRAGONFLY_URL;
   
   if (!redisUrl) {
     warning('No Redis/Dragonfly URL configured, skipping connection test');

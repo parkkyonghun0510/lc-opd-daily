@@ -78,7 +78,7 @@ class RealtimeMonitor {
   private initRedis() {
     try {
       // Check if the required environment variables are present
-      if (!process.env.REDIS_URL) {
+      if (!process.env.DRAGONFLY_URL) {
         console.warn(
           "[RealtimeMonitor] Redis URL not found. Using in-memory monitoring only."
         );
@@ -86,7 +86,7 @@ class RealtimeMonitor {
       }
 
       // Initialize Redis client
-      this.redis = new Redis(process.env.REDIS_URL, {
+      this.redis = new Redis(process.env.DRAGONFLY_URL, {
         lazyConnect: true,
         maxRetriesPerRequest: 3,
       });

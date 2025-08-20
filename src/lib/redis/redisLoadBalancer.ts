@@ -78,7 +78,7 @@ export class RedisLoadBalancer {
   private initializeInstances(configs: RedisInstanceConfig[]): void {
     // If no configs provided, use environment variables
     if (configs.length === 0) {
-      const mainRedisUrl = process.env.REDIS_URL;
+      const mainRedisUrl = process.env.DRAGONFLY_URL;
       
       if (mainRedisUrl) {
         configs.push({

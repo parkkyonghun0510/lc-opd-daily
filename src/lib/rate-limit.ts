@@ -54,8 +54,8 @@ export class RateLimiter {
 
   constructor() {
     // Initialize Redis client if configured
-    if (process.env.REDIS_URL) {
-      this.redis = new Redis(process.env.REDIS_URL, {
+    if (process.env.DRAGONFLY_URL) {
+      this.redis = new Redis(process.env.DRAGONFLY_URL, {
         lazyConnect: true,
         maxRetriesPerRequest: 3,
       });

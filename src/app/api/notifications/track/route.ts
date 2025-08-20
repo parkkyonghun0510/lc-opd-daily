@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/options";
 import { NotificationEventType } from "@/types/notifications";
-import { trackNotificationEvent } from "@/utils/notificationTracking";
+import { trackNotificationEvent, trackNotificationClick } from "@/utils/notificationTracking";
 
 /**
  * API endpoint to track notification events (delivered, clicked, closed)
@@ -42,11 +42,13 @@ export async function POST(req: NextRequest) {
     };
 
     // Track the notification event
-    const success = await trackNotificationEvent(
-      notificationId,
-      event as NotificationEventType,
-      enhancedMetadata
-    );
+    const success = event === NotificationEventType.CLICKED
+      ? await trackNotificationClick(notificationId, enhancedMetadata)
+      : await trackNotificationEvent(
+          notificationId,
+          event as NotificationEventType,
+          enhancedMetadata
+        );
 
     if (!success) {
       return NextResponse.json(
@@ -76,4 +78,4 @@ export async function GET() {
     { error: "Method not allowed" },
     { status: 405 }
   );
-} 
+}

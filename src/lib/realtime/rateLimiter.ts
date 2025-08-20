@@ -35,7 +35,7 @@ class RateLimiter {
   private initRedis() {
     try {
       // Check if the required environment variables are present
-      if (!process.env.REDIS_URL) {
+      if (!process.env.DRAGONFLY_URL) {
         console.warn(
           "[RateLimiter] Redis URL not found. Rate limiting will be disabled."
         );
@@ -44,7 +44,7 @@ class RateLimiter {
       }
       
       // Initialize Redis client
-      this.redis = new Redis(process.env.REDIS_URL, {
+      this.redis = new Redis(process.env.DRAGONFLY_URL, {
         lazyConnect: true,
         maxRetriesPerRequest: 3,
       });

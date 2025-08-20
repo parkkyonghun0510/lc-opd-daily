@@ -50,7 +50,7 @@ class RedisEventEmitter {
   private initRedis() {
     try {
       // Check if the required environment variables are present
-      if (!process.env.REDIS_URL) {
+      if (!process.env.DRAGONFLY_URL) {
         console.warn(
           "[RedisEventEmitter] Redis URL not found. Using in-memory event emitter instead."
         );
@@ -58,11 +58,11 @@ class RedisEventEmitter {
       }
 
       // Initialize Redis client
-      this.redis = new Redis(process.env.REDIS_URL, {
+      this.redis = new Redis(process.env.DRAGONFLY_URL, {
         lazyConnect: true,
         maxRetriesPerRequest: 3,
       });
-      this.pubsub = new Redis(process.env.REDIS_URL, {
+      this.pubsub = new Redis(process.env.DRAGONFLY_URL, {
         lazyConnect: true,
         maxRetriesPerRequest: 3,
       });

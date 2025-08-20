@@ -36,10 +36,10 @@ if (fs.existsSync(envLocalPath)) {
 let redisConfig;
 
 // Check if REDIS_URL is provided (Railway standard)
-if (process.env.REDIS_URL) {
+if (process.env.DRAGONFLY_URL) {
   console.log('[Worker] Using REDIS_URL for connection');
   redisConfig = {
-    connectionString: process.env.REDIS_URL,
+    connectionString: process.env.DRAGONFLY_URL,
     retryDelayOnFailover: 2000,
     enableReadyCheck: true,
     maxRetriesPerRequest: 5,
@@ -80,7 +80,7 @@ if (process.env.REDIS_URL) {
   };
 }
 
-if (process.env.REDIS_URL) {
+if (process.env.DRAGONFLY_URL) {
   console.log(`[Worker] Redis config: Using connection string from REDIS_URL`);
 } else {
   console.log(`[Worker] Redis config: ${redisConfig.host}:${redisConfig.port} (DB: ${redisConfig.db})`);

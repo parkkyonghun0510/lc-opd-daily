@@ -2,7 +2,7 @@ import { createClient, RedisClientType } from 'redis';
 import { randomUUID } from 'crypto';
 
 // Dragonfly Redis configuration
-const DRAGONFLY_URL = process.env.DRAGONFLY_URL || process.env.REDIS_URL || 'redis://localhost:6379';
+const DRAGONFLY_URL = process.env.DRAGONFLY_URL || process.env.DRAGONFLY_URL || 'redis://localhost:6379';
 const QUEUE_NAME = process.env.DRAGONFLY_QUEUE_NAME || 'notifications';
 const VISIBILITY_TIMEOUT = 60; // seconds
 

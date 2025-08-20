@@ -131,12 +131,12 @@ export class ApplicationInitializer {
         services.vapid = vapidValid;
         
         if (!vapidValid) {
-          errors.push('VAPID configuration is invalid - push notifications will not work');
+          warnings.push('VAPID configuration missing or invalid - push notifications will be disabled');
         } else {
           console.log('✅ VAPID configuration valid');
         }
       } catch (error) {
-        errors.push(`VAPID validation error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        warnings.push(`VAPID validation warning: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
 
       const startupTime = Date.now() - startTime;
@@ -181,9 +181,9 @@ export class ApplicationInitializer {
    * Validate VAPID configuration specifically
    */
   private validateVapidConfiguration(): boolean {
-    const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-    const privateKey = process.env.VAPID_PRIVATE_KEY;
-    const contactEmail = process.env.VAPID_CONTACT_EMAIL;
+    const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '';
+    const privateKey = process.env.VAPID_PRIVATE_KEY || '';
+    const contactEmail = process.env.VAPID_CONTACT_EMAIL || '';
 
     if (!publicKey || !privateKey || !contactEmail) {
       return false;

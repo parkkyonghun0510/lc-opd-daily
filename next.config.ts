@@ -24,6 +24,7 @@ const nextConfig: NextConfig = {
   env: {
     UPLOAD_DIR: process.env.UPLOAD_DIR || '/app/uploads',
     PUBLIC_URL: process.env.RAILWAY_STATIC_URL || process.env.PUBLIC_URL || 'http://localhost:3000',
+    NEXT_PUBLIC_VAPID_PUBLIC_KEY: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
   },
   
   // Production optimizations
@@ -32,7 +33,20 @@ const nextConfig: NextConfig = {
   
   // Ensure proper handling of static files
   images: {
-    domains: ['localhost', '127.0.0.1'],
+    remotePatterns: [
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+        port: '3000',
+        pathname: '/**',
+      },
+      {
+        protocol: 'http',
+        hostname: '127.0.0.1',
+        port: '3000',
+        pathname: '/**',
+      },
+    ],
     unoptimized: process.env.NODE_ENV === 'development',
   },
   

@@ -482,12 +482,12 @@ let redisSSEHandler: RedisSSEHandler | null = null;
 
 // Initialize the Redis SSE handler if Redis is configured and not in build mode
 if (
-    process.env.REDIS_URL &&
+    process.env.DRAGONFLY_URL &&
     (process.env.NODE_ENV !== 'production' || 
     process.env.NEXT_PHASE !== 'phase-production-build')
 ) {
     try {
-        const redisUrl = process.env.REDIS_URL;
+        const redisUrl = process.env.DRAGONFLY_URL;
         
         if (redisUrl) {
             redisSSEHandler = new RedisSSEHandler(redisUrl);

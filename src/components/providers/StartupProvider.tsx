@@ -61,7 +61,7 @@ const StartupError: React.FC<{ errors: string[]; onRetry?: () => void }> = ({ er
           Some required services are not configured correctly
         </p>
       </div>
-      
+
       <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
         <h3 className="text-sm font-medium text-destructive mb-2">Errors:</h3>
         <ul className="text-sm space-y-1">
@@ -100,7 +100,7 @@ const StartupWarning: React.FC<{ warnings: string[]; onContinue: () => void }> =
           Some features may not work as expected
         </p>
       </div>
-      
+
       <div className="bg-warning/10 border border-warning/20 rounded-lg p-4">
         <h3 className="text-sm font-medium text-warning mb-2">Warnings:</h3>
         <ul className="text-sm space-y-1">
@@ -139,30 +139,36 @@ export const StartupProvider: React.FC<StartupProviderProps> = ({ children, onEr
   const initializeApp = async () => {
     try {
       setStatus(prev => ({ ...prev, isLoading: true }));
-      
+
       // Client-side validation only - this is a client component
       const validator = EnvironmentValidator.getInstance();
       const result = validator.validateEnvironment();
-      
+
+      const hasErrors = result.errors.length > 0;
+      const hasWarnings = result.warnings.length > 0;
+
       setStatus({
         isLoading: false,
-        isReady: result.success || (result.warnings.length > 0 && result.errors.length === 0),
+        // Do not auto-continue when warnings exist; show the warning overlay instead
+        isReady: !hasErrors && !hasWarnings,
         errors: result.errors,
         warnings: result.warnings,
         services: {
           environment: result.success,
           redis: false, // Cannot test in browser
           dragonfly: false, // Cannot test in browser
-          vapid: result.success && validator.validateVapidConfiguration(),
+          // In the browser we can only validate the presence of the public key
+          vapid: Boolean(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY),
         },
       });
-
       // Trigger callbacks
       if (result.errors.length > 0) {
+        console.error("StartupProvider Errors:", result.errors);
         onError?.(result.errors);
       }
-      
+
       if (result.warnings.length > 0) {
+        console.warn("StartupProvider Warnings:", result.warnings);
         onWarning?.(result.warnings);
       }
 
@@ -233,19 +239,43 @@ export const useStartupStatus = () => {
     const checkStatus = async () => {
       const validator = EnvironmentValidator.getInstance();
       const result = validator.validateEnvironment();
-      
+
+      // Downgrade missing VAPID public key to a warning so app can still load without push
+      const downgradedWarnings = [...result.warnings];
+      const remainingErrors: string[] = [];
+      for (const e of result.errors) {
+        if (e.includes('NEXT_PUBLIC_VAPID_PUBLIC_KEY')) {
+          downgradedWarnings.push(`Push notifications disabled: ${e}`);
+        } else {
+          remainingErrors.push(e);
+        }
+      }
+
+      const hasErrors = remainingErrors.length > 0;
+      const hasWarnings = downgradedWarnings.length > 0;
+
       setStatus({
         isLoading: false,
-        isReady: result.success || result.warnings.length > 0,
-        errors: result.errors,
-        warnings: result.warnings,
+        // Do not auto-continue when warnings exist; show the warning overlay instead
+        isReady: !hasErrors && !hasWarnings,
+        errors: remainingErrors,
+        warnings: downgradedWarnings,
         services: {
           environment: result.success,
-          redis: false, // This would need actual connection check
-          dragonfly: false, // This would need actual connection check
-          vapid: result.data?.NEXT_PUBLIC_VAPID_PUBLIC_KEY !== undefined,
+          redis: false, // Cannot test in browser
+          dragonfly: false, // Cannot test in browser
+          // In the browser we can only validate the presence of the public key
+          vapid: Boolean(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY),
         },
       });
+
+      // Note: hooks should not call provider callbacks; just update local state and log
+      if (remainingErrors.length > 0) {
+        console.error('useStartupStatus Errors:', remainingErrors);
+      }
+      if (downgradedWarnings.length > 0) {
+        console.warn('useStartupStatus Warnings:', downgradedWarnings);
+      }
     };
 
     checkStatus();
