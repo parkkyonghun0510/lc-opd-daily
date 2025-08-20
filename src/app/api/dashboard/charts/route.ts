@@ -14,6 +14,7 @@ const toNumber = (value: any): number => {
 
 // Configure route to be dynamic
 export const dynamic = 'force-dynamic';
+export const runtime = "nodejs";
 
 export const revalidate = 900; // Revalidate every 15 minutes for Next.js cache
 

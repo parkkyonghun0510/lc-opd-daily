@@ -8,6 +8,8 @@ import { Parser } from "@json2csv/plainjs";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import { formatKHRCurrency, formatKHRCurrencyForPDF } from "@/lib/utils";
 
+export const runtime = "nodejs";
+
 const BATCH_SIZE = 500; // Process reports in batches for memory efficiency
 
 export async function GET(request: NextRequest) {
