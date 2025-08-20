@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "build:production": "npm run build:worker && NODE_ENV=production next build --no-lint",
+    "build:production": "NODE_ENV=production next build --no-lint",
     "build:production:force": "./scripts/production-build.sh",
     "build:railway": "NODE_ENV=production next build --no-lint",
     "patch-deps": "node scripts/patch-dependencies.js",

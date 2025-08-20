@@ -25,8 +25,11 @@ ENV NODE_ENV production
 # Generate Prisma client
 RUN npx prisma generate
 
-# Build the application
+# Build the application (Next.js)
 RUN npm run build:production
+
+# Build the worker bundle (TypeScript -> dist)
+RUN npm run build:worker
 
 # Production image, copy all the files and run next
 FROM base AS runner
@@ -51,9 +54,8 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 # Copy prisma schema and migrations
 COPY --from=builder /app/prisma ./prisma
 
-# Copy workers and lib directories
-COPY --from=builder --chown=nextjs:nodejs /app/dist/workers ./dist/workers
-COPY --from=builder --chown=nextjs:nodejs /app/dist/lib ./dist/lib
+# Copy compiled worker and library output
+COPY --from=builder --chown=nextjs:nodejs /app/dist ./dist
 
 # Copy PM2 config and scripts
 COPY --from=builder /app/ecosystem.production.config.cjs ./
@@ -70,7 +72,7 @@ RUN npm ci --omit=dev --legacy-peer-deps --no-audit --no-fund && \
     chown -R nextjs:nodejs /app
 
 # Verify critical files exist and show directory structure for debugging
-RUN ls -la ecosystem.production.config.cjs && ls -la scripts/ && ls -la dist/workers/ && echo "Docker build verification complete"
+RUN ls -la ecosystem.production.config.cjs && ls -la scripts/ && echo "Docker build verification complete"
 
 USER nextjs
 
