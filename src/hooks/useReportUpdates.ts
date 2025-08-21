@@ -40,7 +40,7 @@ export function useReportUpdates(onUpdate: () => void) {
                     url: eventSource.url,
                     timestamp: new Date().toISOString(),
                     errorCode: error?.type || 'UNKNOWN',
-                    statusCode: (error as any)?.status || 'N/A',
+                    statusCode: (error as { status?: number })?.status || 'N/A',
                     retryCount
                 };
                 
