@@ -16,6 +16,18 @@ module.exports = {
         NODE_ENV: "production",
         PORT: 3000
       }
+    },
+    {
+      name: "notification-worker",
+      script: "./dist/workers/notification-worker.js",
+      watch: false,
+      max_memory_restart: "250M",
+      env: {
+        NODE_ENV: "production"
+      },
+      env_production: {
+        NODE_ENV: "production"
+      }
     }
   ]
-} 
+}
