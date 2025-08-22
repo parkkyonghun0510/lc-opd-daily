@@ -31,7 +31,7 @@ export class DragonflyQueueService {
           console.log(`Reconnecting to Redis (attempt ${retries}) in ${delay}ms`);
           return delay;
         },
-        keepAlive: IS_RAILWAY ? 30000 : 0,
+        keepAlive: IS_RAILWAY,
       },
       // Railway-specific Redis configuration
       ...(IS_RAILWAY && {
