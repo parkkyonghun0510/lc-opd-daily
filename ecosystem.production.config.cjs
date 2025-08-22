@@ -3,7 +3,7 @@ module.exports = {
     {
       name: "lc-opd-daily",
       script: "server.js",
-      cwd: "/home/ubuntu/lc-opd-daily",
+      cwd: "/app",
       instances: 2,
       exec_mode: "cluster",
       watch: false,
@@ -26,7 +26,7 @@ module.exports = {
       autorestart: true,
       watch: false,
       max_memory_restart: "500M",
-      cwd: "/home/ubuntu/lc-opd-daily",
+      cwd: "/app",
       env: {
         NODE_ENV: "production",
         FORCE_COLOR: 0,
