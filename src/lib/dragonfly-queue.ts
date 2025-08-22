@@ -160,7 +160,7 @@ export class DragonflyQueueService {
       if (!messageData) break;
 
       try {
-        const message = JSON.parse(messageData);
+        const message = JSON.parse(messageData as string);
         const receiptHandle = randomUUID();
         
         // Store message in processing set with visibility timeout
