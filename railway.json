@@ -2,25 +2,47 @@
   "$schema": "https://railway.app/railway.schema.json",
   "build": {
     "builder": "DOCKERFILE",
-    "dockerfilePath": "Dockerfile"
+    "dockerfilePath": "Dockerfile",
+    "buildCommand": "npm run build:railway"
   },
   "deploy": {
     "startCommand": "./scripts/start-pm2.sh",
     "healthcheckPath": "/api/health",
     "healthcheckTimeout": 300,
     "restartPolicyType": "ON_FAILURE",
-    "restartPolicyMaxRetries": 10
+    "restartPolicyMaxRetries": 10,
+    "sleepApplication": false,
+    "cronSchedule": null
   },
   "environments": {
     "production": {
       "build": {
         "builder": "DOCKERFILE",
-        "dockerfilePath": "Dockerfile"
+        "dockerfilePath": "Dockerfile",
+        "buildCommand": "npm run build:railway"
       },
       "deploy": {
         "startCommand": "./scripts/start-pm2.sh",
         "healthcheckPath": "/api/health",
-        "healthcheckTimeout": 300
+        "healthcheckTimeout": 300,
+        "restartPolicyType": "ON_FAILURE",
+        "restartPolicyMaxRetries": 10,
+        "sleepApplication": false
+      }
+    },
+    "staging": {
+      "build": {
+        "builder": "DOCKERFILE",
+        "dockerfilePath": "Dockerfile",
+        "buildCommand": "npm run build:railway"
+      },
+      "deploy": {
+        "startCommand": "./scripts/start-pm2.sh",
+        "healthcheckPath": "/api/health",
+        "healthcheckTimeout": 300,
+        "restartPolicyType": "ON_FAILURE",
+        "restartPolicyMaxRetries": 5,
+        "sleepApplication": false
       }
     }
   }

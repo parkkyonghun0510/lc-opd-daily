@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import path from 'path';
 import { promises as fs } from 'fs';
 
-const UPLOAD_DIR = process.env.UPLOAD_DIR || './uploads';
+// Railway-compatible upload directory configuration
+const UPLOAD_DIR = process.env.UPLOAD_DIR || (process.env.RAILWAY_ENVIRONMENT ? '/app/uploads' : './uploads');
+const IS_RAILWAY = process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY_PROJECT_ID;
 
 export async function GET(
   request: NextRequest,
@@ -45,13 +47,21 @@ export async function GET(
 
     const contentType = contentTypes[ext] || 'application/octet-stream';
 
-    // Return file with appropriate headers
-    return new NextResponse(Buffer.from(fileBuffer), {
-      headers: {
-        'Content-Type': contentType,
-        'Cache-Control': 'public, max-age=31536000', // Cache for 1 year
-      },
-    });
+    // Railway-optimized headers for static file serving
+    const headers: Record<string, string> = {
+      'Content-Type': contentType,
+      'Cache-Control': IS_RAILWAY ? 'public, max-age=86400' : 'public, max-age=31536000', // 1 day on Railway, 1 year locally
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY',
+    };
+
+    // Add ETag for better caching
+    if (IS_RAILWAY) {
+      const stats = await fs.stat(resolvedPath);
+      headers['ETag'] = `"${stats.mtime.getTime()}-${stats.size}"`;
+    }
+
+    return new NextResponse(Buffer.from(fileBuffer), { headers });
   } catch (error) {
     console.error('Error serving file:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

@@ -16,19 +16,32 @@ export async function getRedis(): Promise<Redis> {
     try {
       const { default: IORedis } = await import('ioredis');
       
-      const redisUrl = process.env.DRAGONFLY_URL;
+      // Railway-compatible Redis URL configuration
+      const redisUrl = process.env.DRAGONFLY_URL || process.env.REDIS_URL;
       if (!redisUrl) {
-        throw new Error('DRAGONFLY_URL environment variable is required');
+        throw new Error('DRAGONFLY_URL or REDIS_URL environment variable is required');
       }
       
-      redis = new IORedis(redisUrl, {
+      // Railway environment detection
+      const isRailway = process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY_PROJECT_ID;
+      
+      // Railway-optimized Redis configuration
+      const redisConfig = {
         lazyConnect: true,
-        maxRetriesPerRequest: 5,
+        maxRetriesPerRequest: isRailway ? 2 : 5,
         enableOfflineQueue: false,
-        connectTimeout: 10000,
-        commandTimeout: 5000,
+        connectTimeout: isRailway ? 15000 : 10000, // Longer timeout on Railway
+        commandTimeout: isRailway ? 8000 : 5000,
         family: 4, // Force IPv4 to avoid DNS resolution issues
-      });
+        keepAlive: isRailway ? 30000 : 0, // Keep connections alive on Railway
+        retryDelayOnFailover: 100,
+        ...(isRailway && {
+          // Railway-specific optimizations
+          enableReadyCheck: true,
+        })
+      };
+      
+      redis = new IORedis(redisUrl, redisConfig);
       
       // Add comprehensive error handling
       redis.on('error', (error) => {
