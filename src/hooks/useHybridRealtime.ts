@@ -3,10 +3,11 @@
 import { useEffect, useCallback, useState, useMemo } from 'react';
 import { useAuth } from '@/auth/hooks/useAuth';
 import { useDashboardStore } from '@/stores/dashboardStore';
+import { useEventSource } from './useEventSource';
 
-// Define simplified types for the hook
-export type ConnectionMethod = 'polling';
-export type ConnectionStatus = 'connected' | 'disconnected';
+// Define types for the hybrid hook
+export type ConnectionMethod = 'sse' | 'polling';
+export type ConnectionStatus = 'connected' | 'disconnected' | 'connecting' | 'reconnecting';
 export type EventType = string;
 export type EventHandler = (data: any) => void;
 export type EventHandlersMap = Record<string, EventHandler>;
@@ -19,18 +20,22 @@ export interface RealtimeEvent {
 }
 
 export interface HybridRealtimeOptions {
+  sseEndpoint?: string;
   pollingEndpoint?: string;
   pollingInterval?: number;
   eventHandlers?: EventHandlersMap;
   clientMetadata?: Record<string, string>;
   debug?: boolean;
+  forcePolling?: boolean;
+  maxReconnectAttempts?: number;
+  reconnectDelay?: number;
 }
 
 /**
- * Simplified hook for real-time updates using polling
+ * Hybrid real-time hook that uses SSE as primary method with polling fallback
  *
- * This version replaces the hybrid SSE/polling approach with a simpler polling-only approach
- * to avoid conflicts with Zustand state management.
+ * This hook automatically switches between Server-Sent Events and polling based on
+ * connection reliability and browser support.
  *
  * @example
  * ```tsx
@@ -39,7 +44,9 @@ export interface HybridRealtimeOptions {
  *   activeMethod,
  *   lastEvent,
  *   error,
- *   reconnect
+ *   reconnect,
+ *   forceSSE,
+ *   forcePolling
  * } = useHybridRealtime({
  *   eventHandlers: {
  *     notification: (data) => {
@@ -58,19 +65,25 @@ export function useHybridRealtime(options: HybridRealtimeOptions = {}) {
   const { setConnectionStatus, setConnectionError } = useDashboardStore();
 
   // State
-  const [isConnected, setIsConnected] = useState(false);
+  const [activeMethod, setActiveMethod] = useState<ConnectionMethod>('sse');
   const [lastEvent, setLastEvent] = useState<RealtimeEvent | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
   const [lastPollTime, setLastPollTime] = useState(0);
+  const [sseFailureCount, setSseFailureCount] = useState(0);
+  const [forcedMethod, setForcedMethod] = useState<ConnectionMethod | null>(null);
 
   // Default options
   const defaultOptions = {
+    sseEndpoint: '/api/realtime/sse',
     pollingEndpoint: '/api/realtime/polling',
     pollingInterval: 10000, // 10 seconds
     eventHandlers: {},
     clientMetadata: {},
-    debug: false
+    debug: false,
+    forcePolling: false,
+    maxReconnectAttempts: 5,
+    reconnectDelay: 1000
   };
 
   // Merge options with defaults
@@ -84,8 +97,12 @@ export function useHybridRealtime(options: HybridRealtimeOptions = {}) {
       role: user?.role || 'user'
     }
   }), [
+    options.sseEndpoint,
     options.pollingEndpoint,
     options.pollingInterval,
+    options.forcePolling,
+    options.maxReconnectAttempts,
+    options.reconnectDelay,
     options.debug,
     // Deep compare event handlers by stringifying them - only compare keys to avoid circular references
     JSON.stringify(Object.keys(options.eventHandlers || {})),
@@ -94,11 +111,91 @@ export function useHybridRealtime(options: HybridRealtimeOptions = {}) {
   ]);
 
   // Debug logging
-  const log = useCallback((message: string, ...args: any[]) => {
+  const log = useCallback((message: string, ...args: unknown[]) => {
     if (mergedOptions.debug) {
-      // console.log(`[SimpleRealtime] ${message}`, ...args);
+      console.log(`[HybridRealtime] ${message}`, ...args);
     }
   }, [mergedOptions.debug]);
+
+  // Determine if we should use SSE or polling
+  const shouldUseSSE = useMemo(() => {
+    if (forcedMethod) return forcedMethod === 'sse';
+    if (mergedOptions.forcePolling) return false;
+    if (sseFailureCount >= (mergedOptions.maxReconnectAttempts || 5)) return false;
+    return typeof EventSource !== 'undefined';
+  }, [forcedMethod, mergedOptions.forcePolling, mergedOptions.maxReconnectAttempts, sseFailureCount]);
+
+  // SSE connection using our useEventSource hook
+  const sseConnection = useEventSource({
+    enabled: shouldUseSSE && isAuthenticated && !!user?.id,
+    maxReconnectAttempts: mergedOptions.maxReconnectAttempts || 5,
+    reconnectInterval: mergedOptions.reconnectDelay || 1000,
+    onEvent: useCallback((event: any) => {
+      const realtimeEvent: RealtimeEvent = {
+        id: crypto.randomUUID(),
+        type: event.type,
+        data: event.data,
+        timestamp: Date.now()
+      };
+      
+      setLastEvent(realtimeEvent);
+      
+      // Call event handlers
+      const eventHandlers = mergedOptions.eventHandlers || {};
+      if (event.type && event.type in eventHandlers) {
+        const handler = eventHandlers[event.type];
+        if (typeof handler === 'function') {
+          handler(event.data);
+        }
+      }
+      if ('*' in eventHandlers) {
+        const wildcardHandler = eventHandlers['*'];
+        if (typeof wildcardHandler === 'function') {
+          wildcardHandler(realtimeEvent);
+        }
+      }
+      
+      // Dispatch DOM events
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent(`realtime-${event.type}`, {
+          detail: realtimeEvent,
+          bubbles: true,
+          cancelable: true
+        }));
+        window.dispatchEvent(new CustomEvent('realtime-event', {
+          detail: realtimeEvent,
+          bubbles: true,
+          cancelable: true
+        }));
+      }
+    }, [mergedOptions.eventHandlers]),
+    onError: useCallback((error: Event) => {
+      const errorMessage = 'SSE connection error';
+      log('SSE error:', error);
+      setSseFailureCount(prev => prev + 1);
+      setError(errorMessage);
+      setConnectionError(errorMessage);
+    }, [log, setConnectionError]),
+    onConnect: useCallback(() => {
+      log('SSE connected');
+      setSseFailureCount(0);
+      setError(null);
+      setConnectionError(null);
+    }, [log, setConnectionError])
+  });
+
+  // Update active method based on SSE status
+  useEffect(() => {
+    if (shouldUseSSE && sseConnection.isConnected) {
+      setActiveMethod('sse');
+      setConnectionStatus(true, 'sse');
+    } else if (!shouldUseSSE || !sseConnection.isConnected) {
+      setActiveMethod('polling');
+    }
+  }, [shouldUseSSE, sseConnection.isConnected, setConnectionStatus]);
+
+  // Determine overall connection status
+  const isConnected = (activeMethod === 'sse' && sseConnection.isConnected) || (activeMethod === 'polling' && pollingInterval !== null);
 
   // Poll for updates
   const pollForUpdates = useCallback(async () => {
@@ -129,18 +226,19 @@ export function useHybridRealtime(options: HybridRealtimeOptions = {}) {
       // Process events
       if (data.events && Array.isArray(data.events) && data.events.length > 0) {
         // Batch state updates by collecting all events first
-        const eventsToProcess = data.events.map((event: any) => {
+        const eventsToProcess = data.events.map((event: unknown) => {
           // Ensure the event has a proper structure
+          const typedEvent = event as { id?: string; type: string; data?: any; timestamp?: number };
           return {
-            id: event.id || crypto.randomUUID(),
-            type: event.type,
+            id: typedEvent.id || crypto.randomUUID(),
+            type: typedEvent.type,
             data: {
-              ...event.data,
-              id: event.data?.id || event.id || crypto.randomUUID(),
-              timestamp: event.data?.timestamp || event.timestamp || Date.now(),
-              type: event.data?.type || event.type
+              ...typedEvent.data,
+              id: typedEvent.data?.id || typedEvent.id || crypto.randomUUID(),
+              timestamp: typedEvent.data?.timestamp || typedEvent.timestamp || Date.now(),
+              type: typedEvent.data?.type || typedEvent.type
             },
-            timestamp: event.timestamp || Date.now()
+            timestamp: typedEvent.timestamp || Date.now()
           } as RealtimeEvent;
         });
 
@@ -155,13 +253,17 @@ export function useHybridRealtime(options: HybridRealtimeOptions = {}) {
           const eventHandlers = mergedOptions.eventHandlers || {};
 
           // Call specific handler if exists
-          if (realtimeEvent.type && typeof realtimeEvent.type === 'string' && realtimeEvent.type in eventHandlers) {
-            (eventHandlers as any)[realtimeEvent.type](realtimeEvent.data);
+          if (realtimeEvent.type && typeof realtimeEvent.type === 'string') {
+            const handler = eventHandlers[realtimeEvent.type];
+            if (typeof handler === 'function') {
+              handler(realtimeEvent.data);
+            }
           }
 
           // Call wildcard handler if exists
-          if ('*' in eventHandlers) {
-            (eventHandlers as any)['*'](realtimeEvent);
+          const wildcardHandler = eventHandlers['*'];
+          if (typeof wildcardHandler === 'function') {
+            wildcardHandler(realtimeEvent);
           }
 
           // Dispatch a DOM event for components to listen for
@@ -185,19 +287,17 @@ export function useHybridRealtime(options: HybridRealtimeOptions = {}) {
       }
 
       // Update connection state in a single batch
-      setIsConnected(true);
-      setError(null);
+        setError(null);
 
-      // Update dashboard store
-      setConnectionStatus(true, 'polling');
-      setConnectionError(null);
+        // Update dashboard store
+        setConnectionStatus(true, 'polling');
+        setConnectionError(null);
     } catch (err) {
       log('Polling error:', err);
       const errorMessage = err instanceof Error ? err.message : 'Unknown polling error';
 
       // Update state in a single batch
       setError(errorMessage);
-      setIsConnected(false);
 
       // Update dashboard store
       setConnectionStatus(false, null);
@@ -277,26 +377,41 @@ export function useHybridRealtime(options: HybridRealtimeOptions = {}) {
     log
   ]);
 
-  // Return the hook API
-  return {
-    // Basic state
-    isConnected,
-    activeMethod: 'polling' as ConnectionMethod,
-    lastEvent,
-    error,
-    connectionStatus: isConnected ? 'connected' as ConnectionStatus : 'disconnected' as ConnectionStatus,
+  // Force connection methods
+    const forceSSE = useCallback(() => {
+      log('Forcing SSE connection');
+      setForcedMethod('sse');
+      setSseFailureCount(0);
+    }, [log]);
 
-    // Actions
-    reconnect,
-    disconnect: () => {
-      if (pollingInterval) {
-        clearInterval(pollingInterval);
-        setPollingInterval(null);
-        setIsConnected(false);
-        setConnectionStatus(false, null);
-        log('Disconnected');
-      }
-    },
+    const forcePolling = useCallback(() => {
+      log('Forcing polling connection');
+      setForcedMethod('polling');
+      sseConnection.disconnect();
+    }, [log, sseConnection]);
+
+    // Return the hook API
+    return {
+      // Basic state
+      isConnected,
+      activeMethod,
+      lastEvent,
+      error,
+      connectionStatus: isConnected ? 'connected' as ConnectionStatus : 'disconnected' as ConnectionStatus,
+
+      // Actions
+      reconnect,
+      forceSSE,
+      forcePolling,
+      disconnect: () => {
+        sseConnection.disconnect();
+        if (pollingInterval) {
+          clearInterval(pollingInterval);
+          setPollingInterval(null);
+          setConnectionStatus(false, null);
+          log('Disconnected');
+        }
+      },
 
     // Selectors
     getCachedEvents: (eventType?: string) => {

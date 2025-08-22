@@ -13,7 +13,7 @@ import {
 import { BranchHierarchy } from "@/lib/types/branch";
 
 // A function to convert BranchHierarchy[] from types/branch to roles format
-function convertBranchHierarchy(hierarchy: any[]): RolesBranchHierarchy[] {
+function convertBranchHierarchy(hierarchy: BranchHierarchy[]): RolesBranchHierarchy[] {
   return hierarchy.map((branch) => ({
     id: branch.id,
     name: branch.name,
@@ -28,8 +28,8 @@ export function usePermissions() {
   const [assignedBranchIds, setAssignedBranchIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const userRole = session?.user?.role as UserRole;
-  const userBranchId = session?.user?.branchId as string | null;
+  const userRole = (session?.user?.role || 'USER') as UserRole;
+  const userBranchId = session?.user?.branchId || null;
 
   // Fetch assigned branch IDs
   useEffect(() => {
@@ -46,7 +46,7 @@ export function usePermissions() {
         }
         const data = await response.json();
         // Extract branch IDs from assignments
-        const branchIds = data.data.map((assignment: any) => assignment.branch.id);
+        const branchIds = data.data.map((assignment: { branch: { id: string } }) => assignment.branch.id);
         setAssignedBranchIds(branchIds);
       } catch (error) {
         console.error('Error fetching branch assignments:', error);
@@ -73,7 +73,7 @@ export function usePermissions() {
       hasAllPermissions(userRole, permissions),
 
     // Check if user can access a specific branch
-    canAccessBranch: (branchId: string, branchHierarchy?: any[]) =>
+    canAccessBranch: (branchId: string, branchHierarchy?: BranchHierarchy[]) =>
       canAccessBranch(
         userRole,
         userBranchId,
@@ -92,7 +92,7 @@ export function usePermissions() {
     assignedBranchIds,
 
     // Get all accessible branch IDs
-    getAccessibleBranches: (branchHierarchy: any[]) =>
+    getAccessibleBranches: (branchHierarchy: BranchHierarchy[]) =>
       getAccessibleBranchesUtil(
         userRole,
         userBranchId,

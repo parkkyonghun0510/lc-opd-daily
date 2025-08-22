@@ -1,5 +1,5 @@
 {
-  "timestamp": "2025-08-20T11:20:52.931Z",
+  "timestamp": "2025-08-22T05:46:16.046Z",
   "dragonfly_url": "redis://default:qK0fRBdWviBVnD9tjYrqTmraAuHIjQHW@trolley.proxy.rlwy.net:50549",
   "queue_name": "notifications",
   "tests": {
@@ -30,11 +30,11 @@
       "queue_length": 0,
       "error": null,
       "received_data": {
-        "id": "test-1755688854408",
+        "id": "test-1755841577782",
         "type": "TEST",
         "data": {
           "test": true,
-          "timestamp": "2025-08-20T11:20:54.408Z"
+          "timestamp": "2025-08-22T05:46:17.782Z"
         },
         "userIds": [
           "test-user"
@@ -42,9 +42,9 @@
       }
     },
     "redis_info": {
-      "server_info": "# Server\r\nredis_version:7.4.0\r\ndragonfly_version:df-v1.32.0\r\nredis_mode:standalone\r\narch_bits:64\r\nprocess_id:1\r\nos:Linux 6.12.12+bpo-cloud-amd64 x86_64\r\nthread_count:2\r\nmultiplexing_api:epoll\r\ntcp_port:6379\r\nuptime_in_seconds:463645\r\nuptime_in_days:5\r\nhz:100\r\nexecutable:dragonfly\r\nconfig_file:\r\n\r\n# Clients\r\nconnected_clients:1\r\nmax_clients:64000\r\nclient_read_buffer_bytes:256\r\nblocked_clients:0\r\npipeline_queue_length:0\r\nsend_delay_ms:0\r\ntimeout_disconnects:0\r\n\r\n# Memory\r\nused_memory:852192\r\nused_...",
-      "memory_usage": "832.2KiB",
-      "connected_clients": 1,
+      "server_info": "# Server\r\nredis_version:7.4.0\r\ndragonfly_version:df-v1.32.0\r\nredis_mode:standalone\r\narch_bits:64\r\nprocess_id:1\r\nos:Linux 6.12.12+bpo-cloud-amd64 x86_64\r\nthread_count:2\r\nmultiplexing_api:epoll\r\ntcp_port:6379\r\nuptime_in_seconds:616368\r\nuptime_in_days:7\r\nhz:100\r\nexecutable:dragonfly\r\nconfig_file:\r\n\r\n# Clients\r\nconnected_clients:16\r\nmax_clients:64000\r\nclient_read_buffer_bytes:8448\r\nblocked_clients:0\r\npipeline_queue_length:0\r\nsend_delay_ms:0\r\ntimeout_disconnects:0\r\n\r\n# Memory\r\nused_memory:896512\r\nuse...",
+      "memory_usage": "875.5KiB",
+      "connected_clients": 16,
       "version": "7.4.0",
       "error": null
     }
@@ -52,8 +52,8 @@
   "errors": [],
   "summary": {
     "total_tests": 4,
-    "passed": 1,
-    "failed": 3,
+    "passed": 4,
+    "failed": 0,
     "errors": 0
   }
 }

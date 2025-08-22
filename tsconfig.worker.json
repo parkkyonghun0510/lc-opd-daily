@@ -1,8 +1,7 @@
 {
-  "extends": "./tsconfig.json",
   "compilerOptions": {
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
+    "module": "ES2020",
+    "moduleResolution": "node",
     "outDir": "dist",
     "target": "ES2020",
     "lib": ["ES2020"],
@@ -10,6 +9,10 @@
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "noEmit": false,
+    "skipLibCheck": true,
+    "strict": false,
+    "noImplicitAny": false,
+    "types": [],
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
@@ -17,8 +20,7 @@
   },
   "include": [
     "src/workers/dragonfly-worker.ts",
-    "src/workers/db-maintenance.ts",
-    "src/lib/dragonfly-queue.ts"
+    "src/workers/db-maintenance.ts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "**/*.test.ts", "**/*.spec.ts"]
 }

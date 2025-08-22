@@ -1,0 +1,101 @@
+{
+  "timestamp": "2025-08-22T09:30:19.551Z",
+  "status": "healthy",
+  "checks": {
+    "database": {
+      "status": "healthy",
+      "message": "Connected successfully. Users: 13",
+      "timestamp": "2025-08-22T09:30:20.591Z"
+    },
+    "redis": {
+      "status": "healthy",
+      "message": "Redis/Dragonfly responding: PONG",
+      "details": {
+        "memory_info": "used_memory:905232\r"
+      },
+      "timestamp": "2025-08-22T09:30:21.073Z"
+    },
+    "pm2": {
+      "status": "warning",
+      "message": "4 processes monitored",
+      "details": {
+        "processes": [
+          {
+            "name": "lc-opd-daily",
+            "status": "stopped",
+            "restarts": 1,
+            "memory": "0MB",
+            "cpu": "0%"
+          },
+          {
+            "name": "lc-opd-daily",
+            "status": "stopped",
+            "restarts": 1,
+            "memory": "0MB",
+            "cpu": "0%"
+          },
+          {
+            "name": "notification-worker",
+            "status": "online",
+            "restarts": 10,
+            "memory": "94MB",
+            "cpu": "0.1%"
+          },
+          {
+            "name": "pm2-logrotate",
+            "status": "online",
+            "restarts": 4,
+            "memory": "72MB",
+            "cpu": "0.1%"
+          }
+        ]
+      },
+      "timestamp": "2025-08-22T09:30:21.242Z",
+      "warnings": [
+        "lc-opd-daily: stopped, restarts: 1",
+        "lc-opd-daily: stopped, restarts: 1"
+      ]
+    },
+    "disk": {
+      "status": "healthy",
+      "message": "Disk usage: 5% (43G/1007G)",
+      "details": {
+        "total": "1007G",
+        "used": "43G",
+        "available": "913G",
+        "percentage": "5%"
+      },
+      "timestamp": "2025-08-22T09:30:21.245Z"
+    },
+    "memory": {
+      "status": "healthy",
+      "message": "Memory usage: 30% (3632MB/11943MB)",
+      "details": {
+        "total": "11943MB",
+        "used": "3632MB",
+        "free": "8311MB",
+        "percentage": "30%"
+      },
+      "timestamp": "2025-08-22T09:30:21.249Z"
+    },
+    "logs": {
+      "status": "healthy",
+      "message": "2 log files monitored",
+      "details": {
+        "files": [
+          {
+            "file": "notification-worker-error.log",
+            "size": "0.02MB",
+            "modified": "2025-05-26T13:45:39.381Z"
+          },
+          {
+            "file": "notification-worker.log",
+            "size": "0.07MB",
+            "modified": "2025-05-26T13:45:39.381Z"
+          }
+        ]
+      },
+      "timestamp": "2025-08-22T09:30:21.249Z"
+    }
+  }
+}

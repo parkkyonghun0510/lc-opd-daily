@@ -86,41 +86,81 @@ const StartupError: React.FC<{ errors: string[]; onRetry?: () => void }> = ({ er
 );
 
 // Warning component
-const StartupWarning: React.FC<{ warnings: string[]; onContinue: () => void }> = ({ warnings, onContinue }) => (
-  <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50">
-    <div className="max-w-md w-full mx-4 space-y-4">
-      <div className="text-center">
-        <div className="mx-auto h-12 w-12 text-warning">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-          </svg>
+const StartupWarning: React.FC<{ warnings: string[]; onContinue: () => void }> = ({ warnings, onContinue }) => {
+  const isBrowserValidationWarning = warnings.some(warning => 
+    warning.includes('cannot be validated in the browser') || 
+    warning.includes('Ensure it is configured on the server')
+  );
+
+  return (
+    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="max-w-lg w-full mx-4 space-y-4">
+        <div className="text-center">
+          <div className="mx-auto h-12 w-12 text-warning">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
+            </svg>
+          </div>
+          <h2 className="text-lg font-semibold mt-4">
+            {isBrowserValidationWarning ? 'Browser Security Notice' : 'Configuration Warnings'}
+          </h2>
+          <p className="text-sm text-muted-foreground mt-2">
+            {isBrowserValidationWarning 
+              ? 'These warnings are expected and indicate proper security practices'
+              : 'Some features may not work as expected'
+            }
+          </p>
         </div>
-        <h2 className="text-lg font-semibold mt-4">Configuration Warnings</h2>
-        <p className="text-sm text-muted-foreground mt-2">
-          Some features may not work as expected
-        </p>
-      </div>
 
-      <div className="bg-warning/10 border border-warning/20 rounded-lg p-4">
-        <h3 className="text-sm font-medium text-warning mb-2">Warnings:</h3>
-        <ul className="text-sm space-y-1">
-          {warnings.map((warning, index) => (
-            <li key={index} className="text-warning">
-              • {warning}
-            </li>
-          ))}
-        </ul>
-      </div>
+        <div className="bg-warning/10 border border-warning/20 rounded-lg p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <svg className="h-4 w-4 text-warning" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <h3 className="text-sm font-medium text-warning">
+              {isBrowserValidationWarning ? 'Security Information:' : 'Warnings:'}
+            </h3>
+          </div>
+          <ul className="text-sm space-y-2">
+            {warnings.map((warning, index) => (
+              <li key={index} className="text-warning flex items-start gap-2">
+                <span className="text-warning/60 mt-0.5">•</span>
+                <span>{warning}</span>
+              </li>
+            ))}
+          </ul>
+          {isBrowserValidationWarning && (
+            <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-md">
+              <p className="text-xs text-blue-700 dark:text-blue-300">
+                <strong>Why these warnings appear:</strong> For security, sensitive server-side environment variables 
+                (like private keys and database URLs) cannot be validated in the browser. These warnings confirm 
+                that your application follows security best practices.
+              </p>
+            </div>
+          )}
+        </div>
 
-      <button
-        onClick={onContinue}
-        className="w-full bg-primary text-primary-foreground rounded-md px-4 py-2 hover:bg-primary/90"
-      >
-        Continue Anyway
-      </button>
+        <div className="flex gap-2">
+          <button
+            onClick={onContinue}
+            className="flex-1 bg-primary text-primary-foreground rounded-md px-4 py-2 hover:bg-primary/90 transition-colors"
+          >
+            {isBrowserValidationWarning ? 'Continue (Safe)' : 'Continue Anyway'}
+          </button>
+          {isBrowserValidationWarning && (
+            <button
+              onClick={() => window.open('/ENVIRONMENT_VALIDATION_GUIDE.md', '_blank')}
+              className="px-4 py-2 text-sm border border-border rounded-md hover:bg-accent transition-colors"
+              title="Learn more about these warnings"
+            >
+              Learn More
+            </button>
+          )}
+        </div>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 export const StartupProvider: React.FC<StartupProviderProps> = ({ children, onError, onWarning }) => {
   const [status, setStatus] = useState<StartupStatus>({

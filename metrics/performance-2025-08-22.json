@@ -1,0 +1,95 @@
+[
+  {
+    "timestamp": "2025-08-22T09:30:32.995Z",
+    "system": {
+      "cpu": {
+        "usage_percent": 0,
+        "timestamp": "2025-08-22T09:30:33.172Z"
+      },
+      "memory": {
+        "total_mb": 11943,
+        "used_mb": 3593,
+        "available_mb": 8024,
+        "usage_percent": 30,
+        "timestamp": "2025-08-22T09:30:33.178Z"
+      },
+      "disk": {
+        "total": "1007G",
+        "used": "43G",
+        "available": "913G",
+        "usage_percent": 5,
+        "timestamp": "2025-08-22T09:30:33.184Z"
+      },
+      "load": {
+        "load_1min": 1.2,
+        "load_5min": 0.94,
+        "load_15min": 0.9,
+        "timestamp": "2025-08-22T09:30:33.192Z"
+      },
+      "database_connections": {
+        "count": 0,
+        "timestamp": "2025-08-22T09:30:33.762Z"
+      }
+    },
+    "processes": [
+      {
+        "name": "lc-opd-daily",
+        "pid": 0,
+        "status": "stopped",
+        "restarts": 1,
+        "uptime": 1755852770537,
+        "memory_mb": 0,
+        "cpu_percent": 0,
+        "timestamp": "2025-08-22T09:30:33.548Z"
+      },
+      {
+        "name": "lc-opd-daily",
+        "pid": 0,
+        "status": "stopped",
+        "restarts": 1,
+        "uptime": 1755852770542,
+        "memory_mb": 0,
+        "cpu_percent": 0,
+        "timestamp": "2025-08-22T09:30:33.548Z"
+      },
+      {
+        "name": "notification-worker",
+        "pid": 213608,
+        "status": "online",
+        "restarts": 10,
+        "uptime": 1755853373249,
+        "memory_mb": 94,
+        "cpu_percent": 0,
+        "timestamp": "2025-08-22T09:30:33.548Z"
+      },
+      {
+        "name": "pm2-logrotate",
+        "pid": 226712,
+        "status": "online",
+        "restarts": 4,
+        "uptime": 1755853889294,
+        "memory_mb": 72,
+        "cpu_percent": 0.3,
+        "timestamp": "2025-08-22T09:30:33.548Z"
+      }
+    ],
+    "alerts": [
+      {
+        "type": "process_status",
+        "message": "Process lc-opd-daily is not online: stopped",
+        "severity": "critical",
+        "value": "stopped",
+        "threshold": null,
+        "timestamp": "2025-08-22T09:30:33.548Z"
+      },
+      {
+        "type": "process_status",
+        "message": "Process lc-opd-daily is not online: stopped",
+        "severity": "critical",
+        "value": "stopped",
+        "threshold": null,
+        "timestamp": "2025-08-22T09:30:33.548Z"
+      }
+    ]
+  }
+]
