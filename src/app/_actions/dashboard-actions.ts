@@ -48,15 +48,6 @@ export type DateRange = {
  * Fetches aggregated data for the admin dashboard.
  * Considers user permissions and accessible branches.
  */
-interface FetchDashboardOptions {
-  /**
-   * Date range for fetching dashboard data (ISO string format).
-   */
-  dateRange?: DateRange;
-  customFields?: string[];
-  branchIds?: string[];
-  cacheKey?: string;
-}
 
 export interface DashboardSummaryOptions {
   /**
@@ -140,7 +131,7 @@ export async function fetchDashboardSummary(
 
     const customAggregations = options?.customAggregations?.reduce((acc, field) => ({
       ...acc,
-      [field]: toNumber((reportAggregations._sum as Record<string, any>)?.[field])
+      [field]: toNumber((reportAggregations._sum as Record<string, number | null>)?.[field])
     }), {} as Record<string, number>);
 
     // Optimized growth rate calculation with a single query
@@ -420,7 +411,7 @@ export async function fetchUserDashboardData() {
         recentActivities: recentActivities.map(a => ({
           description: a.action.replace(/_/g, ' ').toLowerCase(),
           details: a.details,
-          timestamp: a.createdAt,
+          timestamp: a.createdAt.toISOString(),
         })),
         recentReports: recentReports.map(r => ({
           id: r.id,
@@ -428,8 +419,8 @@ export async function fetchUserDashboardData() {
           branch: r.branch?.name || 'Unknown',
           status: r.status,
           reportType: r.reportType,
-          submittedAt: r.submittedAt,
-        })),
+          submittedAt: r.submittedAt || null,
+        }))
       };
     });
 
