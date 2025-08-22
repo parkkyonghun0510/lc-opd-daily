@@ -18,7 +18,11 @@
   "include": [
     "src/workers/dragonfly-worker.ts",
     "src/workers/db-maintenance.ts",
-    "src/lib/dragonfly-queue.ts"
+    "src/lib/dragonfly-queue.ts",
+    "src/lib/redis.ts",
+    "src/lib/queue/redis-queue.ts",
+    "src/lib/sse/sseMetrics.ts",
+    "src/lib/sse/sseHandler.ts"
   ],
   "exclude": ["node_modules"]
 }

@@ -19,7 +19,7 @@ module.exports = {
     },
     {
       name: "notification-worker",
-      script: "./dist/workers/notification-worker.js",
+      script: "./dist/workers/notificationWorker.js",
       watch: false,
       max_memory_restart: "250M",
       env: {
