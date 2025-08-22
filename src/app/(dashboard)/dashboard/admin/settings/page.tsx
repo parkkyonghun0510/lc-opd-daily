@@ -9,7 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Settings, Database, Bell, Shield, Server, RefreshCw } from "lucide-react";
 import { BranchSettings } from "@/components/admin/branch-settings";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/components/ui/use-toast";
 
 export default function AdminSettingsPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
