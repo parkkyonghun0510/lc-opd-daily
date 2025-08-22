@@ -9,7 +9,6 @@ const APP_SHELL = [
   '/dashboard',
   OFFLINE_URL,
   '/icons/icon-192x192.png',
-  '/icons/badge-info.png',
   '/favicon.ico'
 ];
 
@@ -26,8 +25,6 @@ const SYNC_EVENT_TYPES = {
 // Routes to prefetch for offline access
 const PREFETCH_ROUTES = [
   '/dashboard',
-  '/dashboard/reports',
-  '/dashboard/approvals',
   '/profile',
   '/settings',
 ];
@@ -43,18 +40,54 @@ self.addEventListener("install", (event) => {
   self.skipWaiting();
 
   event.waitUntil(
-    Promise.all([
-      // Cache app shell
-      caches.open(CACHE_NAME).then((cache) => {
-        return cache.addAll(APP_SHELL);
-      }),
-      // Prefetch important routes
-      caches.open(CACHE_NAME).then((cache) => {
-        return cache.addAll(PREFETCH_ROUTES);
-      })
-    ]).catch(error => {
-      console.error('Failed to cache app shell or routes:', error);
-    })
+    (async () => {
+      try {
+        const cache = await caches.open(CACHE_NAME);
+        
+        // Cache app shell resources individually to prevent complete failure
+        const appShellResults = await Promise.allSettled(
+          APP_SHELL.map(async (url) => {
+            try {
+              await cache.add(url);
+              console.log(`✅ Cached: ${url}`);
+              return { success: true, url };
+            } catch (error) {
+              console.warn(`⚠️ Failed to cache: ${url}`, error.message);
+              return { success: false, url, error: error.message };
+            }
+          })
+        );
+
+        // Prefetch routes with validation
+        const prefetchResults = await Promise.allSettled(
+          PREFETCH_ROUTES.map(async (route) => {
+            try {
+              const response = await fetch(route, { method: 'HEAD' });
+              if (response.ok) {
+                await cache.add(route);
+                console.log(`✅ Prefetched: ${route}`);
+                return { success: true, route };
+              } else {
+                console.warn(`⚠️ Route not available: ${route} (status: ${response.status})`);
+                return { success: false, route, status: response.status };
+              }
+            } catch (error) {
+              console.warn(`⚠️ Failed to prefetch: ${route}`, error.message);
+              return { success: false, route, error: error.message };
+            }
+          })
+        );
+
+        const successful = [
+          ...appShellResults.filter(r => r.status === 'fulfilled' && r.value.success).length,
+          ...prefetchResults.filter(r => r.status === 'fulfilled' && r.value.success).length
+        ].length;
+
+        console.log(`Service Worker: Cached ${successful} resources successfully`);
+      } catch (error) {
+        console.error('Service Worker: Failed to initialize cache:', error);
+      }
+    })()
   );
 });
 
