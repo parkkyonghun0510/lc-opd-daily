@@ -136,6 +136,11 @@ export default withAuth(
           return true;
         }
 
+        // For API routes that require authentication, check token
+        if (path.startsWith("/api/")) {
+          return !!token;
+        }
+
         // For all other paths, require authentication
         return !!token;
       },
@@ -150,8 +155,9 @@ export default withAuth(
 export const config = {
   matcher: [
     // Protected routes (requiring auth)
-    // Exclude API, Next internals, NextAuth routes and public PWA assets from middleware
-    "/((?!api|_next/static|_next/image|favicon.ico|manifest.json|service-worker.js|sw.js|icons|offline.html|robots.txt|sitemap.xml|\\.well-known|public|login|setup).*)",
+    // Exclude Next internals, NextAuth routes and public PWA assets from middleware
+    // But INCLUDE API routes that need authentication
+    "/((?!_next/static|_next/image|favicon.ico|manifest.json|service-worker.js|sw.js|icons|offline.html|robots.txt|sitemap.xml|\\.well-known|public|login|setup).*)",
 
     // Explicitly include home, login and setup
     "/",
@@ -160,5 +166,12 @@ export const config = {
 
     // Add avatar path matcher
     "/uploads/avatars/:path*",
+
+    // Include API routes that need authentication
+    "/api/push/:path*",
+    "/api/notifications/:path*",
+    "/api/users/:path*",
+    "/api/reports/:path*",
+    "/api/dashboard/:path*",
   ],
 };
