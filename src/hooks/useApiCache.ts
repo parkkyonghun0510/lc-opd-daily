@@ -13,6 +13,7 @@ interface ApiCacheReturn {
   get: <T = any>(key: string) => T | null;
   set: <T = any>(key: string, data: T, options?: { ttl?: number; tags?: string[] }) => void;
   delete: (key: string) => boolean;
+  invalidate: (key: string) => boolean;
   has: (key: string) => boolean;
   clear: () => void;
   invalidateByPattern: (pattern: string | RegExp) => number;
@@ -79,6 +80,10 @@ export function useApiCache(options: UseApiCacheOptions = {}): ApiCacheReturn {
     }
   }, [enableMetrics]);
 
+  const invalidate = useCallback((key: string): boolean => {
+    return deleteKey(key);
+  }, [deleteKey]);
+
   const has = useCallback((key: string): boolean => {
     try {
       return apiCacheManager.has(key);
@@ -129,11 +134,12 @@ export function useApiCache(options: UseApiCacheOptions = {}): ApiCacheReturn {
     get,
     set,
     delete: deleteKey,
+    invalidate,
     has,
     clear,
     invalidateByPattern,
     invalidateByTags
-  }), [get, set, deleteKey, has, clear, invalidateByPattern, invalidateByTags]);
+  }), [get, set, deleteKey, invalidate, has, clear, invalidateByPattern, invalidateByTags]);
 }
 
 /**

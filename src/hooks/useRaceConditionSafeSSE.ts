@@ -42,7 +42,7 @@ export function useRaceConditionSafeSSE(options: HybridRealtimeOptions = {}) {
       await handleError(error as Error, {
         userId,
         sessionId,
-        timestamp: new Date().toISOString(),
+        timestamp: new Date(),
         additionalData: { operation: 'sse-reconnect', operationId }
       });
       throw error;
@@ -67,7 +67,7 @@ export function useRaceConditionSafeSSE(options: HybridRealtimeOptions = {}) {
       await handleError(error as Error, {
         userId,
         sessionId,
-        timestamp: new Date().toISOString(),
+        timestamp: new Date(),
         additionalData: { operation: 'sse-close', operationId }
       });
       throw error;
@@ -106,7 +106,7 @@ export function useSequentialSSE(options: HybridRealtimeOptions = {}) {
       await handleError(error as Error, {
         userId,
         sessionId,
-        timestamp: new Date().toISOString(),
+        timestamp: new Date(),
         additionalData: { operation: 'sequential-sse-reconnect' }
       });
       throw error;
@@ -125,7 +125,7 @@ export function useSequentialSSE(options: HybridRealtimeOptions = {}) {
       await handleError(error as Error, {
         userId,
         sessionId,
-        timestamp: new Date().toISOString(),
+        timestamp: new Date(),
         additionalData: { operation: 'sequential-sse-close' }
       });
       throw error;
@@ -155,7 +155,7 @@ export function useDebouncedSSE(options: HybridRealtimeOptions = {}, delay: numb
           await handleError(error as Error, {
             userId,
             sessionId,
-            timestamp: new Date().toISOString(),
+            timestamp: new Date(),
             additionalData: { operation: 'debounced-sse-reconnect' }
           });
           throw error;
@@ -175,7 +175,7 @@ export function useDebouncedSSE(options: HybridRealtimeOptions = {}, delay: numb
           await handleError(error as Error, {
             userId,
             sessionId,
-            timestamp: new Date().toISOString(),
+            timestamp: new Date(),
             additionalData: { operation: 'debounced-sse-close' }
           });
           throw error;
@@ -209,7 +209,7 @@ export function useRetryableSSE(options: HybridRealtimeOptions = {}, maxRetries:
           await handleError(error as Error, {
             userId,
             sessionId,
-            timestamp: new Date().toISOString(),
+            timestamp: new Date(),
             additionalData: { operation: 'retryable-sse-reconnect' }
           });
           throw error;
@@ -229,7 +229,7 @@ export function useRetryableSSE(options: HybridRealtimeOptions = {}, maxRetries:
           await handleError(error as Error, {
             userId,
             sessionId,
-            timestamp: new Date().toISOString(),
+            timestamp: new Date(),
             additionalData: { operation: 'retryable-sse-close' }
           });
           throw error;

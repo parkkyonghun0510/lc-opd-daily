@@ -9,6 +9,7 @@ import { raceConditionManager } from '@/lib/sync/race-condition-manager';
 import { handleError } from '@/lib/errors/error-handler';
 import { createAuthError } from '@/lib/errors/error-classes';
 import { AuthErrorCode } from '@/types/errors';
+import { ErrorUtils } from '@/lib/errors/error-utils';
 
 interface SafeAuthOptions {
   preventDuplicateLogin?: boolean;
@@ -90,10 +91,7 @@ export function useRaceConditionSafeAuth(options: SafeAuthOptions = {}) {
 
       return result;
     } catch (error) {
-      handleError(error as Error, {
-        context: { operation: 'login', email },
-        severity: 'high'
-      });
+      await handleError(error as Error, ErrorUtils.createContext({ operation: 'login', email }));
       throw error;
     } finally {
       operationCountRef.current--;
@@ -131,10 +129,7 @@ export function useRaceConditionSafeAuth(options: SafeAuthOptions = {}) {
         }
       );
     } catch (error) {
-      handleError(error as Error, {
-        context: { operation: 'logout' },
-        severity: 'medium'
-      });
+      await handleError(error as Error, ErrorUtils.createContext({ operation: 'logout' }));
       throw error;
     } finally {
       operationCountRef.current--;
@@ -174,10 +169,7 @@ export function useRaceConditionSafeAuth(options: SafeAuthOptions = {}) {
 
       return result;
     } catch (error) {
-      handleError(error as Error, {
-        context: { operation: 'refresh_token' },
-        severity: 'high'
-      });
+      await handleError(error as Error, ErrorUtils.createContext({ operation: 'refresh_token' }));
       throw error;
     } finally {
       operationCountRef.current--;
@@ -203,10 +195,7 @@ export function useRaceConditionSafeAuth(options: SafeAuthOptions = {}) {
 
       return result;
     } catch (error) {
-      handleError(error as Error, {
-        context: { operation: 'update_profile', userId: auth.user?.id },
-        severity: 'medium'
-      });
+      await handleError(error as Error, ErrorUtils.createContext({ operation: 'update_profile', userId: auth.user?.id }));
       throw error;
     } finally {
       operationCountRef.current--;

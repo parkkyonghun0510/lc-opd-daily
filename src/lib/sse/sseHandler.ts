@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { sseMetrics } from "./sseMetrics";
 
 /**
  * Client connection information
@@ -56,8 +55,7 @@ class SSEHandler {
             metadata
         });
 
-        // Record the connection in metrics
-        sseMetrics.recordConnection(userId);
+        // Removed metrics recording to streamline handler
 
         console.log(`[SSE] Client connected: ${id} for user: ${userId}. Total: ${this.clients.size}`);
         return id;
@@ -71,8 +69,7 @@ class SSEHandler {
         if (client) {
             this.clients.delete(id);
 
-            // Record the disconnection in metrics
-            sseMetrics.recordDisconnection(client.userId);
+            // Removed metrics recording to streamline handler
 
             const duration = Math.round((Date.now() - client.connectedAt) / 1000);
             console.log(`[SSE] Client disconnected: ${id} for user: ${client.userId}. Duration: ${duration}s. Total: ${this.clients.size}`);
@@ -112,14 +109,9 @@ class SSEHandler {
             }
         }
 
-        // Record the event in metrics
+        // Removed metrics recording to streamline handler
+
         if (sentCount > 0) {
-            sseMetrics.recordEvent(eventType, userId);
-
-            // Record processing time
-            const processingTime = performance.now() - startTime;
-            sseMetrics.recordEventProcessingTime(processingTime);
-
             console.log(`[SSE] Sent '${eventType}' event to user ${userId} (${sentCount} connections)`);
         }
 
@@ -149,14 +141,7 @@ class SSEHandler {
             userIds.add(client.userId);
         }
 
-        // Record the event in metrics for each user
-        for (const userId of userIds) {
-            sseMetrics.recordEvent(eventType, userId);
-        }
-
-        // Record processing time
-        const processingTime = performance.now() - startTime;
-        sseMetrics.recordEventProcessingTime(processingTime);
+        // Removed metrics recording to streamline handler
 
         return this.clients.size;
     }
@@ -191,9 +176,7 @@ class SSEHandler {
             response.write(message);
         } catch (error) {
             console.error(`[SSE] Error sending event:`, error);
-
-            // Record the error in metrics
-            sseMetrics.recordError('send_event_error');
+            // Removed metrics recording to streamline handler
         }
     }
 
@@ -257,23 +240,6 @@ class SSEHandler {
             uniqueUsers: userCounts.size,
             userCounts: Object.fromEntries(userCounts)
         };
-    }
-
-    /**
-     * Shutdown the handler and clean up resources
-     */
-    shutdown() {
-        if (this.cleanupInterval) {
-            clearInterval(this.cleanupInterval);
-            this.cleanupInterval = null;
-        }
-
-        // Close all connections
-        for (const id of this.clients.keys()) {
-            this.removeClient(id);
-        }
-
-        console.log(`[SSE] Handler shutdown complete`);
     }
 }
 

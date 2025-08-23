@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { realtimeMonitor } from '@/lib/realtime/monitor';
-import { sseHandler } from '@/lib/realtime/sseHandler';
+import sseHandler from '@/lib/sse/sseHandler';
 
 /**
  * API endpoint for monitoring real-time connections

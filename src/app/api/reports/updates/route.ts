@@ -2,7 +2,6 @@ import { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 import sseHandler from "@/lib/sse/sseHandler";
 import redisSSEHandler from "@/lib/sse/redisSSEHandler";
-import { rateLimiter } from "@/lib/realtime/rateLimiter";
 
 export const runtime = "nodejs";
 
@@ -35,37 +34,6 @@ export async function GET(request: NextRequest) {
     const clientType = url.searchParams.get('clientType') || 'browser';
     const role = url.searchParams.get('role') || 'user';
 
-    // Get client IP address
-    const ip = request.headers.get('x-forwarded-for') ||
-      request.headers.get('x-real-ip') ||
-      'unknown';
-
-    // Check rate limits
-    const [userLimitExceeded, ipLimitExceeded] = await Promise.all([
-      rateLimiter.checkUserLimit(userId, 'USER_CONNECTIONS'),
-      rateLimiter.checkIpLimit(ip, 'IP_CONNECTIONS')
-    ]);
-
-    if (userLimitExceeded) {
-      console.warn(`[SSE Reports] Rate limit exceeded for user ${userId}`);
-      return new Response('Too Many Requests: User connection limit exceeded', { 
-        status: 429,
-        headers: {
-          'Retry-After': '60'
-        }
-      });
-    }
-
-    if (ipLimitExceeded) {
-      console.warn(`[SSE Reports] Rate limit exceeded for IP ${ip}`);
-      return new Response('Too Many Requests: IP connection limit exceeded', { 
-        status: 429,
-        headers: {
-          'Retry-After': '60'
-        }
-      });
-    }
-
     // Create a streaming response
     const stream = new ReadableStream({
       start(controller) {
@@ -82,7 +50,7 @@ export async function GET(request: NextRequest) {
           clientType,
           role,
           userAgent: request.headers.get("user-agent") || undefined,
-          ip: ip || undefined
+          ip: (request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || undefined)
         });
 
         // Set up ping interval to keep connection alive and track activity

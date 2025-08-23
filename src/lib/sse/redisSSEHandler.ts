@@ -1,5 +1,5 @@
-import Redis from 'ioredis';
-import { NextResponse } from "next/server";
+import type { Redis } from 'ioredis'
+import { getRedis } from '@/lib/redis'
 
 /**
  * Client connection information
@@ -35,76 +35,53 @@ class RedisSSEHandler {
     private clients: Map<string, Client> = new Map();
     private readonly INACTIVE_TIMEOUT = 5 * 60 * 1000; // 5 minutes
     private cleanupInterval: NodeJS.Timeout | null = null;
-    private redis: Redis;
+    private redis: Redis | null = null;
     private instanceId: string;
     private pubSubChannel = 'sse-events';
-    private pubSubClient: Redis;
+    private pubSubClient: Redis | null = null;
     private isSubscribed = false;
 
-    constructor(redisUrl: string) {
-        // Create Redis client for operations
-        this.redis = new Redis(redisUrl, {
-            lazyConnect: true,
-            maxRetriesPerRequest: 5,
-            enableOfflineQueue: false,
-            connectTimeout: 10000,
-            commandTimeout: 5000,
-            family: 4, // Force IPv4 to avoid DNS resolution issues
-        });
-
-        // Create a separate Redis client for pub/sub
-        this.pubSubClient = new Redis(redisUrl, {
-            lazyConnect: true,
-            maxRetriesPerRequest: 5,
-            enableOfflineQueue: false,
-            connectTimeout: 10000,
-            commandTimeout: 5000,
-            family: 4, // Force IPv4 to avoid DNS resolution issues
-        });
-        
-        // Add error handling for main Redis client
-        this.redis.on('error', (error) => {
-            console.error('[SSE] Redis client error:', error);
-            if (error.message.includes('ENOTFOUND') || error.message.includes('getaddrinfo')) {
-                console.error('[SSE] DNS resolution failed. Check DRAGONFLY_URL hostname.');
-            }
-        });
-        
-        // Add error handling for pub/sub client
-        this.pubSubClient.on('error', (error) => {
-            console.error('[SSE] Redis pub/sub client error:', error);
-            if (error.message.includes('ENOTFOUND') || error.message.includes('getaddrinfo')) {
-                console.error('[SSE] DNS resolution failed for pub/sub. Check DRAGONFLY_URL hostname.');
-            }
-        });
-        
-        this.pubSubClient.on('connect', () => {
-            console.log('[SSE] Pub/sub client connected');
-        });
-        
-        this.pubSubClient.on('ready', () => {
-            console.log('[SSE] Pub/sub client ready');
-        });
-        
-        this.pubSubClient.on('close', () => {
-            console.warn('[SSE] Pub/sub client connection closed');
-            this.isSubscribed = false;
-        });
-        
-        this.pubSubClient.on('end', () => {
-            console.warn('[SSE] Pub/sub client connection ended');
-            this.isSubscribed = false;
-        });
-
+    constructor() {
         // Generate a unique ID for this server instance
         this.instanceId = `instance-${crypto.randomUUID()}`;
-
+        
         // Start the cleanup interval to remove stale connections
         this.cleanupInterval = setInterval(() => this.cleanupInactiveConnections(), 60000);
-
-        // Subscribe to the pub/sub channel for cross-instance events
-        this.setupPubSub();
-
+        
+        // Async initialize Redis clients using centralized singleton
+        (async () => {
+            try {
+                this.redis = await getRedis();
+                // Create a dedicated pub/sub connection by duplicating
+                const dup = (this.redis as any).duplicate ? (this.redis as any).duplicate() : null;
+                if (dup) {
+                    this.pubSubClient = dup as Redis;
+                    // Attach basic listeners for visibility
+                    this.pubSubClient.on('error', (error: any) => {
+                        console.error('[SSE] Redis pub/sub client error:', error);
+                    });
+                    this.pubSubClient.on('connect', () => {
+                        console.log('[SSE] Pub/sub client connected');
+                    });
+                    this.pubSubClient.on('ready', () => {
+                        console.log('[SSE] Pub/sub client ready');
+                    });
+                    this.pubSubClient.on('close', () => {
+                        console.warn('[SSE] Pub/sub client connection closed');
+                        this.isSubscribed = false;
+                    });
+                    this.pubSubClient.on('end', () => {
+                        console.warn('[SSE] Pub/sub client connection ended');
+                        this.isSubscribed = false;
+                    });
+                    await (this.pubSubClient as any).connect?.();
+                }
+                await this.setupPubSub();
+            } catch (error) {
+                console.warn('[SSE] Failed to initialize Redis clients for SSE handler:', error);
+            }
+        })();
+        
         console.log(`[SSE] Redis-backed SSE handler initialized with instance ID: ${this.instanceId}`);
     }
 
@@ -118,54 +95,59 @@ class RedisSSEHandler {
             console.log(`[SSE] Setting up pub/sub subscription to channel: ${this.pubSubChannel}`);
             
             // Ensure pub/sub client is connected
-            if (this.pubSubClient.status !== 'ready') {
-                await this.pubSubClient.connect();
+            if (!this.pubSubClient) {
+                console.warn('[SSE] Pub/sub client not initialized, skipping subscription');
+                return;
             }
-
-            // Subscribe to the channel using proper pub/sub pattern
-            await this.pubSubClient.subscribe(this.pubSubChannel);
-            
-            // Listen for messages using the 'message' event
-            this.pubSubClient.on('message', (channel: string, message: string) => {
-                try {
-                    if (channel === this.pubSubChannel) {
-                        const { sourceInstanceId, event } = JSON.parse(message);
-
-                        // Skip messages from this instance to avoid duplicates
-                        if (sourceInstanceId === this.instanceId) return;
-
-                        // Process the cross-instance event
-                        this.processCrossInstanceEvent(event);
-                    }
-                } catch (error) {
-                    console.error('[SSE] Error processing pub/sub message:', error);
-                }
-            });
-            
-            // Handle subscription confirmation
-            this.pubSubClient.on('subscribe', (channel: string, count: number) => {
-                console.log(`[SSE] Successfully subscribed to channel '${channel}' (${count} total subscriptions)`);
-                this.isSubscribed = true;
-            });
-            
-            // Handle unsubscription
-            this.pubSubClient.on('unsubscribe', (channel: string, count: number) => {
-                console.log(`[SSE] Unsubscribed from channel '${channel}' (${count} remaining subscriptions)`);
-                if (count === 0) {
-                    this.isSubscribed = false;
-                }
-            });
-
-            console.log('[SSE] Pub/sub setup initiated');
-        } catch (error) {
-            console.error('[SSE] Failed to subscribe to Redis channels:', error);
-            this.isSubscribed = false;
-
-            // Retry subscription after a delay with exponential backoff
-            const retryDelay = Math.min(5000 * Math.pow(2, Math.random()), 30000);
-            console.log(`[SSE] Retrying pub/sub setup in ${retryDelay}ms...`);
-            setTimeout(() => this.setupPubSub(), retryDelay);
-        }
+            // Ensure pub/sub client is connected
+            if ((this.pubSubClient as any).status !== 'ready') {
+                await (this.pubSubClient as any).connect?.();
+            }
+ 
+             // Subscribe to the channel using proper pub/sub pattern
+             await (this.pubSubClient as any).subscribe(this.pubSubChannel);
+             
+             // Listen for messages using the 'message' event
+             this.pubSubClient.on('message', (channel: string, message: string) => {
+                 try {
+                     if (channel === this.pubSubChannel) {
+                         const { sourceInstanceId, event } = JSON.parse(message);
+ 
+                         // Skip messages from this instance to avoid duplicates
+                         if (sourceInstanceId === this.instanceId) return;
+ 
+                         // Process the cross-instance event
+                         this.processCrossInstanceEvent(event);
+                     }
+                 } catch (error) {
+                     console.error('[SSE] Error processing pub/sub message:', error);
+                 }
+             });
+             
+             // Handle subscription confirmation
+             this.pubSubClient.on('subscribe', (channel: string, count: number) => {
+                 console.log(`[SSE] Successfully subscribed to channel '${channel}' (${count} total subscriptions)`);
+                 this.isSubscribed = true;
+             });
+             
+             // Handle unsubscription
+             this.pubSubClient.on('unsubscribe', (channel: string, count: number) => {
+                 console.log(`[SSE] Unsubscribed from channel '${channel}' (${count} remaining subscriptions)`);
+                 if (count === 0) {
+                     this.isSubscribed = false;
+                 }
+             });
+ 
+             console.log('[SSE] Pub/sub setup initiated');
+         } catch (error) {
+             console.error('[SSE] Failed to subscribe to Redis channels:', error);
+             this.isSubscribed = false;
+ 
+             // Retry subscription after a delay with exponential backoff
+             const retryDelay = Math.min(5000 * Math.pow(2, Math.random()), 30000);
+             console.log(`[SSE] Retrying pub/sub setup in ${retryDelay}ms...`);
+             setTimeout(() => this.setupPubSub(), retryDelay);
+         }
     }
 
     /**
@@ -219,7 +201,7 @@ class RedisSSEHandler {
             });
             
             // Use the main Redis client for publishing
-            const result = await this.redis.publish(this.pubSubChannel, message);
+            const result = await (this.redis as any).publish(this.pubSubChannel, message);
             console.log(`[SSE] Published event to ${result} subscribers`);
         } catch (error) {
             console.error('[SSE] Error publishing event:', error);
@@ -228,7 +210,7 @@ class RedisSSEHandler {
             if (error instanceof Error && error.message.includes('Connection is closed')) {
                 console.log('[SSE] Attempting to reconnect Redis client for publishing...');
                 try {
-                    await this.redis.connect();
+                    await (this.redis as any)?.connect?.();
                 } catch (reconnectError) {
                     console.error('[SSE] Failed to reconnect Redis client:', reconnectError);
                 }
@@ -602,9 +584,9 @@ class RedisSSEHandler {
 
         // Unsubscribe from Redis pub/sub
         try {
-            if (this.pubSubClient && this.pubSubClient.status === 'ready' && this.isSubscribed) {
-                await this.pubSubClient.unsubscribe(this.pubSubChannel);
-                await this.pubSubClient.disconnect();
+            if (this.pubSubClient && (this.pubSubClient as any).status === 'ready' && this.isSubscribed) {
+                await (this.pubSubClient as any).unsubscribe(this.pubSubChannel);
+                await (this.pubSubClient as any).disconnect?.();
             }
             
             if (this.redis && this.redis.status === 'ready') {
@@ -630,16 +612,12 @@ if (
     process.env.NEXT_PHASE !== 'phase-production-build')
 ) {
     try {
-        const redisUrl = process.env.DRAGONFLY_URL;
-        
-        if (redisUrl) {
-            redisSSEHandler = new RedisSSEHandler(redisUrl);
-        }
+        redisSSEHandler = new RedisSSEHandler();
     } catch (error) {
         console.warn('[SSE] Failed to initialize Redis SSE handler:', error);
     }
 }
 
 // Export the Redis SSE handler if available, otherwise export the in-memory handler
-import sseHandler from './sseHandler';
-export default redisSSEHandler || sseHandler;
+import sseHandler from './sseHandler'
+export default redisSSEHandler || sseHandler

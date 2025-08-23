@@ -13,7 +13,7 @@ export default function NotFound() {
   useEffect(() => {
     if (status === "loading") return;
 
-    const callbackUrl = encodeURIComponent(pathname);
+    const callbackUrl = encodeURIComponent(pathname ?? "/");
     const redirectUrl = status === "unauthenticated" 
       ? `/login?callbackUrl=${callbackUrl}`
       : "/dashboard";

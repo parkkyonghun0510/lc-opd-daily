@@ -28,11 +28,48 @@ interface StateLock {
 }
 
 class RaceConditionManager {
-  ensureSequentialExecution(arg0: string, arg1: () => Promise<void>) {
-    throw new Error('Method not implemented.');
+  // Ensure sequential execution by delegating to executeInSequence
+  async ensureSequentialExecution<T>(
+    key: string,
+    operation: () => Promise<T>,
+    options: { timeout?: number; maxConcurrentOperations?: number } = {}
+  ): Promise<T> {
+    return this.executeInSequence(key, operation, options);
   }
-  withRetry(arg0: () => Promise<void>, maxRetries: number, arg2: number): void | PromiseLike<void> {
-    throw new Error('Method not implemented.');
+
+  // Retry wrapper with exponential backoff and jitter
+  async withRetry<T>(
+    fn: () => Promise<T>,
+    maxRetries: number = 3,
+    baseDelay: number = 500
+  ): Promise<T> {
+    let attempt = 0;
+    let lastError: unknown;
+
+    while (attempt <= maxRetries) {
+      try {
+        return await fn();
+      } catch (error) {
+        lastError = error;
+        // Determine retryability
+        const isRetryable = typeof error === 'object' && error !== null && 'retryable' in (error as any)
+          ? Boolean((error as any).retryable)
+          : false;
+
+        if (!isRetryable || attempt === maxRetries) {
+          throw error;
+        }
+
+        // Exponential backoff with jitter
+        const delay = Math.min(30_000, baseDelay * Math.pow(2, attempt));
+        const jitter = Math.random() * (delay * 0.2); // up to 20% jitter
+        await new Promise(res => setTimeout(res, delay + jitter));
+        attempt += 1;
+      }
+    }
+
+    // Should not reach here
+    throw lastError as any;
   }
   private pendingRequests = new Map<string, PendingRequest>();
   private sequenceTrackers = new Map<string, SequenceTracker>();
@@ -72,7 +109,7 @@ class RaceConditionManager {
         this.pendingRequests.delete(key);
         this.clearRequestTimeout(key);
       } else {
-        return existing.promise;
+        return existing.promise as Promise<T>;
       }
     }
 
