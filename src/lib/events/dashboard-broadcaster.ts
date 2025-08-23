@@ -1,4 +1,5 @@
-import sseEmitter from '@/lib/sseEmitter';
+import { emitDashboardUpdate } from '@/lib/realtime/redisEventEmitter';
+import sseHandler from '@/lib/sse/redisSSEHandler';
 import { DashboardEventType, createDashboardUpdate } from '@/lib/events/dashboard-events';
 
 /**
@@ -10,9 +11,18 @@ import { DashboardEventType, createDashboardUpdate } from '@/lib/events/dashboar
 export function broadcastDashboardUpdate(type: DashboardEventType, data: unknown): void {
   try {
     const payload = createDashboardUpdate(type, data);
-    console.debug(`[SSE] Broadcasting ${type} with payload:`, payload);
-    sseEmitter.emit('dashboardUpdate', payload);
+    const id = crypto.randomUUID();
+    const timestamp = Date.now();
+    const eventData = { id, timestamp, ...payload };
+
+    // Broadcast via SSE (Redis-backed when available, falls back to in-memory)
+    sseHandler.broadcastEvent('dashboardUpdate', eventData);
+
+    // Persist and publish via Redis-backed emitter for polling and cross-instance durability
+    void emitDashboardUpdate(type, data, { id, title: `Dashboard Update: ${type}` });
+
+    console.debug(`[Realtime] Broadcasting ${type} with payload:`, eventData);
   } catch (error) {
-    console.error(`[SSE] Error broadcasting dashboard update of type ${type}:`, error);
+    console.error(`[Realtime] Error broadcasting dashboard update of type ${type}:`, error);
   }
 }

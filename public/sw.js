@@ -108,6 +108,25 @@ self.addEventListener("activate", (event) => {
 
 // Enhanced fetch event handler with dynamic route support
 self.addEventListener('fetch', event => {
+  // Bypass SSE streaming endpoints to avoid breaking EventSource via Service Worker
+  try {
+    const acceptHeader = event.request.headers.get('accept') || '';
+    if (
+      event.request.method === 'GET' &&
+      (
+        acceptHeader.includes('text/event-stream') ||
+        event.request.url.includes('/api/sse') ||
+        event.request.url.includes('/api/reports/updates') ||
+        event.request.url.includes('/api/realtime/sse')
+      )
+    ) {
+      // Let the browser handle SSE directly (no respondWith or caching)
+      return;
+    }
+  } catch (e) {
+    // no-op; if headers are unavailable just proceed
+  }
+
   // Skip non-GET requests unless they're report submissions
   if (event.request.method !== 'GET') {
     if (event.request.url.includes('/api/reports') && !navigator.onLine) {

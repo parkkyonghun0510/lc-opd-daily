@@ -1,4 +1,5 @@
-import { sseHandler } from '@/lib/realtime/sseHandler';
+import sseHandler from '@/lib/sse/redisSSEHandler';
+import { redisEventEmitter } from '@/lib/realtime/redisEventEmitter';
 
 export interface ReportUpdateEvent {
   type: 'new' | 'updated' | 'deleted';
@@ -23,13 +24,16 @@ export class ReportSSEService {
     };
 
     try {
-      // Broadcast to all connected clients
+      // Broadcast to all connected clients (cross-instance when Redis is available)
       sseHandler.broadcastEvent('report-update', updateEvent);
       
       // Also send to specific users if userId is provided
       if (event.userId) {
         sseHandler.sendEventToUser(event.userId, 'report-update', updateEvent);
       }
+
+      // Persist and publish via Redis-backed emitter for polling and durability
+      void redisEventEmitter.emit('report-update', updateEvent, event.userId ? { userIds: [event.userId] } : {});
 
       console.log(`[ReportSSE] Broadcast report update: ${event.type} for report ${event.reportId}`);
     } catch (error) {

@@ -14,7 +14,7 @@ import { NotificationProvider } from "@/contexts/NotificationContext";
 // Import auth components
 import { StoreSynchronizer } from "@/auth/components/StoreSynchronizer";
 import { SessionActivityTracker } from "@/auth/components/SessionActivityTracker";
-import { HybridRealtimeProvider } from "@/components/providers/HybridRealtimeProvider";
+import { ZustandHybridRealtimeProvider } from "@/components/dashboard/ZustandHybridRealtimeProvider";
 
 // Separate component to use the useUserData hook
 function AppContent({ children }: { children: React.ReactNode }) {
@@ -70,14 +70,13 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <UserDataProvider>
           <NotificationProvider>
             <NextAuthProvider>
-              <HybridRealtimeProvider
-                options={{
-                  pollingInterval: 15000, // 15 seconds
-                  debug: process.env.NODE_ENV === 'development'
-                }}
+              <ZustandHybridRealtimeProvider
+                debug={process.env.NODE_ENV === 'development'}
+                autoRefreshInterval={15000}
+                showToasts={true}
               >
                 <AppContent>{children}</AppContent>
-              </HybridRealtimeProvider>
+              </ZustandHybridRealtimeProvider>
             </NextAuthProvider>
           </NotificationProvider>
         </UserDataProvider>

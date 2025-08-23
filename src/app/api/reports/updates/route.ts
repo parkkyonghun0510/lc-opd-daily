@@ -1,9 +1,13 @@
 import { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
-import { sseHandler } from "@/lib/realtime/sseHandler";
+import sseHandler from "@/lib/sse/sseHandler";
+import redisSSEHandler from "@/lib/sse/redisSSEHandler";
 import { rateLimiter } from "@/lib/realtime/rateLimiter";
 
 export const runtime = "nodejs";
+
+// Use Redis-backed SSE handler if available
+const handler = redisSSEHandler || sseHandler;
 
 /**
  * Server-Sent Events endpoint for report updates
@@ -65,35 +69,49 @@ export async function GET(request: NextRequest) {
     // Create a streaming response
     const stream = new ReadableStream({
       start(controller) {
-        // Store the controller for later use
+        const encoder = new TextEncoder();
+        const clientId = crypto.randomUUID();
+
+        // Create response object that the SSE handler will use
         const response = {
-          write: (data: string) => {
-            controller.enqueue(new TextEncoder().encode(data));
-          },
-          close: () => controller.close(),
-          error: (err: Error) => controller.error(err)
+          write: (chunk: string) => controller.enqueue(encoder.encode(chunk)),
         };
 
-        // Handle the SSE connection
-        sseHandler.handleConnection(request, userId, response, {
+        // Register client with the SSE handler
+        handler.addClient(clientId, userId!, response, {
           clientType,
-          role
+          role,
+          userAgent: request.headers.get("user-agent") || undefined,
+          ip: ip || undefined
+        });
+
+        // Set up ping interval to keep connection alive and track activity
+        const pingInterval = setInterval(() => {
+          try {
+            handler.sendEventToUser(userId!, "ping", {
+              timestamp: Date.now(),
+              clientId
+            });
+            handler.updateClientActivity(clientId);
+          } catch (error) {
+            console.error(`[SSE Reports] Error sending ping to client ${clientId}:`, error);
+          }
+        }, 30000); // 30s ping
+
+        // Handle connection close
+        request.signal.addEventListener("abort", () => {
+          clearInterval(pingInterval);
+          handler.removeClient(clientId);
+          controller.close();
         });
 
         // Send initial connection confirmation
-        const connectionEvent = {
-          id: crypto.randomUUID(),
-          type: 'connected',
-          data: {
-            message: 'Report updates SSE connection established',
-            timestamp: new Date().toISOString(),
-            userId
-          }
-        };
-
-        response.write(`id: ${connectionEvent.id}\n`);
-        response.write(`event: ${connectionEvent.type}\n`);
-        response.write(`data: ${JSON.stringify(connectionEvent.data)}\n\n`);
+        handler.sendEventToUser(userId!, 'connected', {
+          message: 'Report updates SSE connection established',
+          timestamp: new Date().toISOString(),
+          userId,
+          clientId
+        });
       }
     });
 
@@ -103,9 +121,7 @@ export async function GET(request: NextRequest) {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache, no-transform',
         'Connection': 'keep-alive',
-        'X-Accel-Buffering': 'no', // For Nginx
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Credentials': 'true'
+        'X-Accel-Buffering': 'no' // For Nginx
       }
     });
   } catch (error) {

@@ -66,7 +66,7 @@ const StartupError: React.FC<{ errors: string[]; onRetry?: () => void }> = ({ er
         <h3 className="text-sm font-medium text-destructive mb-2">Errors:</h3>
         <ul className="text-sm space-y-1">
           {errors.map((error, index) => (
-            <li key={index} className="text-destructive">
+            <li key={`error-${index}`} className="text-destructive">
               • {error}
             </li>
           ))}
@@ -123,7 +123,7 @@ const StartupWarning: React.FC<{ warnings: string[]; onContinue: () => void }> =
           </div>
           <ul className="text-sm space-y-2">
             {warnings.map((warning, index) => (
-              <li key={index} className="text-warning flex items-start gap-2">
+              <li key={`warning-${index}`} className="text-warning flex items-start gap-2">
                 <span className="text-warning/60 mt-0.5">•</span>
                 <span>{warning}</span>
               </li>

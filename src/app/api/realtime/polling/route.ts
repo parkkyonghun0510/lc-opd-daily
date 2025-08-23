@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
-import { eventEmitter } from '@/lib/realtime/eventEmitter';
+import { redisEventEmitter } from '@/lib/realtime/redisEventEmitter';
 
 /**
  * Polling API for real-time updates
@@ -22,8 +22,8 @@ export async function GET(request: NextRequest) {
     const sinceParam = url.searchParams.get('since');
     const since = sinceParam ? parseInt(sinceParam, 10) : undefined;
     
-    // Get events for this user
-    const events = eventEmitter.getEventsForUser(userId, since);
+    // Get events for this user (Redis-backed, falls back to in-memory if Redis unavailable)
+    const events = await redisEventEmitter.getEventsForUser(userId, since);
     
     // Return the events
     return NextResponse.json({
