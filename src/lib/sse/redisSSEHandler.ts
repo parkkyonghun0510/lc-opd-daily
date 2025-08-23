@@ -254,25 +254,59 @@ class RedisSSEHandler {
         // Add to local map
         this.clients.set(id, client);
 
-        // Add to Redis
+        // Add to Redis with proper connection checking
         try {
-            await this.redis.hset(`sse:clients:${userId}`, {
-                [id]: JSON.stringify({
-                    id,
-                    userId,
-                    connectedAt: now,
-                    lastActivity: now,
-                    metadata,
-                    instanceId: this.instanceId
-                })
-            });
+            // Ensure Redis client is connected before attempting operations
+            if (!this.redis || this.redis.status !== 'ready') {
+                console.warn(`[SSE] Redis client not ready (status: ${this.redis?.status || 'null'}), attempting to connect...`);
+                
+                if (this.redis && this.redis.status === 'connecting') {
+                    // Wait for existing connection attempt
+                    await new Promise((resolve, reject) => {
+                        const timeout = setTimeout(() => {
+                            reject(new Error('Redis connection timeout'));
+                        }, 5000);
+                        
+                        this.redis!.once('ready', () => {
+                            clearTimeout(timeout);
+                            resolve(void 0);
+                        });
+                        
+                        this.redis!.once('error', (error) => {
+                            clearTimeout(timeout);
+                            reject(error);
+                        });
+                    });
+                } else if (this.redis) {
+                    // Attempt to connect
+                    await this.redis.connect();
+                }
+            }
+            
+            // Only proceed with Redis operations if client is ready
+            if (this.redis && this.redis.status === 'ready') {
+                await this.redis.hset(`sse:clients:${userId}`, {
+                    [id]: JSON.stringify({
+                        id,
+                        userId,
+                        connectedAt: now,
+                        lastActivity: now,
+                        metadata,
+                        instanceId: this.instanceId
+                    })
+                });
 
-            // Update user's active client count
-            await this.redis.hincrby('sse:user-counts', userId, 1);
-
-            console.log(`[SSE] Client connected: ${id} for user: ${userId}. Total local: ${this.clients.size}`);
+                // Update user's active client count
+                await this.redis.hincrby('sse:user-counts', userId, 1);
+                
+                console.log(`[SSE] Client connected: ${id} for user: ${userId}. Total local: ${this.clients.size}`);
+            } else {
+                console.warn(`[SSE] Redis client still not ready after connection attempt, client ${id} added to local map only`);
+            }
         } catch (error) {
             console.error('[SSE] Error adding client to Redis:', error);
+            // Client is still added to local map, so SSE will work locally even if Redis fails
+            console.log(`[SSE] Client ${id} added to local map only due to Redis error. Total local: ${this.clients.size}`);
         }
 
         return id;
@@ -287,12 +321,15 @@ class RedisSSEHandler {
             // Remove from local map
             this.clients.delete(id);
 
-            // Remove from Redis
+            // Remove from Redis with proper connection checking
             try {
-                await this.redis.hdel(`sse:clients:${client.userId}`, id);
+                // Only attempt Redis operations if client is ready
+                if (this.redis && this.redis.status === 'ready') {
+                    await this.redis.hdel(`sse:clients:${client.userId}`, id);
 
-                // Update user's active client count
-                await this.redis.hincrby('sse:user-counts', client.userId, -1);
+                    // Update user's active client count
+                    await this.redis.hincrby('sse:user-counts', client.userId, -1);
+                }
 
                 const duration = Math.round((Date.now() - client.connectedAt) / 1000);
                 console.log(`[SSE] Client disconnected: ${id} for user: ${client.userId}. Duration: ${duration}s. Total local: ${this.clients.size}`);
@@ -318,13 +355,18 @@ class RedisSSEHandler {
             const timeSinceLastUpdate = now - client.lastActivity;
             if (timeSinceLastUpdate > 300000) { // 5 minutes
                 try {
-                    const clientData = await this.redis.hget(`sse:clients:${client.userId}`, id);
-                    if (clientData) {
-                        const data = JSON.parse(clientData as string);
-                        data.lastActivity = now;
-                        await this.redis.hset(`sse:clients:${client.userId}`, {
-                            [id]: JSON.stringify(data)
-                        });
+                    // Only attempt Redis operations if client is ready
+                    if (this.redis && this.redis.status === 'ready') {
+                        const clientData = await this.redis.hget(`sse:clients:${client.userId}`, id);
+                        if (clientData) {
+                            const data = JSON.parse(clientData as string);
+                            data.lastActivity = now;
+                            await this.redis.hset(`sse:clients:${client.userId}`, {
+                                [id]: JSON.stringify(data)
+                            });
+                        }
+                    } else {
+                        console.warn(`[SSE] Redis client not ready (status: ${this.redis?.status || 'null'}), skipping activity update for client ${id}`);
                     }
                 } catch (error) {
                     console.error('[SSE] Error updating client activity in Redis:', error);
@@ -490,25 +532,39 @@ class RedisSSEHandler {
                 localUserCounts.set(client.userId, (localUserCounts.get(client.userId) || 0) + 1);
             }
 
-            // Get global stats from Redis
-            const globalUserCounts = await this.redis.hgetall('sse:user-counts');
+            // Get global stats from Redis only if client is ready
+            if (this.redis && this.redis.status === 'ready') {
+                const globalUserCounts = await this.redis.hgetall('sse:user-counts');
 
-            // Count total connections across all instances
-            let totalConnections = 0;
-            const values = globalUserCounts ? Object.values(globalUserCounts) : [];
-            for (const count of values) {
-                totalConnections += parseInt(count as string, 10);
+                // Count total connections across all instances
+                let totalConnections = 0;
+                const values = globalUserCounts ? Object.values(globalUserCounts) : [];
+                for (const count of values) {
+                    totalConnections += parseInt(count as string, 10);
+                }
+
+                return {
+                    instanceId: this.instanceId,
+                    localConnections: this.clients.size,
+                    localUniqueUsers: localUserCounts.size,
+                    localUserCounts: Object.fromEntries(localUserCounts),
+                    globalUniqueUsers: globalUserCounts ? Object.keys(globalUserCounts).length : 0,
+                    globalTotalConnections: totalConnections,
+                    globalUserCounts: globalUserCounts
+                };
+            } else {
+                console.warn(`[SSE] Redis client not ready (status: ${this.redis?.status || 'null'}), returning local stats only`);
+                
+                return {
+                    instanceId: this.instanceId,
+                    localConnections: this.clients.size,
+                    localUniqueUsers: localUserCounts.size,
+                    localUserCounts: Object.fromEntries(localUserCounts),
+                    globalUniqueUsers: 'unavailable',
+                    globalTotalConnections: 'unavailable',
+                    globalUserCounts: 'unavailable'
+                };
             }
-
-            return {
-                instanceId: this.instanceId,
-                localConnections: this.clients.size,
-                localUniqueUsers: localUserCounts.size,
-                localUserCounts: Object.fromEntries(localUserCounts),
-                globalUniqueUsers: globalUserCounts ? Object.keys(globalUserCounts).length : 0,
-                globalTotalConnections: totalConnections,
-                globalUserCounts: globalUserCounts
-            };
         } catch (error) {
             console.error('[SSE] Error getting stats from Redis:', error);
 
@@ -546,8 +602,15 @@ class RedisSSEHandler {
 
         // Unsubscribe from Redis pub/sub
         try {
-            // Stop message polling
-            this.isSubscribed = false;
+            if (this.pubSubClient && this.pubSubClient.status === 'ready' && this.isSubscribed) {
+                await this.pubSubClient.unsubscribe(this.pubSubChannel);
+                await this.pubSubClient.disconnect();
+            }
+            
+            if (this.redis && this.redis.status === 'ready') {
+                await this.redis.disconnect();
+            }
+            
             this.isSubscribed = false;
         } catch (error) {
             console.error('[SSE] Error unsubscribing from Redis pub/sub:', error);
