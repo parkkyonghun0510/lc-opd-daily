@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { useApiCache } from './useApiCache';
 import { useSelectiveCacheInvalidation } from './useSelectiveCacheInvalidation';
 import { globalCacheManager, apiCacheManager, userCacheManager, branchCacheManager } from '@/lib/cache/cache-manager';
 import { handleError } from '@/lib/errors/error-handler';
@@ -40,9 +39,6 @@ interface AdvancedCacheReturn {
   
   // Selective invalidation (if enabled)
   selectiveInvalidation?: ReturnType<typeof useSelectiveCacheInvalidation>;
-  
-  // Legacy API cache integration
-  apiCache: ReturnType<typeof useApiCache>;
   
   // Metrics and stats
   getMetrics: () => any;
@@ -96,9 +92,6 @@ export function useAdvancedCache(options: UseAdvancedCacheOptions = {}): Advance
     }
   }, [cacheManager]);
 
-  // Legacy API cache integration
-  const apiCache = useApiCache();
-  
   // Selective invalidation (optional)
   const selectiveInvalidation = enableSelectiveInvalidation 
     ? useSelectiveCacheInvalidation({ userId, sessionId })
@@ -353,9 +346,6 @@ export function useAdvancedCache(options: UseAdvancedCacheOptions = {}): Advance
     // Selective invalidation
     selectiveInvalidation,
     
-    // Legacy API cache
-    apiCache,
-    
     // Metrics and stats
     getMetrics,
     getStats,
@@ -371,29 +361,29 @@ export function useAdvancedCache(options: UseAdvancedCacheOptions = {}): Advance
   };
 }
 
-// Specialized hooks for different use cases
-export function useApiAdvancedCache(userId?: string) {
+// Specialized hooks for different use cases with optimized TTL strategies
+export function useApiCache(userId?: string) {
   return useAdvancedCache({
     userId,
-    cacheManager: 'api',
+    cacheManager: 'global', // Using unified cache manager
     tags: ['api'],
     defaultTTL: 5 * 60 * 1000 // 5 minutes
   });
 }
 
-export function useUserAdvancedCache(userId: string) {
+export function useUserCache(userId: string) {
   return useAdvancedCache({
     userId,
-    cacheManager: 'user',
+    cacheManager: 'global', // Using unified cache manager
     tags: ['user', `user:${userId}`],
     defaultTTL: 15 * 60 * 1000 // 15 minutes
   });
 }
 
-export function useBranchAdvancedCache(userId?: string) {
+export function useBranchCache(userId?: string) {
   return useAdvancedCache({
     userId,
-    cacheManager: 'branch',
+    cacheManager: 'global', // Using unified cache manager
     tags: ['branch'],
     defaultTTL: 30 * 60 * 1000 // 30 minutes
   });

@@ -1,9 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { RefreshCw, Wifi, WifiOff, AlertTriangle, Info } from 'lucide-react';
+
+// Lazy load heavy diagnostic components
+const LazyDiagnosticResults = lazy(() => import('./DiagnosticResults').then(module => ({ default: module.DiagnosticResults })));
+const LazyConnectionTester = lazy(() => import('./ConnectionTester').then(module => ({ default: module.ConnectionTester })));
 
 interface SSEDiagnosticInfo {
   isConnected: boolean;
@@ -28,56 +32,15 @@ export function ReportSSEDiagnostics() {
     endpoint: '/api/reports/updates'
   });
 
-  const [isTesting, setIsTesting] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [testResults, setTestResults] = useState<string[]>([]);
 
-  const testSSEConnection = async () => {
-    setIsTesting(true);
-    setTestResults([]);
-    
-    const results: string[] = [];
-    
-    // Test 1: Browser Support
-    results.push(`Browser EventSource Support: ${typeof EventSource !== 'undefined' ? '✅ Supported' : '❌ Not Supported'}`);
-    
-    // Test 2: Endpoint Accessibility
-    try {
-      const response = await fetch('/api/reports/updates', {
-        method: 'HEAD',
-        credentials: 'include'
-      });
-      results.push(`Endpoint Response: ${response.status} ${response.statusText}`);
-    } catch (error) {
-      results.push(`Endpoint Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-    
-    // Test 3: Manual SSE Connection
-    try {
-      const eventSource = new EventSource('/api/reports/updates', {
-        withCredentials: true
-      });
-      
-      eventSource.onopen = () => {
-        results.push('✅ SSE Connection: Successfully opened');
-        setDiagnostics(prev => ({ ...prev, isConnected: true }));
-        eventSource.close();
-      };
-      
-      eventSource.onerror = (error) => {
-        results.push(`❌ SSE Connection Error: ${error.type || 'Unknown error'}`);
-        setDiagnostics(prev => ({ ...prev, isConnected: false, error: error.type || 'Connection failed' }));
-        eventSource.close();
-      };
-      
-      // Wait for 5 seconds for connection
-      await new Promise(resolve => setTimeout(resolve, 5000));
-      
-    } catch (error) {
-      results.push(`❌ SSE Setup Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-    
+  const handleTestComplete = (results: string[]) => {
     setTestResults(results);
-    setIsTesting(false);
+  };
+
+  const handleDiagnosticsUpdate = (updates: Partial<SSEDiagnosticInfo>) => {
+    setDiagnostics(prev => ({ ...prev, ...updates, timestamp: new Date().toISOString() }));
   };
 
   const getConnectionStatus = () => {
@@ -124,15 +87,12 @@ export function ReportSSEDiagnostics() {
                 <span className="ml-1">{status.text}</span>
               </Badge>
             </div>
-            <Button 
-              onClick={testSSEConnection} 
-              disabled={isTesting}
-              size="sm"
-              variant="outline"
-            >
-              <RefreshCw className={`h-4 w-4 mr-1 ${isTesting ? 'animate-spin' : ''}`} />
-              {isTesting ? 'Testing...' : 'Test Connection'}
-            </Button>
+            <Suspense fallback={<Button size="sm" variant="outline" disabled>Loading...</Button>}>
+              <LazyConnectionTester 
+                onTestComplete={handleTestComplete}
+                onDiagnosticsUpdate={handleDiagnosticsUpdate}
+              />
+            </Suspense>
           </div>
 
           {diagnostics.error && (
@@ -153,22 +113,9 @@ export function ReportSSEDiagnostics() {
         </CardContent>
       </Card>
 
-      {testResults.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Test Results</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-1">
-              {testResults.map((result, index) => (
-                <div key={index} className="text-sm font-mono">
-                  {result}
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      <Suspense fallback={<div className="text-sm text-muted-foreground">Loading results...</div>}>
+        <LazyDiagnosticResults testResults={testResults} />
+      </Suspense>
     </div>
   );
 }
