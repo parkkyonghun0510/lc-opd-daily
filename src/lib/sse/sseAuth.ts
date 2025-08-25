@@ -58,31 +58,34 @@ export async function verifySSEToken(token: string) {
 /**
  * Authenticate an SSE request
  *
- * This function tries multiple authentication methods:
- * 1. Session-based authentication
- * 2. Token-based authentication
- * 3. User ID parameter (least secure, for backward compatibility)
+ * This function tries multiple authentication methods in order of security:
+ * 1. Session-based authentication (most secure)
+ * 2. JWT token-based authentication (secure)
+ * 3. Bearer token from Authorization header
+ * 4. User ID parameter (least secure, only for development)
  */
 export async function authenticateSSERequest(req: NextRequest) {
   try {
     // Get the URL parameters
     const { searchParams } = new URL(req.url);
-
-    // Try to get user from session (most secure)
+    
+    // Method 1: Try to get user from session (most secure)
     try {
       const session = await getServerSession(authOptions);
       if (session?.user?.id) {
         return {
           userId: session.user.id,
           authenticated: true,
-          method: 'session'
+          method: 'session',
+          userRole: session.user.role,
+          userEmail: session.user.email
         };
       }
     } catch (error) {
       console.error("[SSE Auth] Error getting session:", error);
     }
 
-    // Try to get user from token (secure)
+    // Method 2: Try to get user from JWT token (secure)
     const token = searchParams.get('token');
     if (token) {
       const payload = await verifySSEToken(token);
@@ -90,27 +93,51 @@ export async function authenticateSSERequest(req: NextRequest) {
         return {
           userId: payload.userId as string,
           authenticated: true,
-          method: 'token',
-          metadata: payload.metadata
+          method: 'jwt_token',
+          metadata: payload.metadata,
+          userRole: payload.metadata?.role,
+          userEmail: payload.metadata?.email
         };
       }
     }
 
-    // Fall back to user ID parameter (least secure, for backward compatibility)
-    const userId = searchParams.get('userId');
-    if (userId) {
-      return {
-        userId,
-        authenticated: true,
-        method: 'parameter'
-      };
+    // Method 3: Try Authorization header (for API clients)
+    const authHeader = req.headers.get('authorization');
+    if (authHeader?.startsWith('Bearer ')) {
+      const bearerToken = authHeader.slice(7);
+      const payload = await verifySSEToken(bearerToken);
+      if (payload && payload.userId) {
+        return {
+          userId: payload.userId as string,
+          authenticated: true,
+          method: 'bearer_token',
+          metadata: payload.metadata,
+          userRole: payload.metadata?.role,
+          userEmail: payload.metadata?.email
+        };
+      }
+    }
+
+    // Method 4: Fall back to user ID parameter (least secure, only for development)
+    if (process.env.NODE_ENV === 'development') {
+      const userId = searchParams.get('userId');
+      if (userId) {
+        console.warn('[SSE Auth] Using parameter-based auth in development mode');
+        return {
+          userId,
+          authenticated: true,
+          method: 'parameter_dev',
+          userRole: 'USER'
+        };
+      }
     }
 
     // No authentication found
     return {
       userId: null,
       authenticated: false,
-      method: null
+      method: null,
+      error: 'No valid authentication found'
     };
   } catch (error) {
     console.error('[SSE Auth] Authentication error:', error);
@@ -118,7 +145,7 @@ export async function authenticateSSERequest(req: NextRequest) {
       userId: null,
       authenticated: false,
       method: null,
-      error: 'Authentication error'
+      error: error instanceof Error ? error.message : 'Authentication error'
     };
   }
 }
@@ -156,4 +183,46 @@ export async function generateSSETokenHandler(req: NextRequest) {
     console.error('[SSE Auth] Error generating token:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
+}
+
+/**
+ * Get SSE token for authenticated client use
+ * 
+ * This function can be called from client-side code to get a token for SSE authentication
+ */
+export async function getSSEToken(): Promise<{ token: string; expiresAt: number } | null> {
+  try {
+    const response = await fetch('/api/auth/sse-token', {
+      method: 'GET',
+      credentials: 'include'
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to get SSE token: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    return {
+      token: data.token,
+      expiresAt: data.expiresAt
+    };
+  } catch (error) {
+    console.error('[SSE Auth] Error getting token:', error);
+    return null;
+  }
+}
+
+/**
+ * Refresh SSE token if it's about to expire
+ */
+export async function refreshSSETokenIfNeeded(currentToken: string | null, expiresAt: number): Promise<{ token: string; expiresAt: number } | null> {
+  // Check if token needs refresh (5 minutes before expiry)
+  const now = Date.now();
+  const refreshThreshold = 5 * 60 * 1000; // 5 minutes
+  
+  if (!currentToken || (expiresAt - now) < refreshThreshold) {
+    return await getSSEToken();
+  }
+  
+  return null;
 }
