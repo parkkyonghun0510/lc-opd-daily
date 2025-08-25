@@ -12,6 +12,7 @@
     "build:production": "NODE_ENV=production next build --no-lint",
     "build:production:force": "./scripts/production-build.sh",
     "build:railway": "NODE_ENV=production next build --no-lint",
+    "build:worker": "tsc -p tsconfig.worker.json",
 
     "deploy": "bash scripts/deploy-lightsail.sh",
 
