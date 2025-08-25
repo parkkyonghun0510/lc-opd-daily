@@ -73,6 +73,7 @@ import { PrintDialog } from "@/components/reports/PrintDialog";
 import { PrintableReport } from "@/components/reports/PrintableReport";
 import { useReactToPrint } from "react-to-print";
 import type { UseReactToPrintOptions } from 'react-to-print';
+import { flushSync } from "react-dom";
 
 // Types
 export type FilterState = {
@@ -280,7 +281,10 @@ export default function ApprovalsPage() {
   } as UseReactToPrintOptions);
 
   const handlePrintWithOptions = useCallback((options: typeof printOptions) => {
-    setPrintOptions(options);
+    // Ensure state is flushed before printing to avoid race conditions
+    flushSync(() => {
+      setPrintOptions(options);
+    });
     handlePrint();
   }, [handlePrint]);
 
@@ -865,7 +869,7 @@ export default function ApprovalsPage() {
           </div>
 
           {/* Add hidden printable content */}
-          <div className="hidden">
+          <div className="absolute -left-[9999px] -top-[9999px] h-0 w-0 overflow-hidden">
             <PrintableReport
               ref={printRef}
               reports={memoizedSortedData}
