@@ -135,6 +135,13 @@ export class DragonflySSEHandler extends BaseSSEHandler {
   private handleBroadcastMessage(message: DragonflySSEMessage): void {
     try {
       const { sseEvent } = message;
+      
+      // Check if sseEvent exists and has required properties
+      if (!sseEvent || !sseEvent.type) {
+        console.warn('[DragonflySSE] Invalid broadcast message: missing sseEvent or type', message);
+        return;
+      }
+      
       super.broadcastEvent(sseEvent.type, sseEvent.data, {
         id: sseEvent.id
       });
@@ -154,6 +161,12 @@ export class DragonflySSEHandler extends BaseSSEHandler {
   private handleSystemMessage(message: DragonflySSEMessage): void {
     try {
       const { sseEvent, targetUserId } = message;
+      
+      // Check if sseEvent exists and has required properties
+      if (!sseEvent || !sseEvent.type) {
+        console.warn('[DragonflySSE] Invalid system message: missing sseEvent or type', message);
+        return;
+      }
       
       if (targetUserId) {
         super.sendEventToUser(targetUserId, sseEvent.type, sseEvent.data, {
