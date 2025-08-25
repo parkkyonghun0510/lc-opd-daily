@@ -24,6 +24,7 @@ export { MetricCardSkeleton } from "./skeletons/MetricCardSkeleton";
 
 // Tables
 export { BranchStatusTable } from "./tables/BranchStatusTable";
+export { DefaultBranchList } from "./tables/DefaultBranchList";
 
 // Tooltips
 export { CustomBranchTooltip } from "./tooltips/CustomBranchTooltip";
@@ -41,3 +42,7 @@ export type {
     ChartClickData,
     TimeSeriesDataPoint,
 } from "./types/consolidated-types";
+
+// Additional types
+export type { DefaultBranchListProps } from "./tables/DefaultBranchList";
+

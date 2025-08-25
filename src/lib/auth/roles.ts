@@ -173,8 +173,8 @@ export function canAccessBranch(
   }
 }
 
-// Function to get all accessible branches for a user
-export function getAccessibleBranches(
+// Function to get all accessible branches for a user based on hierarchy
+export function getAccessibleBranchIds(
   userRole: UserRole,
   userBranchId: string | null,
   branchHierarchy: BranchHierarchy[],

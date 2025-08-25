@@ -24,6 +24,8 @@ import {
   FileSpreadsheetIcon,
   Loader2,
   RefreshCw,
+  ToggleLeft,
+  ToggleRight,
 } from "lucide-react";
 
 // Utilities
@@ -57,6 +59,7 @@ import {
   
   // Tables
   BranchStatusTable,
+  DefaultBranchList,
   
   // Types
   type ConsolidatedData,
@@ -105,6 +108,7 @@ export default function ConsolidatedView() {
   const [selectedBranch, setSelectedBranch] = useState<string | null>(null);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [exportType, setExportType] = useState<"csv" | "pdf">("csv");
+  const [showDefaultBranchList, setShowDefaultBranchList] = useState(false);
 
   // Scroll references for animations
   const chartRefs = {
@@ -819,6 +823,11 @@ export default function ConsolidatedView() {
     handleBarClick(clickedData);
   };
 
+  // Handle toggling between consolidated data view and default branch list
+  const handleToggleBranchView = () => {
+    setShowDefaultBranchList(!showDefaultBranchList);
+  };
+
   // Handle closing the branch detail dialog
   const handleCloseDialog = () => {
     setSelectedBranch(null);
@@ -886,6 +895,27 @@ export default function ConsolidatedView() {
                   <span>Generate</span>
                 )}
               </Button>
+              
+              {/* Toggle for Branch View */}
+              <Button
+                onClick={handleToggleBranchView}
+                variant={showDefaultBranchList ? "default" : "outline"}
+                size="sm"
+                className="flex items-center gap-2"
+              >
+                {showDefaultBranchList ? (
+                  <ToggleRight className="h-4 w-4" />
+                ) : (
+                  <ToggleLeft className="h-4 w-4" />
+                )}
+                <span className="hidden sm:inline">
+                  {showDefaultBranchList ? "Show Reports" : "Show All Branches"}
+                </span>
+                <span className="sm:hidden">
+                  {showDefaultBranchList ? "Reports" : "Branches"}
+                </span>
+              </Button>
+              
               <div className="flex flex-1 gap-2 sm:justify-end">
                 <Button
                   onClick={() => {
@@ -988,102 +1018,136 @@ export default function ConsolidatedView() {
             </div>
           )}
 
-          {/* Data display - only shown when data is loaded */}
-          {consolidatedData && !isLoading && !error && (
+          {/* Conditional content based on view mode */}
+          {showDefaultBranchList ? (
+            /* Default Branch List View */
             <div className="animate-in fade-in-50 slide-in-from-bottom-4 duration-300">
-              {/* Metrics Overview Cards */}
-              <div className="mb-8">
-                <MetricCards
-                  data={consolidatedData}
-                  onViewMissingBranches={() => {
-                    toast({
-                      title: "Missing Branches",
-                      description: `${consolidatedData.missingBranches.length} branches have not reported.`,
-                    });
-                  }}
-                />
-              </div>
-
-              {/* Charts Section */}
-              <div className="space-y-6">
-                {/* Branch Performance Chart */}
-                <div className="rounded-lg border shadow-sm">
-                  {consolidatedData && (
-                    <BranchPerformanceChart
-                      data={consolidatedData}
-                      collapsed={collapsedSections.branchPerformance}
-                      onToggleCollapse={() => toggleSection("branchPerformance")}
-                      visibleMetrics={visibleMetrics}
-                      showYearOverYear={showYearOverYear}
-                      onToggleMetric={toggleMetricVisibility}
-                      onToggleYearOverYear={() => setShowYearOverYear(!showYearOverYear)}
-                      onChartClick={handleChartClick}
-                    />
-                  )}
-                </div>
-
-                {/* Time Series Chart */}
-                <div className="rounded-lg border shadow-sm">
-                  {consolidatedData && consolidatedData.historicalData && consolidatedData.historicalData.length > 0 && (
-                    <TimeSeriesChart
-                      data={consolidatedData}
-                      collapsed={collapsedSections.timeSeries}
-                      period={period}
-                      onToggleCollapse={() => toggleSection("timeSeries")}
-                      visibleMetrics={visibleMetrics}
-                      showYearOverYear={showYearOverYear}
-                      onToggleMetric={toggleMetricVisibility}
-                      onToggleYearOverYear={() => setShowYearOverYear(!showYearOverYear)}
-                      onChartClick={handleChartClick}
-                    />
-                  )}
-                </div>
-
-                {/* Trend Analysis Chart */}
-                <div className="rounded-lg border shadow-sm">
-                  {consolidatedData && consolidatedData.historicalData && consolidatedData.historicalData.length > 0 && (
-                    <TrendAnalysisChart
-                      data={consolidatedData}
-                      collapsed={collapsedSections.trendAnalysis}
-                      onToggleCollapse={() => toggleSection("trendAnalysis")}
-                    />
-                  )}
-                </div>
-
-                {/* Plan vs Actual Comparison */}
-                {reportType === "actual" && planData && consolidatedData && (
-                  <div className="rounded-lg border shadow-sm overflow-hidden">
-                    <div className="bg-muted/50 p-4">
-                      <h3 className="text-lg font-medium">Plan vs. Actual Comparison</h3>
-                    </div>
-                    <div className="p-4">
-                      <PlanVsActualChart
-                        consolidatedData={consolidatedData}
-                        planData={planData}
-                      />
+              <div className="mb-4">
+                <div className="rounded-lg border-l-4 border-l-blue-500 bg-blue-50 p-4 dark:bg-blue-900/10">
+                  <div className="flex">
+                    <div className="ml-3">
+                      <p className="text-sm text-blue-700 dark:text-blue-400">
+                        <strong>Branch Status Overview:</strong> Showing all available branches in the system. 
+                        Use the "Show Reports" toggle to view consolidated report data.
+                      </p>
                     </div>
                   </div>
-                )}
-
-                {/* Branch Status Table */}
-                <div className="rounded-lg border shadow-sm overflow-hidden">
-                  {consolidatedData && (
-                    <div className="space-y-4">
-                      <div className="bg-muted/50 p-4">
-                        <h3 className="text-lg font-medium">Branch Status</h3>
-                      </div>
-                      <div className="p-4">
-                        <BranchStatusTable 
-                          consolidatedData={consolidatedData}
-                          planData={planData}
-                          reportType={reportType}
-                        />
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
+              <DefaultBranchList 
+                className="mb-6"
+                onBranchSelect={(branchId) => {
+                  console.log('Selected branch:', branchId);
+                  toast({
+                    title: "Branch Selected",
+                    description: `Viewing details for branch: ${branchId}`,
+                  });
+                  // You can add navigation logic here if needed
+                }}
+                showActions={true}
+              />
             </div>
+          ) : (
+            /* Consolidated Reports View */
+            <>
+              {/* Data display - only shown when data is loaded */}
+              {consolidatedData && !isLoading && !error && (
+                <div className="animate-in fade-in-50 slide-in-from-bottom-4 duration-300">
+                  {/* Metrics Overview Cards */}
+                  <div className="mb-8">
+                    <MetricCards
+                      data={consolidatedData}
+                      onViewMissingBranches={() => {
+                        toast({
+                          title: "Missing Branches",
+                          description: `${consolidatedData.missingBranches.length} branches have not reported.`,
+                        });
+                      }}
+                    />
+                  </div>
+
+                  {/* Charts Section */}
+                  <div className="space-y-6">
+                    {/* Branch Performance Chart */}
+                    <div className="rounded-lg border shadow-sm">
+                      {consolidatedData && (
+                        <BranchPerformanceChart
+                          data={consolidatedData}
+                          collapsed={collapsedSections.branchPerformance}
+                          onToggleCollapse={() => toggleSection("branchPerformance")}
+                          visibleMetrics={visibleMetrics}
+                          showYearOverYear={showYearOverYear}
+                          onToggleMetric={toggleMetricVisibility}
+                          onToggleYearOverYear={() => setShowYearOverYear(!showYearOverYear)}
+                          onChartClick={handleChartClick}
+                        />
+                      )}
+                    </div>
+
+                    {/* Time Series Chart */}
+                    <div className="rounded-lg border shadow-sm">
+                      {consolidatedData && consolidatedData.historicalData && consolidatedData.historicalData.length > 0 && (
+                        <TimeSeriesChart
+                          data={consolidatedData}
+                          collapsed={collapsedSections.timeSeries}
+                          period={period}
+                          onToggleCollapse={() => toggleSection("timeSeries")}
+                          visibleMetrics={visibleMetrics}
+                          showYearOverYear={showYearOverYear}
+                          onToggleMetric={toggleMetricVisibility}
+                          onToggleYearOverYear={() => setShowYearOverYear(!showYearOverYear)}
+                          onChartClick={handleChartClick}
+                        />
+                      )}
+                    </div>
+
+                    {/* Trend Analysis Chart */}
+                    <div className="rounded-lg border shadow-sm">
+                      {consolidatedData && consolidatedData.historicalData && consolidatedData.historicalData.length > 0 && (
+                        <TrendAnalysisChart
+                          data={consolidatedData}
+                          collapsed={collapsedSections.trendAnalysis}
+                          onToggleCollapse={() => toggleSection("trendAnalysis")}
+                        />
+                      )}
+                    </div>
+
+                    {/* Plan vs Actual Comparison */}
+                    {reportType === "actual" && planData && consolidatedData && (
+                      <div className="rounded-lg border shadow-sm overflow-hidden">
+                        <div className="bg-muted/50 p-4">
+                          <h3 className="text-lg font-medium">Plan vs. Actual Comparison</h3>
+                        </div>
+                        <div className="p-4">
+                          <PlanVsActualChart
+                            consolidatedData={consolidatedData}
+                            planData={planData}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Branch Status Table */}
+                    <div className="rounded-lg border shadow-sm overflow-hidden">
+                      {consolidatedData && (
+                        <div className="space-y-4">
+                          <div className="bg-muted/50 p-4">
+                            <h3 className="text-lg font-medium">Branch Status</h3>
+                          </div>
+                          <div className="p-4">
+                            <BranchStatusTable 
+                              consolidatedData={consolidatedData}
+                              planData={planData}
+                              reportType={reportType}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       </CardContent>

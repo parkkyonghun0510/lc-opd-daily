@@ -20,8 +20,8 @@ const CACHE_DURATION = 60; // 1 minute cache
 
 // Cached version of getAccessibleBranches
 const getCachedAccessibleBranches = unstable_cache(
-  async (userId: string, userRole: UserRole) => {
-    return await getAccessibleBranches(userId, userRole);
+  async (userId: string) => {
+    return await getAccessibleBranches(userId);
   },
   [CACHE_TAGS.BRANCH_DATA],
   {
@@ -183,7 +183,7 @@ export async function fetchDashboardSummary(
 
     let accessibleBranchIds: string[] | undefined = undefined;
     if (user.role !== UserRole.ADMIN) {
-      const branches = await getAccessibleBranches(user.id, user.role as UserRole);
+      const branches = await getAccessibleBranches(user.id);
       accessibleBranchIds = branches.map(b => b.id);
       if (accessibleBranchIds.length === 0) {
         return { status: 200, data: { totalUsers: 0, totalReports: 0, pendingReports: 0, totalAmount: 0, adminUsers: 0, growthRate: 0 } };
@@ -438,7 +438,7 @@ export async function fetchUserDashboardData() {
     const userRole = user.role;
 
     // Get accessible branches for the user (with caching)
-    const accessibleBranches = await getCachedAccessibleBranches(userId, userRole as UserRole);
+    const accessibleBranches = await getCachedAccessibleBranches(userId);
     const branchIds = accessibleBranches.map(branch => branch.id);
 
     if (branchIds.length === 0) {

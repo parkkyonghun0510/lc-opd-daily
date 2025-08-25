@@ -4,7 +4,7 @@ import { PrismaClient, Prisma } from "@prisma/client";
 import { getToken } from "next-auth/jwt";
 import { z } from "zod";
 import { UserRole } from "@/lib/auth/roles";
-import { getAccessibleBranches } from "@/lib/auth/branch-access";
+import { getAccessibleBranches, getAccessibleBranchesWithReportStatus } from "@/lib/auth/branch-access";
 import { prisma } from "@/lib/prisma";
 
 const prismaClient = new PrismaClient();
@@ -46,8 +46,8 @@ export async function GET(request: NextRequest) {
     
     // If filtered access is requested (default), get only branches the user has access to
     if (filterByAccess) {
-      // Get branches the user has access to
-      const accessibleBranches = await getAccessibleBranches(userId);
+      // Get branches the user has access to with today's report status
+      const accessibleBranches = await getAccessibleBranchesWithReportStatus(userId);
       
       // Apply search filter if needed
       let filteredBranches = accessibleBranches;
@@ -63,8 +63,7 @@ export async function GET(request: NextRequest) {
       
       return NextResponse.json(filteredBranches);
     } else {
-      // For admin-only views, get all branches
-      // Build the query
+      // For admin-only views, get all branches with complete information
       const where: Prisma.BranchWhereInput = searchQuery 
         ? {
             OR: [
@@ -74,7 +73,11 @@ export async function GET(request: NextRequest) {
           } 
         : {};
 
-      // Fetch branches
+      // Get today's date for checking daily reports
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Set to start of day
+      
+      // Fetch branches with complete information including today's report status
       const branches = await prisma.branch.findMany({
         where,
         select: {
@@ -83,6 +86,8 @@ export async function GET(request: NextRequest) {
           code: true,
           parentId: true,
           isActive: true,
+          createdAt: true,
+          updatedAt: true,
           parent: {
             select: {
               id: true,
@@ -96,12 +101,32 @@ export async function GET(request: NextRequest) {
               reports: true,
               children: true,
             }
+          },
+          reports: {
+            where: {
+              date: today,
+              reportType: "actual",
+              status: { not: "cancelled" }
+            },
+            select: {
+              id: true,
+              status: true,
+              submittedAt: true
+            }
           }
         },
         orderBy: { code: "asc" },
       });
 
-      return NextResponse.json(branches);
+      // Transform the data to include hasReportToday flag
+      const branchesWithReportStatus = branches.map(branch => ({
+        ...branch,
+        hasReportToday: branch.reports.length > 0,
+        todayReportStatus: branch.reports[0]?.status || null,
+        reports: undefined // Remove the reports array from the response to keep it clean
+      }));
+
+      return NextResponse.json(branchesWithReportStatus);
     }
   } catch (error) {
     console.error("Error fetching branches:", error);

@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
     const date = searchParams.get("date");
 
     // Get accessible branches for the user
-    const accessibleBranches = await getAccessibleBranches(token.sub as string, userRole);
+    const accessibleBranches = await getAccessibleBranches(token.sub as string);
     const accessibleBranchIds = accessibleBranches.map(branch => branch.id);
 
     // Build where clause
