@@ -8,7 +8,8 @@ import { sendToNotificationQueue } from "@/lib/queue/sqs";
 import { getUsersForNotification } from "@/utils/notificationTargeting";
 import { hasBranchAccess } from "@/lib/auth/branch-access";
 import { createDirectNotifications } from "@/utils/createDirectNotification";
-import { broadcastDashboardUpdate, DashboardEventTypes } from "@/lib/events/dashboardEvents";
+import { broadcastDashboardUpdate } from "@/lib/events/dashboard-broadcaster";
+import { DashboardEventTypes } from "@/lib/events/dashboard-events";
 
 import { v4 as uuidv4 } from "uuid";
 import { format } from "date-fns";
@@ -298,9 +299,7 @@ export async function POST(
 
     // Broadcast the status change via hybrid realtime for real-time updates
     try {
-      const eventType = status === "approved"
-        ? DashboardEventTypes.REPORT_APPROVED
-        : DashboardEventTypes.REPORT_REJECTED;
+      const eventType = DashboardEventTypes.REPORT_STATUS_UPDATED;
 
       broadcastDashboardUpdate(
         eventType,
