@@ -1,62 +1,157 @@
-import { useState, useCallback } from 'react';
+'use client';
 
-interface CacheEntry<T> {
-    data: T;
-    timestamp: number;
+import { useCallback, useMemo } from 'react';
+import { apiCacheManager } from '@/lib/cache/cache-manager';
+
+interface UseApiCacheOptions {
+  ttl?: number; // Time to live in milliseconds
+  tags?: string[];
+  enableMetrics?: boolean;
 }
 
-interface CacheConfig {
-    ttl?: number; // Time to live in milliseconds
-    maxEntries?: number;
+interface ApiCacheReturn {
+  get: <T = any>(key: string) => T | null;
+  set: <T = any>(key: string, data: T, options?: { ttl?: number; tags?: string[] }) => void;
+  delete: (key: string) => boolean;
+  invalidate: (key: string) => boolean;
+  has: (key: string) => boolean;
+  clear: () => void;
+  invalidateByPattern: (pattern: string | RegExp) => number;
+  invalidateByTags: (tags: string[]) => number;
 }
 
-export function useApiCache<T>(config: CacheConfig = {}) {
-    const { ttl = 5 * 60 * 1000, maxEntries = 100 } = config;
-    const [cache] = useState<Map<string, CacheEntry<T>>>(new Map());
+/**
+ * Simple API cache hook that provides basic caching functionality
+ * Uses the apiCacheManager for consistent caching across the application
+ */
+export function useApiCache(options: UseApiCacheOptions = {}): ApiCacheReturn {
+  const {
+    ttl = 300000, // 5 minutes default
+    tags = [],
+    enableMetrics = false
+  } = options;
 
-    const set = useCallback((key: string, data: T) => {
-        // Remove oldest entries if cache is full
-        if (cache.size >= maxEntries) {
-            const oldestKey = cache.keys().next().value;
-            if (oldestKey !== undefined) {
-                cache.delete(oldestKey);
-            }
-        }
+  const get = useCallback(<T = any>(key: string): T | null => {
+    try {
+      const cached = apiCacheManager.get(key);
+      if (enableMetrics && cached) {
+        // Log cache hit if metrics are enabled
+        console.debug(`Cache hit for key: ${key}`);
+      }
+      return cached as T | null;
+    } catch (error) {
+      console.error('Cache get error:', error);
+      return null;
+    }
+  }, [enableMetrics]);
 
-        cache.set(key, {
-            data,
-            timestamp: Date.now(),
-        });
-    }, [cache, maxEntries]);
+  const set = useCallback(<T = any>(
+    key: string, 
+    data: T, 
+    setOptions: { ttl?: number; tags?: string[] } = {}
+  ): void => {
+    try {
+      const finalTtl = setOptions.ttl ?? ttl;
+      const finalTags = [...tags, ...(setOptions.tags || [])];
+      
+      apiCacheManager.set(key, data, {
+        ttl: finalTtl,
+        tags: finalTags
+      });
+      
+      if (enableMetrics) {
+        console.debug(`Cache set for key: ${key}, TTL: ${finalTtl}ms`);
+      }
+    } catch (error) {
+      console.error('Cache set error:', error);
+    }
+  }, [ttl, tags, enableMetrics]);
 
-    const get = useCallback((key: string): T | null => {
-        const entry = cache.get(key);
+  const deleteKey = useCallback((key: string): boolean => {
+    try {
+      const result = apiCacheManager.delete(key);
+      if (enableMetrics) {
+        console.debug(`Cache delete for key: ${key}, success: ${result}`);
+      }
+      return result;
+    } catch (error) {
+      console.error('Cache delete error:', error);
+      return false;
+    }
+  }, [enableMetrics]);
 
-        if (!entry) {
-            return null;
-        }
+  const invalidate = useCallback((key: string): boolean => {
+    return deleteKey(key);
+  }, [deleteKey]);
 
-        // Check if entry has expired
-        if (Date.now() - entry.timestamp > ttl) {
-            cache.delete(key);
-            return null;
-        }
+  const has = useCallback((key: string): boolean => {
+    try {
+      return apiCacheManager.has(key);
+    } catch (error) {
+      console.error('Cache has error:', error);
+      return false;
+    }
+  }, []);
 
-        return entry.data;
-    }, [cache, ttl]);
+  const clear = useCallback((): void => {
+    try {
+      apiCacheManager.clear();
+      if (enableMetrics) {
+        console.debug('Cache cleared');
+      }
+    } catch (error) {
+      console.error('Cache clear error:', error);
+    }
+  }, [enableMetrics]);
 
-    const invalidate = useCallback((key: string) => {
-        cache.delete(key);
-    }, [cache]);
+  const invalidateByPattern = useCallback((pattern: string | RegExp): number => {
+    try {
+      const count = apiCacheManager.invalidateByPattern(pattern);
+      if (enableMetrics) {
+        console.debug(`Cache invalidated ${count} entries by pattern:`, pattern);
+      }
+      return count;
+    } catch (error) {
+      console.error('Cache invalidate by pattern error:', error);
+      return 0;
+    }
+  }, [enableMetrics]);
 
-    const clear = useCallback(() => {
-        cache.clear();
-    }, [cache]);
+  const invalidateByTags = useCallback((tagsToInvalidate: string[]): number => {
+    try {
+      const count = apiCacheManager.invalidateByTags(tagsToInvalidate);
+      if (enableMetrics) {
+        console.debug(`Cache invalidated ${count} entries by tags:`, tagsToInvalidate);
+      }
+      return count;
+    } catch (error) {
+      console.error('Cache invalidate by tags error:', error);
+      return 0;
+    }
+  }, [enableMetrics]);
 
-    return {
-        get,
-        set,
-        invalidate,
-        clear,
-    };
+  return useMemo(() => ({
+    get,
+    set,
+    delete: deleteKey,
+    invalidate,
+    has,
+    clear,
+    invalidateByPattern,
+    invalidateByTags
+  }), [get, set, deleteKey, invalidate, has, clear, invalidateByPattern, invalidateByTags]);
+}
+
+/**
+ * Hook for simple key-value caching with automatic TTL
+ */
+export function useSimpleCache(defaultTtl: number = 300000) {
+  return useApiCache({ ttl: defaultTtl });
+}
+
+/**
+ * Hook for tagged caching with invalidation support
+ */
+export function useTaggedCache(tags: string[], ttl: number = 300000) {
+  return useApiCache({ tags, ttl });
 }

@@ -2,16 +2,35 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
-// File storage configuration
-const UPLOAD_DIR = process.env.UPLOAD_DIR || './uploads';
-const PUBLIC_URL = process.env.PUBLIC_URL || 'http://localhost:3000';
+// Railway-compatible file storage configuration
+const UPLOAD_DIR = process.env.UPLOAD_DIR || (process.env.RAILWAY_ENVIRONMENT ? '/app/uploads' : './uploads');
+const PUBLIC_URL = process.env.PUBLIC_URL || 
+  (process.env.RAILWAY_STATIC_URL || 
+   process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : 
+   'http://localhost:3000');
+const IS_RAILWAY = process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY_PROJECT_ID;
 
-// Ensure upload directory exists
+// Ensure upload directory exists with Railway-specific handling
 async function ensureUploadDir() {
   try {
     await fs.mkdir(UPLOAD_DIR, { recursive: true });
+    
+    // Set proper permissions on Railway
+    if (IS_RAILWAY) {
+      try {
+        await fs.chmod(UPLOAD_DIR, 0o755);
+      } catch (chmodError) {
+        console.warn('Could not set upload directory permissions:', chmodError);
+      }
+    }
   } catch (error) {
     console.error('Error creating upload directory:', error);
+    
+    // On Railway, log additional context
+    if (IS_RAILWAY) {
+      console.error('Railway environment detected. Upload directory:', UPLOAD_DIR);
+      console.error('Current working directory:', process.cwd());
+    }
   }
 }
 

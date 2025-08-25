@@ -61,6 +61,8 @@
     "validate:build": "npm run validate:env && npm run build",
     "validate:production": "NODE_ENV=production npm run validate:env",
     "validate:railway": "node scripts/railway-pre-deploy-validation.js",
+    "generate:server-key": "node scripts/generate-server-action-key.js",
+    "validate:server-actions": "node scripts/validate-server-actions.js",
     "test:notification": "node testsprite_tests/run-tests.js notification",
     "test:notification:integration": "node testsprite_tests/run-tests.js integration",
     "test:notification:interaction": "node testsprite_tests/run-tests.js interaction",

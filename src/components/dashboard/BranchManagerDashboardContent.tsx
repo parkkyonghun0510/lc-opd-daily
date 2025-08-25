@@ -17,6 +17,7 @@ import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { QuickActions } from './navigation/QuickActions';
 import { useUserData } from '@/contexts/UserDataContext';
+import { DashboardHeader, MetricsGrid, DataTableCard } from '@/components/ui/layouts';
 
 interface BranchDashboardContentProps {
     dashboardData: {
@@ -74,28 +75,25 @@ const BranchManagerDashboardContent: React.FC<BranchDashboardContentProps> = ({
     return (
         <div className="space-y-6">
             {/* Branch Overview Header */}
-            <div className="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-lg p-6 text-white">
-                <div className="flex justify-between items-start">
-                    <div>
-                        <h2 className="text-2xl font-semibold mb-2">{branchName || `${firstName}`}</h2>
-                        <p className="opacity-90">Branch Performance Dashboard</p>
-                    </div>
-                    {branchRank > 0 && (
-                        <div className="text-right">
-                            <p className="text-sm opacity-90">Branch Ranking</p>
-                            <p className="text-3xl font-bold">
-                                {branchRank}<sup>{getRankSuffix(branchRank)}</sup>
-                            </p>
-                        </div>
-                    )}
-                </div>
-            </div>
+            <DashboardHeader
+                title={branchName || `${firstName}`}
+                subtitle="Branch Performance Dashboard"
+                gradient="purple"
+                rightContent={branchRank > 0 ? (
+                    <div className="text-right">
+                         <p className="text-sm opacity-90">Branch Ranking</p>
+                         <p className="text-3xl font-bold">
+                             {branchRank}<sup>{getRankSuffix(branchRank)}</sup>
+                         </p>
+                     </div>
+                 ) : undefined}
+            />
 
             {/* Quick Actions */}
             <QuickActions />
 
             {/* Key Metrics */}
-            <div className="grid gap-4 md:grid-cols-4">
+            <MetricsGrid columns={4}>
                 {/* <DashboardCard
                     title="Total Staff"
                     value={branchStaff}
@@ -125,7 +123,7 @@ const BranchManagerDashboardContent: React.FC<BranchDashboardContentProps> = ({
                     isLoading={isLoading}
                     className={growthRate >= 0 ? "bg-green-50" : "bg-red-50"}
                 /> */}
-            </div>
+            </MetricsGrid>
 
             {/* Performance Metrics */}
             <div className="grid gap-4 md:grid-cols-2">
@@ -179,57 +177,45 @@ const BranchManagerDashboardContent: React.FC<BranchDashboardContentProps> = ({
                 </Card> */}
             </div>
 
-            {/* Recent Reports */}
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <ScrollText className="h-5 w-5" />
-                        Recent Reports
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    {isLoading ? (
-                        <div className="space-y-2">
-                            {[...Array(3)].map((_, i) => (
-                                <div key={i} className="h-12 bg-gray-100 dark:bg-gray-800 rounded animate-pulse" />
-                            ))}
-                        </div>
-                    ) : (
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Report</TableHead>
-                                    <TableHead>Created</TableHead>
-                                    <TableHead>Status</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {recentReports.map((report) => (
-                                    <TableRow key={report.id}>
-                                        <TableCell className="font-medium">{report.title}</TableCell>
-                                        <TableCell>
-                                            {new Date(report.createdAt).toLocaleDateString()}
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge
-                                                variant={
-                                                    report.status === 'approved'
-                                                        ? 'default'
-                                                        : report.status === 'pending'
-                                                            ? 'secondary'
-                                                            : 'destructive'
-                                                }
-                                            >
-                                                {report.status}
-                                            </Badge>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    )}
-                </CardContent>
-            </Card>
+            {/* Recent Reports Table */}
+            <DataTableCard
+                title="Recent Reports"
+                icon={ScrollText}
+                loadingRows={5}
+            >
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Report</TableHead>
+                            <TableHead>Created</TableHead>
+                            <TableHead>Status</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {recentReports.map((report) => (
+                            <TableRow key={report.id}>
+                                <TableCell className="font-medium">{report.title}</TableCell>
+                                <TableCell>
+                                    {new Date(report.createdAt).toLocaleDateString()}
+                                </TableCell>
+                                <TableCell>
+                                    <Badge
+                                        variant={
+                                            report.status === 'approved'
+                                                ? 'default'
+                                                : report.status === 'pending'
+                                                    ? 'secondary'
+                                                    : 'destructive'
+                                        }
+                                    >
+                                        {report.status}
+                                    </Badge>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </DataTableCard>
         </div>
     );
 };

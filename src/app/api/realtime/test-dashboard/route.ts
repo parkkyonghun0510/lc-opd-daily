@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
-import { broadcastDashboardUpdate, DashboardEventTypes } from '@/lib/events/dashboardEvents';
+import { broadcastDashboardUpdate } from '@/lib/events/dashboard-broadcaster';
+import { DashboardEventTypes } from '@/lib/events/dashboard-events';
 
 /**
  * Test API for sending dashboard updates

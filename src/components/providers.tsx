@@ -3,20 +3,19 @@
 import { SessionProvider } from "next-auth/react";
 import { UserDataProvider, useUserData } from "@/contexts/UserDataContext";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
-import { NextAuthProvider } from "@/components/providers/NextAuthProvider";
 import { ServerErrorBoundary } from "@/components/ui/ServerErrorBoundary";
-import { useEffect } from "react";
+import { useEffect, lazy, Suspense } from "react";
 import { warmCacheAction } from "@/app/_actions/cache-actions";
 import { Toaster as SonnerToaster } from "sonner";
-import { PushNotificationButton } from "@/components/PushNotificationButton";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 
-// Import auth components
-import { StoreSynchronizer } from "@/auth/components/StoreSynchronizer";
-import { SessionActivityTracker } from "@/auth/components/SessionActivityTracker";
-import { HybridRealtimeProvider } from "@/components/providers/HybridRealtimeProvider";
+// Lazy load heavy components
+const StoreSynchronizer = lazy(() => import("@/auth/components/StoreSynchronizer").then(m => ({ default: m.StoreSynchronizer })));
+const SessionActivityTracker = lazy(() => import("@/auth/components/SessionActivityTracker").then(m => ({ default: m.SessionActivityTracker })));
+const ZustandHybridRealtimeProvider = lazy(() => import("@/components/dashboard/ZustandHybridRealtimeProvider").then(m => ({ default: m.ZustandHybridRealtimeProvider })));
+const PushNotificationButton = lazy(() => import("@/components/PushNotificationButton").then(m => ({ default: m.PushNotificationButton })));
 
-// Separate component to use the useUserData hook
+// Optimized app content with lazy loading
 function AppContent({ children }: { children: React.ReactNode }) {
   const { serverError, refreshUserData, persistentError, handleClearAuth } = useUserData();
 
@@ -30,9 +29,14 @@ function AppContent({ children }: { children: React.ReactNode }) {
       <div className="relative flex min-h-screen flex-col">
         <div className="flex-1">{children}</div>
       </div>
-      <div className="fixed bottom-4 right-4 z-50">
-        <PushNotificationButton />
-      </div>
+      
+      {/* Lazy loaded components with fallbacks */}
+      <Suspense fallback={null}>
+        <div className="fixed bottom-4 right-4 z-50">
+          <PushNotificationButton />
+        </div>
+      </Suspense>
+      
       <ServerErrorBoundary
         error={serverError}
         onRetry={refreshUserData}
@@ -44,7 +48,8 @@ function AppContent({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function Providers({ children }: { children: React.ReactNode }) {
+// Combined provider for better performance
+function CombinedProviders({ children }: { children: React.ReactNode }) {
   return (
     <SessionProvider>
       <ThemeProvider
@@ -53,35 +58,47 @@ export function Providers({ children }: { children: React.ReactNode }) {
         enableSystem
         disableTransitionOnChange
       >
-        {/* Authentication state synchronization */}
-        <StoreSynchronizer
-          syncInterval={300} // 5 minutes
-          syncOnFocus={true}
-          syncOnReconnect={true}
-        />
-
-        {/* Session activity tracking */}
-        <SessionActivityTracker
-          warningTime={25}
-          expiryTime={30}
-          checkInterval={30}
-        />
-
         <UserDataProvider>
           <NotificationProvider>
-            <NextAuthProvider>
-              <HybridRealtimeProvider
-                options={{
-                  pollingInterval: 15000, // 15 seconds
-                  debug: process.env.NODE_ENV === 'development'
-                }}
-              >
-                <AppContent>{children}</AppContent>
-              </HybridRealtimeProvider>
-            </NextAuthProvider>
+            {children}
           </NotificationProvider>
         </UserDataProvider>
       </ThemeProvider>
     </SessionProvider>
+  );
+}
+
+// Lazy loaded auth components
+function LazyAuthComponents() {
+  return (
+    <Suspense fallback={null}>
+      <StoreSynchronizer
+        syncInterval={300} // 5 minutes
+        syncOnFocus={true}
+        syncOnReconnect={true}
+      />
+      <SessionActivityTracker
+        warningTime={25}
+        expiryTime={30}
+        checkInterval={30}
+      />
+    </Suspense>
+  );
+}
+
+export function Providers({ children }: { children: React.ReactNode }) {
+  return (
+    <CombinedProviders>
+      <LazyAuthComponents />
+      <Suspense fallback={<div className="flex items-center justify-center min-h-screen">Loading...</div>}>
+        <ZustandHybridRealtimeProvider
+          debug={process.env.NODE_ENV === 'development'}
+          autoRefreshInterval={15000}
+          showToasts={true}
+        >
+          <AppContent>{children}</AppContent>
+        </ZustandHybridRealtimeProvider>
+      </Suspense>
+    </CombinedProviders>
   );
 }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { eventEmitter } from '@/lib/realtime/eventEmitter';
-import { sseHandler } from '@/lib/realtime/sseHandler';
+import sseHandler from '@/lib/sse/sseHandler';
 
 /**
  * Test API for sending real-time events

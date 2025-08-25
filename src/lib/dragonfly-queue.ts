@@ -1,10 +1,15 @@
 import { createClient, RedisClientType } from 'redis';
 import { randomUUID } from 'crypto';
 
-// Dragonfly Redis configuration
-const DRAGONFLY_URL = process.env.DRAGONFLY_URL || 'redis://localhost:6379';
+// Dragonfly Redis configuration for Railway
+const DRAGONFLY_URL = process.env.DRAGONFLY_URL || process.env.REDIS_URL || 'redis://localhost:6379';
 const QUEUE_NAME = process.env.DRAGONFLY_QUEUE_NAME || 'notifications';
 const VISIBILITY_TIMEOUT = 60; // seconds
+
+// Railway-specific configuration
+const IS_RAILWAY = process.env.RAILWAY_ENVIRONMENT !== undefined;
+const CONNECTION_TIMEOUT = IS_RAILWAY ? 15000 : 10000;
+const RECONNECT_DELAY = IS_RAILWAY ? 1000 : 500;
 
 // Dragonfly Redis Queue Service - SQS Compatible Interface
 export class DragonflyQueueService {
@@ -20,9 +25,19 @@ export class DragonflyQueueService {
     this.client = createClient({
       url: DRAGONFLY_URL,
       socket: {
-        connectTimeout: 10000,
-        reconnectStrategy: (retries) => Math.min(retries * 50, 500),
+        connectTimeout: CONNECTION_TIMEOUT,
+        reconnectStrategy: (retries) => {
+          const delay = Math.min(retries * 50, RECONNECT_DELAY);
+          console.log(`Reconnecting to Redis (attempt ${retries}) in ${delay}ms`);
+          return delay;
+        },
+        keepAlive: IS_RAILWAY,
       },
+      // Railway-specific Redis configuration
+      ...(IS_RAILWAY && {
+        retry_unfulfilled_commands: true,
+        enable_offline_queue: false,
+      }),
     });
 
     this.client.on('error', (err) => {

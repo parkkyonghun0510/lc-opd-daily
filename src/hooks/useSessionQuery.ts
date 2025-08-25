@@ -85,12 +85,12 @@ export function useSessionQuery() {
       console.error('Session query error:', sessionQuery.error);
       
       // Handle specific error types
-      if (sessionQuery.error.message === 'UNAUTHORIZED') {
+      if ((sessionQuery.error as Error).message === 'UNAUTHORIZED') {
         auth.setUser(null);
         // Don't show toast for unauthorized - this is expected when not logged in
-      } else if (sessionQuery.error.message === 'SERVER_ERROR') {
+      } else if ((sessionQuery.error as Error).message === 'SERVER_ERROR') {
         toast.error('Server error. Please try again later.');
-      } else if (sessionQuery.error.message === 'FETCH_ERROR') {
+      } else if ((sessionQuery.error as Error).message === 'FETCH_ERROR') {
         toast.error('Network error. Please check your connection.');
       }
     }
@@ -177,8 +177,8 @@ export function useLogoutMutation() {
   const auth = useAuth();
 
   return useMutation({
-    mutationFn: async (callbackUrl = '/login') => {
-      await signOut({ redirect: false, callbackUrl });
+    mutationFn: async () => {
+      await signOut({ redirect: false });
     },
     onMutate: () => {
       auth.setLoading(true);

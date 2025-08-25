@@ -57,10 +57,10 @@ export async function GET(req: NextRequest) {
 
         if ('localUserCounts' in stats) {
             // Redis handler
-            userConnections = stats.localUserCounts[userId] || 0;
+            userConnections = (stats as any).localUserCounts[userId] || 0;
         } else {
             // Memory handler
-            userConnections = stats.userCounts[userId] || 0;
+            userConnections = (stats as any).userCounts[userId] || 0;
         }
 
         // Limit to 3 connections per user per instance
@@ -79,7 +79,8 @@ export async function GET(req: NextRequest) {
     // Get client metadata from query parameters
     const { searchParams } = new URL(req.url);
     const clientType = searchParams.get("clientType") || "browser";
-    const clientInfo = searchParams.get("clientInfo") || navigator.userAgent;
+    // Avoid using navigator on the server; fall back to request headers
+    const clientInfo = searchParams.get("clientInfo") || req.headers.get("user-agent") || "unknown";
 
     // Create SSE stream
     const stream = new ReadableStream({

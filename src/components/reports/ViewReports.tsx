@@ -1,5 +1,6 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import dynamic from "next/dynamic";
 import {
   Card,
   CardContent,
@@ -37,7 +38,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Loader2 } from "lucide-react";
 import { useSession } from "next-auth/react";
-import { CreateReportModal } from "@/components/reports/CreateReportModal";
+
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
@@ -79,13 +80,56 @@ import { PaginationControl } from "@/components/ui/pagination-control";
 import { ReportFilters } from "@/components/reports/ReportFilters";
 import { useRouter } from "next/navigation";
 import { Separator } from "@/components/ui/separator";
-import { ReportDetailModal, CommentConversation } from "@/components/reports/ReportDetailModal";
+
 import { CommentItem as CommentItemType } from "@/types/reports";
 import { useAccessibleBranches } from "@/hooks/useAccessibleBranches";
 
 // Import the ReportWithUser type from ReportDetailModal
 import type { ReportWithUser } from "@/components/reports/ReportDetailModal";
 import { TrendsSummary } from "./TrendsSummary";
+// Dynamically import heavy modals to reduce initial bundle size
+const ReportDetailModal = dynamic(
+  () =>
+    import("@/components/reports/ReportDetailModal").then(
+      (m) => m.ReportDetailModal
+    ),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="p-4">
+        <Loader2 className="h-5 w-5 animate-spin" />
+      </div>
+    ),
+  }
+);
+
+const CreateReportModal = dynamic(
+  () =>
+    import("@/components/reports/CreateReportModal").then(
+      (m) => m.CreateReportModal
+    ),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="p-4">
+        <Loader2 className="h-5 w-5 animate-spin" />
+      </div>
+    ),
+  }
+);
+
+const CommentConversation = dynamic(
+  () =>
+    import("@/components/reports/ReportDetailModal").then(
+      (m) => m.CommentConversation
+    ),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="p-2 text-xs text-muted-foreground">Loading conversation...</div>
+    ),
+  }
+);
 
 const calculateTrends = (reports: Report[]) => {
   if (!reports || reports.length === 0) {
@@ -264,6 +308,10 @@ export function ViewReports() {
 
   // Prefer accessibleBranches, fallback to userBranches for backward compatibility
   const branchesToUse = accessibleBranches && accessibleBranches.length > 0 ? accessibleBranches : (userBranches || []);
+
+  // Memoized aggregates to avoid recomputation on every render
+  const trends = useMemo(() => calculateTrends(reports), [reports]);
+  const totals = useMemo(() => calculateTotals(reports), [reports]);
 
   // If user has no branches assigned, show error message
   if (!branchesToUse || branchesToUse.length === 0) {
@@ -579,11 +627,11 @@ export function ViewReports() {
         ) : (
           <>
             <TrendsSummary
-              trends={calculateTrends(reports)}
+              trends={trends}
               formatCurrency={formatKHRCurrency}
               className="border-b border-gray-200 dark:border-gray-700"
-              totalWriteOffs={calculateTotals(reports).totalWriteOffs}
-              totalNinetyPlus={calculateTotals(reports).totalNinetyPlus}
+              totalWriteOffs={totals.totalWriteOffs}
+              totalNinetyPlus={totals.totalNinetyPlus}
               dateRange={{
                 start: startDate,
                 end: endDate

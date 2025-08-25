@@ -401,38 +401,25 @@ class CacheManager {
   }
 }
 
-// Global cache manager instance
+// Unified cache manager instance with optimized configuration
 const globalCacheManager = new CacheManager({
-  maxSize: 2000,
+  maxSize: 1500, // Reduced from multiple separate caches
   defaultTTL: 10 * 60 * 1000, // 10 minutes
   cleanupInterval: 2 * 60 * 1000, // 2 minutes
   enableMetrics: true,
   enableDependencyTracking: true
 });
 
-// Cache manager factory for creating specialized instances
+// Cache manager factory for creating specialized instances when needed
 export function createCacheManager(options: CacheManagerOptions = {}): CacheManager {
   return new CacheManager(options);
 }
 
-// Specialized cache managers
-export const apiCacheManager = createCacheManager({
-  maxSize: 500,
-  defaultTTL: 5 * 60 * 1000, // 5 minutes
-  enableDependencyTracking: true
-});
-
-export const userCacheManager = createCacheManager({
-  maxSize: 200,
-  defaultTTL: 15 * 60 * 1000, // 15 minutes
-  enableDependencyTracking: true
-});
-
-export const branchCacheManager = createCacheManager({
-  maxSize: 300,
-  defaultTTL: 30 * 60 * 1000, // 30 minutes
-  enableDependencyTracking: true
-});
+// Consolidated cache managers - using globalCacheManager for most operations
+// with different TTL strategies handled at the hook level
+export const apiCacheManager = globalCacheManager;
+export const userCacheManager = globalCacheManager;
+export const branchCacheManager = globalCacheManager;
 
 export { globalCacheManager };
 export type { CacheEntry, CacheManagerOptions, CacheMetrics };

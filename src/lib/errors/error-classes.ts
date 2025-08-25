@@ -230,6 +230,7 @@ export class AppNetworkError extends AppErrorBase implements NetworkError {
       context?: Record<string, any>;
       severity?: ErrorSeverity;
       cause?: Error;
+      retryable?: boolean;
     } = {}
   ) {
     const defaultMessage = AppNetworkError.getDefaultMessage(networkCode, options.statusCode);
@@ -239,7 +240,7 @@ export class AppNetworkError extends AppErrorBase implements NetworkError {
       {
         ...options,
         severity: options.severity || AppNetworkError.getDefaultSeverity(networkCode),
-        retryable: AppNetworkError.isRetryable(networkCode)
+        retryable: options.retryable ?? AppNetworkError.isRetryable(networkCode)
       }
     );
     
@@ -262,7 +263,8 @@ export class AppNetworkError extends AppErrorBase implements NetworkError {
       [NetworkErrorCode.SERVICE_UNAVAILABLE]: 'Service temporarily unavailable',
       [NetworkErrorCode.GATEWAY_TIMEOUT]: 'Gateway timeout',
       [NetworkErrorCode.NETWORK_ERROR]: 'Network error occurred',
-      [NetworkErrorCode.CORS_ERROR]: 'Cross-origin request blocked'
+      [NetworkErrorCode.CORS_ERROR]: 'Cross-origin request blocked',
+      [NetworkErrorCode.OPERATION_CANCELLED]: 'Operation was cancelled'
     };
     return messages[code] || 'Network error occurred';
   }
@@ -305,6 +307,7 @@ export class AppCacheError extends AppErrorBase implements CacheError {
       context?: Record<string, any>;
       severity?: ErrorSeverity;
       cause?: Error;
+      retryable?: boolean;
     } = {}
   ) {
     const defaultMessage = AppCacheError.getDefaultMessage(cacheCode, options.operation);
@@ -314,7 +317,7 @@ export class AppCacheError extends AppErrorBase implements CacheError {
       {
         ...options,
         severity: options.severity || ErrorSeverity.LOW,
-        retryable: AppCacheError.isRetryable(cacheCode)
+        retryable: options.retryable ?? AppCacheError.isRetryable(cacheCode)
       }
     );
     
@@ -366,6 +369,7 @@ export class AppDatabaseError extends AppErrorBase implements DatabaseError {
       context?: Record<string, any>;
       severity?: ErrorSeverity;
       cause?: Error;
+      retryable?: boolean;
     } = {}
   ) {
     const defaultMessage = AppDatabaseError.getDefaultMessage(dbCode);
@@ -375,7 +379,7 @@ export class AppDatabaseError extends AppErrorBase implements DatabaseError {
       {
         ...options,
         severity: options.severity || AppDatabaseError.getDefaultSeverity(dbCode),
-        retryable: AppDatabaseError.isRetryable(dbCode)
+        retryable: options.retryable ?? AppDatabaseError.isRetryable(dbCode)
       }
     );
     
@@ -437,6 +441,7 @@ export class AppOfflineQueueError extends AppErrorBase implements OfflineQueueEr
       context?: Record<string, any>;
       severity?: ErrorSeverity;
       cause?: Error;
+      retryable?: boolean;
     } = {}
   ) {
     const defaultMessage = AppOfflineQueueError.getDefaultMessage(queueCode);
@@ -446,7 +451,7 @@ export class AppOfflineQueueError extends AppErrorBase implements OfflineQueueEr
       {
         ...options,
         severity: options.severity || ErrorSeverity.MEDIUM,
-        retryable: AppOfflineQueueError.isRetryable(queueCode)
+        retryable: options.retryable ?? AppOfflineQueueError.isRetryable(queueCode)
       }
     );
     
@@ -513,6 +518,7 @@ export const createNetworkError = (
     context?: Record<string, any>;
     severity?: ErrorSeverity;
     cause?: Error;
+    retryable?: boolean;
   }
 ) => new AppNetworkError(code, message, options);
 
@@ -525,6 +531,7 @@ export const createCacheError = (
     context?: Record<string, any>;
     severity?: ErrorSeverity;
     cause?: Error;
+    retryable?: boolean;
   }
 ) => new AppCacheError(code, message, options);
 
@@ -537,6 +544,7 @@ export const createDatabaseError = (
     context?: Record<string, any>;
     severity?: ErrorSeverity;
     cause?: Error;
+    retryable?: boolean;
   }
 ) => new AppDatabaseError(code, message, options);
 
@@ -549,6 +557,7 @@ export const createOfflineQueueError = (
     context?: Record<string, any>;
     severity?: ErrorSeverity;
     cause?: Error;
+    retryable?: boolean;
   }
 ) => new AppOfflineQueueError(code, message, options);
 

@@ -1,7 +1,6 @@
 import { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
-import { sseHandler } from '@/lib/realtime/sseHandler';
-import { rateLimiter } from '@/lib/realtime/rateLimiter';
+import sseHandler from '@/lib/sse/sseHandler';
 
 export const runtime = 'nodejs';
 
@@ -25,27 +24,6 @@ export async function GET(request: NextRequest) {
     const clientType = url.searchParams.get('clientType') || 'unknown';
     const role = url.searchParams.get('role') || 'user';
 
-    // Get client IP address
-    const ip = request.headers.get('x-forwarded-for') ||
-      request.headers.get('x-real-ip') ||
-      'unknown';
-
-    // Check rate limits
-    const [userLimitExceeded, ipLimitExceeded] = await Promise.all([
-      rateLimiter.checkUserLimit(userId, 'USER_CONNECTIONS'),
-      rateLimiter.checkIpLimit(ip, 'IP_CONNECTIONS')
-    ]);
-
-    if (userLimitExceeded) {
-      console.warn(`[SSE] Rate limit exceeded for user ${userId}`);
-      return new Response('Too Many Requests', { status: 429 });
-    }
-
-    if (ipLimitExceeded) {
-      console.warn(`[SSE] Rate limit exceeded for IP ${ip}`);
-      return new Response('Too Many Requests', { status: 429 });
-    }
-
     // Create a streaming response
     const stream = new ReadableStream({
       start(controller) {
@@ -59,9 +37,34 @@ export async function GET(request: NextRequest) {
         };
 
         // Handle the SSE connection
-        sseHandler.handleConnection(request, userId, response, {
+        const clientId = crypto.randomUUID();
+        sseHandler.addClient(clientId, userId, response, {
           clientType,
           role
+        });
+
+        // Keepalive pings and activity updates
+        const pingInterval = setInterval(() => {
+          try {
+            sseHandler.sendEventToUser(userId, 'ping', { timestamp: Date.now(), clientId });
+            sseHandler.updateClientActivity(clientId);
+          } catch (err) {
+            console.error('[SSE] ping error', err);
+          }
+        }, 30000);
+
+        request.signal.addEventListener('abort', () => {
+          clearInterval(pingInterval);
+          sseHandler.removeClient(clientId);
+          controller.close();
+        });
+
+        // Initial event
+        sseHandler.sendEventToUser(userId, 'connected', {
+          message: 'SSE connection established',
+          timestamp: new Date().toISOString(),
+          userId,
+          clientId
         });
       }
     });
@@ -72,7 +75,7 @@ export async function GET(request: NextRequest) {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache, no-transform',
         'Connection': 'keep-alive',
-        'X-Accel-Buffering': 'no' // For Nginx
+        'X-Accel-Buffering': 'no'
       }
     });
   } catch (error) {
