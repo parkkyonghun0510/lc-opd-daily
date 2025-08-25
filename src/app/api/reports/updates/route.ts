@@ -1,12 +1,8 @@
 import { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
-import sseHandler from "@/lib/sse/sseHandler";
-import redisSSEHandler from "@/lib/sse/redisSSEHandler";
+import unifiedSSEHandler from "@/lib/sse/unifiedSSEHandler";
 
 export const runtime = "nodejs";
-
-// Use Redis-backed SSE handler if available
-const handler = redisSSEHandler || sseHandler;
 
 /**
  * Server-Sent Events endpoint for report updates
@@ -36,7 +32,7 @@ export async function GET(request: NextRequest) {
 
     // Create a streaming response
     const stream = new ReadableStream({
-      start(controller) {
+      async start(controller) {
         const encoder = new TextEncoder();
         const clientId = crypto.randomUUID();
 
@@ -46,7 +42,7 @@ export async function GET(request: NextRequest) {
         };
 
         // Register client with the SSE handler
-        handler.addClient(clientId, userId!, response, {
+        await unifiedSSEHandler.addClient(clientId, userId!, response, {
           clientType,
           role,
           userAgent: request.headers.get("user-agent") || undefined,
@@ -54,27 +50,27 @@ export async function GET(request: NextRequest) {
         });
 
         // Set up ping interval to keep connection alive and track activity
-        const pingInterval = setInterval(() => {
+        const pingInterval = setInterval(async () => {
           try {
-            handler.sendEventToUser(userId!, "ping", {
+            await unifiedSSEHandler.sendEventToUser(userId!, "ping", {
               timestamp: Date.now(),
               clientId
             });
-            handler.updateClientActivity(clientId);
+            await unifiedSSEHandler.updateClientActivity(clientId);
           } catch (error) {
             console.error(`[SSE Reports] Error sending ping to client ${clientId}:`, error);
           }
         }, 30000); // 30s ping
 
         // Handle connection close
-        request.signal.addEventListener("abort", () => {
+        request.signal.addEventListener("abort", async () => {
           clearInterval(pingInterval);
-          handler.removeClient(clientId);
+          await unifiedSSEHandler.removeClient(clientId);
           controller.close();
         });
 
         // Send initial connection confirmation
-        handler.sendEventToUser(userId!, 'connected', {
+        await unifiedSSEHandler.sendEventToUser(userId!, 'connected', {
           message: 'Report updates SSE connection established',
           timestamp: new Date().toISOString(),
           userId,

@@ -107,7 +107,7 @@ function collectDescendantBranches(rootIds: string[], allBranches: Branch[]): Br
  * @param userId - The user ID
  * @returns Branch[] user can access
  */
-export async function getAccessibleBranches(userId: string): Promise<Branch[]> {
+export async function getAccessibleBranches(userId: string, userRole: UserRole): Promise<Branch[]> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     include: {
@@ -146,8 +146,8 @@ export async function getAccessibleBranches(userId: string): Promise<Branch[]> {
 }
 
 
-export async function hasBranchAccess(userId: string, branchId: string): Promise<boolean> {
-  const accessibleBranches = await getAccessibleBranches(userId);
+export async function hasBranchAccess(userId: string, branchId: string, userRole: UserRole): Promise<boolean> {
+  const accessibleBranches = await getAccessibleBranches(userId, userRole);
   return accessibleBranches.some(branch => branch.id === branchId);
 }
 

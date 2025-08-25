@@ -1,247 +1,266 @@
-import { NextResponse } from "next/server";
-
 /**
- * Client connection information
+ * Base SSE Handler
+ * 
+ * Provides core Server-Sent Events functionality for real-time communication.
+ * This is the base implementation that can be extended by Redis-backed or
+ * Dragonfly-optimized handlers.
  */
-type Client = {
-    id: string;
-    userId: string;
-    response: any;
-    connectedAt: number;
-    lastActivity: number;
-    metadata?: Record<string, any>;
-};
 
-/**
- * Event data structure for SSE events
- */
-interface SSEEvent<T = any> {
-    type: string;
-    data: T;
-    id?: string;
-    retry?: number;
+import { EventEmitter } from 'events';
+
+export interface SSEClient {
+  id: string;
+  userId: string;
+  response: {
+    write: (data: string) => void;
+    close?: () => void;
+    error?: (err: Error) => void;
+  };
+  metadata: {
+    clientType?: string;
+    role?: string;
+    userAgent?: string;
+    ip?: string;
+    connectedAt: Date;
+    lastActivity: Date;
+  };
 }
 
-/**
- * Enhanced SSE Handler with improved connection management,
- * standardized event formatting, and activity tracking
- */
-class SSEHandler {
-    private clients: Map<string, Client> = new Map();
-    private readonly INACTIVE_TIMEOUT = 3 * 60 * 1000; // 3 minutes (reduced from 5)
-    private readonly STALE_TIMEOUT = 15 * 60 * 1000; // 15 minutes (reduced from 30)
-    private cleanupInterval: NodeJS.Timeout | null = null;
+export interface SSEEvent {
+  type: string;
+  data: any;
+  id?: string;
+  retry?: number;
+}
 
-    constructor() {
-        // Start the cleanup interval to remove stale connections
-        // Run cleanup more frequently (every 30 seconds instead of 60)
-        this.cleanupInterval = setInterval(() => this.cleanupInactiveConnections(), 30000);
+export class BaseSSEHandler extends EventEmitter {
+  private clients: Map<string, SSEClient> = new Map();
+  private userClients: Map<string, Set<string>> = new Map();
+  private cleanupInterval: NodeJS.Timeout;
 
-        // Run an initial cleanup immediately
-        this.cleanupInactiveConnections();
+  constructor() {
+    super();
+    
+    // Clean up inactive clients every 5 minutes
+    this.cleanupInterval = setInterval(() => {
+      this.cleanupInactiveClients();
+    }, 5 * 60 * 1000);
+  }
+
+  /**
+   * Add a new SSE client
+   */
+  addClient(
+    clientId: string,
+    userId: string,
+    response: SSEClient['response'],
+    metadata: Partial<SSEClient['metadata']> = {}
+  ): void {
+    const client: SSEClient = {
+      id: clientId,
+      userId,
+      response,
+      metadata: {
+        ...metadata,
+        connectedAt: new Date(),
+        lastActivity: new Date()
+      }
+    };
+
+    this.clients.set(clientId, client);
+
+    // Track user's clients
+    if (!this.userClients.has(userId)) {
+      this.userClients.set(userId, new Set());
+    }
+    this.userClients.get(userId)!.add(clientId);
+
+    console.log(`[SSE] Client ${clientId} connected for user ${userId}`);
+    this.emit('clientConnected', { clientId, userId });
+  }
+
+  /**
+   * Remove an SSE client
+   */
+  removeClient(clientId: string): void {
+    const client = this.clients.get(clientId);
+    if (!client) return;
+
+    const { userId } = client;
+
+    // Remove from clients map
+    this.clients.delete(clientId);
+
+    // Remove from user's clients
+    const userClientSet = this.userClients.get(userId);
+    if (userClientSet) {
+      userClientSet.delete(clientId);
+      if (userClientSet.size === 0) {
+        this.userClients.delete(userId);
+      }
     }
 
-    /**
-     * Add a new client connection
-     */
-    addClient(id: string, userId: string, response: any, metadata?: Record<string, any>) {
-        const now = Date.now();
-        this.clients.set(id, {
-            id,
-            userId,
-            response,
-            connectedAt: now,
-            lastActivity: now,
-            metadata
-        });
+    console.log(`[SSE] Client ${clientId} disconnected for user ${userId}`);
+    this.emit('clientDisconnected', { clientId, userId });
+  }
 
-        // Removed metrics recording to streamline handler
+  /**
+   * Update client activity timestamp
+   */
+  updateClientActivity(clientId: string): void {
+    const client = this.clients.get(clientId);
+    if (client) {
+      client.metadata.lastActivity = new Date();
+    }
+  }
 
-        console.log(`[SSE] Client connected: ${id} for user: ${userId}. Total: ${this.clients.size}`);
-        return id;
+  /**
+   * Send event to a specific user
+   */
+  sendEventToUser(userId: string, type: string, data: any, options: { id?: string; retry?: number } = {}): number {
+    const userClientIds = this.userClients.get(userId);
+    if (!userClientIds || userClientIds.size === 0) {
+      return 0;
     }
 
-    /**
-     * Remove a client connection
-     */
-    removeClient(id: string) {
-        const client = this.clients.get(id);
-        if (client) {
-            this.clients.delete(id);
+    let sentCount = 0;
+    const event: SSEEvent = {
+      type,
+      data,
+      id: options.id || `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      retry: options.retry
+    };
 
-            // Removed metrics recording to streamline handler
-
-            const duration = Math.round((Date.now() - client.connectedAt) / 1000);
-            console.log(`[SSE] Client disconnected: ${id} for user: ${client.userId}. Duration: ${duration}s. Total: ${this.clients.size}`);
-        }
-    }
-
-    /**
-     * Update client's last activity timestamp
-     */
-    updateClientActivity(id: string) {
-        const client = this.clients.get(id);
-        if (client) {
-            client.lastActivity = Date.now();
-        }
-    }
-
-    /**
-     * Send an event to a specific user
-     * @param userId - The user ID to send the event to
-     * @param eventType - The type of event
-     * @param data - The event data
-     * @param options - Additional options (retry, id)
-     */
-    sendEventToUser(userId: string, eventType: string, data: any, options: { retry?: number, id?: string } = {}) {
-        const startTime = performance.now();
-        let sentCount = 0;
-
-        for (const client of this.clients.values()) {
-            if (client.userId === userId) {
-                this.sendEvent(client.response, {
-                    type: eventType,
-                    data,
-                    retry: options.retry,
-                    id: options.id
-                });
-                sentCount++;
-            }
-        }
-
-        // Removed metrics recording to streamline handler
-
-        if (sentCount > 0) {
-            console.log(`[SSE] Sent '${eventType}' event to user ${userId} (${sentCount} connections)`);
-        }
-
-        return sentCount;
-    }
-
-    /**
-     * Broadcast an event to all connected clients
-     * @param eventType - The type of event
-     * @param data - The event data
-     * @param options - Additional options (retry, id)
-     */
-    broadcastEvent(eventType: string, data: any, options: { retry?: number, id?: string } = {}) {
-        const startTime = performance.now();
-        console.log(`[SSE] Broadcasting '${eventType}' event to all clients (${this.clients.size})`);
-
-        // Track unique users that received the event
-        const userIds = new Set<string>();
-
-        for (const client of this.clients.values()) {
-            this.sendEvent(client.response, {
-                type: eventType,
-                data,
-                retry: options.retry,
-                id: options.id
-            });
-            userIds.add(client.userId);
-        }
-
-        // Removed metrics recording to streamline handler
-
-        return this.clients.size;
-    }
-
-    /**
-     * Send a properly formatted SSE event
-     */
-    private sendEvent(response: any, event: SSEEvent) {
+    for (const clientId of userClientIds) {
+      const client = this.clients.get(clientId);
+      if (client) {
         try {
-            // Format the event according to SSE specification
-            let message = '';
-
-            // Add event type if provided
-            if (event.type) {
-                message += `event: ${event.type}\n`;
-            }
-
-            // Add event ID if provided
-            if (event.id) {
-                message += `id: ${event.id}\n`;
-            }
-
-            // Add retry if provided
-            if (event.retry) {
-                message += `retry: ${event.retry}\n`;
-            }
-
-            // Add the data (required)
-            message += `data: ${JSON.stringify(event.data)}\n\n`;
-
-            // Send the formatted message
-            response.write(message);
+          this.sendEventToClient(client, event);
+          sentCount++;
         } catch (error) {
-            console.error(`[SSE] Error sending event:`, error);
-            // Removed metrics recording to streamline handler
+          console.error(`[SSE] Error sending event to client ${clientId}:`, error);
+          this.removeClient(clientId);
         }
+      }
     }
 
-    /**
-     * Clean up inactive connections
-     */
-    private cleanupInactiveConnections() {
-        const now = Date.now();
-        const inactiveIds: string[] = [];
-        const staleIds: string[] = [];
+    return sentCount;
+  }
 
-        // Find inactive and stale connections
-        for (const [id, client] of this.clients.entries()) {
-            // Check for inactive connections (no activity for 3 minutes)
-            if (now - client.lastActivity > this.INACTIVE_TIMEOUT) {
-                inactiveIds.push(id);
-            }
+  /**
+   * Broadcast event to all connected clients
+   */
+  broadcastEvent(type: string, data: any, options: { id?: string; retry?: number } = {}): number {
+    const event: SSEEvent = {
+      type,
+      data,
+      id: options.id || `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      retry: options.retry
+    };
 
-            // Also check for very old connections (connected for more than 15 minutes)
-            // This helps prevent zombie connections that might still be sending pings
-            if (now - client.connectedAt > this.STALE_TIMEOUT) {
-                staleIds.push(id);
-            }
-        }
-
-        // Remove inactive connections
-        if (inactiveIds.length > 0) {
-            console.log(`[SSE] Cleaning up ${inactiveIds.length} inactive connections`);
-
-            for (const id of inactiveIds) {
-                this.removeClient(id);
-            }
-        }
-
-        // Remove stale connections
-        if (staleIds.length > 0) {
-            console.log(`[SSE] Cleaning up ${staleIds.length} stale connections (connected > 30 min)`);
-
-            for (const id of staleIds) {
-                // Only remove if not already removed as inactive
-                if (!inactiveIds.includes(id)) {
-                    this.removeClient(id);
-                }
-            }
-        }
+    let sentCount = 0;
+    for (const client of this.clients.values()) {
+      try {
+        this.sendEventToClient(client, event);
+        sentCount++;
+      } catch (error) {
+        console.error(`[SSE] Error broadcasting to client ${client.id}:`, error);
+        this.removeClient(client.id);
+      }
     }
 
-    /**
-     * Get statistics about current connections
-     */
-    getStats() {
-        const userCounts = new Map<string, number>();
+    return sentCount;
+  }
 
-        // Count connections per user
-        for (const client of this.clients.values()) {
-            userCounts.set(client.userId, (userCounts.get(client.userId) || 0) + 1);
-        }
+  /**
+   * Send event to a specific client
+   */
+  private sendEventToClient(client: SSEClient, event: SSEEvent): void {
+    const sseData = this.formatSSEData(event);
+    client.response.write(sseData);
+    client.metadata.lastActivity = new Date();
+  }
 
-        return {
-            totalConnections: this.clients.size,
-            uniqueUsers: userCounts.size,
-            userCounts: Object.fromEntries(userCounts)
-        };
+  /**
+   * Format data for SSE transmission
+   */
+  private formatSSEData(event: SSEEvent): string {
+    let sseData = '';
+    
+    if (event.id) {
+      sseData += `id: ${event.id}\n`;
     }
+    
+    if (event.retry) {
+      sseData += `retry: ${event.retry}\n`;
+    }
+    
+    sseData += `event: ${event.type}\n`;
+    sseData += `data: ${JSON.stringify(event.data)}\n\n`;
+    
+    return sseData;
+  }
+
+  /**
+   * Clean up inactive clients
+   */
+  private cleanupInactiveClients(): void {
+    const now = new Date();
+    const inactiveThreshold = 10 * 60 * 1000; // 10 minutes
+
+    for (const [clientId, client] of this.clients.entries()) {
+      const timeSinceActivity = now.getTime() - client.metadata.lastActivity.getTime();
+      if (timeSinceActivity > inactiveThreshold) {
+        console.log(`[SSE] Removing inactive client ${clientId}`);
+        this.removeClient(clientId);
+      }
+    }
+  }
+
+  /**
+   * Get connection statistics
+   */
+  getStats(): {
+    totalClients: number;
+    totalUsers: number;
+    clientsByUser: Record<string, number>;
+  } {
+    const clientsByUser: Record<string, number> = {};
+    
+    for (const [userId, clientIds] of this.userClients.entries()) {
+      clientsByUser[userId] = clientIds.size;
+    }
+
+    return {
+      totalClients: this.clients.size,
+      totalUsers: this.userClients.size,
+      clientsByUser
+    };
+  }
+
+  /**
+   * Cleanup resources
+   */
+  destroy(): void {
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+    }
+    
+    // Close all client connections
+    for (const client of this.clients.values()) {
+      try {
+        client.response.close?.();
+      } catch (error) {
+        console.error(`[SSE] Error closing client ${client.id}:`, error);
+      }
+    }
+    
+    this.clients.clear();
+    this.userClients.clear();
+    this.removeAllListeners();
+  }
 }
 
-const sseHandler = new SSEHandler();
+// Create and export singleton instance
+const sseHandler = new BaseSSEHandler();
 export default sseHandler;

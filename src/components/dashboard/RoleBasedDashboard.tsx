@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, Suspense } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, FileText, Clock, ShieldCheck, TrendingUp, AlertCircle, RefreshCw } from 'lucide-react';
 import { useUserData } from '@/contexts/UserDataContext';
@@ -13,8 +13,23 @@ import { formatKHRCurrency } from '@/lib/utils';
 import BranchManagerDashboardContent from './BranchManagerDashboardContent';
 import UserDashboardContent from './UserDashboardContent';
 import { Badge } from '@/components/ui/badge';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from 'sonner';
 import DashboardStatusIndicator from './DashboardStatusIndicator';
+
+// Loading skeleton component for better UX
+const DashboardSkeleton = () => (
+  <div className="space-y-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {[...Array(4)].map((_, i) => (
+        <Skeleton key={i} className="h-32 w-full" />
+      ))}
+    </div>
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <Skeleton className="h-64 w-full" />
+      <Skeleton className="h-64 w-full" />
+    </div>
+  </div>
+);
 
 // Enhanced type definitions
 interface DashboardCardProps {
@@ -104,10 +119,11 @@ const ConnectionStatus: React.FC<{ onReconnect: () => void }> = ({ onReconnect }
 
 const RoleBasedDashboard: React.FC = () => {
   const router = useRouter();
-  const { userData } = useUserData();
+  const { userData, isLoading: userLoading, error: userError } = useUserData();
   const {
     dashboardData,
     isLoading,
+    isInitialLoading,
     isConnected,
     connectionMethod,
     connectionError,
@@ -122,6 +138,19 @@ const RoleBasedDashboard: React.FC = () => {
 
   // Use the role from the Zustand store if available, otherwise fall back to userData
   const displayRole = storeRole || userData?.computedFields.accessLevel || 'User';
+
+  // Memoized condition checks for better performance
+  const canShowDashboard = useMemo(() => {
+    return userData && !userLoading && !userError;
+  }, [userData, userLoading, userError]);
+
+  const shouldShowLoading = useMemo(() => {
+    return userLoading || (isInitialLoading && !dashboardData);
+  }, [userLoading, isInitialLoading, dashboardData]);
+
+  const hasError = useMemo(() => {
+    return userError || connectionError;
+  }, [userError, connectionError]);
 
   // Redirect to role-specific dashboard
   useEffect(() => {
@@ -173,6 +202,60 @@ const RoleBasedDashboard: React.FC = () => {
     refreshDashboardData();
   };
 
+  // Handle connection status changes with debouncing
+  useEffect(() => {
+    if (connectionError && !isLoading && !isInitialLoading) {
+      const timeoutId = setTimeout(() => {
+        toast.error(`Dashboard Error: ${connectionError}`);
+      }, 1000); // Debounce error notifications
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [connectionError, isLoading, isInitialLoading]);
+
+  // Show loading state with skeleton
+  if (shouldShowLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <RefreshCw className="h-5 w-5 animate-spin text-blue-600" />
+            <span className="text-sm text-gray-600">Loading dashboard...</span>
+          </div>
+        </div>
+        <DashboardSkeleton />
+      </div>
+    );
+  }
+
+  // Show error state with retry option
+  if (hasError && !canShowDashboard) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="flex flex-col items-center space-y-4 text-center">
+          <AlertCircle className="h-12 w-12 text-red-500" />
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">Dashboard Error</h3>
+            <p className="text-sm text-gray-600 mt-1">{hasError}</p>
+          </div>
+          <button
+            onClick={() => {
+              if (reconnect) {
+                reconnect();
+              } else {
+                window.location.reload();
+              }
+            }}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center space-x-2"
+          >
+            <RefreshCw className="h-4 w-4" />
+            <span>Retry</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   // Handle loading and error states
   if (connectionError) {
     return <DashboardError error={connectionError} onRefresh={refreshDashboardData} />;
@@ -182,7 +265,10 @@ const RoleBasedDashboard: React.FC = () => {
     return <ConnectionStatus onReconnect={reconnect} />;
   }
 
-  // We don't need to show a loading state here anymore since we're using AuthLoadingGuard
+  // Don't render if conditions aren't met
+  if (!canShowDashboard) {
+    return null;
+  }
 
   // Define role-specific content components
   const dashboardContentMap: Record<string, React.ComponentType<DashboardContentProps>> = {
@@ -232,7 +318,9 @@ const RoleBasedDashboard: React.FC = () => {
         </Button>
       </div>
 
-      <DashboardContent {...contentProps} />
+      <Suspense fallback={<DashboardSkeleton />}>
+        <DashboardContent {...contentProps} />
+      </Suspense>
     </div>
   );
 };

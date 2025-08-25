@@ -1,6 +1,6 @@
 import { emitDashboardUpdate } from '@/lib/realtime/redisEventEmitter';
-import sseHandler from '@/lib/sse/redisSSEHandler';
 import { DashboardEventType, createDashboardUpdate } from '@/lib/events/dashboard-events';
+import unifiedSSEHandler from '@/lib/sse/unifiedSSEHandler';
 
 /**
  * Broadcasts a dashboard update event to all connected clients.
@@ -15,8 +15,14 @@ export function broadcastDashboardUpdate(type: DashboardEventType, data: unknown
     const timestamp = Date.now();
     const eventData = { id, timestamp, ...payload };
 
-    // Broadcast via SSE (Redis-backed when available, falls back to in-memory)
-    sseHandler.broadcastEvent('dashboardUpdate', eventData);
+    // Broadcast via SSE for real-time updates
+    void unifiedSSEHandler.broadcastEvent('dashboard-update', {
+      type,
+      data: eventData,
+      timestamp
+    }, {
+      id
+    });
 
     // Persist and publish via Redis-backed emitter for polling and cross-instance durability
     void emitDashboardUpdate(type, data, { id, title: `Dashboard Update: ${type}` });

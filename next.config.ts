@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 
+
 const nextConfig: NextConfig = {
   // Railway-specific configuration
   output: 'standalone',
@@ -56,10 +57,38 @@ const nextConfig: NextConfig = {
   },
   
   // Webpack configuration for Redis
-  webpack: (config, { isServer }) => {
+  webpack: (config, { isServer, dev }) => {
     if (isServer) {
       config.externals.push('ioredis');
     }
+
+    // Optimize bundle size
+    if (!dev && !isServer) {
+      config.optimization.splitChunks = {
+        chunks: 'all',
+        cacheGroups: {
+          vendor: {
+            test: /[\\/]node_modules[\\/]/,
+            name: 'vendors',
+            chunks: 'all',
+          },
+          redis: {
+            test: /[\\/]node_modules[\\/](redis|ioredis)[\\/]/,
+            name: 'redis',
+            chunks: 'all',
+            priority: 10
+          }
+        }
+      };
+    }
+
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@/dragonfly': require('path').join(process.cwd(), 'src/lib/dragonfly'),
+      '@/lib': require('path').join(process.cwd(), 'src/lib'),
+      '@': require('path').join(process.cwd(), 'src')
+    };
+
     return config;
   },
 };

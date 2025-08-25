@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
-import sseHandler from '@/lib/sse/sseHandler';
+import unifiedSSEHandler from '@/lib/sse/unifiedSSEHandler';
 
 export const runtime = 'nodejs';
 
@@ -10,6 +10,7 @@ export const runtime = 'nodejs';
  * This endpoint establishes an SSE connection for real-time updates.
  */
 export async function GET(request: NextRequest) {
+  const handler = unifiedSSEHandler;
   try {
     // Authenticate the request
     const token = await getToken({ req: request });
@@ -38,7 +39,7 @@ export async function GET(request: NextRequest) {
 
         // Handle the SSE connection
         const clientId = crypto.randomUUID();
-        sseHandler.addClient(clientId, userId, response, {
+        handler.addClient(clientId, userId, response, {
           clientType,
           role
         });
@@ -46,8 +47,8 @@ export async function GET(request: NextRequest) {
         // Keepalive pings and activity updates
         const pingInterval = setInterval(() => {
           try {
-            sseHandler.sendEventToUser(userId, 'ping', { timestamp: Date.now(), clientId });
-            sseHandler.updateClientActivity(clientId);
+            handler.sendEventToUser(userId, 'ping', { timestamp: Date.now(), clientId });
+            handler.updateClientActivity(clientId);
           } catch (err) {
             console.error('[SSE] ping error', err);
           }
@@ -55,12 +56,12 @@ export async function GET(request: NextRequest) {
 
         request.signal.addEventListener('abort', () => {
           clearInterval(pingInterval);
-          sseHandler.removeClient(clientId);
+          handler.removeClient(clientId);
           controller.close();
         });
 
         // Initial event
-        sseHandler.sendEventToUser(userId, 'connected', {
+        handler.sendEventToUser(userId, 'connected', {
           message: 'SSE connection established',
           timestamp: new Date().toISOString(),
           userId,

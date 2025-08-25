@@ -170,10 +170,10 @@ Access environment validation status via API:
 
 ```javascript
 // In your application
-import { EnvironmentValidator } from '@/lib/env-validator';
+import { ApplicationInitializer } from '@/lib/initializer';
 
-const validator = EnvironmentValidator.getInstance();
-const result = validator.validateEnvironment();
+const initializer = ApplicationInitializer.getInstance();
+const result = await initializer.initialize();
 console.log('Environment Status:', result);
 ```
 

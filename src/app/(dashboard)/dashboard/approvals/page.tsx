@@ -54,7 +54,6 @@ import { ApprovalsTable } from "@/components/reports/ApprovalsTable";
 import { useApprovalFilterReducer } from "@/hooks/useApprovalFilterReducer";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
-import { useReportUpdates } from "@/hooks/useReportUpdates";
 import { useErrorMonitoring } from "@/hooks/useErrorMonitoring";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { ShortcutHelpDialog } from "@/components/ShortcutHelpDialog";
@@ -91,6 +90,8 @@ export type FilterState = {
 };
 
 export type ViewMode = 'card' | 'table';
+
+
 
 const sortOptions = {
   date: 'Report Date',
@@ -200,8 +201,8 @@ interface Branch {
   name: string;
   code?: string;
 }
-
 export default function ApprovalsPage() {
+  const { isConnected } = useHybridRealtime();
   const { toast } = useToast();
   const { logError, trackEvent, measurePerformance } = useErrorMonitoring();
   const printRef = useRef<HTMLDivElement>(null);
@@ -253,7 +254,7 @@ export default function ApprovalsPage() {
     });
   }, [refresh]);
 
-  const { isConnected } = useReportUpdates(handleRefresh);
+
 
   const handlePrint = useReactToPrint({
     content: () => printRef.current,

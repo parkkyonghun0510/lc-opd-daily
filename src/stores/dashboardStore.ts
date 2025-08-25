@@ -5,6 +5,10 @@ import { devtools, persist } from 'zustand/middleware';
 import { fetchDashboardSummary, fetchUserDashboardData } from '@/app/_actions/dashboard-actions';
 import { toast } from 'sonner';
 
+// Cache management
+const CACHE_DURATION = 60000; // 1 minute in milliseconds
+const REQUEST_DEBOUNCE_TIME = 500; // 500ms debounce
+
 // Define types for dashboard state
 export interface DashboardState {
   // Data
@@ -12,12 +16,17 @@ export interface DashboardState {
   
   // Status
   isLoading: boolean;
+  isInitialLoading: boolean;
+  error: string | null;
   isConnected: boolean;
   connectionMethod: 'sse' | 'polling' | null;
   connectionError: string | null;
   hasNewUpdates: boolean;
   retryCount: number;
   lastUpdated: number | null;
+  lastFetchTime: number | null;
+  pendingRequests: Set<string>;
+  optimisticUpdates: Map<string, any>;
   
   // Actions
   setDashboardData: (data: any) => void;
@@ -28,10 +37,15 @@ export interface DashboardState {
   incrementRetryCount: () => void;
   resetRetryCount: () => void;
   clearNewUpdates: () => void;
+  clearError: () => void;
+  resetStore: () => void;
+  addOptimisticUpdate: (key: string, data: any) => void;
+  removeOptimisticUpdate: (key: string) => void;
+  shouldFetch: (role: string) => boolean;
   
   // Async actions
-  fetchDashboardData: (role: string) => Promise<void>;
-  refreshDashboardData: (role: string) => Promise<void>;
+  fetchDashboardData: (role: string, force?: boolean) => Promise<void>;
+  refreshDashboardData: (role: string, force?: boolean) => Promise<void>;
 }
 
 // Create the dashboard store
@@ -42,12 +56,17 @@ export const useDashboardStore = create<DashboardState>()(
         // Initial state
         dashboardData: null,
         isLoading: false,
+        isInitialLoading: true,
+        error: null,
         isConnected: false,
         connectionMethod: null,
         connectionError: null,
         hasNewUpdates: false,
         retryCount: 0,
         lastUpdated: null,
+        lastFetchTime: null,
+        pendingRequests: new Set(),
+        optimisticUpdates: new Map(),
         
         // Actions
         setDashboardData: (data) => set({ dashboardData: data, lastUpdated: Date.now() }),
@@ -59,13 +78,77 @@ export const useDashboardStore = create<DashboardState>()(
         resetRetryCount: () => set({ retryCount: 0 }),
         clearNewUpdates: () => set({ hasNewUpdates: false }),
         
-        // Async actions
-        fetchDashboardData: async (role) => {
-          const state = get();
+        // Helper function to check if we should fetch data
+        shouldFetch: (role) => {
+          const { lastFetchTime, pendingRequests, isLoading } = get();
+          const requestKey = `fetch-${role}`;
           
+          // Don't fetch if already loading or request is pending
+          if (isLoading || pendingRequests.has(requestKey)) {
+            return false;
+          }
+          
+          // Don't fetch if data is still fresh (within cache duration)
+          if (lastFetchTime && Date.now() - lastFetchTime < CACHE_DURATION) {
+            return false;
+          }
+          
+          return true;
+        },
+
+        // Optimistic update helpers
+        addOptimisticUpdate: (key, data) => {
+          const optimisticUpdates = new Map(get().optimisticUpdates);
+          optimisticUpdates.set(key, data);
+          set({ optimisticUpdates });
+        },
+
+        removeOptimisticUpdate: (key) => {
+          const optimisticUpdates = new Map(get().optimisticUpdates);
+          optimisticUpdates.delete(key);
+          set({ optimisticUpdates });
+        },
+
+        clearError: () => set({ error: null, connectionError: null }),
+        
+        resetStore: () => {
+          set({
+            dashboardData: null,
+            isLoading: false,
+            isInitialLoading: true,
+            error: null,
+            lastUpdated: null,
+            lastFetchTime: null,
+            isConnected: false,
+            connectionMethod: null,
+            connectionError: null,
+            pendingRequests: new Set(),
+            optimisticUpdates: new Map(),
+            retryCount: 0
+          });
+        },
+
+        // Async actions
+        fetchDashboardData: async (role, force = false) => {
+          const requestKey = `fetch-${role}`;
+          const { pendingRequests, shouldFetch } = get();
+          
+          // Check if we should fetch (unless forced)
+          if (!force && !shouldFetch(role)) {
+            return;
+          }
+
+          // Add to pending requests
+          const updatedPendingRequests = new Set(pendingRequests);
+          updatedPendingRequests.add(requestKey);
+          set({ 
+            isLoading: true, 
+            error: null,
+            connectionError: null,
+            pendingRequests: updatedPendingRequests
+          });
+
           try {
-            set({ isLoading: true, connectionError: null });
-            
             // Fetch dashboard data based on user role
             let response;
             if (role === 'ADMIN' || role === 'BRANCH_MANAGER') {
@@ -74,42 +157,54 @@ export const useDashboardStore = create<DashboardState>()(
               response = await fetchUserDashboardData();
             }
             
-            if (response.status === 200 && response.data) {
-              set({ 
-                dashboardData: response.data,
-                lastUpdated: Date.now()
-              });
-              // console.log('Dashboard data fetched successfully:', response.data);
-            } else {
-              console.error('Failed to fetch dashboard data:', response.error);
-              set({ 
-                connectionError: response.error || 'Failed to fetch dashboard data',
-                retryCount: state.retryCount + 1
-              });
+            if (response && (response.status === 200 || response.data)) {
+              const now = Date.now();
+              const finalPendingRequests = new Set(get().pendingRequests);
+              finalPendingRequests.delete(requestKey);
               
-              // Show toast notification
-              toast.error(`Error connecting to dashboard: ${response.error || 'Unknown error'}`);
+              set({ 
+                dashboardData: response.data || response,
+                isLoading: false,
+                isInitialLoading: false,
+                error: null,
+                connectionError: null,
+                lastUpdated: now,
+                lastFetchTime: now,
+                retryCount: 0,
+                pendingRequests: finalPendingRequests
+              });
+            } else {
+              throw new Error(response?.error || 'No data received');
             }
           } catch (error) {
             console.error('Error fetching dashboard data:', error);
             const errorMessage = error instanceof Error ? error.message : 'Connection error';
+            const finalPendingRequests = new Set(get().pendingRequests);
+            finalPendingRequests.delete(requestKey);
             
             set({ 
+              isLoading: false,
+              error: errorMessage,
               connectionError: errorMessage,
-              retryCount: state.retryCount + 1
+              retryCount: get().retryCount + 1,
+              pendingRequests: finalPendingRequests
             });
             
-            // Show toast notification
-            toast.error(`Error connecting to dashboard: ${errorMessage}`);
-          } finally {
-            set({ isLoading: false });
+            // Only show toast for non-initial loads to avoid spam
+            if (!get().isInitialLoading) {
+              toast.error(`Error connecting to dashboard: ${errorMessage}`);
+            }
           }
         },
         
-        refreshDashboardData: async (role) => {
-          // Reset retry count when manually refreshing
-          set({ retryCount: 0, hasNewUpdates: false });
-          await get().fetchDashboardData(role);
+        refreshDashboardData: async (role, force = true) => {
+          // Reset retry count and clear cache when manually refreshing
+          set({ 
+            retryCount: 0, 
+            hasNewUpdates: false,
+            lastFetchTime: null // Clear cache to force refresh
+          });
+          await get().fetchDashboardData(role, force);
         },
       }),
       {

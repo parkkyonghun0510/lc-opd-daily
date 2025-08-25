@@ -1,4 +1,4 @@
-import sseHandler from '@/lib/sse/redisSSEHandler';
+import unifiedSSEHandler from '@/lib/sse/unifiedSSEHandler';
 import { redisEventEmitter } from '@/lib/realtime/redisEventEmitter';
 
 export interface ReportUpdateEvent {
@@ -15,27 +15,36 @@ export interface ReportUpdateEvent {
  */
 export class ReportSSEService {
   /**
+   * Get the unified SSE handler
+   */
+  private static async getHandler() {
+    return unifiedSSEHandler;
+  }
+
+  /**
    * Broadcast a report update to all connected clients
    */
-  static broadcastReportUpdate(event: ReportUpdateEvent) {
+  static async broadcastReportUpdate(event: ReportUpdateEvent) {
     const updateEvent = {
       ...event,
       timestamp: event.timestamp || new Date().toISOString()
     };
 
     try {
+      const handler = await this.getHandler();
+      
       // Broadcast to all connected clients (cross-instance when Redis is available)
-      sseHandler.broadcastEvent('report-update', updateEvent);
+      const sentCount = await handler.broadcastEvent('report-update', updateEvent);
       
       // Also send to specific users if userId is provided
       if (event.userId) {
-        sseHandler.sendEventToUser(event.userId, 'report-update', updateEvent);
+        await handler.sendEventToUser(event.userId, 'report-update', updateEvent);
       }
 
       // Persist and publish via Redis-backed emitter for polling and durability
       void redisEventEmitter.emit('report-update', updateEvent, event.userId ? { userIds: [event.userId] } : {});
 
-      console.log(`[ReportSSE] Broadcast report update: ${event.type} for report ${event.reportId}`);
+      console.log(`[ReportSSE] Broadcasted report update to ${sentCount} clients: ${event.type} for report ${event.reportId}`);
     } catch (error) {
       console.error('[ReportSSE] Error broadcasting report update:', error);
     }
@@ -44,8 +53,8 @@ export class ReportSSEService {
   /**
    * Broadcast new report creation
    */
-  static broadcastNewReport(reportId: string, branchId?: string, userId?: string, details?: any) {
-    this.broadcastReportUpdate({
+  static async broadcastNewReport(reportId: string, branchId?: string, userId?: string, details?: any) {
+    await this.broadcastReportUpdate({
       type: 'new',
       reportId,
       branchId,
@@ -57,8 +66,8 @@ export class ReportSSEService {
   /**
    * Broadcast report update
    */
-  static broadcastReportUpdateEvent(reportId: string, branchId?: string, userId?: string, details?: any) {
-    this.broadcastReportUpdate({
+  static async broadcastReportUpdateEvent(reportId: string, branchId?: string, userId?: string, details?: any) {
+    await this.broadcastReportUpdate({
       type: 'updated',
       reportId,
       branchId,
@@ -70,8 +79,8 @@ export class ReportSSEService {
   /**
    * Broadcast report deletion
    */
-  static broadcastReportDeletion(reportId: string, branchId?: string, userId?: string, details?: any) {
-    this.broadcastReportUpdate({
+  static async broadcastReportDeletion(reportId: string, branchId?: string, userId?: string, details?: any) {
+    await this.broadcastReportUpdate({
       type: 'deleted',
       reportId,
       branchId,
@@ -83,10 +92,10 @@ export class ReportSSEService {
   /**
    * Broadcast to specific users based on branch access
    */
-  static broadcastToBranchUsers(branchId: string, event: ReportUpdateEvent) {
+  static async broadcastToBranchUsers(branchId: string, event: ReportUpdateEvent) {
     // This would typically query users with access to the branch
     // For now, we'll broadcast to all users
-    this.broadcastReportUpdate({
+    await this.broadcastReportUpdate({
       ...event,
       branchId
     });

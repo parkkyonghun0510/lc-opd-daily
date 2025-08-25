@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { realtimeMonitor } from '@/lib/realtime/monitor';
-import sseHandler from '@/lib/sse/sseHandler';
+import unifiedSSEHandler from '@/lib/sse/unifiedSSEHandler';
 
 /**
  * API endpoint for monitoring real-time connections
@@ -23,7 +23,14 @@ export async function GET(request: NextRequest) {
     // Get monitoring data
     const metrics = realtimeMonitor.getMetrics();
     const allInstancesMetrics = await realtimeMonitor.getAllInstancesMetrics();
-    const sseStats = sseHandler.getStats();
+    const status = await unifiedSSEHandler.getStatus();
+    const sseStats = {
+      totalClients: status.clientCount,
+      handlerType: status.type,
+      isReady: status.isReady,
+      uptime: status.uptime,
+      performance: status.performance
+    };
     
     return NextResponse.json({
       metrics,

@@ -3,7 +3,7 @@
 import { useEffect, useMemo } from 'react';
 import { useAuth } from '@/auth/hooks/useAuth';
 import { useDashboardStore } from '@/stores/dashboardStore';
-import { useHybridRealtime, EventType, EventHandlersMap } from '@/hooks/useHybridRealtime';
+import { useUnifiedSSE } from '@/hooks/useUnifiedSSE';
 import { toast } from 'sonner';
 
 interface ZustandHybridRealtimeProviderProps {
@@ -49,7 +49,7 @@ export function ZustandHybridRealtimeProvider({
   } = useDashboardStore();
 
   // Create event handlers
-  const eventHandlers = useMemo<EventHandlersMap>(() => ({
+  const eventHandlers = useMemo<Record<string, (data: any) => void>>(() => ({
     // Handle dashboard updates
     dashboardUpdate: (data: any) => {
       if (debug) {
@@ -200,29 +200,26 @@ export function ZustandHybridRealtimeProvider({
     }
   }), [user?.role, debug, showToasts, setHasNewUpdates, fetchDashboardData, clearNewUpdates]);
 
-  // Use the hybrid realtime hook
+  // Use the unified SSE hook
   const {
     isConnected,
     activeMethod,
     connectionStatus,
     error,
     reconnect,
-    getCachedEvents,
-    getTimeSinceLastEvent
-  } = useHybridRealtime({
+    getConnectionInfo
+  } = useUnifiedSSE({
     pollingEndpoint: '/api/realtime/polling',
     pollingInterval: autoRefreshInterval,
     eventHandlers,
     debug,
-    clientMetadata: {
-      component: 'ZustandHybridRealtimeProvider',
-      role: user?.role || 'user'
-    }
+    clientType: 'dashboard',
+    role: user?.role || 'user'
   });
 
   // Update dashboard store with connection status
   useEffect(() => {
-    setConnectionStatus(isConnected, activeMethod);
+    return setConnectionStatus(isConnected, activeMethod);
   }, [isConnected, activeMethod, setConnectionStatus]);
 
   // Update dashboard store with connection error
@@ -253,19 +250,13 @@ export function ZustandHybridRealtimeProvider({
       console.log(`[ZustandHybridRealtime] Active method: ${activeMethod || 'none'}`);
       console.log(`[ZustandHybridRealtime] Smart polling: ${smartPolling ? 'enabled' : 'disabled'}`);
 
-      // Log time since last event
-      const timeSinceLastEvent = getTimeSinceLastEvent();
-      if (timeSinceLastEvent !== Infinity) {
+      const info = getConnectionInfo();
+      if (info.lastActivity > 0) {
+        const timeSinceLastEvent = Date.now() - info.lastActivity;
         console.log(`[ZustandHybridRealtime] Time since last event: ${Math.round(timeSinceLastEvent / 1000)}s`);
       }
-
-      // Log cached events count
-      const dashboardEvents = getCachedEvents('dashboardUpdate');
-      if (dashboardEvents.length > 0) {
-        console.log(`[ZustandHybridRealtime] Cached dashboard events: ${dashboardEvents.length}`);
-      }
     }
-  }, [connectionStatus, activeMethod, debug, getTimeSinceLastEvent, getCachedEvents, smartPolling]);
+  }, [connectionStatus, activeMethod, debug, smartPolling, getConnectionInfo]);
 
   return <>{children}</>;
 }

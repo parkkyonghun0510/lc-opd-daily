@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import sseEmitter from '@/lib/sseEmitter';
-import sseHandler from '@/lib/sse/sseHandler';
-import { DashboardEventType, DashboardUpdatePayload, createDashboardUpdate } from '@/lib/events/dashboard-events';
+import unifiedSSEHandler from '@/lib/sse/unifiedSSEHandler';
 import { rateLimiter } from '@/lib/rate-limit';
 
 /**
@@ -52,8 +50,8 @@ export async function GET(request: NextRequest) {
 
   // Check if user already has too many active connections
   try {
-    const stats = sseHandler.getStats(); // Removed await since getStats is not async
-    const userConnections = stats.userCounts[userId] || 0;
+    const stats = await unifiedSSEHandler.getStats();
+    const userConnections = stats.clientsByUser[userId] || 0;
 
     // Limit to 5 connections per user (increased from 2)
     if (userConnections >= 5) {
@@ -89,45 +87,21 @@ export async function GET(request: NextRequest) {
       };
 
       // Register client with the SSE handler
-      sseHandler.addClient(clientId, userId, response, {
+      unifiedSSEHandler.addClient(clientId, userId, response, {
         type: 'dashboard',
         userAgent: request.headers.get("user-agent") || undefined,
         ip: request.headers.get("x-forwarded-for") || undefined
       });
 
-      // Function to handle dashboard updates from the event emitter
-      const handleDashboardUpdate = (payload: DashboardUpdatePayload) => {
-        // Send all dashboard updates to this user
-        // In a real implementation, you might want to filter based on relevance
-        // For example, only send branch updates for branches the user has access to
-
-        // Use the standardized SSE handler to send the event
-        sseHandler.sendEventToUser(
-          userId,
-          'dashboardUpdate',
-          {
-            type: payload.type,
-            data: payload.data,
-            timestamp: Date.now()
-          }
-        );
-
-        // Update client activity timestamp
-        sseHandler.updateClientActivity(clientId);
-      };
-
-      // Listen for dashboard updates from the event emitter
-      sseEmitter.on('dashboardUpdate', handleDashboardUpdate);
-
       // Set up ping interval to keep connection alive (increased to 60 seconds to reduce traffic)
       const pingInterval = setInterval(() => {
         try {
           // Send ping and update activity timestamp
-          sseHandler.sendEventToUser(userId, "ping", {
+          unifiedSSEHandler.sendEventToUser(userId, "ping", {
             timestamp: Date.now(),
             clientId
           });
-          sseHandler.updateClientActivity(clientId);
+          unifiedSSEHandler.updateClientActivity(clientId);
         } catch (error) {
           console.error(`[SSE] Error sending ping to dashboard client ${clientId}:`, error);
         }
@@ -136,13 +110,12 @@ export async function GET(request: NextRequest) {
       // Handle connection close
       request.signal.addEventListener("abort", () => {
         clearInterval(pingInterval);
-        sseEmitter.off('dashboardUpdate', handleDashboardUpdate);
-        sseHandler.removeClient(clientId);
+        unifiedSSEHandler.removeClient(clientId);
         controller.close();
       });
 
       // Send initial connection event with retry parameter
-      sseHandler.sendEventToUser(userId, "connected", {
+      unifiedSSEHandler.sendEventToUser(userId, "connected", {
         clientId,
         timestamp: Date.now(),
         message: "Dashboard SSE connection established"

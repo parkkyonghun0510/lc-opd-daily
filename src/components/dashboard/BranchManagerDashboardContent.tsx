@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Users, FileText, TrendingUp, Building, Award, AlertCircle, ScrollText } from 'lucide-react';
 import { DashboardCard } from './RoleBasedDashboard';
@@ -17,7 +17,7 @@ import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { QuickActions } from './navigation/QuickActions';
 import { useUserData } from '@/contexts/UserDataContext';
-import { DashboardHeader, MetricsGrid, DataTableCard } from '@/components/ui/layouts';
+// Removed invalid import - DataTableCard doesn't exist
 
 interface BranchDashboardContentProps {
     dashboardData: {
@@ -55,45 +55,63 @@ const BranchManagerDashboardContent: React.FC<BranchDashboardContentProps> = ({
         recentReports = []
     } = dashboardData || {};
 
-    // Calculate performance metrics
-    const reportCompletionRate = totalReports > 0
-        ? ((totalReports - pendingReports) / totalReports) * 100
-        : 0;
+    // Memoized performance metrics calculations
+    const reportCompletionRate = useMemo(() => {
+        return totalReports > 0
+            ? ((totalReports - pendingReports) / totalReports) * 100
+            : 0;
+    }, [totalReports, pendingReports]);
 
-    // Format rank suffix
-    const getRankSuffix = (rank: number) => {
-        if (rank > 3 && rank < 21) return 'th';
-        switch (rank % 10) {
-            case 1: return 'st';
-            case 2: return 'nd';
-            case 3: return 'rd';
-            default: return 'th';
-        }
-    };
+    // Memoized rank suffix calculation
+    const getRankSuffix = useMemo(() => {
+        return (rank: number) => {
+            if (rank > 3 && rank < 21) return 'th';
+            switch (rank % 10) {
+                case 1: return 'st';
+                case 2: return 'nd';
+                case 3: return 'rd';
+                default: return 'th';
+            }
+        };
+    }, []);
+
     const { userData } = useUserData();
-    const firstName = userData?.computedFields?.displayName || "";
+    
+    // Memoized display name
+    const displayName = useMemo(() => {
+        return userData?.computedFields?.displayName || "";
+    }, [userData?.computedFields?.displayName]);
     return (
         <div className="space-y-6">
             {/* Branch Overview Header */}
-            <DashboardHeader
-                title={branchName || `${firstName}`}
-                subtitle="Branch Performance Dashboard"
-                gradient="purple"
-                rightContent={branchRank > 0 ? (
-                    <div className="text-right">
-                         <p className="text-sm opacity-90">Branch Ranking</p>
-                         <p className="text-3xl font-bold">
-                             {branchRank}<sup>{getRankSuffix(branchRank)}</sup>
-                         </p>
-                     </div>
-                 ) : undefined}
-            />
+            <Card className="bg-gradient-to-r from-purple-500 to-purple-600 text-white">
+                <CardHeader>
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <CardTitle className="text-2xl font-bold text-white">
+                                {branchName || displayName}
+                            </CardTitle>
+                            <CardDescription className="text-purple-100">
+                                Branch Performance Dashboard
+                            </CardDescription>
+                        </div>
+                        {branchRank > 0 && (
+                            <div className="text-right">
+                                <p className="text-sm opacity-90">Branch Ranking</p>
+                                <p className="text-3xl font-bold">
+                                    {branchRank}<sup>{getRankSuffix(branchRank)}</sup>
+                                </p>
+                            </div>
+                        )}
+                    </div>
+                </CardHeader>
+            </Card>
 
             {/* Quick Actions */}
             <QuickActions />
 
             {/* Key Metrics */}
-            <MetricsGrid columns={4}>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 {/* <DashboardCard
                     title="Total Staff"
                     value={branchStaff}
@@ -123,7 +141,7 @@ const BranchManagerDashboardContent: React.FC<BranchDashboardContentProps> = ({
                     isLoading={isLoading}
                     className={growthRate >= 0 ? "bg-green-50" : "bg-red-50"}
                 /> */}
-            </MetricsGrid>
+            </div>
 
             {/* Performance Metrics */}
             <div className="grid gap-4 md:grid-cols-2">
@@ -178,12 +196,15 @@ const BranchManagerDashboardContent: React.FC<BranchDashboardContentProps> = ({
             </div>
 
             {/* Recent Reports Table */}
-            <DataTableCard
-                title="Recent Reports"
-                icon={ScrollText}
-                loadingRows={5}
-            >
-                <Table>
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <ScrollText className="h-5 w-5" />
+                        Recent Reports
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <Table>
                     <TableHeader>
                         <TableRow>
                             <TableHead>Report</TableHead>
@@ -214,8 +235,9 @@ const BranchManagerDashboardContent: React.FC<BranchDashboardContentProps> = ({
                             </TableRow>
                         ))}
                     </TableBody>
-                </Table>
-            </DataTableCard>
+                    </Table>
+                </CardContent>
+            </Card>
         </div>
     );
 };

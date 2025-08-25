@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileText, Clock, TrendingUp, AlertCircle, ScrollText } from 'lucide-react';
 import { DashboardCard } from './RoleBasedDashboard';
@@ -44,13 +44,34 @@ const UserDashboardContent: React.FC<UserDashboardContentProps> = ({
     isLoading,
     userName
 }) => {
+    // Memoized data destructuring to prevent unnecessary recalculations
+    const memoizedData = useMemo(() => {
+        const {
+            userReports = 0,
+            pendingReports = 0,
+            growthRate = 0,
+            recentReports = [],
+            recentActivities = []
+        } = dashboardData || {};
+        
+        return {
+            userReports,
+            pendingReports,
+            growthRate,
+            recentReports,
+            recentActivities,
+            formattedGrowthRate: `${growthRate.toFixed(1)}%`
+        };
+    }, [dashboardData]);
+
     const {
-        userReports = 0,
-        pendingReports = 0,
-        growthRate = 0,
-        recentReports = [],
-        recentActivities = []
-    } = dashboardData || {};
+        userReports,
+        pendingReports,
+        growthRate,
+        recentReports,
+        recentActivities,
+        formattedGrowthRate
+    } = memoizedData;
 
     return (
         <div className="space-y-6">
@@ -85,7 +106,7 @@ const UserDashboardContent: React.FC<UserDashboardContentProps> = ({
                 />
                 <DashboardCard
                     title="Growth Rate"
-                    value={`${growthRate}%`}
+                    value={formattedGrowthRate}
                     description="Report submission growth rate"
                     icon={TrendingUp}
                     isLoading={isLoading}

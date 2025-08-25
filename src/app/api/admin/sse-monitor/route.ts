@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import sseHandler from '@/lib/sse/sseHandler';
-import redisSSEHandler from '@/lib/sse/redisSSEHandler';
+import unifiedSSEHandler from '@/lib/sse/unifiedSSEHandler';
 
 /**
  * SSE Monitoring API
@@ -24,15 +23,19 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Forbidden: Admin privileges required' }, { status: 403 });
     }
     
-    // Get SSE statistics
-    const handler = redisSSEHandler || sseHandler;
-    const stats = await handler.getStats();
-    
+    // Get SSE status and statistics
+    const status = await unifiedSSEHandler.getStatus();
+    const stats = await unifiedSSEHandler.getStats();
+
     // Return the statistics
     return NextResponse.json({
       timestamp: new Date().toISOString(),
       stats,
-      handlerType: redisSSEHandler ? 'redis' : 'memory'
+      handlerType: status.type,
+      isReady: status.isReady,
+      clientCount: status.clientCount,
+      uptime: status.uptime,
+      performance: status.performance
     });
   } catch (error) {
     console.error('[SSE Monitor] Error:', error);

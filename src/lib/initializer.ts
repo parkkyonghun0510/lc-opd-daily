@@ -5,7 +5,7 @@
  * Provides graceful error handling and clear user feedback
  */
 
-import { EnvironmentValidator } from '@/lib/env-validator';
+// Environment validation utilities (replaced EnvironmentValidator)
 
 // System initialization interface
 interface InitializationResult {
@@ -61,17 +61,16 @@ export class ApplicationInitializer {
 
       // Step 1: Validate environment variables
       console.log('📋 Validating environment variables...');
-      const envValidator = EnvironmentValidator.getInstance();
-      const envResult = envValidator.validateEnvironment();
+      const envResult = this.validateEnvironmentVariables();
       
       services.environment = envResult.success;
       
       if (!envResult.success) {
-        errors.push(...envResult.errors.map(e => `Environment: ${e}`));
+        errors.push(...envResult.errors);
       }
       
       if (envResult.warnings.length > 0) {
-        warnings.push(...envResult.warnings.map(w => `Environment: ${w}`));
+        warnings.push(...envResult.warnings);
       }
 
       // Skip server-side checks in browser environment
@@ -201,6 +200,93 @@ export class ApplicationInitializer {
     }
 
     return true;
+  }
+
+  /**
+   * Validate environment variables with basic checks
+   */
+  private validateEnvironmentVariables(): { success: boolean; errors: string[]; warnings: string[] } {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+    const isBrowser = typeof window !== 'undefined';
+
+    // Validate Dragonfly/Redis configuration
+    const dragonflyUrl = process.env.DRAGONFLY_URL;
+    if (!isBrowser) {
+      if (!dragonflyUrl) {
+        errors.push('DRAGONFLY_URL must be configured for queue functionality');
+      } else {
+        try {
+          new URL(dragonflyUrl);
+        } catch {
+          errors.push(`Invalid DRAGONFLY_URL format: ${dragonflyUrl}`);
+        }
+      }
+    }
+
+    const queueName = process.env.DRAGONFLY_QUEUE_NAME;
+    if (!queueName || queueName.trim().length === 0) {
+      warnings.push('DRAGONFLY_QUEUE_NAME not set, using default: "notifications"');
+    } else if (!/^[a-zA-Z0-9_-]+$/.test(queueName)) {
+      errors.push('DRAGONFLY_QUEUE_NAME must contain only alphanumeric characters, hyphens, and underscores');
+    }
+
+    const queueUrl = process.env.DRAGONFLY_QUEUE_URL;
+    if (queueUrl) {
+      try {
+        new URL(queueUrl);
+      } catch {
+        errors.push(`Invalid DRAGONFLY_QUEUE_URL format: ${queueUrl}`);
+      }
+    }
+
+    // Validate VAPID configuration
+    const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+    const privateKey = process.env.VAPID_PRIVATE_KEY;
+    const contactEmail = process.env.VAPID_CONTACT_EMAIL;
+
+    if (isBrowser) {
+      if (!publicKey || publicKey.trim().length === 0) {
+        warnings.push('NEXT_PUBLIC_VAPID_PUBLIC_KEY is not set; push notifications will be disabled');
+      }
+    } else {
+      // Server-side validation
+      if (!publicKey || publicKey.trim().length === 0) {
+        warnings.push('NEXT_PUBLIC_VAPID_PUBLIC_KEY is not set; push notifications will be disabled');
+      }
+
+      if (!privateKey || privateKey.trim().length === 0) {
+        warnings.push('VAPID_PRIVATE_KEY is not set; push notifications will be disabled');
+      }
+
+      if (!contactEmail) {
+        warnings.push('VAPID_CONTACT_EMAIL is not set; push notifications will be disabled');
+      }
+
+      // Basic email validation
+      if (contactEmail) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(contactEmail)) {
+          warnings.push('VAPID_CONTACT_EMAIL appears to be invalid');
+        }
+      }
+
+      // Key validation
+      if (publicKey && privateKey) {
+        if (publicKey.length < 20 || publicKey.length > 100) {
+          warnings.push('NEXT_PUBLIC_VAPID_PUBLIC_KEY appears to be an unusual length');
+        }
+        if (privateKey.length < 20 || privateKey.length > 100) {
+          warnings.push('VAPID_PRIVATE_KEY appears to be an unusual length');
+        }
+      }
+    }
+
+    return {
+      success: errors.length === 0,
+      errors,
+      warnings
+    };
   }
 
   /**

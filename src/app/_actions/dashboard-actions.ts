@@ -7,6 +7,28 @@ import { UserRole } from '@/lib/auth/roles';
 import { authOptions } from '@/lib/auth'; // Import authOptions
 import { Prisma } from '@prisma/client';
 import { toNumber } from '@/lib/utils/number-helpers';
+import { unstable_cache } from 'next/cache';
+
+// Cache configuration
+const CACHE_TAGS = {
+  DASHBOARD_SUMMARY: 'dashboard-summary',
+  USER_DASHBOARD: 'user-dashboard',
+  BRANCH_DATA: 'branch-data'
+};
+
+const CACHE_DURATION = 60; // 1 minute cache
+
+// Cached version of getAccessibleBranches
+const getCachedAccessibleBranches = unstable_cache(
+  async (userId: string, userRole: UserRole) => {
+    return await getAccessibleBranches(userId, userRole);
+  },
+  [CACHE_TAGS.BRANCH_DATA],
+  {
+    revalidate: CACHE_DURATION * 5, // Cache branches for 5 minutes
+    tags: [CACHE_TAGS.BRANCH_DATA]
+  }
+);
 
 // Define the structure of the dashboard summary data
 /**
@@ -72,25 +94,9 @@ export interface BranchDashboardSummaryData extends DashboardSummaryData {
   }>;
 }
 
-export async function fetchDashboardSummary(
-  options?: DashboardSummaryOptions
-): Promise<{ status: number; data?: BranchDashboardSummaryData; error?: string }> {
-  try {
-    const session = await getServerSession(authOptions);
-    const user = session?.user;
-    if (!user) {
-      return { status: 401, error: 'Unauthorized' };
-    }
-
-    let accessibleBranchIds: string[] | undefined = undefined;
-    if (user.role !== UserRole.ADMIN) {
-      const branches = await getAccessibleBranches(user.id);
-      accessibleBranchIds = branches.map(b => b.id);
-      if (accessibleBranchIds.length === 0) {
-        return { status: 200, data: { totalUsers: 0, totalReports: 0, pendingReports: 0, totalAmount: 0, adminUsers: 0, growthRate: 0 } };
-      }
-    }
-
+// Cached version of fetchDashboardSummary
+const getCachedDashboardSummary = unstable_cache(
+  async (userId: string, userRole: UserRole, accessibleBranchIds: string[] | undefined, options?: DashboardSummaryOptions) => {
     // Simplified where clause construction
     const reportWhereClause: Prisma.ReportWhereInput = {
       ...(accessibleBranchIds && { branchId: { in: accessibleBranchIds } }),
@@ -103,36 +109,92 @@ export async function fetchDashboardSummary(
       }),
     };
 
-    // Prepare aggregation fields
-    const aggregationFields: Prisma.ReportAggregateArgs = {
-      _sum: {
-        writeOffs: true,
-        ninetyPlus: true,
-        ...(options?.customAggregations?.reduce((acc, field) => ({
-          ...acc,
-          [field]: true
-        }), {}))
-      },
-      where: reportWhereClause
-    };
+    // Use a single aggregation query to get report statistics efficiently
+    const [reportStats, totalUsersCount, adminUsersCount] = await Promise.all([
+      // Get all report statistics in one query
+      prisma.report.groupBy({
+        by: ['status'],
+        where: reportWhereClause,
+        _count: {
+          id: true
+        },
+        _sum: {
+          writeOffs: true,
+          ninetyPlus: true,
+          ...(options?.customAggregations?.reduce((acc, field) => ({
+            ...acc,
+            [field]: true
+          }), {}))
+        }
+      }),
 
-    // Fetch data concurrently with optimized selects
-    const [totalUsersCount, totalReportsCount, pendingReportsCount, reportAggregations, adminUsersCount] = await Promise.all([
       prisma.user.count({ where: { isActive: true } }),
-      prisma.report.count({ where: reportWhereClause }),
-      prisma.report.count({ where: { ...reportWhereClause, status: 'pending_approval' } }),
-      prisma.report.aggregate(aggregationFields),
       prisma.user.count({ where: { role: UserRole.ADMIN, isActive: true } }),
     ]);
 
-    // Calculate total amount and custom aggregations with proper null checking
-    const totalAmount = toNumber(reportAggregations._sum?.writeOffs) +
-      toNumber(reportAggregations._sum?.ninetyPlus);
+    // Process report statistics
+    const statusCounts = reportStats.reduce((acc, stat) => {
+      acc[stat.status] = stat._count.id;
+      return acc;
+    }, {} as Record<string, number>);
 
-    const customAggregations = options?.customAggregations?.reduce((acc, field) => ({
-      ...acc,
-      [field]: toNumber((reportAggregations._sum as Record<string, number | null>)?.[field])
-    }), {} as Record<string, number>);
+    const totalReportsCount = Object.values(statusCounts).reduce((sum, count) => sum + count, 0);
+    const pendingReportsCount = statusCounts['pending_approval'] || 0;
+
+    // Calculate total amount from aggregated sums
+    const totalAmount = reportStats.reduce((sum, stat) => {
+      return sum + toNumber(stat._sum?.writeOffs) + toNumber(stat._sum?.ninetyPlus);
+    }, 0);
+
+    const customAggregations = options?.customAggregations?.reduce((acc, field) => {
+      const fieldSum = reportStats.reduce((sum, stat) => {
+        return sum + toNumber((stat._sum as Record<string, number | null>)?.[field]);
+      }, 0);
+      return { ...acc, [field]: fieldSum };
+    }, {} as Record<string, number>);
+
+    return {
+      totalUsersCount,
+      totalReportsCount,
+      pendingReportsCount,
+      totalAmount,
+      adminUsersCount,
+      customAggregations,
+      reportWhereClause,
+      accessibleBranchIds
+    };
+  },
+  [CACHE_TAGS.DASHBOARD_SUMMARY],
+  {
+    revalidate: CACHE_DURATION,
+    tags: [CACHE_TAGS.DASHBOARD_SUMMARY]
+  }
+);
+
+export async function fetchDashboardSummary(
+  options?: DashboardSummaryOptions
+): Promise<{ status: number; data?: BranchDashboardSummaryData; error?: string }> {
+  try {
+    const session = await getServerSession(authOptions);
+    const user = session?.user;
+    if (!user) {
+      return { status: 401, error: 'Unauthorized' };
+    }
+
+    let accessibleBranchIds: string[] | undefined = undefined;
+    if (user.role !== UserRole.ADMIN) {
+      const branches = await getAccessibleBranches(user.id, user.role as UserRole);
+      accessibleBranchIds = branches.map(b => b.id);
+      if (accessibleBranchIds.length === 0) {
+        return { status: 200, data: { totalUsers: 0, totalReports: 0, pendingReports: 0, totalAmount: 0, adminUsers: 0, growthRate: 0 } };
+      }
+    }
+
+    // Use cached function for main dashboard data
+    const cachedData = await getCachedDashboardSummary(user.id, user.role as UserRole, accessibleBranchIds, options);
+    const { totalUsersCount, totalReportsCount, pendingReportsCount, totalAmount, adminUsersCount, customAggregations, reportWhereClause } = cachedData;
+
+    // Data already fetched from cache, continue with growth rate calculation
 
     // Optimized growth rate calculation with a single query
     const { currentRevenue, previousRevenue } = await prisma.$transaction(async (tx) => {
@@ -287,6 +349,80 @@ export async function fetchDashboardSummary(
   }
 }
 
+// Cached version of fetchUserDashboardData
+const getCachedUserDashboardData = unstable_cache(
+  async (userId: string, userRole: UserRole, branchIds: string[]) => {
+    try {
+      // Use efficient aggregation query for user reports
+      const [userReportStats, recentActivity] = await Promise.all([
+        // Get all user report statistics in one query
+        prisma.report.groupBy({
+          by: ['status'],
+          where: {
+            submittedBy: userId,
+            branchId: { in: branchIds }
+          },
+          _count: {
+            id: true
+          }
+        }),
+
+        // Recent activity (last 5 reports) with optimized select
+        prisma.report.findMany({
+          where: {
+            submittedBy: userId,
+            branchId: { in: branchIds }
+          },
+          select: {
+            id: true,
+            reportType: true,
+            status: true,
+            createdAt: true,
+            updatedAt: true,
+            branch: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
+          },
+          orderBy: {
+            createdAt: 'desc'
+          },
+          take: 5
+        })
+      ]);
+
+      // Process user report statistics
+      const statusCounts = userReportStats.reduce((acc, stat) => {
+        acc[stat.status] = stat._count.id;
+        return acc;
+      }, {} as Record<string, number>);
+
+      const myReports = Object.values(statusCounts).reduce((sum, count) => sum + count, 0);
+      const myPendingReports = statusCounts['pending_approval'] || 0;
+      const myApprovedReports = statusCounts['approved'] || 0;
+      const myRejectedReports = statusCounts['rejected'] || 0;
+
+      return {
+        myReports,
+        myPendingReports,
+        myApprovedReports,
+        myRejectedReports,
+        recentActivity
+      };
+    } catch (error) {
+      console.error('Error fetching user dashboard data:', error);
+      throw new Error('Failed to fetch user dashboard data');
+    }
+  },
+  [CACHE_TAGS.USER_DASHBOARD],
+  {
+    revalidate: CACHE_DURATION,
+    tags: [CACHE_TAGS.USER_DASHBOARD]
+  }
+);
+
 /**
  * Fetches user-specific dashboard data for the user dashboard.
  * Includes: userReports, pendingReports, growthRate, recentActivities.
@@ -301,15 +437,24 @@ export async function fetchUserDashboardData() {
     const userId = user.id;
     const userRole = user.role;
 
+    // Get accessible branches for the user (with caching)
+    const accessibleBranches = await getCachedAccessibleBranches(userId, userRole as UserRole);
+    const branchIds = accessibleBranches.map(branch => branch.id);
+
+    if (branchIds.length === 0) {
+      return { status: 200, data: { myReports: 0, myPendingReports: 0, myApprovedReports: 0, myRejectedReports: 0, recentActivity: [] } };
+    }
+
+    // Use cached function for user dashboard data
+    const cachedData = await getCachedUserDashboardData(userId, userRole as UserRole, branchIds);
+
     // Use transaction for consistent data snapshot and parallel queries
     const data = await prisma.$transaction(async (tx) => {
       // Get user's branch and counts in parallel
       const [
         dbUser,
-        userReports,
         { currentMonthData, previousMonthData },
-        recentActivities,
-        recentReports
+        recentActivities
       ] = await Promise.all([
         // Get user's branch (if not admin)
         userRole !== UserRole.ADMIN
@@ -319,12 +464,7 @@ export async function fetchUserDashboardData() {
           })
           : null,
 
-        // 1. Reports created by the user
-        tx.report.count({
-          where: { submittedBy: userId }
-        }),
-
-        // 2. Growth rate data
+        // Growth rate data
         (async () => {
           const currentMonthStart = new Date();
           currentMonthStart.setDate(1);
@@ -353,7 +493,7 @@ export async function fetchUserDashboardData() {
           return { currentMonthData: current, previousMonthData: previous };
         })(),
 
-        // 3. Recent activities
+        // Recent activities
         tx.userActivity.findMany({
           where: { userId },
           orderBy: { createdAt: 'desc' },
@@ -363,22 +503,7 @@ export async function fetchUserDashboardData() {
             details: true,
             createdAt: true,
           },
-        }),
-
-        // 4. Recent reports with branch info
-        tx.report.findMany({
-          where: { submittedBy: userId },
-          orderBy: { createdAt: 'desc' },
-          take: 5,
-          select: {
-            id: true,
-            date: true,
-            branch: { select: { name: true } },
-            status: true,
-            reportType: true,
-            submittedAt: true,
-          },
-        }),
+        })
       ]);
 
       // Get pending reports count based on role and branch
@@ -405,7 +530,7 @@ export async function fetchUserDashboardData() {
       }
 
       return {
-        userReports,
+        userReports: cachedData.myReports,
         pendingReports,
         growthRate: Math.round(growthRate * 100) / 100,
         recentActivities: recentActivities.map(a => ({
@@ -413,13 +538,13 @@ export async function fetchUserDashboardData() {
           details: a.details,
           timestamp: a.createdAt.toISOString(),
         })),
-        recentReports: recentReports.map(r => ({
+        recentReports: cachedData.recentActivity.map(r => ({
           id: r.id,
-          date: r.date,
+          date: r.createdAt,
           branch: r.branch?.name || 'Unknown',
           status: r.status,
           reportType: r.reportType,
-          submittedAt: r.submittedAt || null,
+          submittedAt: r.updatedAt || null,
         }))
       };
     });

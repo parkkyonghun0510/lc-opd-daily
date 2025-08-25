@@ -30,8 +30,6 @@ import { cn } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/use-toast";
 import { KHCurrencyInput } from "@/components/ui/currency-input";
-import { useHybridRealtime } from "@/hooks/useHybridRealtime";
-import { DashboardEventTypes } from "@/lib/events/dashboardEvents";
 
 type Branch = {
   id: string;
@@ -49,29 +47,9 @@ export default function CreateReport() {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const lastSubmittedReportId = useRef<string | null>(null);
 
-  // Set up hybrid realtime connection for updates (uses polling only)
-  const { lastEvent } = useHybridRealtime({
-    pollingEndpoint: '/api/dashboard/polling',
-    eventHandlers: {
-      dashboardUpdate: (data: any) => {
-        // Handle report status update events (approval/rejection)
-        if (data && (data.type === 'reportApproved' || data.type === 'reportRejected') &&
-          data.reportId === lastSubmittedReportId.current) {
-          console.log('Report status updated:', data);
 
-          // Show a toast notification about the status change
-          const statusText = data.status === 'approved' ? 'approved' : 'rejected';
-          toast({
-            title: `Report ${statusText.charAt(0).toUpperCase() + statusText.slice(1)}`,
-            description: `Your report has been ${statusText}${data.comments ? `: ${data.comments}` : '.'}`,
-            duration: 8000,
-          });
-        }
-      }
-    }
-  });
+
 
   // Fetch branches on component mount
   useEffect(() => {
@@ -150,10 +128,7 @@ export default function CreateReport() {
 
       const responseData = await response.json();
 
-      // Store the report ID for SSE tracking
-      if (responseData.data && responseData.data.id) {
-        lastSubmittedReportId.current = responseData.data.id;
-      }
+
 
       toast({
         title: "Success",

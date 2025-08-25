@@ -117,7 +117,8 @@ self.addEventListener('fetch', event => {
         acceptHeader.includes('text/event-stream') ||
         event.request.url.includes('/api/sse') ||
         event.request.url.includes('/api/reports/updates') ||
-        event.request.url.includes('/api/realtime/sse')
+        event.request.url.includes('/api/realtime/sse') ||
+        event.request.url.includes('/api/dashboard/sse')
       )
     ) {
       // Let the browser handle SSE directly (no respondWith or caching)

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, FileText, Clock, ShieldCheck, TrendingUp } from 'lucide-react';
 import { formatKHRCurrency } from '@/lib/utils';
@@ -39,52 +39,65 @@ const AdminDashboardContent: React.FC<AdminDashboardContentProps> = ({
   dashboardData, 
   isLoading 
 }) => {
-  const formatNumber = (value: number | undefined): string => {
-    if (value === undefined) return 'N/A';
-    return value.toLocaleString();
-  };
+  // Memoized formatting functions for better performance
+  const formatNumber = useMemo(() => {
+    return (value: number | undefined): string => {
+      if (value === undefined) return 'N/A';
+      return value.toLocaleString();
+    };
+  }, []);
+
+  // Memoized formatted values to prevent recalculation on every render
+  const formattedValues = useMemo(() => ({
+    totalUsers: formatNumber(dashboardData?.totalUsers),
+    totalReports: formatNumber(dashboardData?.totalReports),
+    pendingReports: formatNumber(dashboardData?.pendingReports),
+    totalAmount: formatKHRCurrency(dashboardData?.totalAmount ?? 0),
+    adminUsers: formatNumber(dashboardData?.adminUsers),
+    growthRate: dashboardData?.growthRate ? `${dashboardData.growthRate.toFixed(1)}%` : 'N/A'
+  }), [dashboardData, formatNumber]);
 
   return (
     <>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <DashboardCard
           title="Total Users"
-          value={formatNumber(dashboardData?.totalUsers)}
+          value={formattedValues.totalUsers}
           description="Active users in the system"
           icon={Users}
           isLoading={isLoading}
         />
         <DashboardCard
           title="Total Reports"
-          value={formatNumber(dashboardData?.totalReports)}
+          value={formattedValues.totalReports}
           description="Reports across all branches"
           icon={FileText}
           isLoading={isLoading}
         />
         <DashboardCard
           title="Pending Reports"
-          value={formatNumber(dashboardData?.pendingReports)}
+          value={formattedValues.pendingReports}
           description="Reports awaiting approval"
           icon={Clock}
           isLoading={isLoading}
         />
         <DashboardCard
           title="Total Amount"
-          value={formatKHRCurrency(dashboardData?.totalAmount ?? 0)}
+          value={formattedValues.totalAmount}
           description="Amount across all actual transactions" 
           icon={TrendingUp} 
           isLoading={isLoading}
         />
         <DashboardCard
           title="Admin Users"
-          value={formatNumber(dashboardData?.adminUsers)}
+          value={formattedValues.adminUsers}
           description="Users with admin access"
           icon={ShieldCheck}
           isLoading={isLoading}
         />
         <DashboardCard
           title="Growth Rate"
-          value={`${dashboardData?.growthRate ?? 'N/A'}%`}
+          value={formattedValues.growthRate}
           description="Month-over-month growth"
           icon={TrendingUp}
           isLoading={isLoading}
@@ -110,4 +123,4 @@ const AdminDashboardContent: React.FC<AdminDashboardContentProps> = ({
   );
 };
 
-export default AdminDashboardContent; 
+export default AdminDashboardContent;

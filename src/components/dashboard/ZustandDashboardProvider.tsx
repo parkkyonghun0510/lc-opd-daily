@@ -19,7 +19,7 @@ interface ZustandDashboardProviderProps {
  */
 export function ZustandDashboardProvider({
   children,
-  autoRefreshInterval = 5 * 60 * 1000, // 5 minutes
+  autoRefreshInterval = 2 * 60 * 1000, // Reduced to 2 minutes for better responsiveness
   debug = false
 }: ZustandDashboardProviderProps) {
   // Get auth state from Zustand store
@@ -29,7 +29,9 @@ export function ZustandDashboardProvider({
   const {
     fetchDashboardData,
     setConnectionStatus,
-    setConnectionError
+    setConnectionError,
+    shouldFetch,
+    isLoading
   } = useDashboardStore();
 
   // Get user role
@@ -46,16 +48,22 @@ export function ZustandDashboardProvider({
     }
   }, [isAuthenticated, user, role, fetchDashboardData, setConnectionStatus, setConnectionError]);
 
-  // Auto-refresh at specified interval
+  // Auto-refresh at specified interval with smart caching
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || !user) return;
 
     const interval = setInterval(() => {
-      fetchDashboardData(role);
+      // Only fetch if we should (respects cache and loading state)
+      if (shouldFetch(role) && !isLoading) {
+        if (debug) {
+          console.log('[ZustandDashboard] Auto-refresh triggered for role:', role);
+        }
+        fetchDashboardData(role, false); // Don't force, respect cache
+      }
     }, autoRefreshInterval);
 
     return () => clearInterval(interval);
-  }, [isAuthenticated, role, autoRefreshInterval, fetchDashboardData]);
+  }, [isAuthenticated, user, role, autoRefreshInterval, fetchDashboardData, shouldFetch, isLoading, debug]);
 
   // Listen for reconnect requests
   useEffect(() => {
