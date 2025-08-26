@@ -7,6 +7,7 @@
 
 import Redis from 'ioredis';
 import { eventEmitter } from './eventEmitter';
+import { getRedis, getRedisPubSub } from '@/lib/redis';
 
 // Event record interface
 interface EventRecord {

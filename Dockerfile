@@ -80,9 +80,9 @@ COPY --from=builder /app/scripts ./scripts
 # Copy package files for production dependencies
 COPY --chown=nextjs:nodejs package.json package-lock.json .npmrc ./
 
-# Install production dependencies, PM2, and setup in one layer
+# Install production dependencies, PM2, tsx for scripts, and setup in one layer
 RUN npm ci --omit=dev --legacy-peer-deps --no-audit --no-fund && \
-    npm install -g pm2 && \
+    npm install -g pm2 tsx && \
     npx prisma generate && \
     npm cache clean --force
 

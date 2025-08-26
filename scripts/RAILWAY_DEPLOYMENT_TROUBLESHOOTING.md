@@ -59,7 +59,21 @@ Webpage might be temporarily down
 - Update middleware matcher to exclude health endpoints
 - Run validation: `npm run validate:health`
 
-### 5. SSE Handler Initialization
+### 5. Redis Subscriber Mode Errors
+```
+❌ Error warming charts cache: Error: Connection in subscriber mode, only subscriber commands may be used
+❌ Error warming stats cache: Error: Connection in subscriber mode, only subscriber commands may be used
+```
+
+**Solution:**
+- This indicates mixing cache and pub/sub operations on same Redis connection
+- Ensure separate connections are used:
+  - `getRedis()` for cache operations (SET, GET, DEL)
+  - `getRedisPubSub()` for pub/sub operations (SUBSCRIBE, PUBLISH)
+- Run diagnostic: `npm run diagnose:redis`
+- Test connections: `npm run test:redis`
+
+### 6. SSE Handler Initialization
 ```
 [SSE] Simple SSE handler initialized
 ```

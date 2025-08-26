@@ -6,7 +6,7 @@
  */
 
 import { BaseSSEHandler, SSEEvent } from './sseHandler';
-import { getRedis } from '@/lib/redis';
+import { getRedis, getRedisPubSub } from '@/lib/redis';
 import type { Redis } from 'ioredis';
 
 export interface RedisSSEMessage {
@@ -41,23 +41,11 @@ export class RedisSSEHandler extends BaseSSEHandler {
 
     try {
       // Create separate Redis connections for pub/sub
+      // Publisher uses regular Redis client (for publishing messages only)
       this.publisher = await getRedis();
-      this.subscriber = this.publisher.duplicate();
-
-      // Ensure subscriber connects before subscribing to channels
-      await this.subscriber.connect();
-      if (this.subscriber.status !== 'ready') {
-        await new Promise<void>((resolve, reject) => {
-          const onReady = () => { cleanup(); resolve(); };
-          const onError = (err: any) => { cleanup(); reject(err); };
-          const cleanup = () => {
-            this.subscriber?.off('ready', onReady);
-            this.subscriber?.off('error', onError);
-          };
-          this.subscriber?.once('ready', onReady);
-          this.subscriber?.once('error', onError);
-        });
-      }
+      
+      // Subscriber uses dedicated pub/sub connection (will be in subscriber mode)
+      this.subscriber = await getRedisPubSub();
 
       // Subscribe to broadcast channel
       await this.subscriber.subscribe(this.broadcastChannel);
@@ -76,7 +64,7 @@ export class RedisSSEHandler extends BaseSSEHandler {
       });
 
       this.isInitialized = true;
-      console.log('[RedisSSE] Initialized successfully');
+      console.log('[RedisSSE] Initialized successfully with separate connections');
     } catch (error) {
       console.error('[RedisSSE] Initialization failed:', error);
       throw error;

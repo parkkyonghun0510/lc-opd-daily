@@ -3,7 +3,7 @@
   "build": {
     "builder": "DOCKERFILE",
     "dockerfilePath": "Dockerfile",
-    "buildCommand": "npm run build:railway"
+    "buildCommand": "npm run build:railway && npm run build:worker"
   },
   "deploy": {
     "startCommand": "./scripts/start-pm2.sh",

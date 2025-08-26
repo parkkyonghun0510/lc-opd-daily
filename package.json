@@ -10,26 +10,24 @@
     "dev": "next dev",
     "build": "next build",
     "build:production": "NODE_ENV=production next build --no-lint",
-    "build:production:force": "./scripts/production-build.sh",
     "build:railway": "NODE_ENV=production next build --no-lint",
     "build:worker": "tsc -p tsconfig.worker.json",
-
-    "deploy": "bash scripts/deploy-lightsail.sh",
-    "validate:health": "node scripts/validate-railway-health.cjs",
-
     "start": "next start",
-
-    "lint": "next lint",
-    "format": "prettier --write \"**/*.{js,jsx,ts,tsx,json,md}\"",
-
-
+    "start:production": "NODE_ENV=production next start",
+    
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
-
-
-
-
-    "typecheck": "tsc --noEmit"
+    "db:generate": "prisma generate",
+    
+    "lint": "next lint",
+    "format": "prettier --write \"**/*.{js,jsx,ts,tsx,json,md}\"",
+    "typecheck": "tsc --noEmit",
+    
+    "deploy": "bash scripts/deploy-lightsail.sh",
+    "validate:health": "node scripts/validate-railway-health.cjs",
+    "validate:production": "node scripts/production-validation.cjs",
+    "test:redis": "npx tsx scripts/test-redis-connections.cjs",
+    "diagnose:redis": "node scripts/diagnose-redis-subscriber.cjs"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.8.0",

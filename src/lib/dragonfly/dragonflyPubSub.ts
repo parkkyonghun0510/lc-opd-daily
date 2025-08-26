@@ -12,7 +12,7 @@
  */
 
 import { executeOptimized, pipelineOptimized } from './dragonflyOptimizedClient';
-import { getRedis } from '../redis';
+import { getRedis, getRedisPubSub } from '../redis';
 import { EventEmitter } from 'events';
 import Redis from 'ioredis';
 
@@ -113,9 +113,11 @@ export class DragonflyPubSub extends EventEmitter {
 
     try {
       // Create separate connections for publisher and subscriber
-      // Use regular Redis clients for pub/sub functionality
+      // Publisher uses regular Redis client for publishing messages
       this.publisher = await getRedis();
-      this.subscriber = await getRedis();
+      
+      // Subscriber uses dedicated pub/sub connection that will be in subscriber mode
+      this.subscriber = await getRedisPubSub();
 
       // Set up subscriber event handlers
       this.setupSubscriberHandlers();
@@ -124,7 +126,7 @@ export class DragonflyPubSub extends EventEmitter {
       this.startFlushTimer();
       
       this.isInitialized = true;
-      console.log('[DragonflyPubSub] Initialized successfully');
+      console.log('[DragonflyPubSub] Initialized successfully with separate connections');
     } catch (error) {
       console.error('[DragonflyPubSub] Initialization failed:', error);
       throw error;
