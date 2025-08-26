@@ -15,6 +15,7 @@
     "build:worker": "tsc -p tsconfig.worker.json",
 
     "deploy": "bash scripts/deploy-lightsail.sh",
+    "validate:health": "node scripts/validate-railway-health.cjs",
 
     "start": "next start",
 

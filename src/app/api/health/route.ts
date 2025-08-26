@@ -33,7 +33,14 @@ export async function GET() {
       version: process.env.NEXT_PUBLIC_APP_VERSION || "1.0.0",
     } as const;
 
-    return NextResponse.json(health, { status });
+    return NextResponse.json(health, { 
+      status,
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
+    });
   } catch (error) {
     console.error("Health check failed:", error);
 
@@ -47,6 +54,13 @@ export async function GET() {
       version: process.env.NEXT_PUBLIC_APP_VERSION || "1.0.0",
     } as const;
 
-    return NextResponse.json(health, { status: 500 });
+    return NextResponse.json(health, { 
+      status: 500,
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+        'Pragma': 'no-cache', 
+        'Expires': '0'
+      }
+    });
   }
 }

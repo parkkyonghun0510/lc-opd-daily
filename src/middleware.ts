@@ -9,10 +9,14 @@ export default withAuth(
   async function middleware(req) {
     const path = req.nextUrl.pathname;
 
-    // Always allow setup-related paths and static/PWA assets
+    // Always allow setup-related paths, health checks, and static/PWA assets
     if (
       path === "/setup" ||
       path === "/api/setup" ||
+      path === "/api/health" ||
+      path.startsWith("/api/health/") ||
+      path === "/api/metrics" ||
+      path.startsWith("/api/metrics/") ||
       path.startsWith("/_next") ||
       path.startsWith("/static") ||
       path === "/api/test/report-comments" ||
@@ -105,11 +109,15 @@ export default withAuth(
       authorized: ({ token, req }) => {
         const path = req.nextUrl.pathname;
 
-        // Skip auth for NextAuth internal and public/static routes
+        // Skip auth for NextAuth internal, health checks, and public/static routes
         if (
           path.startsWith("/api/auth") ||
           path === "/setup" ||
           path === "/api/setup" ||
+          path === "/api/health" ||
+          path.startsWith("/api/health/") ||
+          path === "/api/metrics" ||
+          path.startsWith("/api/metrics/") ||
           path.startsWith("/_next") ||
           path.startsWith("/static") ||
           path === "/api/test/report-comments" ||
@@ -155,9 +163,9 @@ export default withAuth(
 export const config = {
   matcher: [
     // Protected routes (requiring auth)
-    // Exclude Next internals, NextAuth routes and public PWA assets from middleware
+    // Exclude Next internals, NextAuth routes, health checks, metrics, and public PWA assets from middleware
     // But INCLUDE API routes that need authentication
-    "/((?!_next/static|_next/image|favicon.ico|manifest.json|service-worker.js|sw.js|icons|offline.html|robots.txt|sitemap.xml|\\.well-known|public|login|setup).*)",
+    "/((?!_next/static|_next/image|favicon.ico|manifest.json|service-worker.js|sw.js|icons|offline.html|robots.txt|sitemap.xml|\\.well-known|public|login|setup|api/health|api/metrics).*)",
 
     // Explicitly include home, login and setup
     "/",

@@ -42,7 +42,24 @@ VAPID keys not configured. Push notifications will not work.
 - Clear `.next` directory and rebuild if issues persist
 - Check that all required dependencies are installed
 
-### 4. SSE Handler Initialization
+### 4. Health Check Authentication Issues
+```
+ERR_FAILED
+This site can't be reached
+Webpage might be temporarily down
+```
+
+**Solution:**
+- Ensure `/api/health` is excluded from authentication middleware
+- Add health endpoints to middleware exclusions:
+  ```typescript
+  path === "/api/health" ||
+  path.startsWith("/api/health/") ||
+  ```
+- Update middleware matcher to exclude health endpoints
+- Run validation: `npm run validate:health`
+
+### 5. SSE Handler Initialization
 ```
 [SSE] Simple SSE handler initialized
 ```
