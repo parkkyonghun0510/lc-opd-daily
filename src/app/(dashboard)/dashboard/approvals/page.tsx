@@ -8,31 +8,13 @@ import { useHybridRealtime } from "@/auth/store";
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/use-toast";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   AlertCircle,
-  Filter,
-  Search,
-  SortAsc,
-  SortDesc,
   RefreshCw,
   Bell,
-  Calendar,
-  FilterX,
   LayoutGrid,
   LayoutList,
   Download
@@ -40,17 +22,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { fetchPendingReportsAction } from "@/app/_actions/report-actions";
 import { Pagination } from "@/components/ui/pagination";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import { format } from "date-fns";
 import { ApprovalsTable } from "@/components/reports/ApprovalsTable";
+import { MobileApprovalFilters } from "@/components/reports/MobileApprovalFilters";
 import { useApprovalFilterReducer } from "@/hooks/useApprovalFilterReducer";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
@@ -58,7 +32,6 @@ import { useErrorMonitoring } from "@/hooks/useErrorMonitoring";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { ShortcutHelpDialog } from "@/components/ShortcutHelpDialog";
 import { PerformanceMonitor } from "@/components/PerformanceMonitor";
-import { useApiCache } from "@/hooks/useApiCache";
 import { useReportData } from "@/hooks/useReportData";
 import { exportReports } from "@/utils/exportReports";
 import { ProgressIndicator } from "@/components/ProgressIndicator";
@@ -71,10 +44,10 @@ import {
 import { PrintDialog } from "@/components/reports/PrintDialog";
 import { PrintableReport } from "@/components/reports/PrintableReport";
 import { useReactToPrint } from "react-to-print";
-import type { UseReactToPrintOptions } from 'react-to-print';
 import { flushSync } from "react-dom";
+import { raceConditionManager } from "@/lib/sync/race-condition-manager";
 
-// Types
+// Enhanced types with better validation
 export type FilterState = {
   searchTerm: string;
   branchFilter: string;
@@ -91,71 +64,8 @@ export type FilterState = {
 
 export type ViewMode = 'card' | 'table';
 
-
-
-const sortOptions = {
-  date: 'Report Date',
-  created: 'Submission Date',
-  branch: 'Branch',
-  writeOffs: 'Write-offs',
-  ninetyPlus: '90+ Days'
-} as const;
-
-const statusOptions = [
-  { value: 'all', label: 'All Statuses' },
-  { value: 'pending_approval', label: 'Pending Approval' },
-  { value: 'pending', label: 'Pending' },
-  { value: 'approved', label: 'Approved' },
-  { value: 'rejected', label: 'Rejected' }
-] as const;
-
 type ReportStatus = "pending" | "pending_approval" | "approved" | "rejected";
 
-// API response report type - matches the server response
-// Used as a reference for the ProcessedReport interface
-// We keep this as documentation even though it's not directly used
-/* eslint-disable-next-line @typescript-eslint/no-unused-vars */
-interface ApiReport {
-  id: string;
-  branchId: string;
-  writeOffs: number;
-  ninetyPlus: number;
-  status: string;
-  reportType: string;
-  content?: string;
-  submittedBy?: string;
-  date: string; // API returns date as string
-  submittedAt: Date;
-  createdAt: Date;
-  updatedAt: Date;
-  comments: string | null;
-  planReportId: string | null;
-  branch: {
-    id: string;
-    name: string;
-    code: string;
-  };
-  user?: {
-    id: string;
-    name: string;
-    username: string;
-  };
-  ReportComment: Array<{
-    id: string;
-    content: string;
-    userId: string;
-    createdAt: Date;
-    updatedAt: Date;
-    reportId: string;
-    user: {
-      id: string;
-      name: string;
-      username: string;
-    }
-  }>;
-}
-
-// Type for the processed report with proper status type
 export interface ProcessedReport {
   id: string;
   branchId: string;
@@ -165,7 +75,7 @@ export interface ProcessedReport {
   reportType: string;
   content?: string;
   submittedBy?: string;
-  date: string; // Keep as string for consistency
+  date: string;
   submittedAt: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -201,13 +111,24 @@ interface Branch {
   name: string;
   code?: string;
 }
-export default function ApprovalsPage() {
+
+// Enhanced state management with stability improvements
+interface StableState {
+  isRefreshing: boolean;
+  lastRefreshTime: number;
+  operationInProgress: boolean;
+  criticalError: string | null;
+}
+
+export default function EnhancedApprovalsPage() {
   const { isConnected } = useHybridRealtime();
   const { toast } = useToast();
   const { logError, trackEvent, measurePerformance } = useErrorMonitoring();
   const printRef = useRef<HTMLDivElement>(null);
+  const mountedRef = useRef(true);
+  const operationLockRef = useRef<Set<string>>(new Set());
 
-  // Use the filter reducer first to avoid reference issues
+  // Enhanced filter state with race condition protection
   const {
     state: filters,
     setSearch,
@@ -221,7 +142,7 @@ export default function ApprovalsPage() {
     resetFilters
   } = useApprovalFilterReducer();
 
-  // Load report data with proper filter dependency
+  // Enhanced report data loading with stability improvements
   const {
     reports,
     loading,
@@ -235,8 +156,14 @@ export default function ApprovalsPage() {
     onNewReport: () => setNewReportNotification(true)
   });
 
+  // Enhanced state management
   const [branches, setBranches] = useState<Record<string, Branch>>({});
-  const [refreshing, setRefreshing] = useState(false);
+  const [stableState, setStableState] = useState<StableState>({
+    isRefreshing: false,
+    lastRefreshTime: 0,
+    operationInProgress: false,
+    criticalError: null
+  });
   const [newReportNotification, setNewReportNotification] = useState<boolean>(false);
   const [exportProgress, setExportProgress] = useState(0);
   const [isExporting, setIsExporting] = useState(false);
@@ -245,22 +172,88 @@ export default function ApprovalsPage() {
     includeComments: true
   });
 
-  // Handle refresh with proper dependency
-  const handleRefresh = useCallback(() => {
-    setRefreshing(true);
-    setNewReportNotification(false);
-    refresh().finally(() => {
-      setRefreshing(false);
-    });
-  }, [refresh]);
+  // View mode with proper persistence
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("approvalsViewMode");
+        return (saved === "table" ? "table" : "card") as ViewMode;
+      } catch {
+        return "card";
+      }
+    }
+    return "card";
+  });
 
+  // Race condition safe refresh with operation locking
+  const handleRefresh = useCallback(async () => {
+    const operationKey = 'refresh-reports';
+    
+    if (operationLockRef.current.has(operationKey)) {
+      console.log('Refresh already in progress, skipping...');
+      return;
+    }
 
+    try {
+      operationLockRef.current.add(operationKey);
+      
+      // Use race condition manager for safe execution
+      await raceConditionManager.withStateLock(
+        'approval-refresh',
+        'data-refresh',
+        async () => {
+          if (!mountedRef.current) return;
+          
+          setStableState(prev => ({ 
+            ...prev, 
+            isRefreshing: true,
+            operationInProgress: true 
+          }));
+          setNewReportNotification(false);
+          
+          await refresh();
+          
+          if (mountedRef.current) {
+            setStableState(prev => ({ 
+              ...prev, 
+              lastRefreshTime: Date.now(),
+              criticalError: null
+            }));
+          }
+        },
+        10000 // 10 second timeout
+      );
+    } catch (error) {
+      console.error('Error refreshing reports:', error);
+      if (mountedRef.current) {
+        setStableState(prev => ({ 
+          ...prev, 
+          criticalError: error instanceof Error ? error.message : 'Refresh failed'
+        }));
+        toast({
+          title: 'Refresh Failed',
+          description: 'Unable to refresh reports. Please try again.',
+          variant: 'destructive',
+        });
+      }
+    } finally {
+      operationLockRef.current.delete(operationKey);
+      if (mountedRef.current) {
+        setStableState(prev => ({ 
+          ...prev, 
+          isRefreshing: false,
+          operationInProgress: false 
+        }));
+      }
+    }
+  }, [refresh, toast]);
 
+  // Enhanced print handling with proper state management
   const handlePrint = useReactToPrint({
     content: () => printRef.current,
     documentTitle: `Reports_${new Date().toISOString().split('T')[0]}`,
     onBeforePrint: async () => {
-      await Promise.resolve(); // Ensure it returns a Promise
+      await Promise.resolve();
       trackEvent('reports_printed', {
         reportCount: memoizedSortedData.length,
         options: printOptions
@@ -275,196 +268,232 @@ export default function ApprovalsPage() {
       });
       logError({
         message: 'Print failed',
-        componentName: 'ApprovalsPage',
+        componentName: 'EnhancedApprovalsPage',
         context: { error: typeof error === 'string' ? error : error.message }
       });
     }
-  } as UseReactToPrintOptions);
+  } as any); // Temporary fix for type compatibility
 
   const handlePrintWithOptions = useCallback((options: typeof printOptions) => {
-    // Ensure state is flushed before printing to avoid race conditions
-    flushSync(() => {
-      setPrintOptions(options);
-    });
-    handlePrint();
-  }, [handlePrint]);
-
-  // View mode state
-  const [viewMode, setViewMode] = useState<"card" | "table">(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("approvalsViewMode") === "table" ? "table" : "card";
+    try {
+      flushSync(() => {
+        setPrintOptions(options);
+      });
+      handlePrint();
+    } catch (error) {
+      console.error('Print options error:', error);
+      toast({
+        title: 'Print Error',
+        description: 'Unable to set print options',
+        variant: 'destructive',
+      });
     }
-    return "card";
-  });
+  }, [handlePrint, toast]);
 
-  // Update keyboard shortcuts to properly type the error parameter
-  const { getShortcutDescriptions } = useKeyboardShortcuts([
-    {
-      key: 'r',
-      ctrl: true,
-      action: handleRefresh,
-      description: 'Refresh reports'
-    },
-    {
-      key: 'f',
-      ctrl: true,
-      action: () => document.querySelector<HTMLInputElement>('input[placeholder*="Search"]')?.focus(),
-      description: 'Focus search'
-    },
-    {
-      key: 'v',
-      ctrl: true,
-      action: () => handleViewModeChange(viewMode === 'card' ? 'table' : 'card'),
-      description: 'Toggle view mode'
-    },
-    {
-      key: 'c',
-      ctrl: true,
-      action: resetFilters,
-      description: 'Clear all filters'
-    },
-    {
-      key: 'ArrowLeft',
-      alt: true,
-      action: () => setPage(Math.max(1, filters.currentPage - 1)),
-      description: 'Previous page'
-    },
-    {
-      key: 'ArrowRight',
-      alt: true,
-      action: () => setPage(Math.min(Math.ceil(memoizedSortedData.length / 10), filters.currentPage + 1)),
-      description: 'Next page'
-    },
-    {
-      key: 'e',
-      ctrl: true,
-      action: () => handleExport('xlsx'),
-      description: 'Export as Excel'
-    },
-    {
-      key: 'e',
-      ctrl: true,
-      shift: true,
-      action: () => handleExport('csv'),
-      description: 'Export as CSV'
-    },
-    {
-      key: 'p',
-      ctrl: true,
-      action: () => handlePrintWithOptions({
-        includeAnalytics: true,
-        includeComments: true
-      }),
-      description: 'Print full report'
-    },
-    {
-      key: 'p',
-      ctrl: true,
-      shift: true,
-      action: () => handlePrintWithOptions({
-        includeAnalytics: false,
-        includeComments: false
-      }),
-      description: 'Print basic report'
-    }
-  ]);
-
-  // Memoize filtered and transformed data
+  // Enhanced data processing with validation
   const memoizedFilteredData = useMemo(() => {
-    if (!reports.length) return [];
-    return reports.filter(report => {
-      if (filters.branchFilter !== "all" && report.branchId !== filters.branchFilter) return false;
-      if (filters.reportTypeFilter !== "all" && report.reportType !== filters.reportTypeFilter) return false;
+    if (!reports || !Array.isArray(reports)) return [];
+    
+    try {
+      return reports.filter(report => {
+        // Validate report structure
+        if (!report || typeof report !== 'object') return false;
+        if (!report.id || !report.branchId) return false;
+        
+        // Apply filters with proper validation
+        if (filters.branchFilter !== "all" && report.branchId !== filters.branchFilter) return false;
+        if (filters.reportTypeFilter !== "all" && report.reportType !== filters.reportTypeFilter) return false;
 
-      if (filters.dateRange.from || filters.dateRange.to) {
-        const reportDate = new Date(report.date);
-        if (filters.dateRange.from && reportDate < filters.dateRange.from) return false;
-        if (filters.dateRange.to && reportDate > filters.dateRange.to) return false;
-      }
+        if (filters.dateRange.from || filters.dateRange.to) {
+          try {
+            const reportDate = new Date(report.date);
+            if (isNaN(reportDate.getTime())) return false;
+            if (filters.dateRange.from && reportDate < filters.dateRange.from) return false;
+            if (filters.dateRange.to && reportDate > filters.dateRange.to) return false;
+          } catch {
+            return false;
+          }
+        }
 
-      if (filters.searchTerm) {
-        const search = filters.searchTerm.toLowerCase();
-        return (
-          report.branch.name.toLowerCase().includes(search) ||
-          (report.user?.name || "").toLowerCase().includes(search) ||
-          (report.user?.username || "").toLowerCase().includes(search) ||
-          report.date.includes(search)
-        );
-      }
-      return true;
-    });
-  }, [reports, filters]);
+        if (filters.searchTerm) {
+          const search = filters.searchTerm.toLowerCase();
+          try {
+            return (
+              (report.branch?.name || "").toLowerCase().includes(search) ||
+              (report.user?.name || "").toLowerCase().includes(search) ||
+              (report.user?.username || "").toLowerCase().includes(search) ||
+              (report.date || "").includes(search)
+            );
+          } catch {
+            return false;
+          }
+        }
+        return true;
+      });
+    } catch (error) {
+      console.error('Error filtering data:', error);
+      logError({
+        message: 'Data filtering failed',
+        componentName: 'EnhancedApprovalsPage',
+        context: { filtersCount: Object.keys(filters).length }
+      });
+      return [];
+    }
+  }, [reports, filters, logError]);
 
   const memoizedSortedData = useMemo(() => {
-    return [...memoizedFilteredData].sort((a, b) => {
-      const getValue = (item: ProcessedReport) => {
-        switch (filters.sortField) {
-          case "date": return new Date(item.date);
-          case "branch": return item.branch.name;
-          case "created": return new Date(item.submittedAt);
-          case "writeOffs": return Number(item.writeOffs);
-          case "ninetyPlus": return Number(item.ninetyPlus);
-          default: return new Date(item.date);
+    if (!Array.isArray(memoizedFilteredData)) return [];
+    
+    try {
+      return [...memoizedFilteredData].sort((a, b) => {
+        const getValue = (item: ProcessedReport) => {
+          try {
+            switch (filters.sortField) {
+              case "date": return new Date(item.date);
+              case "branch": return item.branch?.name || "";
+              case "created": return new Date(item.submittedAt);
+              case "writeOffs": return Number(item.writeOffs) || 0;
+              case "ninetyPlus": return Number(item.ninetyPlus) || 0;
+              default: return new Date(item.date);
+            }
+          } catch {
+            return new Date(0); // Fallback for invalid dates
+          }
+        };
+
+        const valueA = getValue(a);
+        const valueB = getValue(b);
+
+        try {
+          if (valueA instanceof Date && valueB instanceof Date) {
+            const timeA = valueA.getTime();
+            const timeB = valueB.getTime();
+            return filters.sortDirection === "asc" ? timeA - timeB : timeB - timeA;
+          }
+
+          return filters.sortDirection === "asc"
+            ? String(valueA).localeCompare(String(valueB))
+            : String(valueB).localeCompare(String(valueA));
+        } catch {
+          return 0; // Fallback for comparison errors
         }
-      };
-
-      const valueA = getValue(a);
-      const valueB = getValue(b);
-
-      if (valueA instanceof Date && valueB instanceof Date) {
-        return filters.sortDirection === "asc"
-          ? valueA.getTime() - valueB.getTime()
-          : valueB.getTime() - valueA.getTime();
-      }
-
-      return filters.sortDirection === "asc"
-        ? String(valueA).localeCompare(String(valueB))
-        : String(valueB).localeCompare(String(valueA));
-    });
+      });
+    } catch (error) {
+      console.error('Error sorting data:', error);
+      return memoizedFilteredData;
+    }
   }, [memoizedFilteredData, filters.sortField, filters.sortDirection]);
 
   const memoizedPaginatedData = useMemo(() => {
-    const startIndex = (filters.currentPage - 1) * 10;
-    const endIndex = startIndex + 10;
-    return memoizedSortedData.slice(startIndex, endIndex);
+    try {
+      const startIndex = (filters.currentPage - 1) * 10;
+      const endIndex = startIndex + 10;
+      return memoizedSortedData.slice(startIndex, endIndex);
+    } catch (error) {
+      console.error('Error paginating data:', error);
+      return [];
+    }
   }, [memoizedSortedData, filters.currentPage]);
 
-  const handleApprovalComplete = useCallback(() => {
-    refresh();
-  }, [refresh]);
-
-  const handleFilterChange = useCallback((filterType: string, value: any) => {
-    trackEvent('filter_changed', {
-      filterType,
-      value,
-      currentFilters: filters
-    });
-
-    switch (filterType) {
-      case 'search':
-        setSearch(value);
-        break;
-      case 'branch':
-        setBranchFilter(value);
-        break;
-      case 'reportType':
-        setReportTypeFilter(value);
-        break;
-      case 'status':
-        setStatusFilter(value);
-        break;
-      case 'dateRange':
-        setDateRange(value);
-        break;
+  // Enhanced approval completion handler with race protection
+  const handleApprovalComplete = useCallback(async () => {
+    const operationKey = 'approval-complete';
+    
+    if (operationLockRef.current.has(operationKey)) {
+      console.log('Approval refresh already in progress');
+      return;
     }
-  }, [filters, setSearch, setBranchFilter, setReportTypeFilter, setStatusFilter, setDateRange, trackEvent]);
 
-  const handleViewModeChange = useCallback((mode: "card" | "table") => {
-    trackEvent('view_mode_changed', { mode });
-    setViewMode(mode);
+    try {
+      operationLockRef.current.add(operationKey);
+      
+      await raceConditionManager.executeInSequence(
+        'approval-operations',
+        async () => {
+          if (mountedRef.current) {
+            await refresh();
+          }
+        },
+        { timeout: 15000 }
+      );
+    } catch (error) {
+      console.error('Error handling approval completion:', error);
+      if (mountedRef.current) {
+        toast({
+          title: 'Update Failed',
+          description: 'Failed to refresh after approval',
+          variant: 'destructive',
+        });
+      }
+    } finally {
+      operationLockRef.current.delete(operationKey);
+    }
+  }, [refresh, toast]);
+
+  // Enhanced filter change handler with debouncing
+  const handleFilterChange = useCallback(
+    raceConditionManager.debounce((filterType: string, value: any) => {
+      if (!mountedRef.current) return;
+      
+      try {
+        trackEvent('filter_changed', {
+          filterType,
+          value,
+          currentFilters: filters
+        });
+
+        switch (filterType) {
+          case 'search':
+            setSearch(value);
+            break;
+          case 'branch':
+            setBranchFilter(value);
+            break;
+          case 'reportType':
+            setReportTypeFilter(value);
+            break;
+          case 'status':
+            setStatusFilter(value);
+            break;
+          case 'dateRange':
+            setDateRange(value);
+            break;
+          default:
+            console.warn('Unknown filter type:', filterType);
+        }
+      } catch (error) {
+        console.error('Error changing filter:', error);
+        logError({
+          message: 'Filter change failed',
+          componentName: 'EnhancedApprovalsPage',
+          context: { filterType, error: error instanceof Error ? error.message : String(error) }
+        });
+      }
+    }, 300),
+    [filters, setSearch, setBranchFilter, setReportTypeFilter, setStatusFilter, setDateRange, trackEvent, logError]
+  );
+
+  const handleViewModeChange = useCallback((mode: ViewMode) => {
+    try {
+      trackEvent('view_mode_changed', { mode });
+      setViewMode(mode);
+      localStorage.setItem("approvalsViewMode", mode);
+    } catch (error) {
+      console.error('Error changing view mode:', error);
+    }
   }, [trackEvent]);
 
+  // Enhanced export with better error handling
   const handleExport = useCallback(async (format: 'csv' | 'xlsx') => {
+    if (isExporting) {
+      toast({
+        title: 'Export in Progress',
+        description: 'Please wait for the current export to complete',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setIsExporting(true);
     setExportProgress(0);
 
@@ -472,7 +501,11 @@ export default function ApprovalsPage() {
       const result = await exportReports(memoizedSortedData, trends, {
         format,
         includeAnalytics: true,
-        onProgress: (progress) => setExportProgress(progress)
+        onProgress: (progress) => {
+          if (mountedRef.current) {
+            setExportProgress(progress);
+          }
+        }
       });
 
       if (result.success) {
@@ -490,56 +523,110 @@ export default function ApprovalsPage() {
       }
     } catch (error) {
       console.error('Export error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to export reports';
       toast({
         title: 'Export Failed',
-        description: error instanceof Error ? error.message : 'Failed to export reports',
+        description: errorMessage,
         variant: 'destructive',
       });
       logError({
         message: 'Export failed',
-        componentName: 'ApprovalsPage',
+        componentName: 'EnhancedApprovalsPage',
         context: {
           format,
-          error: error instanceof Error ? error.message : String(error)
+          error: errorMessage,
+          reportCount: memoizedSortedData.length
         }
       });
     } finally {
-      setIsExporting(false);
-      setExportProgress(0);
+      if (mountedRef.current) {
+        setIsExporting(false);
+        setExportProgress(0);
+      }
     }
-  }, [memoizedSortedData, trends, toast, trackEvent, logError]);
+  }, [memoizedSortedData, trends, toast, trackEvent, logError, isExporting]);
 
+  // Enhanced keyboard shortcuts
+  const { getShortcutDescriptions } = useKeyboardShortcuts([
+    {
+      key: 'r',
+      ctrl: true,
+      action: handleRefresh,
+      description: 'Refresh reports'
+    },
+    {
+      key: 'f',
+      ctrl: true,
+      action: () => {
+        try {
+          const searchInput = document.querySelector<HTMLInputElement>('input[placeholder*="Search"]');
+          searchInput?.focus();
+        } catch (error) {
+          console.error('Error focusing search:', error);
+        }
+      },
+      description: 'Focus search'
+    },
+    {
+      key: 'v',
+      ctrl: true,
+      action: () => handleViewModeChange(viewMode === 'card' ? 'table' : 'card'),
+      description: 'Toggle view mode'
+    },
+    {
+      key: 'c',
+      ctrl: true,
+      action: resetFilters,
+      description: 'Clear all filters'
+    }
+  ]);
+
+  // Cleanup on unmount
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem("approvalsViewMode", viewMode);
-    }
-  }, [viewMode]);
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      operationLockRef.current.clear();
+    };
+  }, []);
 
-  const processReport = (report: ProcessedReport) => ({
-    ...report,
-    createdAt: report.createdAt.toString(),
-    updatedAt: report.updatedAt.toString(),
-    submittedAt: report.submittedAt.toString(),
-    ReportComment: report.ReportComment?.map((comment) => ({
-      ...comment,
-      createdAt: comment.createdAt.toString(),
-      updatedAt: comment.updatedAt.toString()
-    }))
-  });
+  // Safe report processing with validation
+  const processReport = useCallback((report: ProcessedReport) => {
+    try {
+      return {
+        ...report,
+        createdAt: new Date(report.createdAt).toString(),
+        updatedAt: new Date(report.updatedAt).toString(),
+        submittedAt: new Date(report.submittedAt).toString(),
+        ReportComment: (report.ReportComment || []).map((comment) => ({
+          ...comment,
+          createdAt: new Date(comment.createdAt).toString(),
+          updatedAt: new Date(comment.updatedAt).toString()
+        }))
+      };
+    } catch (error) {
+      console.error('Error processing report:', error);
+      return {
+        ...report,
+        createdAt: new Date().toString(),
+        updatedAt: new Date().toString(),
+        submittedAt: new Date().toString(),
+        ReportComment: []
+      }; // Return safe fallback
+    }
+  }, []);
 
   return (
-    <PerformanceMonitor pageId="approvals">
+    <PerformanceMonitor pageId="enhanced-approvals">
       <ErrorBoundary>
-        <main role="main" aria-label="Approvals Dashboard">
+        <main role="main" aria-label="Enhanced Approvals Dashboard">
           <DashboardHeader
             heading="Report Approvals"
-            text="Review, approve, and manage all reports in a unified interface."
+            text="Review, approve, and manage all reports with enhanced stability."
           />
 
           <div className="mt-6 space-y-4">
-            {/* Add trends summary before the filters card */}
-            {/* {trends && <TrendsSummary trends={trends} />} */}
-
+            {/* Enhanced Status Indicators */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
               <div className="flex items-center gap-2">
                 <div className="border rounded-md p-1" role="group" aria-label="View mode selection">
@@ -550,6 +637,7 @@ export default function ApprovalsPage() {
                     className="h-8 px-2"
                     aria-pressed={viewMode === "card"}
                     aria-label="Card view"
+                    disabled={stableState.operationInProgress}
                   >
                     <LayoutGrid className="h-4 w-4 mr-1" aria-hidden="true" />
                     Cards
@@ -561,6 +649,7 @@ export default function ApprovalsPage() {
                     className="h-8 px-2"
                     aria-pressed={viewMode === "table"}
                     aria-label="Table view"
+                    disabled={stableState.operationInProgress}
                   >
                     <LayoutList className="h-4 w-4 mr-1" aria-hidden="true" />
                     Table
@@ -582,17 +671,25 @@ export default function ApprovalsPage() {
                     <span className="text-xs font-medium">New report available</span>
                   </div>
                 )}
+                {stableState.operationInProgress && (
+                  <div className="flex items-center text-blue-500" role="status">
+                    <RefreshCw className="h-4 w-4 mr-1 animate-spin" aria-hidden="true" />
+                    <span className="text-xs font-medium">Processing...</span>
+                  </div>
+                )}
+                
                 <PrintDialog
                   onPrint={handlePrintWithOptions}
-                  disabled={loading || reports.length === 0}
+                  disabled={loading || reports.length === 0 || stableState.operationInProgress}
                 />
+                
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
                       variant="outline"
                       size="sm"
                       className="flex items-center gap-1"
-                      disabled={loading || reports.length === 0}
+                      disabled={loading || reports.length === 0 || isExporting || stableState.operationInProgress}
                     >
                       <Download className="h-4 w-4" />
                       Export
@@ -607,221 +704,57 @@ export default function ApprovalsPage() {
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
+                
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={handleRefresh}
-                  disabled={refreshing}
+                  disabled={stableState.isRefreshing || stableState.operationInProgress}
                   className="flex items-center gap-1"
-                  aria-label={refreshing ? "Refreshing reports" : "Refresh reports"}
+                  aria-label={stableState.isRefreshing ? "Refreshing reports" : "Refresh reports"}
                 >
                   <RefreshCw
-                    className={cn("h-4 w-4", refreshing && "animate-spin")}
+                    className={cn("h-4 w-4", stableState.isRefreshing && "animate-spin")}
                     aria-hidden="true"
                   />
-                  {refreshing ? "Refreshing..." : "Refresh"}
+                  {stableState.isRefreshing ? "Refreshing..." : "Refresh"}
                 </Button>
               </div>
             </div>
 
-            {/* Filters Card */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-md flex items-center">
-                  <Filter className="h-4 w-4 mr-2" aria-hidden="true" />
-                  Filter Reports
-                </CardTitle>
-                <CardDescription>
-                  Filter reports by status, branch, type, and date range
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4" role="search">
-                  <div className="flex items-center space-x-2">
-                    <Search className="h-4 w-4 text-gray-500" aria-hidden="true" />
-                    <Input
-                      placeholder="Search branch, user..."
-                      value={filters.searchTerm}
-                      onChange={(e) => handleFilterChange('search', e.target.value)}
-                      className="flex-1"
-                      aria-label="Search reports"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label id="branch-filter-label" className="text-sm font-medium text-gray-500">
-                      Branch
-                    </label>
-                    <Select
-                      value={filters.branchFilter}
-                      onValueChange={(value) => handleFilterChange('branch', value)}
-                      aria-labelledby="branch-filter-label"
-                    >
-                      <SelectTrigger className="w-full" aria-label="Filter by Branch">
-                        <SelectValue placeholder="All Branches" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Branches</SelectItem>
-                        {Object.values(branches).sort((a, b) =>
-                          a.name.localeCompare(b.name)
-                        ).map((branch) => (
-                          <SelectItem key={branch.id} value={branch.id}>
-                            {branch.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label id="report-type-filter-label" className="text-sm font-medium text-gray-500">
-                      Report Type
-                    </label>
-                    <Select
-                      value={filters.reportTypeFilter}
-                      onValueChange={(value) => handleFilterChange('reportType', value)}
-                      aria-labelledby="report-type-filter-label"
-                    >
-                      <SelectTrigger className="w-full" aria-label="Filter by Report Type">
-                        <SelectValue placeholder="All Types" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Types</SelectItem>
-                        <SelectItem value="plan">Plan</SelectItem>
-                        <SelectItem value="actual">Actual</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                  <div className="space-y-1">
-                    <label id="status-filter-label" className="text-sm font-medium text-gray-500">
-                      Status
-                    </label>
-                    <Select
-                      value={filters.statusFilter}
-                      onValueChange={(value) => handleFilterChange('status', value)}
-                      aria-labelledby="status-filter-label"
-                    >
-                      <SelectTrigger
-                        className="w-full"
-                        aria-label="Filter by Status"
-                      >
-                        <SelectValue placeholder="All Statuses" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {statusOptions.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label id="date-range-filter-label" className="text-sm font-medium text-gray-500">
-                      Date Range
-                    </label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className="w-full justify-start text-left font-normal"
-                          aria-labelledby="date-range-filter-label"
-                        >
-                          <Calendar className="mr-2 h-4 w-4" aria-hidden="true" />
-                          {filters.dateRange?.from ? (
-                            filters.dateRange.to ? (
-                              <>
-                                {format(filters.dateRange.from, "LLL dd, y")} -{" "}
-                                {format(filters.dateRange.to, "LLL dd, y")}
-                              </>
-                            ) : (
-                              format(filters.dateRange.from, "LLL dd, y")
-                            )
-                          ) : (
-                            <span>Pick a date range</span>
-                          )}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <CalendarComponent
-                          initialFocus
-                          mode="range"
-                          defaultMonth={filters.dateRange?.from}
-                          selected={filters.dateRange as any}
-                          onSelect={(range) => handleFilterChange('dateRange', range as any)}
-                          numberOfMonths={2}
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between mt-4 pt-4 border-t">
-                  <div className="text-sm text-gray-500" role="status">
-                    {memoizedSortedData.length} reports found, showing page {filters.currentPage} of {Math.ceil(memoizedSortedData.length / 10)}
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={resetFilters}
-                      className="text-xs mr-2"
-                      aria-label="Reset all filters"
-                    >
-                      <FilterX className="h-3 w-3 mr-1" aria-hidden="true" />
-                      Reset Filters
-                    </Button>
-
-                    <label id="sort-select-label" className="text-sm font-medium mr-2">
-                      Sort by:
-                    </label>
-                    <Select
-                      value={filters.sortField}
-                      onValueChange={setSortField}
-                      aria-labelledby="sort-select-label"
-                    >
-                      <SelectTrigger className="w-[150px]">
-                        <SelectValue placeholder="Sort by Date" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(sortOptions).map(([key, label]) => (
-                          <SelectItem key={key} value={key}>
-                            {label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={toggleSortDirection}
-                      aria-label={`Sort ${filters.sortDirection === "asc" ? "ascending" : "descending"}`}
-                    >
-                      {filters.sortDirection === "asc" ? (
-                        <SortAsc className="h-4 w-4" aria-hidden="true" />
-                      ) : (
-                        <SortDesc className="h-4 w-4" aria-hidden="true" />
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {error && (
+            {/* Enhanced Error Display */}
+            {(error || stableState.criticalError) && (
               <Alert variant="destructive" role="alert">
                 <AlertCircle className="h-4 w-4" aria-hidden="true" />
                 <AlertTitle>Error</AlertTitle>
-                <AlertDescription>{error}</AlertDescription>
+                <AlertDescription>
+                  {error || stableState.criticalError}
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={handleRefresh}
+                    className="ml-2"
+                  >
+                    Retry
+                  </Button>
+                </AlertDescription>
               </Alert>
             )}
 
+            {/* Enhanced Filters */}
+            <MobileApprovalFilters
+              filters={filters}
+              onFilterChange={handleFilterChange}
+              onResetFilters={resetFilters}
+              onToggleSortDirection={toggleSortDirection}
+              onSetSortField={setSortField}
+              branches={branches}
+              resultsCount={memoizedSortedData.length}
+              currentPage={filters.currentPage}
+              totalPages={Math.ceil(memoizedSortedData.length / 10)}
+            />
+
+            {/* Enhanced Content Display */}
             {loading ? (
               <LoadingSpinner />
             ) : memoizedPaginatedData.length === 0 ? (
@@ -830,8 +763,18 @@ export default function ApprovalsPage() {
                   <div className="py-8 text-gray-500" role="status">
                     <p className="text-lg font-medium mb-2">No Reports Found</p>
                     <p className="text-sm">
-                      There are no reports that match your filters.
+                      {error ? 'Please try refreshing the page.' : 'There are no reports that match your filters.'}
                     </p>
+                    {error && (
+                      <Button 
+                        variant="outline" 
+                        onClick={handleRefresh}
+                        className="mt-4"
+                        disabled={stableState.isRefreshing}
+                      >
+                        Try Again
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -841,7 +784,7 @@ export default function ApprovalsPage() {
                   <div className="space-y-4">
                     {memoizedPaginatedData.map((report) => (
                       <PendingReport
-                        key={report.id}
+                        key={`${report.id}-${report.updatedAt}`} // Enhanced key for better updates
                         report={processReport(report)}
                         branchName={report.branch?.name || "Unknown Branch"}
                         branchCode={report.branch?.code || ''}
@@ -869,7 +812,7 @@ export default function ApprovalsPage() {
             )}
           </div>
 
-          {/* Add hidden printable content */}
+          {/* Enhanced Printable Content */}
           <div className="absolute -left-[9999px] -top-[9999px] h-0 w-0 overflow-hidden">
             <PrintableReport
               ref={printRef}
@@ -879,6 +822,7 @@ export default function ApprovalsPage() {
             />
           </div>
 
+          {/* Enhanced Progress Indicator */}
           <ProgressIndicator
             isOpen={isExporting}
             progress={exportProgress}
